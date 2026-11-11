@@ -135,6 +135,12 @@ public final class KindredSpiritClient implements ClientModInitializer {
     }
 
     private long speakingGrace;
+    private volatile int currentLine;
+
+    private float volume(Minecraft mc) {
+        return cfg.voiceVolume * mc.options.getSoundSourceVolume(SoundSource.MASTER)
+                * mc.options.getSoundSourceVolume(SoundSource.VOICE);
+    }
 
     // ------------------------------------------------------------------ game tick (20 per second)
 
@@ -227,26 +233,39 @@ public final class KindredSpiritClient implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         switch (type) {
             case "say" -> {
+                // a new line: replaces whatever it was saying
                 String text = str(msg, "text");
                 Mood mood = Mood.parse(str(msg, "mood"), companion.mood);
                 String b64 = str(msg, "audio");
-                double seconds = 0;
-                if (!b64.isEmpty()) {
-                    // decoded here, off the game thread, then played on the audio thread
-                    float vol = cfg.voiceVolume * mc.options.getSoundSourceVolume(SoundSource.MASTER)
-                            * mc.options.getSoundSourceVolume(SoundSource.VOICE);
-                    seconds = voice.play(Base64.getDecoder().decode(b64), vol);
-                }
-                double secs = seconds;
+                boolean more = msg.has("more") && msg.get("more").getAsBoolean();
+                currentLine = msg.has("line") ? msg.get("line").getAsInt() : currentLine + 1;
+                // decoded here, off the game thread, then played on the audio thread
+                double secs = b64.isEmpty() ? 0 : voice.play(Base64.getDecoder().decode(b64), volume(mc));
+                if (b64.isEmpty()) voice.stop();
                 mc.execute(() -> {
+                    long now = System.currentTimeMillis();
                     companion.mood = mood;
-                    companion.say(text, secs, System.currentTimeMillis());
-                    companion.activity = secs > 0 ? Companion.Activity.SPEAKING : Companion.Activity.IDLE;
-                    speakingGrace = System.currentTimeMillis() + 600; // audio thread needs a moment to start
+                    companion.say(text, secs, now);
+                    boolean talking = secs > 0 || more;
+                    companion.activity = talking ? Companion.Activity.SPEAKING : Companion.Activity.IDLE;
+                    // the audio thread needs a moment to start; the next sentence may still be on its way
+                    speakingGrace = now + (more ? 4000 : 600);
                     caption = text;
                     captionUntil = companion.subtitleUntil;
                     logChat(Component.literal(displayName + ": ").withStyle(ChatFormatting.AQUA)
                             .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
+                });
+            }
+            case "audio" -> {
+                // the next sentence of the current line
+                if (!msg.has("line") || msg.get("line").getAsInt() != currentLine) return;
+                double secs = voice.enqueue(Base64.getDecoder().decode(str(msg, "audio")), volume(mc));
+                mc.execute(() -> {
+                    long now = System.currentTimeMillis();
+                    companion.extend(secs, now);
+                    companion.activity = Companion.Activity.SPEAKING;
+                    speakingGrace = now + 600;
+                    captionUntil = companion.subtitleUntil;
                 });
             }
             case "heard" -> mc.execute(() -> {

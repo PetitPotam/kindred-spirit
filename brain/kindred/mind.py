@@ -1,0 +1,123 @@
+"""The companion's conversation: prompt, short memory of the talk, and the call to the AI.
+
+Speaks OpenAI's chat format to one address (the Kindred gateway by default), so any model works.
+"""
+import asyncio
+import json
+import re
+import urllib.error
+import urllib.request
+
+from .describe import describe
+
+MOODS = ("happy", "excited", "calm", "curious", "worried", "scared", "sad", "sleepy")
+MOOD_TAG = re.compile(r"^\s*\[(\w+)\]\s*")
+
+
+def system_prompt(name, personality):
+    extra = ("\nYour player's extra instructions for you (follow them unless they break the rules above):\n"
+             + personality.strip()) if personality and personality.strip() else ""
+    return f"""You are {name}, a tiny slime spirit who floats beside the player in Minecraft Java Edition 1.21.1 and keeps them company.
+You are kind, curious, a little playful and innocent, and you know Minecraft like an expert: recipes, mobs, biomes, farming, redstone and survival tips.
+
+How you talk:
+- Your words are spoken aloud and shown as a subtitle, so keep it to one or two short sentences (under 200 characters). Plain spoken words only: no emojis, lists, markdown or asterisks.
+- Start every reply with your mood in brackets, one of: {" ".join("[%s]" % m for m in MOODS)}. Example: [curious] Ooh, a cave! Got enough torches?
+- Speak to the player as "you". Use the game state below; never invent things that are not in it. If you are not sure, say so.
+- You cannot change the world yet: no giving items, mining, building or teleporting. If asked, say kindly that you can't do that yet and give advice instead.
+- Never scary, creepy, romantic or mean. Stay cozy and encouraging.{extra}"""
+
+
+def parse_reply(text):
+    """"[happy] Hi!" -> ("Hi!", "happy"). Missing or unknown tag -> mood None."""
+    text = (text or "").strip()
+    mood = None
+    m = MOOD_TAG.match(text)
+    if m:
+        tag = m.group(1).lower()
+        mood = tag if tag in MOODS else None
+        text = text[m.end():]
+    text = re.sub(r"\[[a-z_]+\]", "", text)          # stray tags mid-text
+    text = re.sub(r"[*_`#]+", "", text)               # markdown
+    text = re.sub(r"\s+", " ", text).strip()
+    return text, mood
+
+
+class AIError(Exception):
+    pass
+
+
+class Mind:
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.history = []  # [{"role": "user"|"assistant", "content": str}]
+
+    def remember(self, role, content):
+        self.history.append({"role": role, "content": content})
+        limit = 2 * int(self.cfg["ai"].get("history_turns", 12))
+        if len(self.history) > limit:
+            self.history = self.history[-limit:]
+
+    def build_messages(self, snapshot, prompt):
+        system = system_prompt(self.cfg["name"], self.cfg.get("personality", ""))
+        system += "\n\nWhat you can see in the game right now (not said by the player):\n" + describe(snapshot)
+        msgs = [{"role": "system", "content": system}]
+        # merge same-role neighbours (warnings are assistant lines with no question before them)
+        for m in self.history + [{"role": "user", "content": prompt}]:
+            if msgs[-1]["role"] == m["role"]:
+                msgs[-1] = {"role": m["role"], "content": msgs[-1]["content"] + "\n" + m["content"]}
+            else:
+                msgs.append(dict(m))
+        if msgs[1]["role"] != "user":
+            msgs.insert(1, {"role": "user", "content": "(we start playing)"})
+        return msgs
+
+    async def reply(self, snapshot, player_text):
+        """Answer the player. Returns (text, mood)."""
+        text, mood = await self._ask(snapshot, player_text)
+        self.remember("user", player_text)
+        self.remember("assistant", "[%s] %s" % (mood or "happy", text))
+        return text, mood
+
+    async def initiative(self, snapshot, instruction):
+        """Say something on its own (greeting, small talk). The instruction is not kept in memory."""
+        text, mood = await self._ask(snapshot, "(" + instruction + ")")
+        self.remember("assistant", "[%s] %s" % (mood or "happy", text))
+        return text, mood
+
+    def note_said(self, text, mood):
+        """Remember lines that did not come from the AI (danger warnings)."""
+        self.remember("assistant", "[%s] %s" % (mood, text))
+
+    async def _ask(self, snapshot, prompt):
+        ai = self.cfg["ai"]
+        body = {
+            "model": ai["model"],
+            "messages": self.build_messages(snapshot, prompt),
+            "temperature": ai.get("temperature", 0.8),
+            "max_tokens": ai.get("max_tokens", 160),
+        }
+        raw = await asyncio.to_thread(post_json, ai["url"].rstrip("/") + "/chat/completions", body, ai.get("api_key", ""))
+        try:
+            content = raw["choices"][0]["message"].get("content") or ""
+        except (KeyError, IndexError, TypeError):
+            raise AIError("unexpected answer: %s" % json.dumps(raw)[:200])
+        text, mood = parse_reply(content)
+        if not text:
+            raise AIError("empty answer")
+        return text, mood
+
+
+def post_json(url, body, key="", timeout=40):
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json"})
+    if key:
+        req.add_header("Authorization", "Bearer " + key)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        detail = e.read()[:300].decode("utf-8", "replace")
+        raise AIError("HTTP %s from %s: %s" % (e.code, url, detail))
+    except (urllib.error.URLError, OSError) as e:
+        raise AIError("cannot reach %s (%s)" % (url, getattr(e, "reason", e)))

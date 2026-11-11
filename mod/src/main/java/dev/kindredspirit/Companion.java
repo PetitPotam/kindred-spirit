@@ -41,6 +41,11 @@ public final class Companion {
         subtitleUntil = now + Math.max(readMs, audioMs);
     }
 
+    /** More voice arrived for the same line: keep the subtitle up while it plays. */
+    public void extend(double audioSeconds, long now) {
+        subtitleUntil = Math.max(subtitleUntil, now + (long) (audioSeconds * 1000) + 1500);
+    }
+
     public boolean showSubtitle(long now) {
         return !subtitle.isEmpty() && now < subtitleUntil;
     }
