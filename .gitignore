@@ -1,0 +1,25 @@
+# Gradle / Loom (mod)
+mod/.gradle/
+mod/build/
+mod/run/
+mod/out/
+mod/bin/
+mod/.idea/
+*.iml
+
+# Python (brain)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Local secrets and per-user state: never commit keys or tokens
+.env
+*.local.json
+*.local.toml
+token
+
+# OS / editors
+.DS_Store
+.vscode/
