@@ -8,10 +8,16 @@ def cfg():
 
 
 def test_mood_tag_is_split_off():
-    assert parse_reply("[curious] Ooh, a cave!") == ("Ooh, a cave!", "curious")
-    assert parse_reply("No tag here.") == ("No tag here.", None)
-    assert parse_reply("[grumpy] Hmph.") == ("Hmph.", None)
-    assert parse_reply("[happy] **Yay** [excited] twice") == ("Yay twice", "happy")
+    assert parse_reply("[curious] Ooh, a cave!") == ("Ooh, a cave!", "curious", None)
+    assert parse_reply("No tag here.") == ("No tag here.", None, None)
+    assert parse_reply("[grumpy] Hmph.") == ("Hmph.", None, None)
+    assert parse_reply("[happy] **Yay** [excited] twice") == ("Yay twice", "happy", None)
+
+
+def test_gesture_tag_is_split_off():
+    assert parse_reply("[excited] {hop} Diamonds!") == ("Diamonds!", "excited", "hop")
+    assert parse_reply("[happy] {moonwalk} Hi") == ("Hi", "happy", None)
+    assert parse_reply("[happy] Hi {spin} there") == ("Hi there", "happy", None)
 
 
 def test_prompt_has_name_rules_and_personality():

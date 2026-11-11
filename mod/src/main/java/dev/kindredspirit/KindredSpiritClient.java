@@ -6,7 +6,10 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.kindredspirit.audio.VoicePlayer;
 import dev.kindredspirit.audio.VoiceRecorder;
+import dev.kindredspirit.life.Behavior;
+import dev.kindredspirit.life.Emote;
 import dev.kindredspirit.render.CompanionRenderer;
+import dev.kindredspirit.skin.SkinRegistry;
 import dev.kindredspirit.util.Mood;
 import dev.kindredspirit.util.Quality;
 import dev.kindredspirit.util.TokenFile;
@@ -19,6 +22,13 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.KeyMapping;
@@ -47,7 +57,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private KindredConfig cfg;
     private Quality quality;
     private BrainLink link;
-    private final Companion companion = new Companion();
+    private Companion companion;
+    private final SkinRegistry skins = new SkinRegistry();
     private final CompanionRenderer renderer = new CompanionRenderer();
     private final VoiceRecorder recorder = new VoiceRecorder();
     private final VoicePlayer voice = new VoicePlayer();
@@ -69,12 +80,29 @@ public final class KindredSpiritClient implements ClientModInitializer {
         return instance;
     }
 
+    public Companion companion() {
+        return companion;
+    }
+
     @Override
     public void onInitializeClient() {
         instance = this;
         cfg = KindredConfig.load();
         displayName = cfg.name;
         quality = new Quality(cfg.quality);
+        companion = new Companion(cfg);
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+            @Override
+            public ResourceLocation getFabricId() {
+                return ResourceLocation.fromNamespaceAndPath("kindredspirit", "skins");
+            }
+
+            @Override
+            public void onResourceManagerReload(ResourceManager manager) {
+                skins.reload(manager);
+                companion.skin = skins.get(cfg.skin);
+            }
+        });
         String token;
         try {
             token = TokenFile.readOrCreate(cfg.tokenFile.isBlank() ? TokenFile.defaultPath() : Path.of(cfg.tokenFile));
@@ -92,12 +120,12 @@ public final class KindredSpiritClient implements ClientModInitializer {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.player.isSpectator()) return;
             float partial = ctx.tickCounter().getGameTimeDeltaPartialTick(false);
-            if (companion.activity == Companion.Activity.SPEAKING && !voice.isPlaying()
+            if (companion.activity == Behavior.Activity.SPEAKING && !voice.isPlaying()
                     && System.currentTimeMillis() > speakingGrace) {
-                companion.activity = Companion.Activity.IDLE;
+                companion.activity = Behavior.Activity.IDLE;
             }
-            companion.update(mc.player, partial, cfg, voice.level());
-            renderer.render(ctx, companion, cfg, quality.level(), System.currentTimeMillis());
+            companion.frame(mc.player, partial, voice.level());
+            renderer.render(ctx, companion, skins.texture(companion.skin), cfg, quality.level(), System.currentTimeMillis());
         });
         HudRenderCallback.EVENT.register((g, delta) -> hud(g));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> {
@@ -109,10 +137,60 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     }))
                     .then(ClientCommandManager.literal("status").executes(c -> {
                         c.getSource().sendFeedback(Component.literal("Brain: " + (link.connected() ? "connected" : "not connected")
+                                + " | skin: " + companion.skin.id() + " | mode: " + companion.life.mode.name().toLowerCase()
                                 + " | quality: " + quality.level().name().toLowerCase() + (quality.isAuto() ? " (auto)" : "")
                                 + " | mood: " + companion.mood.name().toLowerCase()));
                         return 1;
                     }))
+                    .then(ClientCommandManager.literal("skin")
+                            .executes(c -> {
+                                c.getSource().sendFeedback(Component.literal("Skin: " + companion.skin.name()
+                                        + " (" + companion.skin.id() + "). Others: " + String.join(", ", skins.ids())));
+                                return 1;
+                            })
+                            .then(ClientCommandManager.argument("id", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(skins.ids(), b))
+                                    .executes(c -> {
+                                        String id = StringArgumentType.getString(c, "id");
+                                        if (!skins.has(id)) {
+                                            c.getSource().sendError(Component.literal("No skin called " + id + ". Try: " + String.join(", ", skins.ids())));
+                                            return 0;
+                                        }
+                                        setSkin(id);
+                                        c.getSource().sendFeedback(Component.literal("Now wearing " + companion.skin.name()));
+                                        return 1;
+                                    })))
+                    .then(ClientCommandManager.literal("skins")
+                            .executes(c -> {
+                                c.getSource().sendFeedback(Component.literal("Skins: " + String.join(", ", skins.ids())
+                                        + ". Add your own in " + SkinRegistry.userDir()));
+                                return 1;
+                            })
+                            .then(ClientCommandManager.literal("reload").executes(c -> {
+                                Minecraft.getInstance().execute(() -> {
+                                    skins.reload(Minecraft.getInstance().getResourceManager());
+                                    companion.skin = skins.get(cfg.skin);
+                                });
+                                c.getSource().sendFeedback(Component.literal("Skins reloaded"));
+                                return 1;
+                            })))
+                    .then(ClientCommandManager.literal("emote")
+                            .then(ClientCommandManager.argument("name", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                            java.util.Arrays.stream(Emote.values()).map(e -> e.name().toLowerCase()), b))
+                                    .executes(c -> act("emote", StringArgumentType.getString(c, "name")))))
+                    .then(ClientCommandManager.literal("mode")
+                            .then(ClientCommandManager.argument("mode", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"follow", "stay", "come"}, b))
+                                    .executes(c -> act("move", StringArgumentType.getString(c, "mode")))))
+                    .then(ClientCommandManager.literal("side")
+                            .then(ClientCommandManager.argument("side", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"right", "left", "above", "auto"}, b))
+                                    .executes(c -> act("side", StringArgumentType.getString(c, "side")))))
+                    .then(ClientCommandManager.literal("look")
+                            .then(ClientCommandManager.argument("at", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"me", "there", "ahead", "up", "down", "around"}, b))
+                                    .executes(c -> act("look", StringArgumentType.getString(c, "at")))))
                     .then(ClientCommandManager.argument("message", StringArgumentType.greedyString()).executes(c -> {
                         talk(StringArgumentType.getString(c, "message"));
                         return 1;
@@ -154,24 +232,25 @@ public final class KindredSpiritClient implements ClientModInitializer {
             quality.update(mc.getFps(), mc.options.graphicsMode().get() == GraphicsStatus.FAST);
         }
         if (mc.player == null || mc.level == null) return;
+        if (companion.tick(mc)) event("petted");
 
         // push-to-talk: hold the key, speak, release
         boolean held = talkKey.isDown() && mc.screen == null;
-        if (held && !recorder.isRecording() && companion.activity != Companion.Activity.LISTENING) {
+        if (held && !recorder.isRecording() && companion.activity != Behavior.Activity.LISTENING) {
             if (!link.connected()) {
                 notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
             } else {
                 voice.stop();
-                companion.activity = Companion.Activity.LISTENING;
+                companion.activity = Behavior.Activity.LISTENING;
                 recorder.start(cfg.maxRecordSeconds, this::onRecorded);
             }
-        } else if (!held && companion.activity == Companion.Activity.LISTENING) {
+        } else if (!held && companion.activity == Behavior.Activity.LISTENING) {
             recorder.stop();
-            companion.activity = Companion.Activity.THINKING;
+            companion.activity = Behavior.Activity.THINKING;
             speakingGrace = now + 15000; // give up "thinking" if nothing comes back
         }
-        if (companion.activity == Companion.Activity.THINKING && now > speakingGrace) {
-            companion.activity = Companion.Activity.IDLE;
+        if (companion.activity == Behavior.Activity.THINKING && now > speakingGrace) {
+            companion.activity = Behavior.Activity.IDLE;
         }
 
         if (!link.connected()) return;
@@ -211,7 +290,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         link.send(o);
         logChat(Component.literal("You → " + displayName + ": ").withStyle(ChatFormatting.GRAY)
                 .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
-        companion.activity = Companion.Activity.THINKING;
+        companion.activity = Behavior.Activity.THINKING;
         speakingGrace = System.currentTimeMillis() + 15000;
     }
 
@@ -246,8 +325,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     long now = System.currentTimeMillis();
                     companion.mood = mood;
                     companion.say(text, secs, now);
+                    Emote gesture = Emote.parse(str(msg, "emote"));
+                    if (gesture != null) companion.life.play(gesture, companion.now());
                     boolean talking = secs > 0 || more;
-                    companion.activity = talking ? Companion.Activity.SPEAKING : Companion.Activity.IDLE;
+                    companion.activity = talking ? Behavior.Activity.SPEAKING : Behavior.Activity.IDLE;
                     // the audio thread needs a moment to start; the next sentence may still be on its way
                     speakingGrace = now + (more ? 4000 : 600);
                     caption = text;
@@ -263,7 +344,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 mc.execute(() -> {
                     long now = System.currentTimeMillis();
                     companion.extend(secs, now);
-                    companion.activity = Companion.Activity.SPEAKING;
+                    companion.activity = Behavior.Activity.SPEAKING;
                     speakingGrace = now + 600;
                     captionUntil = companion.subtitleUntil;
                 });
@@ -276,13 +357,14 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 }
             });
             case "mood" -> mc.execute(() -> companion.mood = Mood.parse(str(msg, "mood"), companion.mood));
+            case "act" -> mc.execute(() -> applyAct(msg));
             case "state" -> mc.execute(() -> {
                 String s = str(msg, "state");
                 if (s.equals("thinking")) {
-                    companion.activity = Companion.Activity.THINKING;
+                    companion.activity = Behavior.Activity.THINKING;
                     speakingGrace = System.currentTimeMillis() + 15000;
-                } else if (s.equals("idle") && companion.activity == Companion.Activity.THINKING) {
-                    companion.activity = Companion.Activity.IDLE;
+                } else if (s.equals("idle") && companion.activity == Behavior.Activity.THINKING) {
+                    companion.activity = Behavior.Activity.IDLE;
                 }
             });
             case "notice" -> mc.execute(() -> notice(str(msg, "text"), 6000));
@@ -313,7 +395,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private void onBrainClose() {
         Minecraft.getInstance().execute(() -> {
             companion.mood = Mood.OFFLINE;
-            if (companion.activity != Companion.Activity.SPEAKING) companion.activity = Companion.Activity.IDLE;
+            if (companion.activity != Behavior.Activity.SPEAKING) companion.activity = Behavior.Activity.IDLE;
         });
     }
 
@@ -322,6 +404,60 @@ public final class KindredSpiritClient implements ClientModInitializer {
         o.addProperty("type", "event");
         o.addProperty("event", name);
         link.send(o);
+    }
+
+    // ------------------------------------------------------------------ moving and posing it
+
+    /** A command typed in game: same effect as the brain's "act" message. */
+    private int act(String key, String value) {
+        JsonObject o = new JsonObject();
+        o.addProperty(key, value);
+        applyAct(o);
+        return 1;
+    }
+
+    /**
+     * Moves or poses the companion: {"move": "stay|follow|come", "side": "left|right|above|auto",
+     * "look": "me|there|ahead|up|down|around", "emote": "spin|nod|...", "seconds": 3}.
+     * Sent by the brain (when you say "stay here", "look at me", "do a spin") or by /kindred commands.
+     * Everything eases in: it is a request to a living thing, not a teleport.
+     */
+    public void applyAct(JsonObject msg) {
+        Minecraft mc = Minecraft.getInstance();
+        Behavior life = companion.life;
+        double now = companion.now();
+        double seconds = msg.has("seconds") ? msg.get("seconds").getAsDouble() : 4;
+        switch (str(msg, "move")) {
+            case "stay" -> life.setMode(Behavior.Mode.STAY, now);
+            case "follow" -> life.setMode(Behavior.Mode.FOLLOW, now);
+            case "come" -> life.setMode(Behavior.Mode.COME, now);
+            default -> { }
+        }
+        switch (str(msg, "side")) {
+            case "left" -> life.setSide(Behavior.Side.LEFT);
+            case "right" -> life.setSide(Behavior.Side.RIGHT);
+            case "above" -> life.setSide(Behavior.Side.ABOVE);
+            case "auto" -> life.setSide(null);
+            default -> { }
+        }
+        Vec3 view = mc.player != null ? mc.player.getViewVector(1f) : new Vec3(0, 0, 1);
+        switch (str(msg, "look")) {
+            case "me" -> life.lookAt(Behavior.GazeKind.PLAYER, 0, 0, 0, seconds, now);
+            case "there" -> life.lookAt(Behavior.GazeKind.SHARED, 0, 0, 0, seconds, now);
+            case "ahead" -> life.lookAt(Behavior.GazeKind.DIRECTION, view.x, 0, view.z, seconds, now);
+            case "up" -> life.lookAt(Behavior.GazeKind.DIRECTION, view.x * 0.3, 1, view.z * 0.3, seconds, now);
+            case "down" -> life.lookAt(Behavior.GazeKind.DIRECTION, view.x * 0.3, -1, view.z * 0.3, seconds, now);
+            case "around" -> life.lookAt(Behavior.GazeKind.DIRECTION, -view.z, 0.1, view.x, seconds, now);
+            default -> { }
+        }
+        Emote e = Emote.parse(str(msg, "emote"));
+        if (e != null) life.play(e, now);
+    }
+
+    private void setSkin(String id) {
+        cfg.skin = id;
+        cfg.save();
+        companion.skin = skins.get(id);
     }
 
     // ------------------------------------------------------------------ HUD
@@ -341,7 +477,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (mc.options.hideGui || mc.player == null) return;
         long now = System.currentTimeMillis();
         int w = g.guiWidth(), h = g.guiHeight();
-        if (companion.activity == Companion.Activity.LISTENING) {
+        if (companion.activity == Behavior.Activity.LISTENING) {
             String s = "● Listening... release " + talkKey.getTranslatedKeyMessage().getString() + " to send";
             int x = (w - mc.font.width(s)) / 2;
             g.fill(x - 4, h - 80, x + mc.font.width(s) + 4, h - 68, 0x80000000);

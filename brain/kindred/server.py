@@ -1,9 +1,14 @@
 """The brain's WebSocket server: the mod connects here, sends what it sees, and gets lines to say.
 
 Messages (JSON, one per WebSocket frame):
-  mod -> brain   hello, snapshot, event {join|leave}, chat {text}, voice {wav: base64, peak}
-  brain -> mod   welcome {name, mood}, say {line, text, mood, audio: base64 WAV or "", more},
-                 audio {line, audio}, heard {text}, mood {mood}, state {thinking|idle}, notice {text}
+  mod -> brain   hello, snapshot, event {join|leave|petted}, chat {text}, voice {wav: base64, peak}
+  brain -> mod   welcome {name, mood}, say {line, text, mood, audio: base64 WAV or "", more, emote},
+                 audio {line, audio}, heard {text}, mood {mood}, state {thinking|idle}, notice {text},
+                 act {move: stay|follow|come, side: left|right|above|auto,
+                      look: me|there|ahead|up|down|around, emote: spin|nod|..., seconds}
+
+"act" moves or poses the companion right away when you ask ("stay here", "look at me",
+"do a spin"); see kindred/intents.py. The AI can also add a gesture to a reply ("emote").
 
 A line's voice is streamed sentence by sentence: "say" carries the whole subtitle and the first
 sentence's audio, then "audio" messages carry the rest, so the companion starts talking after one
@@ -19,12 +24,13 @@ import hmac
 import json
 import logging
 import os
+import random
 import re
 import time
 
 from websockets.asyncio.server import serve
 
-from . import config, voice
+from . import config, intents, voice
 from .alerts import Alerts, ambient_mood
 from .mind import AIError, Mind
 
@@ -61,6 +67,7 @@ class Brain:
         self.talk_lock = asyncio.Lock()
         self.greet_task = None
         self.line = 0
+        self.last_pet_reply = -1e9
 
     # ------------------------------------------------------------------ plumbing
 
@@ -125,6 +132,13 @@ class Brain:
         elif name == "leave":
             self.in_world = False
             self.snapshot = {}
+        elif name == "petted":
+            log.info("petted")
+            await self.set_mood("happy", hold=20)
+            # answer a pet now and then, not every time: it should feel like a reaction, not a script
+            if self.clock() - self.last_pet_reply > 60 and not self.talk_lock.locked():
+                self.last_pet_reply = self.clock()
+                asyncio.create_task(self.say(random.choice(intents.PET_LINES), "happy", instant=True))
 
     async def on_snapshot(self, s):
         self.snapshot = s
@@ -166,7 +180,7 @@ class Brain:
 
     # ------------------------------------------------------------------ talking
 
-    async def say(self, text, mood, instant=False):
+    async def say(self, text, mood, instant=False, emote=None):
         """Speak a line: subtitle plus voice streamed sentence by sentence.
 
         instant=True shows the subtitle right away and lets the voice follow (danger warnings)."""
@@ -183,8 +197,10 @@ class Brain:
                 first = ""
         if line != self.line:
             return  # a newer line (a warning) took over while we were synthesizing
-        await self.send({"type": "say", "line": line, "text": text, "mood": self.mood, "audio": first,
-                         "more": bool(chunks)})
+        msg = {"type": "say", "line": line, "text": text, "mood": self.mood, "audio": first, "more": bool(chunks)}
+        if emote:
+            msg["emote"] = emote
+        await self.send(msg)
         for chunk in chunks:
             audio = await self._voice(chunk)
             if audio is None or line != self.line:
@@ -203,17 +219,22 @@ class Brain:
         if not text:
             return
         self.last_talk = self.clock()
+        acts, done = intents.match(text)
+        for act in acts:  # the body reacts at once; the words follow
+            await self.send(dict(act, type="act"))
+        if acts:
+            log.info("acting on: %s", "; ".join(done))
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
             try:
-                reply, mood = await self.mind.reply(self.snapshot, text)
+                reply, mood, gesture = await self.mind.reply(self.snapshot, text, done)
             except AIError as e:
                 log.error("AI error: %s", e)
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
                 await self.say("Hmm, my thoughts are fuzzy right now. Can you check my AI connection?", "sad")
                 return
-            log.info("you: %s | %s: [%s] %s", text, self.cfg["name"], mood, reply)
-            await self.say(reply, mood or "happy")
+            log.info("you: %s | %s: [%s]%s %s", text, self.cfg["name"], mood, " {%s}" % gesture if gesture else "", reply)
+            await self.say(reply, mood or "happy", emote=gesture)
             self.last_talk = self.clock()
 
     async def on_voice(self, msg):
@@ -247,7 +268,7 @@ class Brain:
             return
         async with self.talk_lock:
             try:
-                text, mood = await self.mind.initiative(
+                text, mood, gesture = await self.mind.initiative(
                     self.snapshot, "The player just joined the world. Greet them warmly in one short sentence, "
                                    "maybe noticing one thing about where they are.")
             except AIError as e:
@@ -255,7 +276,7 @@ class Brain:
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
                 return
         self.last_talk = self.clock()
-        await self.say(text, mood or "happy")
+        await self.say(text, mood or "happy", emote=gesture)
 
     async def small_talk_loop(self, every=20.0):
         while True:
@@ -270,14 +291,14 @@ class Brain:
             self.last_talk = self.clock()
             async with self.talk_lock:
                 try:
-                    text, mood = await self.mind.initiative(
+                    text, mood, gesture = await self.mind.initiative(
                         self.snapshot, "You have been quiet for a while. Say one short, friendly thing about what "
                                        "the player is doing or where they are: a tip, a question, or something you "
                                        "would like to see together. Don't repeat yourself.")
                 except AIError as e:
                     log.error("AI error during small talk: %s", e)
                     continue
-            await self.say(text, mood or "happy")
+            await self.say(text, mood or "happy", emote=gesture)
 
 
 async def run(cfg, token):

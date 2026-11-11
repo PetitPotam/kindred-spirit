@@ -1,0 +1,8 @@
+{
+  "name": "Strawberry",
+  "shape": "ball",
+  "texture": "kindredspirit:textures/skins/strawberry.png",
+  "tint": "none",
+  "shell": false,
+  "cheeks": "#FFB3C1"
+}

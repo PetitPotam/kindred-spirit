@@ -161,3 +161,29 @@ def test_ai_down_gives_a_friendly_line_and_a_notice(stubs):
             say = await recv_until(ws, "say")
             assert say["mood"] == "sad"
     asyncio.run(with_brain(cfg, scenario))
+
+
+def test_asking_it_to_stay_moves_it_at_once_then_it_answers(stubs):
+    async def scenario(url):
+        async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
+            await ws.send(json.dumps(snap()))
+            await ws.send(json.dumps({"type": "chat", "text": "stay here and look at me"}))
+            first = json.loads(await asyncio.wait_for(ws.recv(), 5))
+            while first["type"] in ("mood",):
+                first = json.loads(await asyncio.wait_for(ws.recv(), 5))
+            assert first == {"type": "act", "move": "stay"}  # the body moves before any words
+            second = await recv_until(ws, "act")
+            assert second["look"] == "me"
+            await recv_until(ws, "say")
+    asyncio.run(with_brain(make_cfg(stubs.port), scenario))
+    assert "(You already did this: stay where you are; look at the player.)" in stubs.ai_requests[-1]["messages"][-1]["content"]
+
+
+def test_petting_makes_it_happy_and_it_answers_sometimes(stubs):
+    async def scenario(url):
+        async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
+            await ws.send(json.dumps({"type": "event", "event": "petted"}))
+            say = await recv_until(ws, "say")
+            assert say["mood"] == "happy" and say["text"]
+    asyncio.run(with_brain(make_cfg(stubs.port), scenario))
+    assert stubs.ai_requests == []  # a pet reaction is instant, no AI call

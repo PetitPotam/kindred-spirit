@@ -1,0 +1,263 @@
+package dev.kindredspirit.life;
+
+import dev.kindredspirit.util.Mood;
+import dev.kindredspirit.util.Smooth;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/** The companion's "life", simulated without the game: 20 decisions and 60 frames per second. */
+class BehaviorTest {
+    static final double TICK = 0.05, FRAME = 1 / 60.0;
+
+    /** Player standing at the origin, eyes at y=1.6, facing south (+Z). */
+    static Behavior.Senses player() {
+        Behavior.Senses s = new Behavior.Senses();
+        s.ey = 1.6;
+        s.lx = 0; s.ly = 0; s.lz = 1;
+        return s;
+    }
+
+    /** Runs the companion for some seconds; returns the largest single-frame jump in position. */
+    static double run(Behavior b, Behavior.Senses s, double seconds, Behavior.Activity act) {
+        double maxStep = 0;
+        double end = s.now + seconds;
+        while (s.now < end) {
+            b.tick(s, act, Mood.HAPPY, null);
+            for (int i = 0; i < 3; i++) {
+                double ox = b.x, oy = b.y, oz = b.z;
+                b.frame(s.ex, s.ey, s.ez, s.yawDeg, s.lx, s.ly, s.lz, s.now + i * FRAME, FRAME, act, Mood.HAPPY, 0, false);
+                if (s.now > 0.5) maxStep = Math.max(maxStep, Math.sqrt((b.x - ox) * (b.x - ox) + (b.y - oy) * (b.y - oy) + (b.z - oz) * (b.z - oz)));
+            }
+            s.now += TICK;
+        }
+        return maxStep;
+    }
+
+    static Behavior companion() {
+        return new Behavior(0.85, -0.3, 1.9, 0.2, 42);
+    }
+
+    /** Points the player's look straight at the companion. */
+    static void lookAtCompanion(Behavior.Senses s, Behavior b) {
+        double dx = b.x - s.ex, dy = b.y - s.ey, dz = b.z - s.ez, n = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        s.lx = dx / n; s.ly = dy / n; s.lz = dz / n;
+    }
+
+    @Test
+    void springEasesInWithoutOvershoot() {
+        double[] st = {0, 0};
+        double last = 0;
+        for (int i = 0; i < 120; i++) {
+            double v = Smooth.damp(st, 1, 0.3, FRAME, 100);
+            assertTrue(v >= last - 1e-12 && v <= 1 + 1e-9, "monotonic, never past the target");
+            last = v;
+        }
+        assertEquals(1, last, 0.01);
+    }
+
+    @Test
+    void anglesTurnTheShortWay() {
+        double[] st = {Math.toRadians(170), 0};
+        Smooth.dampAngle(st, Math.toRadians(-170), 0.2, FRAME, 50);
+        assertTrue(st[0] > Math.toRadians(170), "goes through 180, not back through 0");
+    }
+
+    @Test
+    void noiseIsSmoothAndBounded() {
+        double prev = Smooth.noise(0, 1);
+        for (double x = 0.01; x < 50; x += 0.01) {
+            double v = Smooth.noise(x, 1);
+            assertTrue(v >= -1 && v <= 1);
+            assertTrue(Math.abs(v - prev) < 0.05, "no jumps");
+            prev = v;
+        }
+    }
+
+    @Test
+    void floatsBesideYouAndNeverJumps() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        double maxStep = run(b, s, 4, Behavior.Activity.IDLE);
+        assertTrue(maxStep < 0.08, "moves at most a few cm per frame, was " + maxStep);
+        assertTrue(b.z > 1.2 && b.z < 2.6, "in front of you: " + b.z);
+        assertTrue(Math.abs(b.x) > 0.3, "off to one side, not in your face: " + b.x);
+        // you walk 3 blocks forward: it follows, smoothly
+        s.ez = 3;
+        maxStep = run(b, s, 3, Behavior.Activity.IDLE);
+        assertTrue(maxStep < 0.12, "glides after you, was " + maxStep);
+        assertTrue(b.z > 4.2, "caught up: " + b.z);
+    }
+
+    @Test
+    void neverParksInTheMiddleOfYourView() {
+        Behavior b = new Behavior(0, 0, 1.9, 0.2, 1); // asked to sit dead centre
+        for (double now = 0; now < 60; now += 0.37) { // whatever the wander noise is doing
+            double[] t = b.target(0, 1.6, 0, 0, 0, 0, 1, now);
+            double dx = t[0], dy = t[1] - 1.6, dz = t[2];
+            double angle = Math.toDegrees(Math.acos(dz / Math.sqrt(dx * dx + dy * dy + dz * dz)));
+            assertTrue(angle >= 13.9, "pushed out of the 14° cone: " + angle + " at " + now);
+        }
+    }
+
+    @Test
+    void youCanLookItInTheEyes_itHoldsStillInsteadOfSlidingAway() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        // turn your head toward it, like a player would with the mouse
+        double yaw = Math.toDegrees(Math.atan2(-b.x, b.z));
+        s.yawDeg = yaw;
+        lookAtCompanion(s, b);
+        for (int i = 0; i < 40; i++) { // two seconds of looking at it
+            lookAtCompanion(s, b);
+            run(b, s, TICK, Behavior.Activity.IDLE);
+        }
+        double dx = b.x - s.ex, dz = b.z - s.ez;
+        double off = Math.abs(Math.toDegrees(Math.atan2(-dx, dz)) - yaw);
+        assertTrue(off < 8, "still in front of you: " + off + "°");
+        assertEquals(Behavior.GazeKind.PLAYER, b.gaze());
+    }
+
+    @Test
+    void smallTurnsDontMoveItBigTurnsDo() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        double x0 = b.x, z0 = b.z;
+        s.yawDeg = 20; // a glance to the side
+        s.lx = -Math.sin(Math.toRadians(20)); s.lz = Math.cos(Math.toRadians(20));
+        run(b, s, 2, Behavior.Activity.IDLE);
+        assertTrue(Math.hypot(b.x - x0, b.z - z0) < 0.5, "stayed roughly where it was");
+        s.yawDeg = 90; // turned to face west
+        s.lx = -1; s.lz = 0;
+        run(b, s, 3, Behavior.Activity.IDLE);
+        assertTrue(b.x < -1.2, "came around to your new front: x=" + b.x);
+    }
+
+    @Test
+    void looksBackWhenYouLookAtIt_afterAHumanDelay() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        lookAtCompanion(s, b);
+        b.tick(s, Behavior.Activity.IDLE, Mood.HAPPY, null);
+        assertNotEquals(Behavior.GazeKind.PLAYER, b.gaze(), "not instant");
+        run(b, s, 0.8, Behavior.Activity.IDLE);
+        assertEquals(Behavior.GazeKind.PLAYER, b.gaze(), "eye contact within a moment");
+    }
+
+    @Test
+    void holdingItsGazeMakesItReact() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        b.emote = null;
+        for (int i = 0; i < 50 && b.emote == null; i++) {
+            lookAtCompanion(s, b);
+            run(b, s, TICK, Behavior.Activity.IDLE);
+        }
+        assertTrue(b.emote == Emote.HAPPY || b.emote == Emote.SHY, "got happy or shy: " + b.emote);
+    }
+
+    @Test
+    void sneakingWhileLookingAtItPetsIt() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        lookAtCompanion(s, b);
+        run(b, s, 0.2, Behavior.Activity.IDLE);
+        s.sneaking = true;
+        run(b, s, TICK, Behavior.Activity.IDLE);
+        assertTrue(b.petted);
+        assertEquals(Emote.WIGGLE, b.emote);
+    }
+
+    @Test
+    void watchesACreeperQuickly() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        s.threats.add(new double[]{0, 0, -5, 1});
+        run(b, s, 0.3, Behavior.Activity.IDLE);
+        assertEquals(Behavior.GazeKind.POINT, b.gaze());
+        run(b, s, 1.0, Behavior.Activity.IDLE);
+        assertTrue(Math.cos(b.headYaw) < -0.5, "head turned toward the creeper behind (yaw " + b.headYaw + ")");
+    }
+
+    @Test
+    void looksAtYouWhileTalking() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 2, Behavior.Activity.IDLE);
+        run(b, s, 1, Behavior.Activity.SPEAKING);
+        assertEquals(Behavior.GazeKind.PLAYER, b.gaze());
+    }
+
+    @Test
+    void wandersWhenYouStandStillThenDozesAndWakesSoftly() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 2, Behavior.Activity.IDLE);
+        double minX = 9, maxX = -9;
+        for (int i = 0; i < 40; i++) {
+            run(b, s, 1, Behavior.Activity.IDLE);
+            minX = Math.min(minX, b.x);
+            maxX = Math.max(maxX, b.x);
+        }
+        assertTrue(maxX - minX > 0.6, "explores around you: range " + (maxX - minX));
+        run(b, s, 60, Behavior.Activity.IDLE);
+        assertTrue(b.dozing(), "falls asleep after a long quiet time");
+        s.speed = 4;
+        run(b, s, TICK * 2, Behavior.Activity.IDLE);
+        assertFalse(b.dozing());
+        assertEquals(Emote.STARTLE, b.emote, "wakes with a little start");
+    }
+
+    @Test
+    void stayAndComeCommands() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        b.setMode(Behavior.Mode.STAY, s.now);
+        double sx = b.x, sz = b.z;
+        s.ez = 10;
+        run(b, s, 3, Behavior.Activity.IDLE);
+        assertEquals(sx, b.x, 0.2);
+        assertEquals(sz, b.z, 0.2);
+        b.setMode(Behavior.Mode.COME, s.now);
+        run(b, s, 2, Behavior.Activity.IDLE);
+        assertEquals(11.1, b.z, 0.35);
+        assertEquals(0, b.x, 0.35);
+        run(b, s, 6, Behavior.Activity.IDLE);
+        assertEquals(Behavior.Mode.FOLLOW, b.mode, "comes close for a moment, then back to following");
+    }
+
+    @Test
+    void floatsOverWalls() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 2, Behavior.Activity.IDLE);
+        Behavior.Solid wall = (x, y, z) -> z > 1.0 && y < 2.5;
+        for (int i = 0; i < 40; i++) {
+            b.tick(s, Behavior.Activity.IDLE, Mood.HAPPY, wall);
+            b.frame(s.ex, s.ey, s.ez, s.yawDeg, s.lx, s.ly, s.lz, s.now, TICK, Behavior.Activity.IDLE, Mood.HAPPY, 0, false);
+            s.now += TICK;
+        }
+        assertTrue(b.y >= 2.4, "rose above the wall: " + b.y);
+    }
+
+    @Test
+    void gesturesStartAndEndSoftly() {
+        for (Emote e : Emote.values()) {
+            if (e.seconds <= 0) continue;
+            Emote.Pose start = new Emote.Pose(), end = new Emote.Pose();
+            e.apply(0, start);
+            e.apply(e.seconds, end);
+            double spin = e == Emote.SPIN ? 2 * Math.PI : 0;
+            assertEquals(0, start.yaw + start.pitch + start.roll + start.lift + start.blush, 1e-6, e + " starts at rest");
+            assertEquals(spin, end.yaw, 1e-6, e + " ends at rest");
+            assertEquals(0, end.pitch + end.roll + end.lift + end.blush, 1e-3, e + " ends at rest");
+        }
+    }
+}

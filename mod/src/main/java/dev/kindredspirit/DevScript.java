@@ -1,6 +1,9 @@
 package dev.kindredspirit;
 
+import com.google.gson.JsonParser;
+import dev.kindredspirit.life.Behavior;
 import net.minecraft.client.CameraType;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
@@ -31,6 +34,11 @@ import java.util.Deque;
  *   chat TEXT           type TEXT to the companion, as with /kindred TEXT
  *   look YAW PITCH      turn the player
  *   camera first|back|front   switch the view (F5)
+ *   skin ID             wear this skin
+ *   emote NAME          play a gesture (nod, spin, hop, shy...)
+ *   act JSON            as if the brain sent {"move": "stay"} and the like
+ *   lookat companion    turn the player to look straight at the companion
+ *   sneak on|off        hold or release sneak (sneaking while looking at it pets it)
  *   screenshot NAME     save screenshots/NAME.png in the dev game folder
  *   quit                close the game
  * </pre>
@@ -101,6 +109,17 @@ public final class DevScript {
                 case "front" -> CameraType.THIRD_PERSON_FRONT;
                 default -> CameraType.FIRST_PERSON;
             });
+            case "skin" -> mc.player.connection.sendCommand("kindred skin " + arg.trim());
+            case "emote" -> KindredSpiritClient.get().applyAct(JsonParser.parseString("{\"emote\":\"" + arg.trim() + "\"}").getAsJsonObject());
+            case "act" -> KindredSpiritClient.get().applyAct(JsonParser.parseString(arg).getAsJsonObject());
+            case "lookat" -> {
+                Behavior life = KindredSpiritClient.get().companion().life;
+                Vec3 eye = mc.player.getEyePosition();
+                double dx = life.x - eye.x, dy = life.y - eye.y, dz = life.z - eye.z;
+                mc.player.setYRot((float) Math.toDegrees(Math.atan2(-dx, dz)));
+                mc.player.setXRot((float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz))));
+            }
+            case "sneak" -> mc.options.keyShift.setDown(arg.trim().equals("on"));
             case "screenshot" -> Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(),
                     msg -> KindredSpiritClient.LOG.info("dev script: {}", msg.getString()));
             case "quit" -> mc.stop();
