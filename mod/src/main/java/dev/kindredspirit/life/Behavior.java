@@ -163,13 +163,18 @@ public final class Behavior {
     // ================================================================== commands
 
     public void setMode(Mode m, double now) {
+        setMode(m, now, 6);
+    }
+
+    /** @param seconds how long "come" lasts before it goes back to following */
+    public void setMode(Mode m, double now, double seconds) {
         mode = m;
         if (m == Mode.STAY) {
             stayX = x;
             stayY = y;
             stayZ = z;
         } else if (m == Mode.COME) {
-            comeUntil = now + 6;
+            comeUntil = now + seconds;
         }
         wake(now);
     }

@@ -32,6 +32,11 @@ loom {
         client {
             // Sandbox test script (see DevScript.java): ./gradlew runClient -PdevScript=devscripts/smoke-test.txt
             if (project.hasProperty('devScript')) vmArg "-Dkindredspirit.devScript=${file(project.property('devScript'))}"
+            // window size for demo recordings, e.g. -PvideoSize=960x540 (1920x1080 on a Retina screen)
+            if (project.hasProperty('videoSize')) {
+                def wh = project.property('videoSize').toString().split('x')
+                programArgs '--width', wh[0], '--height', wh[1]
+            }
         }
     }
 }

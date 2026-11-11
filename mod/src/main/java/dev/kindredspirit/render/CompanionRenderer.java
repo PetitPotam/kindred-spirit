@@ -113,7 +113,7 @@ public final class CompanionRenderer {
         }
         pose.popPose();
 
-        if (cfg.worldSubtitles && !mc.options.hideGui) {
+        if (cfg.worldSubtitles && (!mc.options.hideGui || cfg.subtitlesWithHiddenHud)) {
             String text = c.activity == Behavior.Activity.LISTENING ? "♪ ..."
                     : c.activity == Behavior.Activity.THINKING ? dots(nowMs)
                     : c.showSubtitle(nowMs) ? c.subtitle

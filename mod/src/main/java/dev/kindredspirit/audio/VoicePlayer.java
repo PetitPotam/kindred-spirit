@@ -97,6 +97,7 @@ public final class VoicePlayer {
                 clip = c;
                 if (p.generation == generation) {
                     c.start();
+                    dev.kindredspirit.record.FrameRecorder.sound("pip", p.wav);
                     done.await(c.getMicrosecondLength() / 1000 + 1500, TimeUnit.MILLISECONDS);
                 }
                 clip = null;

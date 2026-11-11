@@ -116,6 +116,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 "key.kindredspirit.talk", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.kindredspirit"));
 
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        WorldRenderEvents.START.register(ctx -> {
+            if (devScript != null) devScript.frame(Minecraft.getInstance());
+        });
         WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.player.isSpectator()) return;
@@ -332,6 +335,17 @@ public final class KindredSpiritClient implements ClientModInitializer {
         speakingGrace = System.currentTimeMillis() + 15000;
     }
 
+    /** As if the player held the talk key and said this (used by the sandbox test script). */
+    public void sendVoice(byte[] wav) {
+        onRecorded(wav, 9000);
+        companion.activity = Behavior.Activity.THINKING;
+        speakingGrace = System.currentTimeMillis() + 15000;
+    }
+
+    public KindredConfig config() {
+        return cfg;
+    }
+
     private void onRecorded(byte[] wav, int peak) {
         JsonObject o = new JsonObject();
         o.addProperty("type", "voice");
@@ -363,6 +377,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     long now = System.currentTimeMillis();
                     companion.mood = mood;
                     companion.say(text, secs, now);
+                    dev.kindredspirit.record.FrameRecorder.line("pip", text);
                     Emote gesture = Emote.parse(str(msg, "emote"));
                     if (gesture != null && cfg.life.aiGestures) companion.life.play(gesture, companion.now());
                     boolean talking = secs > 0 || more;
@@ -468,7 +483,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         switch (str(msg, "move")) {
             case "stay" -> life.setMode(Behavior.Mode.STAY, now);
             case "follow" -> life.setMode(Behavior.Mode.FOLLOW, now);
-            case "come" -> life.setMode(Behavior.Mode.COME, now);
+            case "come" -> life.setMode(Behavior.Mode.COME, now, msg.has("seconds") ? seconds : 6);
             default -> { }
         }
         switch (str(msg, "side")) {
