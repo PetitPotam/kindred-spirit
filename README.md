@@ -49,10 +49,10 @@ from scratch for Fabric.
 | Subtitles | above the slime, optional captions and a log in your chat (only on your screen) |
 | It feels alive | looks where you look, looks back when you look at it, wanders around you when you stand still, dozes after a long quiet time, leans as it floats, blinks, its eyes move before its head |
 | You can direct it | say or type "stay here", "come here", "follow me", "look at me", "do a spin"; pet it by sneaking while looking at it |
-| Skins | a slime, a soft cube, a glowing wisp, a strawberry, a starry orb, or your own PNG ([how](docs/SKINS.md)) |
+| Skins | a slime, a soft cube, a fairy and a pixie with fluttering wings, a glowing wisp, a strawberry, a starry orb, or your own PNG ([how](docs/SKINS.md)) |
 
 Not yet: actions in the world (giving items, lighting, finding structures), memory, the settings
-screen, fairy and robot shapes. That's the [roadmap](docs/ROADMAP.md).
+screen, star and robot shapes. That's the [roadmap](docs/ROADMAP.md).
 
 ### It shouldn't feel like a robot
 

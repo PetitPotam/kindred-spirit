@@ -12,7 +12,7 @@ The rule for all of it: everything is a setting, so each player finds the compan
 |---|---|
 | Floating companion drawn only on your screen, cute, with personality (WANT) | **Done in 0.1**: no entity, nothing in the world; gaze, eye contact, petting, wandering, dozing, gestures |
 | Shapes: slime ball, slime cube (WANT) | **Done**: `slime`, `slime_cube` (plus `wisp`, `strawberry`, `starry`) |
-| Shape: fairy or pixie (WANT) | **Next** (Phase 3 below): a fairy body with wings that flutter |
+| Shape: fairy or pixie (WANT) | **Done**: `fairy` and `pixie` skins, two pairs of wings that flutter faster when it moves or is excited and fold when it dozes; any skin can have wings |
 | Custom skins like player skins (WANT) | **Done**: a PNG in `config/kindredspirit/skins`, optional JSON, resource packs ([SKINS.md](SKINS.md)) |
 | Mood colors and expressions (WANT) | **Done**: mood tints, happy eyes, blush, shy look-away, startle, mouth with the voice |
 | Floating subtitles above it (MAYBE, configurable) | **Done**: `worldSubtitles` in kindredspirit.json (on by default); HUD captions as an option |
@@ -49,7 +49,6 @@ Prove the brain idea before writing a mod.
 - Power modes (Advisor, All-powerful) and action style (Grounded radius, Magic).
 
 ## Phase 3: Its mind (and how you see it)
-- The fairy (or pixie) shape, with fluttering wings.
 - A companion screen with a rotating 3D preview: skin, size, name, personality.
 - A radial command wheel on one key (optional): stay, come, follow, look, gestures, skins.
 - Personality presets, custom instructions, profiles.
@@ -81,6 +80,6 @@ Prove the brain idea before writing a mod.
 
 ## Phase 8: Sharing
 - Installer and setup guide, including for your brothers.
-- More skins and shapes (little star, cube robot) and skin packs. (Ball, cube, wisp and custom PNG skins shipped in 0.1; the fairy comes in Phase 3.)
+- More skins and shapes (little star, cube robot) and skin packs. (Ball, cube, wisp, fairy and custom PNG skins shipped in 0.1.)
 - Servers: allowlist, server-safe behaviour, seed finder (cubiomes).
 - Publish on GitHub and Modrinth as **Kindred Spirit** (slug `kindred-spirit` is free as of 2026-11-11).

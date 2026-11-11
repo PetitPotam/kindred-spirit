@@ -103,6 +103,10 @@ public final class Behavior {
     public double pupilX, pupilY;              // -1..1 within the eye
     public double leanAngle, leanAxisX, leanAxisZ;
     public double lift, squish, blink, shiver;
+    /** How far the wings are swung back from fully spread (radians), for skins with wings. */
+    public double wingAngle = 0.55;
+    private final double[] wingBase = {0.55, 0}, wingAmp = {0.45, 0};
+    private double wingPhase;
     public final Emote.Pose pose = new Emote.Pose();
     public Mode mode = Mode.FOLLOW;
     public Side sidePreference;                // null = it picks
@@ -517,6 +521,16 @@ public final class Behavior {
             squish = 0.16 * mood.height * Math.pow(1 - arc, 6);
         }
         if (act == Activity.LISTENING) squish -= 0.05; // stretches up, all ears
+
+        // wings: flutter faster when it moves or is excited, slow when calm, folded when dozing
+        boolean asleep = emote == Emote.DOZE;
+        double beat = 2.4 * (1 + Smooth.clamp(sp / 3, 0, 1.5))
+                * (mood == Mood.EXCITED || mood == Mood.SCARED ? 1.4 : mood == Mood.CALM || mood == Mood.SLEEPY ? 0.7 : 1);
+        wingPhase += dt * beat * 2 * Math.PI;
+        Smooth.damp(wingBase, asleep ? 1.25 : 0.45, 0.6, dt, 3);
+        Smooth.damp(wingAmp, asleep ? 0.03 : 0.45, 0.6, dt, 3);
+        wingAngle = wingBase[0] + wingAmp[0] * Math.sin(wingPhase);
+        if (floaty && !asleep) lift += 0.012 * Math.sin(wingPhase); // rises a little on each beat
         shiver = mood == Mood.SCARED ? Math.sin(now * 55) * 0.012 : 0;
 
         if (now >= nextBlink) {

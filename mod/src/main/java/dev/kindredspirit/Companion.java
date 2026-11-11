@@ -137,7 +137,7 @@ public final class Companion {
         Vec3 eye = player.getEyePosition(partialTick);
         Vec3 look = player.getViewVector(partialTick);
         life.frame(eye.x, eye.y, eye.z, player.getViewYRot(partialTick), look.x, look.y, look.z,
-                now(), dt, activity, mood, voiceLevel, skin.shape() == Skin.Shape.WISP);
+                now(), dt, activity, mood, voiceLevel, skin.floaty());
         rgb = Mood.blend(rgb, mood.rgb, 1 - (float) Math.exp(-dt * 4.0));
         float targetMouth = activity == Behavior.Activity.SPEAKING ? Math.min(1f, voiceLevel * 1.4f) : 0f;
         mouth += (targetMouth - mouth) * (float) Math.min(1, dt * 18);

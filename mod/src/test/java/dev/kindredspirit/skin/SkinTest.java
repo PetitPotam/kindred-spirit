@@ -33,6 +33,18 @@ class SkinTest {
     }
 
     @Test
+    void fairiesHaveWingsAndFloat() {
+        Skin f = parse("{\"shape\": \"fairy\"}");
+        assertTrue(f.wings() && f.floaty() && f.glow());
+        assertTrue(f.size() < 1);
+        Skin winged = parse("{\"shape\": \"ball\", \"wings\": true, \"wingColor\": \"#FFD0E0\"}");
+        assertTrue(winged.wings(), "any shape can have wings");
+        assertFalse(winged.floaty(), "a winged slime still hops");
+        assertEquals(0xFFD0E0, winged.wingColor());
+        assertFalse(parse("{}").wings());
+    }
+
+    @Test
     void colorsAndBadValuesAreForgiving() {
         Skin s = parse("{\"shape\": \"CUBE\", \"tint\": \"#3366ff\", \"size\": 99, \"eyes\": \"oops\", \"cheeks\": \"none\"}");
         assertEquals(Skin.Shape.CUBE, s.shape());
@@ -52,7 +64,7 @@ class SkinTest {
 
     @Test
     void builtInSkinsAllParse() throws Exception {
-        for (String id : new String[]{"slime", "slime_cube", "wisp", "strawberry", "starry"}) {
+        for (String id : new String[]{"slime", "slime_cube", "wisp", "strawberry", "starry", "fairy", "pixie"}) {
             try (var in = getClass().getResourceAsStream("/assets/kindredspirit/skins/" + id + ".json")) {
                 assertNotNull(in, id + ".json is packaged");
                 Skin s = Skin.parse(id, JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject());
