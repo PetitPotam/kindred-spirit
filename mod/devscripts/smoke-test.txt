@@ -1,0 +1,35 @@
+# Sandbox smoke test: ./gradlew runClient -PdevScript=devscripts/smoke-test.txt
+# Needs the brain running (scripts/start.sh). Screenshots land in mod/run/screenshots/.
+world kindred-test
+wait 240
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd time set 1000
+cmd weather clear
+look 0 10
+wait 120
+screenshot ks-01-greeting
+chat Hi Pip! What do you see around me?
+wait 140
+screenshot ks-02-answer
+camera front
+wait 40
+screenshot ks-03-front-view
+camera first
+# a creeper (frozen, harmless) right behind you: yaw 0 faces +Z, so -Z is behind
+cmd summon minecraft:creeper ~ ~ ~-4 {NoAI:1b}
+wait 30
+screenshot ks-04-creeper-warning
+wait 100
+cmd kill @e[type=minecraft:creeper]
+wait 80
+cmd damage @s 15
+wait 30
+screenshot ks-05-low-health
+wait 100
+cmd effect give @s minecraft:instant_health 1 3
+cmd time set 14000
+wait 60
+screenshot ks-06-night
+wait 40
+quit

@@ -23,9 +23,11 @@ def test_messages_carry_game_state_and_merge_roles():
     m = Mind(cfg())
     m.note_said("Creeper behind you!", "scared")
     msgs = m.build_messages(snap(), "what's around me?")
-    assert msgs[0]["role"] == "system" and "biome plains" in msgs[0]["content"]
+    assert msgs[0]["role"] == "system" and "biome plains" not in msgs[0]["content"]
     assert [x["role"] for x in msgs] == ["system", "user", "assistant", "user"]
-    assert msgs[-1]["content"] == "what's around me?"
+    # the current game state travels with the newest message, so it wins over older lines
+    assert "biome plains" in msgs[-1]["content"] and msgs[-1]["content"].endswith("what's around me?")
+    assert "biome plains" not in msgs[2]["content"]
 
 
 def test_history_is_capped():

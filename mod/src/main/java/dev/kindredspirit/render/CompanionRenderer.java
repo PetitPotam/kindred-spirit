@@ -157,14 +157,24 @@ public final class CompanionRenderer {
         float scale = 0.0085f;
         pose.scale(scale, -scale, scale);
         Matrix4f mat = pose.last().pose();
-        int bg = (int) (Minecraft.getInstance().options.getBackgroundOpacity(0.35f) * 255f) << 24;
         int lineH = font.lineHeight + 1;
         float top = -lineH * wrapped.size();
+        int widest = 0;
+        for (FormattedCharSequence line : wrapped) widest = Math.max(widest, font.width(line));
+        // One background panel, then the letters pushed slightly toward the camera (as vanilla text
+        // displays do), so the two never fight over the same depth and letters never flicker away.
+        int bg = (int) (Minecraft.getInstance().options.getBackgroundOpacity(0.35f) * 255f) << 24;
+        VertexConsumer panel = buffers.getBuffer(RenderType.textBackground());
+        float x0 = -widest / 2f - 3, x1 = widest / 2f + 3, y0 = top - 2, y1 = 1;
+        panel.addVertex(mat, x0, y0, 0).setColor(bg).setLight(LightTexture.FULL_BRIGHT);
+        panel.addVertex(mat, x0, y1, 0).setColor(bg).setLight(LightTexture.FULL_BRIGHT);
+        panel.addVertex(mat, x1, y1, 0).setColor(bg).setLight(LightTexture.FULL_BRIGHT);
+        panel.addVertex(mat, x1, y0, 0).setColor(bg).setLight(LightTexture.FULL_BRIGHT);
         for (int i = 0; i < wrapped.size(); i++) {
             FormattedCharSequence line = wrapped.get(i);
             float lx = -font.width(line) / 2f;
             font.drawInBatch(line, lx, top + i * lineH, 0xFFFFFFFF, false, mat, buffers,
-                    Font.DisplayMode.NORMAL, bg, LightTexture.FULL_BRIGHT);
+                    Font.DisplayMode.POLYGON_OFFSET, 0, LightTexture.FULL_BRIGHT);
         }
         pose.popPose();
     }
