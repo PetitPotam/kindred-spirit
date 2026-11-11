@@ -5,11 +5,12 @@
 #   scripts/start.sh --background  everything in the background (logs in ~/.kindred-spirit/logs)
 #   scripts/stop.sh                stops what this script started
 #
-#   :8083 whisper-server   speech-to-text (local, Metal GPU on Apple silicon), tuned for
-#                          push-to-talk clips up to 15 s (-ac 768: about twice as fast)
-#   :8090 speech cleaner   drops silent clips, cleans the text            (services/speech_cleaner.py)
-#   :8885 kokoro           the companion's voice (local)                  (services/kokoro_server.py)
-#   :11437 gateway         the one AI address; Gemini by default          (services/kindred_gateway.py)
+#   :11437 gateway         the one address for AI, speech-to-text, voice, embeddings and memory
+#                          (services/kindred_gateway.py; what it uses: docs/GATEWAY.md)
+#   local tools the gateway may use (started only if gateway.json says so):
+#   :8083 whisper-server   speech-to-text (Metal GPU on Apple silicon), tuned for 15 s push-to-talk clips
+#   :8885 kokoro           the companion's voice                          (services/kokoro_server.py)
+#   :8891 embeddings       what memories mean, for recall                 (services/embed_server.py)
 #   :47811 brain           the mod connects here                          (brain/kindred)
 #
 # The helpers run at low CPU priority with thread counts picked for this computer
@@ -32,8 +33,13 @@ start() { # name pidfile-name command...
 }
 wait_up() { for _ in $(seq 1 40); do up "$1" && return 0; sleep 0.25; done; return 1; }
 
-# Speech-to-text: use the profile's model, or any model already downloaded.
-if up http://127.0.0.1:8083/; then echo "whisper: already running"
+# Which local tools does the gateway use? (docs/GATEWAY.md: each part can be local or a service)
+uses() { "$BPY" -c "import json,os,sys; p=os.path.expanduser('$KH/gateway.json'); s=json.load(open(p)) if os.path.exists(p) else {}; print(s.get(sys.argv[1],{}).get('use',sys.argv[2]))" "$1" "$2"; }
+STT_USE="$(uses stt local_whisper)"; TTS_USE="$(uses tts local_kokoro)"; EMB_USE="$(uses embeddings local)"
+
+# Speech-to-text, local Whisper: the profile's model, or any model already downloaded.
+if [[ "$STT_USE" != "local_whisper" ]]; then echo "whisper: not used (speech-to-text: $STT_USE)"
+elif up http://127.0.0.1:8083/; then echo "whisper: already running"
 elif command -v whisper-server >/dev/null; then
   M="$KH/whisper/$KINDRED_WHISPER_MODEL"
   [[ -s "$M" ]] || M="$(ls "$KH"/whisper/ggml-*.bin 2>/dev/null | grep -v silero | head -1)"
@@ -45,14 +51,19 @@ elif command -v whisper-server >/dev/null; then
   else echo "whisper: no model in $KH/whisper (run scripts/setup.sh); voice input off"; fi
 else echo "whisper: whisper-server not installed; voice input off (typing /kindred still works)"; fi
 
-if up http://127.0.0.1:8090/; then echo "speech cleaner: already running"
-else start speech-cleaner "$BPY" -I "$ROOT/services/speech_cleaner.py"; echo "speech cleaner: started"; fi
-
-if up http://127.0.0.1:8885/health; then echo "kokoro voice: already running"
+if [[ "$TTS_USE" != "local_kokoro" ]]; then echo "kokoro voice: not used (voice: $TTS_USE)"
+elif up http://127.0.0.1:8885/health; then echo "kokoro voice: already running"
 elif [[ -x "$KH/kokoro/venv/bin/python" && -s "$KH/kokoro/voices-v1.0.bin" ]]; then
   start kokoro "$KH/kokoro/venv/bin/python" -I "$ROOT/services/kokoro_server.py" --models "$KH/kokoro"
   echo "kokoro voice: starting ($KINDRED_TTS_THREADS threads)"
 else echo "kokoro voice: not set up (scripts/setup.sh); subtitles only"; fi
+
+if [[ "$EMB_USE" != "local" ]]; then echo "embeddings: not local (embeddings: $EMB_USE)"
+elif up http://127.0.0.1:8891/; then echo "embeddings: already running"
+elif [[ -x "$KH/embed/venv/bin/python" ]]; then
+  KINDRED_EMBED_THREADS=1 start embed "$KH/embed/venv/bin/python" -I "$ROOT/services/embed_server.py" --cache "$KH/embed/models"
+  echo "embeddings: starting (local, for memory)"
+else echo "embeddings: not set up (scripts/setup.sh); memory uses keyword search"; fi
 
 if up http://127.0.0.1:11437/health; then echo "gateway: already running"
 else start gateway "$BPY" -I "$ROOT/services/kindred_gateway.py" serve; echo "gateway: started"; fi

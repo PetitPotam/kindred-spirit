@@ -26,6 +26,7 @@ mod/        Fabric mod (Java 21 target, built with JDK 25, Mojang names). Thin: 
                                wandering, dozing (pure Java, unit-tested without the game)
     life/Emote.java            gestures: nod, spin, hop, shy... as eased curves over time
     skin/                      skins: JSON + PNG from the mod, resource packs, or config/kindredspirit/skins
+    act/                       what it may do (Abilities: power and style) and doing it (Actions)
     render/                    draws the companion from its skin and life (shapes built once, no model files)
     audio/                     push-to-talk recording and voice playback
     util/                      plain Java with unit tests (WAV, quality, directions, mesh...)
@@ -33,13 +34,16 @@ mod/        Fabric mod (Java 21 target, built with JDK 25, Mojang names). Thin: 
   devscripts/                  test scripts for ./gradlew runClient
 brain/      Python 3.11+ "brain"
   kindred/server.py            WebSocket server and the conversation flow
-  kindred/mind.py              prompt, short memory, AI calls
+  kindred/mind.py              prompt, the tool loop, reflection (learning)
+  kindred/memory.py            what to keep, recall for each message, reminders
+  kindred/tools.py             the tools the AI may use (filtered by power and style)
   kindred/alerts.py            danger rules (add new alerts here)
   kindred/describe.py          snapshot -> text for the AI
   kindred/hardware.py          picks settings for this computer
   tests/                       pytest, no game or network needed
   tools/fake_game.py           pretend to be Minecraft against the real services
-services/   local helpers: AI gateway, speech cleaner, Kokoro voice
+services/   the gateway (AI, speech-to-text, voice, embeddings, memory store) and local tools
+            (Kokoro voice, local embeddings, memory_store.py)
 scripts/    setup, start/stop, launcher profile installer
 docs/       design, roadmap, good first issues
 ```
@@ -77,8 +81,11 @@ CI runs steps 1 and 2 on every pull request.
 - **A new mood:** add it to `util/Mood.java` (color, bounce) and to `MOODS` in `brain/kindred/mind.py`.
 - **Something new in the snapshot:** `Snapshot.java` (keep it cheap: it runs on the game thread),
   then describe it in `brain/kindred/describe.py` so the AI can use it.
-- **Another AI provider:** usually nothing to code: add it to `upstreams` in
-  `~/.kindred-spirit/gateway.json`. If it needs special handling, that goes in `services/kindred_gateway.py`.
+- **Another provider** (AI, speech-to-text, voice, embeddings): usually nothing to code, see
+  [docs/GATEWAY.md](docs/GATEWAY.md). Special handling goes in `services/kindred_gateway.py`.
+- **A new action:** an `Ability` in `act/Abilities.java` (with its power/style rule and a test), the
+  doing in `act/Actions.java`, and its tool description in `brain/kindred/tools.py`. If players ask for
+  it in a recognizable way, add a phrase to `ACTION_HINTS` in `intents.py` so the AI must really do it.
 
 ## Reporting bugs
 

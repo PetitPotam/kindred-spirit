@@ -10,7 +10,7 @@ class VoiceError(Exception):
     pass
 
 
-def _transcribe(url, wav, prompt="", timeout=60):
+def _transcribe(url, wav, prompt="", timeout=60, key=""):
     boundary = "kindred" + os.urandom(8).hex()
     parts = [
         b"--" + boundary.encode() + b'\r\nContent-Disposition: form-data; name="file"; filename="speech.wav"\r\n'
@@ -23,6 +23,8 @@ def _transcribe(url, wav, prompt="", timeout=60):
     ]
     req = urllib.request.Request(url, data=b"".join(parts), method="POST",
                                  headers={"Content-Type": "multipart/form-data; boundary=" + boundary})
+    if key:
+        req.add_header("Authorization", "Bearer " + key)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return (json.loads(resp.read()).get("text") or "").strip()
@@ -32,10 +34,16 @@ def _transcribe(url, wav, prompt="", timeout=60):
         raise VoiceError("speech-to-text not reachable at %s (%s)" % (url, getattr(e, "reason", e)))
 
 
-def _speak(url, text, voice, speed, timeout=30):
-    body = json.dumps({"model": "kokoro", "input": text, "voice": voice, "speed": speed,
-                       "response_format": "wav"}).encode("utf-8")
-    req = urllib.request.Request(url, data=body, method="POST", headers={"Content-Type": "application/json"})
+def _speak(url, text, voice, speed, timeout=30, key=""):
+    body = {"input": text, "response_format": "wav"}
+    if voice:
+        body["voice"] = voice
+    if speed:
+        body["speed"] = speed
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json"})
+    if key:
+        req.add_header("Authorization", "Bearer " + key)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = resp.read()
@@ -48,10 +56,16 @@ def _speak(url, text, voice, speed, timeout=30):
     return data
 
 
+def _base(cfg):
+    return cfg["gateway"]["url"].rstrip("/")
+
+
 async def transcribe(cfg, wav, prompt=""):
-    return await asyncio.to_thread(_transcribe, cfg["voice"]["stt_url"], wav, prompt)
+    return await asyncio.to_thread(_transcribe, _base(cfg) + "/audio/transcriptions", wav, prompt,
+                                   key=cfg["gateway"].get("key", ""))
 
 
 async def speak(cfg, text):
     v = cfg["voice"]
-    return await asyncio.to_thread(_speak, v["tts_url"], text, v.get("tts_voice", "af_heart"), v.get("tts_speed", 1.0))
+    return await asyncio.to_thread(_speak, _base(cfg) + "/audio/speech", text, v.get("voice", ""), v.get("speed", 0),
+                                   key=cfg["gateway"].get("key", ""))

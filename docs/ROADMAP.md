@@ -41,7 +41,14 @@ Prove the brain idea before writing a mod.
 
 **Done when:** a cute slime follows you, talks and reacts, and your world files are untouched.
 
-## Phase 2: Helper core
+## Phase 2: Helper core (mostly done)
+
+Done: find ores, locate any structure or biome, Pip leads the way there, push monsters away,
+place a torch, give items (magic), time and weather (all-powerful); power modes and action style;
+long-term memory with learning (reflection), recall (embeddings + keywords), named places, "what
+it has found", a diary, reminders; every outside service through the gateway (docs/GATEWAY.md).
+Left: highlight ores and mobs, light aura, enchanted gifts.
+
 - Give items (enchanted included), locate structures and biomes, find ores.
 - Waypoints: it floats toward where you need to go. Highlight ores and mobs. Light aura.
 - Push monsters away when you're overwhelmed.

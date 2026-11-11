@@ -14,20 +14,18 @@ DEFAULTS = {
     "name": "Pip",
     "personality": "",
     "server": {"host": "127.0.0.1", "port": 47811},
+    # everything from the outside goes through one gateway: AI, speech-to-text, voice, memory
+    "gateway": {"url": "http://127.0.0.1:11437/v1", "key": ""},
     "ai": {
-        "url": "http://127.0.0.1:11437/v1",
-        "model": "gemini-3.1-flash-lite",
-        "api_key": "",
+        "model": "",            # "" = the gateway's choice (gateway.json)
         "temperature": 0.8,
         "max_tokens": 160,
         "history_turns": 12,
     },
     "voice": {
         "enabled": True,
-        "stt_url": "http://127.0.0.1:8090/audio/transcriptions",
-        "tts_url": "http://127.0.0.1:8885/v1/audio/speech",
-        "tts_voice": "af_heart",
-        "tts_speed": 1.05,
+        "voice": "",            # "" = the gateway's choice; or a voice name for its voice provider
+        "speed": 0,             # 0 = the gateway's choice
     },
     "behaviour": {
         "alerts": True,
@@ -44,19 +42,21 @@ personality = ""             # extra instructions, e.g. "Speaks like a pirate. L
 [server]
 port = 47811                 # the mod connects here (must match config/kindredspirit.json)
 
+[gateway]
+# The one address for AI, speech-to-text, voice and memory. Which services it uses (Gemini, local
+# Whisper, Kokoro, a deployed gateway...) is set in the gateway: see docs/GATEWAY.md.
+url = "http://127.0.0.1:11437/v1"
+key = ""                     # only if your gateway has an access key (e.g. deployed on a server)
+
 [ai]
-url = "http://127.0.0.1:11437/v1"   # any OpenAI-compatible address; default = the Kindred gateway
-model = "gemini-3.1-flash-lite"
-api_key = ""                 # only if "url" needs one directly (the gateway keeps its own keys)
+model = ""                   # "" = the gateway's choice
 temperature = 0.8
 max_tokens = 160
 
 [voice]
 enabled = true               # false = subtitles only, no speech
-stt_url = "http://127.0.0.1:8090/audio/transcriptions"   # speech cleaner -> Whisper
-tts_url = "http://127.0.0.1:8885/v1/audio/speech"         # Kokoro (local)
-tts_voice = "af_heart"       # try af_bella, af_nicole, am_puck, bf_emma...
-tts_speed = 1.05
+voice = ""                   # "" = the gateway's choice; or e.g. af_bella, am_puck, bf_emma (Kokoro)
+speed = 0                    # 0 = the gateway's choice
 
 [behaviour]
 alerts = true                # warn about low health and creepers

@@ -3,7 +3,7 @@
 from the companion's), as two files each: NAME.wav at 16 kHz (what the game's push-to-talk
 sends, so it goes through the real speech-to-text) and NAME_hq.wav for the video's sound.
 
-    ../brain/.venv/bin/python make_voices.py      (Kokoro must be running: scripts/start.sh)
+    ../brain/.venv/bin/python make_voices.py      (the gateway and its voice must be running: scripts/start.sh)
 """
 import array
 import io
@@ -26,7 +26,7 @@ LINES = {
 
 def speak(text):
     body = json.dumps({"input": text, "voice": VOICE, "speed": 0.92}).encode()
-    req = urllib.request.Request("http://127.0.0.1:8885/v1/audio/speech", data=body,
+    req = urllib.request.Request("http://127.0.0.1:11437/v1/audio/speech", data=body,  # through the gateway
                                  headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
         return r.read()

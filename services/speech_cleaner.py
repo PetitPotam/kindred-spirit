@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Speech cleaner: sits between the Kindred brain and the real speech-to-text service.
+"""Speech cleaner: the gateway uses it for every transcription (silence check, one clean line).
+It can also run on its own as a small server, as described below.
 
     brain -> POST /audio/transcriptions (multipart WAV) -> this cleaner on :8090
           -> upstream: local whisper-server on :8083 (default), or any OpenAI-compatible
