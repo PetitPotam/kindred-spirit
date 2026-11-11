@@ -29,8 +29,10 @@ import re
 import time
 
 from websockets.asyncio.server import serve
+from websockets.exceptions import ConnectionClosed
 
-from . import config, intents, voice
+from . import config, intents, tools, voice
+from .memory import Memory
 from .alerts import Alerts, ambient_mood
 from .mind import AIError, Mind
 
@@ -51,10 +53,16 @@ def sentences(text, min_chars=25):
 
 
 class Brain:
-    def __init__(self, cfg, token, mind=None, alerts=None, clock=time.monotonic):
+    def __init__(self, cfg, token, mind=None, alerts=None, clock=time.monotonic, memory=None):
         self.cfg = cfg
         self.token = token
-        self.mind = mind or Mind(cfg)
+        self.memory = memory if memory is not None else Memory()
+        self.mind = mind or Mind(cfg, self.memory)
+        self.abilities = []
+        self.singleplayer = False
+        self.pending = {}
+        self.next_id = 0
+        self.since = None
         self.alerts = alerts or Alerts()
         self.clock = clock
         self.ws = None
@@ -101,9 +109,13 @@ class Brain:
                 except ValueError:
                     continue
                 await self.on_message(msg)
+        except ConnectionClosed:
+            pass  # the game quit without saying goodbye: normal when you close Minecraft
         finally:
             if self.ws is ws:
                 self.ws = None
+                if self.in_world:
+                    asyncio.create_task(self.end_session())
                 self.in_world = False
                 log.info("game disconnected")
 
@@ -113,25 +125,115 @@ class Brain:
         kind = msg.get("type")
         if kind == "hello":
             log.info("mod %s on Minecraft %s", msg.get("mod"), msg.get("minecraft"))
+            self.set_abilities(msg)
             await self.send({"type": "welcome", "name": self.cfg["name"], "mood": self.mood})
+        elif kind == "abilities":
+            self.set_abilities(msg)
+        elif kind == "done":
+            fut = self.pending.pop(str(msg.get("id")), None)
+            if fut and not fut.done():
+                fut.set_result({k: v for k, v in msg.items() if k not in ("type", "id")})
         elif kind == "snapshot":
             await self.on_snapshot(msg)
         elif kind == "event":
-            await self.on_event(msg.get("event"))
+            await self.on_event(msg.get("event"), msg)
         elif kind == "chat":
             asyncio.create_task(self.answer(msg.get("text", "")))
         elif kind == "voice":
             asyncio.create_task(self.on_voice(msg))
 
-    async def on_event(self, name):
+    def set_abilities(self, msg):
+        self.abilities = list(msg.get("abilities") or [])
+        self.singleplayer = bool(msg.get("singleplayer"))
+        self.mind.powers = "Power: %s, style: %s. You can: %s.%s" % (
+            msg.get("power", "?"), msg.get("style", "?"), ", ".join(self.abilities) or "only talk",
+            "" if self.singleplayer else " This is not a singleplayer world, so actions that change the world won't work.")
+        log.info("abilities: %s", ", ".join(self.abilities))
+
+    async def request(self, action, args, timeout=25):
+        """Ask the mod to do something and wait for what happened."""
+        self.next_id += 1
+        rid = str(self.next_id)
+        fut = asyncio.get_running_loop().create_future()
+        self.pending[rid] = fut
+        await self.send({"type": "do", "id": rid, "action": action, "args": args})
+        try:
+            return await asyncio.wait_for(fut, timeout)
+        except asyncio.TimeoutError:
+            self.pending.pop(rid, None)
+            return {"ok": False, "error": "the game didn't answer in time"}
+
+    async def run_tool(self, name, args):
+        """What happens when the AI uses a tool: memory here, everything else in the game."""
+        if name == "remember":
+            return {"ok": True, "remembered": self.memory.remember(args.get("fact", ""))}
+        if name == "forget":
+            return {"ok": True, "forgot": self.memory.forget(args.get("about", ""))}
+        if name == "name_place":
+            p = self.memory.name_place(args.get("name", ""), self.snapshot)
+            return {"ok": bool(p), "named": args.get("name", "")} if p else {"ok": False, "error": "I don't know where we are"}
+        if name not in self.abilities:
+            return {"ok": False, "error": "My settings don't let me do that (%s)." % self.mind.powers}
+        if name == "guide":
+            args = self.guide_target(args)
+        result = await self.request(name, args)
+        if name in ("find_ore", "locate") and result.get("ok") and "x" in result and result.get("found", True):
+            what = result.get("ore") or result.get("what") or args.get("ore") or args.get("what") or "something"
+            if name == "find_ore":
+                what += " ore"
+            dim = (self.snapshot.get("where") or {}).get("dimension", "minecraft:overworld")
+            self.memory.found(what, result["x"], result.get("y", 64), result["z"], dim)
+        return result
+
+    def guide_target(self, args):
+        """Where to lead: a place it remembers by name, what it just found ("last"), or coordinates
+        only if the player actually said numbers (models like to invent them)."""
+        to = str(args.get("to") or "").strip().lower()
+        if to and to != "last" and self.memory.world is not None:
+            for name, p in self.memory.world["places"].items():
+                if to in name.lower() or name.lower() in to:
+                    return {"x": p["x"], "y": p["y"], "z": p["z"]}
+            for f in reversed(self.memory.world["found"]):
+                if to in f["what"].lower():
+                    return {"x": f["x"], "y": f["y"], "z": f["z"]}
+        said_numbers = bool(re.search(r"-?\d{2,}", getattr(self, "last_player_text", "")))
+        if "x" in args and "z" in args and said_numbers:
+            return {k: args[k] for k in ("x", "y", "z") if k in args}
+        return {}  # the mod then uses the last thing found or located
+
+    async def end_session(self):
+        """When you leave: a diary entry about the session (if you talked), and the time played."""
+        if self.memory.world is None:
+            return
+        talk = self.memory.exchanges
+        history = list(self.mind.history[-16:])
+        self.memory.end_session()
+        if talk >= 2:
+            transcript = "\n".join("%s: %s" % ("Player" if m["role"] == "user" else "You", m["content"]) for m in history)
+            try:
+                entry = await self.mind.summarize(transcript)
+                self.memory.write_diary(entry)
+                log.info("diary: %s", entry)
+            except AIError as e:
+                log.warning("no diary entry: %s", e)
+
+    async def on_event(self, name, msg=None):
+        msg = msg or {}
         if name == "join":
             self.in_world = True
             self.last_talk = self.clock()
+            self.memory.open_world(msg.get("world") or "unknown")
+            self.mind.history = list(self.memory.world.get("history") or [])
+            self.since = self.memory.start_session()
             if self.cfg["behaviour"].get("greet_on_join") and (self.greet_task is None or self.greet_task.done()):
                 self.greet_task = asyncio.create_task(self.greet())
         elif name == "leave":
+            if self.in_world:
+                asyncio.create_task(self.end_session())
             self.in_world = False
             self.snapshot = {}
+        elif name == "arrived":
+            asyncio.create_task(self.say(random.choice(intents.ARRIVED_LINES), "excited", instant=True))
         elif name == "petted":
             log.info("petted")
             await self.set_mood("happy", hold=20)
@@ -228,13 +330,18 @@ class Brain:
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
             try:
-                reply, mood, gesture = await self.mind.reply(self.snapshot, text, done)
+                self.last_player_text = text
+                force = intents.action_hint(text, self.abilities)
+                reply, mood, gesture = await self.mind.reply(self.snapshot, text, done,
+                                                             tools.for_abilities(self.abilities), self.run_tool, force)
             except AIError as e:
                 log.error("AI error: %s", e)
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
                 await self.say("Hmm, my thoughts are fuzzy right now. Can you check my AI connection?", "sad")
                 return
             log.info("you: %s | %s: [%s]%s %s", text, self.cfg["name"], mood, " {%s}" % gesture if gesture else "", reply)
+            self.memory.exchanges += 1
+            self.memory.keep_history(self.mind.history)
             await self.say(reply, mood or "happy", emote=gesture)
             self.last_talk = self.clock()
 
@@ -269,9 +376,7 @@ class Brain:
             return
         async with self.talk_lock:
             try:
-                text, mood, gesture = await self.mind.initiative(
-                    self.snapshot, "The player just joined the world. Greet them warmly in one short sentence, "
-                                   "maybe noticing one thing about where they are.")
+                text, mood, gesture = await self.mind.initiative(self.snapshot, self.memory.welcome(self.since))
             except AIError as e:
                 log.error("AI error while greeting: %s", e)
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})

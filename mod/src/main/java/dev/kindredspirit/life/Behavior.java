@@ -31,7 +31,7 @@ import java.util.Random;
 public final class Behavior {
     public enum Activity { IDLE, LISTENING, THINKING, SPEAKING }
 
-    public enum Mode { FOLLOW, STAY, COME }
+    public enum Mode { FOLLOW, STAY, COME, GUIDE }
 
     public enum Side { RIGHT, LEFT, ABOVE }
 
@@ -125,6 +125,12 @@ public final class Behavior {
     private Side side = Side.RIGHT;
     private double nextSideSwitch = 30;
     private double stayX, stayY, stayZ, comeUntil;
+    private double guideX, guideY, guideZ;
+    /** While guiding: how far the target still is (horizontal) and how much higher (blocks). */
+    public double guideDistance, guideRise;
+    /** Set when a guided trip ends at the target; the game clears it after telling the brain. */
+    public boolean arrived;
+    static final double ARRIVE = 5;
 
     private GazeKind gaze = GazeKind.SHARED, pendingGaze;
     private double gx, gy, gz, pgx, pgy, pgz;  // POINT target, or DIRECTION as a unit vector
@@ -176,6 +182,16 @@ public final class Behavior {
         } else if (m == Mode.COME) {
             comeUntil = now + seconds;
         }
+        wake(now);
+    }
+
+    /** Lead the player to a place: it floats ahead, looks back, and celebrates on arrival. */
+    public void guide(double x, double y, double z, double now) {
+        guideX = x;
+        guideY = y;
+        guideZ = z;
+        guideDistance = Double.MAX_VALUE;
+        mode = Mode.GUIDE;
         wake(now);
     }
 
@@ -240,6 +256,16 @@ public final class Behavior {
         }
 
         if (mode == Mode.COME && now > comeUntil) mode = Mode.FOLLOW;
+        if (mode == Mode.GUIDE) {
+            double dx = guideX - s.ex, dz = guideZ - s.ez;
+            guideDistance = Math.sqrt(dx * dx + dz * dz);
+            guideRise = guideY - (s.ey - 1.62);
+            if (guideDistance < ARRIVE) {
+                mode = Mode.FOLLOW;
+                arrived = true;
+                play(Emote.HAPPY, now);
+            }
+        }
         if (mode == Mode.STAY && dist2(stayX, stayY, stayZ, s.ex, s.ey, s.ez) > 64 * 64) mode = Mode.FOLLOW;
 
         // switch shoulders now and then, when nothing is going on
@@ -296,7 +322,7 @@ public final class Behavior {
         double delay = 0.12 + rng.nextDouble() * 0.23;
         double[] threat = settings.watchThreats ? nearestThreat(s) : null;
         boolean urgent = now < lookOverrideUntil || threat != null || contact > 0.25
-                || act != Activity.IDLE || mode == Mode.COME;
+                || act != Activity.IDLE || mode == Mode.COME || mode == Mode.GUIDE;
         if (!urgent && glancing && now < glanceUntil) {
             commitPending(now); // keep looking at what caught its eye
             return;
@@ -314,7 +340,7 @@ public final class Behavior {
             wy = threat[1] + 1.2;
             wz = threat[2];
             delay = 0.08 + rng.nextDouble() * 0.1;
-        } else if (contact > 0.25 || act != Activity.IDLE || mode == Mode.COME) {
+        } else if (contact > 0.25 || act != Activity.IDLE || mode == Mode.COME || mode == Mode.GUIDE) {
             want = GazeKind.PLAYER;
         } else {
             double r = settings.glances ? rng.nextDouble() : 0; // no glances: shares your view
@@ -411,6 +437,14 @@ public final class Behavior {
             ty = stayY + Smooth.noise(now * 0.25, 8) * 0.06;
             tz = stayZ + Smooth.noise(now * 0.2, 9) * 0.08;
             return new double[]{tx, ty, tz};
+        }
+        if (mode == Mode.GUIDE) { // a few blocks ahead, on the way to the target, a bit above eye level
+            double dx = guideX - ex, dz = guideZ - ez, d = Math.sqrt(dx * dx + dz * dz);
+            double ahead = Math.min(2.8, Math.max(0.8, d - 1));
+            double ux = d > 1e-3 ? dx / d : 0, uz = d > 1e-3 ? dz / d : 1;
+            return new double[]{ex + ux * ahead + Smooth.noise(now * 0.3, 11) * 0.12,
+                    ey + 0.25 + Smooth.noise(now * 0.35, 12) * 0.08,
+                    ez + uz * ahead + Smooth.noise(now * 0.3, 13) * 0.12};
         }
         double r, u, f;
         if (mode == Mode.COME) {

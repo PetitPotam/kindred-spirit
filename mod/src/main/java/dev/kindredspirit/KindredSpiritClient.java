@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import dev.kindredspirit.act.Abilities;
+import dev.kindredspirit.act.Actions;
 import dev.kindredspirit.audio.VoicePlayer;
 import dev.kindredspirit.audio.VoiceRecorder;
 import dev.kindredspirit.life.Behavior;
@@ -215,6 +217,41 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                                 c.getSource().sendFeedback(Component.literal(n + " = " + LifeSwitches.get(cfg.life, n)));
                                                 return 1;
                                             }))))
+                    .then(ClientCommandManager.literal("power")
+                            .executes(c -> {
+                                c.getSource().sendFeedback(Component.literal("Power: " + cfg.power + ", style: " + cfg.style
+                                        + ". It may: " + String.join(", ", Abilities.allowedIds(Abilities.power(cfg.power), Abilities.style(cfg.style)))));
+                                return 1;
+                            })
+                            .then(ClientCommandManager.argument("level", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"advisor", "helper", "allpowerful"}, b))
+                                    .executes(c -> {
+                                        String v = StringArgumentType.getString(c, "level").toLowerCase();
+                                        if (!v.matches("advisor|helper|allpowerful")) {
+                                            c.getSource().sendError(Component.literal("Power is advisor, helper or allpowerful"));
+                                            return 0;
+                                        }
+                                        cfg.power = v;
+                                        cfg.save();
+                                        sendAbilities();
+                                        c.getSource().sendFeedback(Component.literal("Power: " + v));
+                                        return 1;
+                                    })))
+                    .then(ClientCommandManager.literal("style")
+                            .then(ClientCommandManager.argument("style", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"grounded", "magic"}, b))
+                                    .executes(c -> {
+                                        String v = StringArgumentType.getString(c, "style").toLowerCase();
+                                        if (!v.matches("grounded|magic")) {
+                                            c.getSource().sendError(Component.literal("Style is grounded or magic"));
+                                            return 0;
+                                        }
+                                        cfg.style = v;
+                                        cfg.save();
+                                        sendAbilities();
+                                        c.getSource().sendFeedback(Component.literal("Style: " + v));
+                                        return 1;
+                                    })))
                     .then(ClientCommandManager.literal("emote")
                             .then(ClientCommandManager.argument("name", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(
@@ -274,6 +311,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
         if (mc.player == null || mc.level == null) return;
         if (companion.tick(mc)) event("petted");
+        if (companion.life.arrived) {
+            companion.life.arrived = false;
+            event("arrived");
+        }
 
         // push-to-talk: hold the key, speak, release
         boolean held = talkKey.isDown() && mc.screen == null;
@@ -411,6 +452,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             });
             case "mood" -> mc.execute(() -> companion.mood = Mood.parse(str(msg, "mood"), companion.mood));
             case "act" -> mc.execute(() -> applyAct(msg));
+            case "do" -> mc.execute(() -> runAction(msg));
             case "state" -> mc.execute(() -> {
                 String s = str(msg, "state");
                 if (s.equals("thinking")) {
@@ -437,6 +479,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         hello.addProperty("mod", "0.1.0");
         hello.addProperty("minecraft", "1.21.1");
         hello.addProperty("name", cfg.name);
+        addAbilities(hello);
         link.send(hello);
         Minecraft.getInstance().execute(() -> {
             companion.mood = Mood.HAPPY;
@@ -456,7 +499,77 @@ public final class KindredSpiritClient implements ClientModInitializer {
         JsonObject o = new JsonObject();
         o.addProperty("type", "event");
         o.addProperty("event", name);
+        if (name.equals("join")) o.addProperty("world", worldId());
         link.send(o);
+    }
+
+    /** Which world this is, so the brain keeps a memory per world: the save folder, or the server address. */
+    private static String worldId() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getSingleplayerServer() != null) {
+            return "sp:" + mc.getSingleplayerServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
+                    .toAbsolutePath().normalize().getFileName();
+        }
+        return mc.getCurrentServer() != null ? "mp:" + mc.getCurrentServer().ip : "unknown";
+    }
+
+    private void addAbilities(JsonObject o) {
+        Abilities.Power p = Abilities.power(cfg.power);
+        Abilities.Style s = Abilities.style(cfg.style);
+        o.addProperty("power", p.name().toLowerCase());
+        o.addProperty("style", s.name().toLowerCase());
+        com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+        for (String id : Abilities.allowedIds(p, s)) a.add(id);
+        o.add("abilities", a);
+        o.addProperty("singleplayer", Minecraft.getInstance().getSingleplayerServer() != null);
+    }
+
+    private void sendAbilities() {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "abilities");
+        addAbilities(o);
+        link.send(o);
+    }
+
+    /** The brain asks for an action; the answer goes back as {"type": "done", "id": ..., ...}. */
+    private void runAction(JsonObject msg) {
+        String id = str(msg, "id"), action = str(msg, "action");
+        JsonObject args = msg.has("args") && msg.get("args").isJsonObject() ? msg.getAsJsonObject("args") : new JsonObject();
+        java.util.function.Consumer<JsonObject> reply = res -> {
+            res.addProperty("type", "done");
+            res.addProperty("id", id);
+            link.send(res);
+        };
+        Behavior life = companion.life;
+        if (action.equals("guide")) {
+            double[] t = Actions.lastTarget;
+            if (args.has("x") && args.has("z")) {
+                t = new double[]{args.get("x").getAsDouble() + 0.5, args.has("y") ? args.get("y").getAsDouble() : 64,
+                        args.get("z").getAsDouble() + 0.5};
+            }
+            JsonObject res = new JsonObject();
+            if (t == null) {
+                res.addProperty("ok", false);
+                res.addProperty("error", "Guide where? Find or locate something first, or give coordinates.");
+            } else {
+                life.guide(t[0], t[1], t[2], companion.now());
+                res.addProperty("ok", true);
+                res.addProperty("guiding", true);
+                double dx = t[0] - Minecraft.getInstance().player.getX(), dz = t[2] - Minecraft.getInstance().player.getZ();
+                res.addProperty("distance", Math.round(Math.sqrt(dx * dx + dz * dz)));
+            }
+            reply.accept(res);
+            return;
+        }
+        if (action.equals("stop_guide")) {
+            if (life.mode == Behavior.Mode.GUIDE) life.setMode(Behavior.Mode.FOLLOW, companion.now());
+            JsonObject res = new JsonObject();
+            res.addProperty("ok", true);
+            reply.accept(res);
+            return;
+        }
+        Actions.run(action, args, Abilities.power(cfg.power), Abilities.style(cfg.style))
+                .thenAccept(res -> Minecraft.getInstance().execute(() -> reply.accept(res)));
     }
 
     // ------------------------------------------------------------------ moving and posing it
@@ -481,6 +594,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
         double now = companion.now();
         double seconds = msg.has("seconds") ? msg.get("seconds").getAsDouble() : 4;
         switch (str(msg, "move")) {
+            case "stop" -> {
+                if (life.mode == Behavior.Mode.GUIDE) life.setMode(Behavior.Mode.FOLLOW, now);
+            }
             case "stay" -> life.setMode(Behavior.Mode.STAY, now);
             case "follow" -> life.setMode(Behavior.Mode.FOLLOW, now);
             case "come" -> life.setMode(Behavior.Mode.COME, now, msg.has("seconds") ? seconds : 6);

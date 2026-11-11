@@ -17,6 +17,7 @@ from websockets.exceptions import InvalidStatus
 
 from kindred import config
 from kindred.alerts import Alerts
+from kindred.memory import Memory
 from kindred.server import Brain
 from websockets.asyncio.server import serve
 
@@ -39,6 +40,7 @@ class Stubs:
 
     def __init__(self):
         self.ai_requests = []
+        self.ai_script = []  # replies to give, in order (a message dict); then the default line
         stubs = self
 
         class H(BaseHTTPRequestHandler):
@@ -50,8 +52,9 @@ class Stubs:
                 if self.path.endswith("/chat/completions"):
                     req = json.loads(body)
                     stubs.ai_requests.append(req)
-                    out = json.dumps({"choices": [{"message": {"role": "assistant",
-                                                               "content": "[curious] I see an oak log, three blocks ahead!"}}]})
+                    msg = stubs.ai_script.pop(0) if stubs.ai_script else {
+                        "role": "assistant", "content": "[curious] I see an oak log, three blocks ahead!"}
+                    out = json.dumps({"choices": [{"message": msg}]})
                     self._send(200, out.encode(), "application/json")
                 elif self.path.endswith("/audio/speech"):
                     self._send(200, tiny_wav(), "audio/wav")
@@ -91,8 +94,9 @@ def make_cfg(stub_port):
     })
 
 
-async def with_brain(cfg, scenario):
-    brain = Brain(cfg, TOKEN, alerts=Alerts())
+async def with_brain(cfg, scenario, memory=None):
+    import tempfile
+    brain = Brain(cfg, TOKEN, alerts=Alerts(), memory=memory or Memory(tempfile.mkdtemp()))
     async with serve(brain.handler, "127.0.0.1", 0, process_request=brain.check_auth, max_size=2 ** 24) as server:
         port = server.sockets[0].getsockname()[1]
         await scenario("ws://127.0.0.1:%d/" % port)
