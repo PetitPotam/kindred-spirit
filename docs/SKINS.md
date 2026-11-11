@@ -38,7 +38,7 @@ optional:
 | Field | Values | What it does |
 |---|---|---|
 | `name` | text | shown in `/kindred skins` |
-| `shape` | `ball`, `cube`, `wisp` | the body. `cube` has soft corners; `wisp` floats instead of hopping, glows and is a bit smaller |
+| `shape` | `ball`, `cube`, `wisp`, `fairy` | the body. `cube` has soft corners; `wisp` floats instead of hopping, glows and is a bit smaller; `fairy` floats, glows softly and has wings |
 | `texture` | a PNG in the same folder, or `namespace:path.png` from a resource pack | wrapped around the body |
 | `tint` | `mood`, `none`, `"#RRGGBB"` | `mood`: the color follows its mood (green happy, pink scared...). `none`: your texture as is |
 | `shell` | `true` / `false` | a glassy outer shell with a darker core inside (the slime look) |
@@ -47,6 +47,9 @@ optional:
 | `eyes`, `mouth`, `cheeks` | `"#RRGGBB"`; cheeks can be `"none"` | face colors. It still blushes when shy, even with no cheeks |
 | `size` | 0.3 – 3 | 1 is about a slime's head |
 | `glow` | `true` / `false` | ignores darkness, like a little lantern |
+| `wings` | `true` / `false` | two pairs of fluttering wings on its back (on by default for fairies; any shape can have them) |
+| `wingColor` | `"#RRGGBB"` or `"mood"` | `mood`: the wings take a pastel version of its mood color |
+| `wingOpacity` | 0.05 – 1 | how see-through the wings are |
 
 A JSON without a texture is fine too: `{"shape": "cube", "tint": "#7FB3FF"}` is a blue cube.
 
@@ -65,5 +68,7 @@ as a built-in one replace it.
 | `wisp` | a small glowing orb with a halo |
 | `strawberry` | a textured example (`mod/src/main/resources/assets/kindredspirit/textures/skins/strawberry.png`) |
 | `starry` | a glowing wisp with a starry-night texture |
+| `fairy` | a pink fairy whose wings show its mood |
+| `pixie` | a green fairy with sky-blue wings |
 
 The built-in textures are drawn by `scripts/make_art.py`: a good place to see how a texture maps.

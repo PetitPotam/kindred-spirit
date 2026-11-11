@@ -113,9 +113,40 @@ def starry(x, y, w=64, h=32):
     return base + (255,)
 
 
+def smooth(e0, e1, x):
+    t = max(0.0, min(1.0, (x - e0) / (e1 - e0)))
+    return t * t * (3 - 2 * t)
+
+
+def wing(x, y, n=64):
+    """A fairy wing, white so the mod can tint it: hinge on the left edge, tip on the right."""
+    acc = [0.0, 0.0]
+    for sy in range(2):
+        for sx in range(2):
+            u = (x + (sx + 0.5) / 2) / n
+            v = (y + (sy + 0.5) / 2) / n
+            narrow = 0.3 + 0.7 * smooth(0.0, 0.55, u)          # thin at the hinge
+            d = ((u - 0.55) / 0.45) ** 2 + ((v - 0.5) / (0.46 * narrow)) ** 2
+            if d >= 1:
+                continue
+            a = 0.55 + 0.25 * u                               # more see-through near the body
+            if d > 0.82:
+                a = 0.95                                      # a soft rim
+            ang = math.atan2(v - 0.5, u + 0.05)
+            if abs(math.sin(ang * 9)) < 0.07 and u > 0.12 and d < 0.82:
+                a = 0.85                                      # veins fanning from the hinge
+            acc[0] += a
+            acc[1] += 0.9 + 0.1 * u
+    if acc[0] == 0:
+        return (255, 255, 255, 0)
+    shade = round(235 * acc[1] / 4)
+    return (shade, shade, 255, round(255 * min(1.0, acc[0] / 4 * 1.25)))
+
+
 if __name__ == "__main__":
     png(os.path.join(ASSETS, "textures", "companion", "white.png"), 16, 16, lambda x, y: (255, 255, 255, 255))
     png(os.path.join(ASSETS, "icon.png"), 128, 128, icon)
     png(os.path.join(ASSETS, "textures", "skins", "strawberry.png"), 64, 32, strawberry)
     png(os.path.join(ASSETS, "textures", "skins", "starry.png"), 64, 32, starry)
+    png(os.path.join(ASSETS, "textures", "companion", "wing.png"), 64, 64, wing)
     print("wrote white.png, icon.png and the skin textures in", ASSETS)

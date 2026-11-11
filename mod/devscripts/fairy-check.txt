@@ -1,0 +1,34 @@
+# The fairy and pixie skins from a few angles. Screenshots: mod/run/screenshots/fairy-*.png
+world kindred-test
+wait 200
+cmd gamemode creative
+cmd time set 1000
+skin fairy
+look 0 5
+wait 60
+lookat companion
+wait 30
+lookat companion
+wait 20
+screenshot fairy-01-facing-you
+look 0 5
+wait 50
+screenshot fairy-02-side
+camera front
+wait 30
+screenshot fairy-03-third-person
+act {"move": "come"}
+wait 40
+screenshot fairy-03b-close
+camera first
+act {"move": "follow"}
+skin pixie
+lookat companion
+wait 40
+screenshot fairy-04-pixie
+emote doze
+wait 70
+screenshot fairy-05-dozing
+skin slime
+wait 10
+quit

@@ -1,0 +1,8 @@
+{
+  "name": "Pixie",
+  "shape": "fairy",
+  "tint": "#A6E58C",
+  "wingColor": "#CFF5FF",
+  "cheeks": "#FFB3A7",
+  "shellOpacity": 0.8
+}

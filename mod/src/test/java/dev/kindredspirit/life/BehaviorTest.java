@@ -264,6 +264,24 @@ public class BehaviorTest {
     }
 
     @Test
+    void wingsFlutterAndFoldWhenItDozes() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        double min = 9, max = -9;
+        for (int i = 0; i < 60; i++) {
+            b.frame(0, 1.6, 0, 0, 0, 0, 1, i * FRAME, FRAME, Behavior.Activity.IDLE, Mood.HAPPY, 0, true);
+            min = Math.min(min, b.wingAngle);
+            max = Math.max(max, b.wingAngle);
+        }
+        assertTrue(max - min > 0.5, "flutters: " + min + ".." + max);
+        b.play(Emote.DOZE, 1);
+        for (int i = 0; i < 300; i++) {
+            b.frame(0, 1.6, 0, 0, 0, 0, 1, 1 + i * FRAME, FRAME, Behavior.Activity.IDLE, Mood.HAPPY, 0, true);
+        }
+        assertTrue(b.wingAngle > 1.1, "folded back while asleep: " + b.wingAngle);
+    }
+
+    @Test
     void gesturesStartAndEndSoftly() {
         for (Emote e : Emote.values()) {
             if (e.seconds <= 0) continue;

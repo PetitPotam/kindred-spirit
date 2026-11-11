@@ -39,6 +39,7 @@ import java.util.List;
 public final class CompanionRenderer {
     private static final float RADIUS = 0.2f;
     private static final ResourceLocation WHITE = SkinRegistry.WHITE;
+    private static final ResourceLocation WING = ResourceLocation.fromNamespaceAndPath("kindredspirit", "textures/companion/wing.png");
 
     private final ShapeMesh[] meshes = new ShapeMesh[Skin.Shape.values().length * Quality.Level.values().length];
     private final Quaternionf lean = new Quaternionf();
@@ -98,13 +99,17 @@ public final class CompanionRenderer {
         if (shell) {
             VertexConsumer glass = buffers.getBuffer(RenderType.entityTranslucentCull(bodyTexture));
             draw(glass, pose, m, 0, 0, 0, r, r, r, tint, Math.round(skin.shellOpacity() * 255), light);
-            if (skin.glow()) { // a soft halo around glowing skins
+            if (skin.glow() && !skin.wings()) { // a soft halo around glowing skins (it would hide wings)
                 draw(glass, pose, m, 0, 0, 0, r * 1.45f, r * 1.45f, r * 1.45f, tint, 38, light);
             }
         } else {
             VertexConsumer body = buffers.getBuffer(RenderType.entityCutoutNoCull(bodyTexture));
             float f = r * 0.97f;
             draw(body, pose, m, 0, 0, 0, f, f, f, tint, 255, light);
+        }
+        if (skin.wings()) {
+            int wingCol = skin.wingColor() == Skin.MOOD_WINGS ? Mood.blend(c.rgb, 0xFFFFFF, 0.45f) : skin.wingColor();
+            wings(buffers.getBuffer(RenderType.entityTranslucent(WING)), pose, skin, wingCol, r, (float) b.wingAngle, light);
         }
         pose.popPose();
 
@@ -149,6 +154,36 @@ public final class CompanionRenderer {
         float mouthH = 0.035f * r + 0.16f * r * c.mouth;
         draw(vc, pose, m, 0, my, front(m, r, 0, my) + 0.005f * r, 0.11f * r * (1 - 0.3f * c.mouth), mouthH, 0.05f * r,
                 skin.mouth(), 255, light);
+    }
+
+    /**
+     * Two pairs of wings hinged on its back (local -Z), a big pair angled up and a small pair
+     * angled down. {@code swing} turns them back around the hinge: small = spread, large = folded.
+     */
+    private static void wings(VertexConsumer vc, PoseStack pose, Skin skin, int col, float r, float swing, int light) {
+        int a = Math.round(skin.wingOpacity() * 255);
+        for (int side = -1; side <= 1; side += 2) {
+            wing(vc, pose, side, r, 1.9f * r, 1.5f * r, 0.45f, swing, 0.15f * r, col, a, light);           // upper
+            wing(vc, pose, side, r, 1.25f * r, 0.95f * r, -0.4f, swing * 0.85f + 0.1f, -0.12f * r, col, a, light); // lower
+        }
+    }
+
+    private static void wing(VertexConsumer vc, PoseStack pose, int side, float r, float len, float height,
+                             float tilt, float swing, float hingeY, int rgb, int alpha, int light) {
+        pose.pushPose();
+        pose.translate(side * 0.15f * r, hingeY, -0.5f * r);          // on its back
+        pose.mulPose(Axis.YP.rotation(side * -swing));                 // flap around the hinge
+        pose.mulPose(Axis.ZP.rotation(side * tilt));                   // upper pair up, lower pair down
+        PoseStack.Pose p = pose.last();
+        int red = (rgb >> 16) & 0xff, green = (rgb >> 8) & 0xff, blue = rgb & 0xff;
+        float x1 = side * len, h = height / 2;
+        // hinge at u=0, tip at u=1 (the texture is drawn that way); visible from both sides
+        float[][] q = {{0, -h, 0, 1}, {x1, -h, 1, 1}, {x1, h, 1, 0}, {0, h, 0, 0}};
+        for (float[] c : q) {
+            vc.addVertex(p, c[0], c[1], 0).setColor(red, green, blue, alpha).setUv(c[2], c[3])
+                    .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(p, 0, 1, 0);
+        }
+        pose.popPose();
     }
 
     private static float front(ShapeMesh m, float r, float x, float y) {

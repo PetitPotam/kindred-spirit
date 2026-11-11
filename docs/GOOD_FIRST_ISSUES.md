@@ -16,7 +16,7 @@ Comment on (or open) the matching GitHub issue before starting, so two people do
    (visual only). Start: the light value in `CompanionRenderer.render`.
 5. **Find a way around walls** instead of only floating over them (a short path search). Start:
    `avoidWalls` in `life/Behavior.java`.
-6. **More shapes:** a little star, a fairy with wings, a cube robot. Start: `render/ShapeMesh.java`
+6. **More shapes:** a little star, a cube robot, a bat-winged night skin. Start: `render/ShapeMesh.java`
    (shapes are built once from the same sphere, so textures wrap the same way) and `Skin.Shape`.
 7. **More skins** (and a skin pack as a resource pack): see [SKINS.md](SKINS.md). Pure art, no code.
 8. **A sparkle trail for wisps** as they float (client-side particles, a setting to turn it off).
