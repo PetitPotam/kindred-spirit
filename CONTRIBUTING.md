@@ -16,7 +16,7 @@ You don't need to know Minecraft modding: half of the project is Python.
 ## Layout
 
 ```
-mod/        Fabric mod (Java 21, Mojang names). Thin: sees, draws, plays sound.
+mod/        Fabric mod (Java 21 target, built with JDK 25, Mojang names). Thin: sees, draws, plays sound.
   src/main/java/dev/kindredspirit/
     KindredSpiritClient.java   wiring: keys, events, commands, brain messages, HUD
     BrainLink.java             WebSocket to the brain (reconnects, never blocks the game)
@@ -46,7 +46,7 @@ The protocol between mod and brain is documented at the top of `brain/kindred/se
 
 ```bash
 scripts/setup.sh                      # brain venv + local voice
-cd mod && ./gradlew build             # needs a JDK 21+; Gradle comes with the wrapper
+cd mod && ./gradlew build             # needs JDK 25 to build (the mod targets Java 21); Gradle comes with the wrapper
 ```
 
 ## Before you open a pull request
