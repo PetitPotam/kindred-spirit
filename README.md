@@ -44,14 +44,29 @@ from scratch for Fabric.
 | Typed chat | `/kindred <message>` (or `/ks`) |
 | It understands your game | health, hunger, armor, effects, inventory, position, biome, time, weather, what you look at, nearby hostile mobs with direction |
 | Danger warnings | creeper within 8 blocks, health at 3 hearts or less: instant subtitle, voice right after, with cooldowns |
+| It helps | finds ores near you, locates any structure or biome, **leads the way** there, pushes monsters away, places a torch; in magic style it gives items, all-powerful also changes time and weather |
+| It remembers and learns | who you are, what you like, your habits, your places, its own little personality, a diary of your sessions; reminders ("in 10 minutes", "at night", "next time we play") ([how](docs/MEMORY.md)) |
 | Personality | greets you, small talk when it's been quiet a while (configurable), moods |
 | Subtitles | above the slime, optional captions and a log in your chat (only on your screen) |
 | It feels alive | looks where you look, looks back when you look at it, wanders around you when you stand still, dozes after a long quiet time, leans as it floats, blinks, its eyes move before its head |
 | You can direct it | say or type "stay here", "come here", "follow me", "look at me", "do a spin"; pet it by sneaking while looking at it |
 | Skins | a slime, a soft cube, a fairy and a pixie with fluttering wings, a glowing wisp, a strawberry, a starry orb, or your own PNG ([how](docs/SKINS.md)) |
 
-Not yet: actions in the world (giving items, lighting, finding structures), memory, the settings
-screen, star and robot shapes. That's the [roadmap](docs/ROADMAP.md).
+Not yet: building, mining and crafting jobs, the settings screen, star and robot shapes. That's the
+[roadmap](docs/ROADMAP.md).
+
+### What it may do: power and style
+
+You decide how much it can do (`/kindred power`, `/kindred style`); the mod enforces it, not the AI.
+
+| | grounded (only what really exists) | magic (things can appear) |
+|---|---|---|
+| **advisor** | talks, finds ores, locates places, leads the way | same |
+| **helper** (default) | + pushes monsters away, places one of *your* torches | + gives items, torches from thin air |
+| **allpowerful** | + time and weather | + all of it |
+
+Finding and guiding work everywhere; anything that changes the world works in singleplayer (and
+when you host LAN), done the way a command would.
 
 ### It shouldn't feel like a robot
 
@@ -97,12 +112,16 @@ with `/kindred life <name> <value>` (saved right away), or `/kindred life reset`
 
 ```
 Minecraft 1.21.1 + Fabric
-  └─ Kindred Spirit mod (Java, client only): draws the slime, reads game state, mic and speaker
+  └─ Kindred Spirit mod (Java, client only): draws Pip, reads the game, acts when allowed, mic and speaker
         │  WebSocket on 127.0.0.1:47811, with a token from ~/.kindred-spirit/token
-  Kindred brain (Python): conversation, moods, danger rules, voice
-        ├─ speech cleaner :8090 → whisper.cpp :8083      (you → text, local)
-        ├─ Kokoro :8885                                  (text → voice, local)
-        └─ Kindred gateway :11437 → Gemini / Ollama / …   (the AI)
+  Kindred brain (Python): conversation, moods, danger rules, tools, memory and learning
+        │  one address
+  Kindred gateway :11437 — choose each part (docs/GATEWAY.md):
+        ├─ AI              Gemini / Ollama / Groq / OpenAI / …
+        ├─ speech-to-text  local Whisper / Groq / OpenAI
+        ├─ voice           local Kokoro / OpenAI
+        ├─ embeddings      local bge-small / Gemini / Ollama / OpenAI
+        └─ memory          local SQLite / a gateway you deployed elsewhere
 ```
 
 **Why a separate brain?** The mod only sees, draws and plays sound. Everything that makes the
@@ -158,23 +177,30 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 | `/kindred look me\|there\|ahead\|up\|down\|around` | where to look for a few seconds |
 | `/kindred emote <name>` | nod, shake, spin, hop, wiggle, happy, shy, think, doze |
 | `/kindred life` · `/kindred life <name> <value>` · `/kindred life reset` | its liveliness switches (see above) |
+| `/kindred power advisor\|helper\|allpowerful` · `/kindred style grounded\|magic` | what it may do (see above) |
 | sneak while looking at it | pet it |
 
 Talking works too: "stay here", "come here", "follow me", "go to my left", "look at me", "look at that",
-"do a spin", "dance". It acts at once, before the AI answers.
+"do a spin", "dance". It acts at once, before the AI answers. And ask for help: "any diamonds
+near me?", "where's the nearest village? take me there", "push them away", "place a torch",
+"this is my base", "remind me in 10 minutes to check the furnace".
 
 ## Settings
 
 - **Brain:** `~/.kindred-spirit/brain.toml` (name, personality, model, voice, chattiness, alerts).
 - **Mod:** `minecraft-kindred/config/kindredspirit.json` (skin, quality, subtitles, captions, position, size,
   volume, and the liveliness switches under `"life"`).
-- **AI provider:** the gateway, live, no restart:
+- **AI, speech-to-text, voice, embeddings, memory storage:** all chosen in the gateway, live, no
+  restart. The guide: **[docs/GATEWAY.md](docs/GATEWAY.md)**.
   ```bash
-  python3 services/kindred_gateway.py upstream ollama     # or gemini, groq, openai, openrouter, mistral
-  python3 services/kindred_gateway.py persona "Speaks like a pirate."
-  python3 services/kindred_gateway.py log                 # what it asked and answered
+  G="brain/.venv/bin/python services/kindred_gateway.py"
+  $G check                      # tests every part
+  $G use ai ollama              # or gemini, groq, openai, openrouter, mistral
+  $G use stt groq               # or local_whisper, openai
+  $G persona "Speaks like a pirate."
   ```
   Keys go in `~/.kindred-spirit/secrets.env` (readable only by you).
+- **Memory:** `brain/.venv/bin/python -m kindred.memory` shows what it remembers ([how it works](docs/MEMORY.md)).
 - Voices: `tts_voice` in brain.toml, e.g. `af_heart`, `af_bella`, `am_puck`, `bf_emma` (54 Kokoro voices).
 - Looks: `skin` in kindredspirit.json, or `/kindred skin <name>`. Make your own: [docs/SKINS.md](docs/SKINS.md).
 
@@ -222,9 +248,11 @@ Only then install into your launcher.
 
 ## Privacy
 
-Everything runs on your computer except the AI you choose. When you talk to it, the gateway sends
-your words and a short text description of your game (the snapshot above) to that provider. With
-Ollama nothing leaves your machine. Your voice never leaves your machine (local Whisper).
+By default everything runs on your computer except the AI you choose. When you talk to it, the
+gateway sends your words, a short text description of your game, and the few memories that matter
+for that message to that provider. With Ollama nothing leaves your machine. Your voice stays on
+your machine with local Whisper, and your memories in `~/.kindred-spirit/memory/` (or on a gateway
+you deploy yourself).
 The bridge listens on 127.0.0.1 only and needs a token.
 
 ## Help wanted

@@ -57,6 +57,13 @@ if [[ $VOICE == 1 ]]; then
   copy_or_fetch "${KOKORO_FROM:-}" kokoro-v1.0.int8.onnx "$R/kokoro-v1.0.int8.onnx" "$KH/kokoro"
   copy_or_fetch "${KOKORO_FROM:-}" voices-v1.0.bin "$R/voices-v1.0.bin" "$KH/kokoro"
 
+  say "Memory: local embeddings (understands what memories mean)"
+  mkdir -p "$KH/embed/models"
+  [[ -d "$KH/embed/venv" ]] || "$PY" -m venv "$KH/embed/venv"
+  "$KH/embed/venv/bin/pip" install -q fastembed
+  "$KH/embed/venv/bin/python" -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir='$KH/embed/models')" \
+    && echo "  embedding model ready (bge-small, ~65 MB)"
+
   say "Voice: Whisper (listens)"
   if ! command -v whisper-server >/dev/null; then
     if command -v brew >/dev/null; then brew install whisper-cpp

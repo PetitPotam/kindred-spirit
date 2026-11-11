@@ -46,9 +46,16 @@ ABILITY_TOOLS = {
 }
 
 MEMORY_TOOLS = [
-    _fn("remember", "Remember something about the player for good (in every world): what they like, their "
-        "goals, their name, what they asked you to remember. Short sentences.",
-        {"fact": {"type": "string"}}, ["fact"]),
+    _fn("remember", "Remember something for good: about the player (what they like, their name, goals, what they "
+        "asked you to remember), about yourself, or about this world. Short sentences.",
+        {"fact": {"type": "string"},
+         "about": {"type": "string", "enum": ["player", "self", "world"], "description": "default: player"}},
+        ["fact"]),
+    _fn("set_reminder", "Remind the player of something later. 'when' in plain words: 'in 10 minutes', 'in an hour', "
+        "'at night', 'in the morning', 'next time we play', 'every night', 'every 20 minutes'.",
+        {"text": {"type": "string", "description": "what to remind them of"}, "when": {"type": "string"}},
+        ["text", "when"]),
+    _fn("cancel_reminder", "Cancel reminders that mention something.", {"about": {"type": "string"}}, ["about"]),
     _fn("forget", "Forget facts or named places that mention something, when the player asks you to forget.",
         {"about": {"type": "string"}}, ["about"]),
     _fn("name_place", "Remember where the player is standing under a name, when they say things like "

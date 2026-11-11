@@ -17,8 +17,9 @@ from websockets.exceptions import InvalidStatus
 
 from kindred import config
 from kindred.alerts import Alerts
-from kindred.memory import Memory
+from kindred.memory import GatewayMemory, Memory
 from kindred.server import Brain
+from gateway_stub import LocalStore, memory_call
 from websockets.asyncio.server import serve
 
 TOKEN = "test-token"
@@ -41,6 +42,7 @@ class Stubs:
     def __init__(self):
         self.ai_requests = []
         self.ai_script = []  # replies to give, in order (a message dict); then the default line
+        self.memory = LocalStore()
         stubs = self
 
         class H(BaseHTTPRequestHandler):
@@ -49,7 +51,10 @@ class Stubs:
 
             def do_POST(self):
                 body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-                if self.path.endswith("/chat/completions"):
+                if "/memory/" in self.path:
+                    out = memory_call(stubs.memory.store, self.path.rsplit("/", 1)[1], json.loads(body or b"{}"))
+                    self._send(200, json.dumps(out).encode(), "application/json")
+                elif self.path.endswith("/chat/completions"):
                     req = json.loads(body)
                     stubs.ai_requests.append(req)
                     msg = stubs.ai_script.pop(0) if stubs.ai_script else {
@@ -86,17 +91,14 @@ def stubs():
 
 
 def make_cfg(stub_port):
-    base = "http://127.0.0.1:%d" % stub_port
     return config.merge(config.DEFAULTS, {
-        "ai": {"url": base + "/v1"},
-        "voice": {"stt_url": base + "/audio/transcriptions", "tts_url": base + "/v1/audio/speech"},
+        "gateway": {"url": "http://127.0.0.1:%d/v1" % stub_port},
         "behaviour": {"greet_on_join": False, "small_talk_minutes": 0},
     })
 
 
 async def with_brain(cfg, scenario, memory=None):
-    import tempfile
-    brain = Brain(cfg, TOKEN, alerts=Alerts(), memory=memory or Memory(tempfile.mkdtemp()))
+    brain = Brain(cfg, TOKEN, alerts=Alerts(), memory=memory or Memory(GatewayMemory(cfg["gateway"]["url"])))
     async with serve(brain.handler, "127.0.0.1", 0, process_request=brain.check_auth, max_size=2 ** 24) as server:
         port = server.sockets[0].getsockname()[1]
         await scenario("ws://127.0.0.1:%d/" % port)
@@ -155,7 +157,7 @@ def test_voice_question_is_heard_and_answered_with_game_state(stubs):
 
 def test_ai_down_gives_a_friendly_line_and_a_notice(stubs):
     cfg = make_cfg(stubs.port)
-    cfg["ai"]["url"] = "http://127.0.0.1:9/v1"  # nothing listens there
+    cfg["gateway"]["url"] = "http://127.0.0.1:9/v1"  # nothing listens there
 
     async def scenario(url):
         async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:

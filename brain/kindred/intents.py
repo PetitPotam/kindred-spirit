@@ -63,6 +63,9 @@ ACTION_HINTS = [
     (r"\b(find|where|any|nearest|closest|look for)\b.{0,40}\b(diamonds?|iron|gold|coal|copper|redstone|lapis|emeralds?|quartz|ancient debris|netherite)\b", "find_ore"),
     (r"\b(find|where|nearest|closest|locate)\b.{0,40}\b(village|mineshaft|shipwreck|ruined portal|monument|mansion|stronghold|fortress|bastion|temple|witch hut|igloo|outpost|ancient city|trail ruins|trial chambers?|end city|buried treasure|biome|grove|forest|desert|jungle|ocean|mushroom)", "locate"),
     (r"\bmake it (day|night|morning|sunrise|sunset|noon)\b|\bset the time\b|\bskip the night\b", "set_time"),
+    (r"\bremind me\b", "set_reminder"),
+    (r"\b(this is|here is|here's) (my|our) \w+|\bremember (this|that) (place|spot)\b|\bcall this (place|spot)\b", "name_place"),
+    (r"\bremember (that|this)?\b|\bdon'?t forget\b", "remember"),
     (r"\b(stop the rain|make it (rain|sunny|clear|storm)|clear (the|up the) weather)\b", "set_weather"),
 ]
 _hints = [(re.compile(p), tool) for p, tool in ACTION_HINTS]

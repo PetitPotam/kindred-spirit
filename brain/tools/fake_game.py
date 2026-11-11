@@ -72,7 +72,8 @@ def to_16k_mono(wav_bytes):
 
 def kokoro(text, cfg):
     body = json.dumps({"input": text, "voice": "am_puck", "speed": 1.0}).encode()
-    req = urllib.request.Request(cfg["voice"]["tts_url"], data=body, headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(cfg["gateway"]["url"].rstrip("/") + "/audio/speech", data=body,
+                                 headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read()
 

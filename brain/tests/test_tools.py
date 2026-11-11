@@ -1,12 +1,11 @@
 import asyncio
 import json
-import tempfile
 
 from fixtures import snap
 from test_end_to_end import TOKEN, make_cfg, recv_until, stubs, with_brain  # noqa: F401  (stubs is a fixture)
 from websockets.asyncio.client import connect
 
-from kindred.memory import Memory
+from gateway_stub import memory
 from kindred.tools import for_abilities
 
 
@@ -32,7 +31,7 @@ def test_find_diamonds_goes_to_the_game_and_back(stubs):
             {"id": "call_1", "type": "function", "function": {"name": "find_ore", "arguments": "{\"ore\": \"diamond\"}"}}]},
         {"role": "assistant", "content": "[excited] {hop} Diamonds, 9 blocks ahead and 12 below!"},
     ]
-    mem = Memory(tempfile.mkdtemp())
+    mem = memory()
 
     async def scenario(url):
         async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
@@ -47,10 +46,11 @@ def test_find_diamonds_goes_to_the_game_and_back(stubs):
             say = await recv_until(ws, "say")
             assert "Diamonds" in say["text"] and say.get("emote") == "hop"
     asyncio.run(with_brain(make_cfg(stubs.port), scenario, memory=mem))
-    second = stubs.ai_requests[-1]["messages"]
+    second = next(r for r in stubs.ai_requests if any(m.get("role") == "tool" for m in r["messages"]))["messages"]
     assert second[-2]["tool_calls"][0]["id"] == "call_1", "the call goes back to the AI with its id"
     assert second[-1]["role"] == "tool" and json.loads(second[-1]["content"])["distance"] == 9
-    assert mem.world["found"][0]["what"] == "diamond ore", "and it remembers where"
+    found = asyncio.run(mem.store.call("list", kinds=["found"], world="sp:Test"))["results"]
+    assert found[0]["meta"]["what"] == "diamond ore", "and it remembers where"
     assert "find_ore" in names(stubs.ai_requests[0]["tools"])
 
 
@@ -60,15 +60,17 @@ def test_it_remembers_what_you_tell_it(stubs):
             {"id": "c2", "type": "function", "function": {"name": "remember", "arguments": "{\"fact\": \"Favourite colour is blue\"}"}}]},
         {"role": "assistant", "content": "[happy] Blue! I'll remember."},
     ]
-    mem = Memory(tempfile.mkdtemp())
+    mem = memory()
 
     async def scenario(url):
         async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
             await ws.send(hello([]))
+            await ws.send(json.dumps({"type": "event", "event": "join", "world": "sp:T"}))
             await ws.send(json.dumps({"type": "chat", "text": "my favourite colour is blue"}))
             await recv_until(ws, "say")
     asyncio.run(with_brain(make_cfg(stubs.port), scenario, memory=mem))
-    assert Memory(mem.dir).you["facts"][0]["text"] == "Favourite colour is blue"
+    facts = asyncio.run(mem.store.call("list", kinds=["player"], all_worlds=True))["results"]
+    assert facts[0]["text"] == "Favourite colour is blue"
 
 
 def test_a_forbidden_tool_is_refused_without_asking_the_game(stubs):
@@ -92,9 +94,11 @@ def test_leaving_writes_a_diary_entry(stubs):
     stubs.ai_script = [
         {"role": "assistant", "content": "[happy] Hi!"},
         {"role": "assistant", "content": "[happy] Sure!"},
-        {"role": "assistant", "content": "We chatted about birch and I promised to help build a cabin."},
+        {"role": "assistant", "content": json.dumps({
+            "player": [{"text": "Wants to build a birch cabin.", "importance": 7}], "self": [], "habit": [], "world": [],
+            "diary": "We chatted about birch and I promised to help build a cabin."})},
     ]
-    mem = Memory(tempfile.mkdtemp())
+    mem = memory()
 
     async def scenario(url):
         async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
@@ -106,7 +110,8 @@ def test_leaving_writes_a_diary_entry(stubs):
             await ws.send(json.dumps({"type": "event", "event": "leave"}))
             await asyncio.sleep(0.5)
     asyncio.run(with_brain(make_cfg(stubs.port), scenario, memory=mem))
-    diary = Memory(mem.dir)
-    diary.open_world("sp:Diary")
-    assert "cabin" in diary.world["diary"][0]["text"]
-    assert len(diary.world["history"]) == 4, "the conversation is kept for next time"
+    rows = lambda kind: asyncio.run(mem.store.call("list", kinds=[kind], world="sp:Diary"))["results"]  # noqa: E731
+    assert "cabin" in rows("diary")[0]["text"]
+    assert rows("player")[0]["text"] == "Wants to build a birch cabin.", "it learned something about you"
+    assert len(asyncio.run(mem.history())) == 4, "the conversation is kept for next time"
+    assert stubs.ai_requests[-1].get("response_format") == {"type": "json_object"}

@@ -66,6 +66,7 @@ class Mind:
         self.memory = memory
         self.history = []  # [{"role": "user"|"assistant", "content": str}]
         self.powers = ""   # e.g. "power helper, style grounded" (from the mod)
+        self.recalled = "" # what memory brought up for the current message
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
@@ -78,7 +79,7 @@ class Mind:
         msgs = [{"role": "system", "content": system}]
         # The game state goes with the newest message, not the system prompt: models trust recent
         # text most, and otherwise anchor on what was said earlier ("it's night") after time moved on.
-        remembered = self.memory.block(snapshot) if self.memory else ""
+        remembered = self.recalled
         now = "[Game state right now]\n%s\n\n" % describe(snapshot)
         if remembered:
             now += "[What you remember]\n%s\n\n" % remembered
@@ -116,22 +117,58 @@ class Mind:
         """Remember lines that did not come from the AI (danger warnings)."""
         self.remember("assistant", "[%s] %s" % (mood, text))
 
-    async def summarize(self, transcript):
-        """One or two diary sentences about a play session (for memory)."""
+    async def reflect(self, transcript, known, diary=False):
+        """Learning: what in this stretch of play is worth knowing for good? Returns
+        {"player": [...], "self": [...], "habit": [...], "world": [...], "diary": "..."}."""
+        name = self.cfg["name"]
+        system = (
+            "You are %s, a companion spirit in Minecraft, looking back at a stretch of play to learn from it. "
+            "Write down only lasting knowledge, as JSON with these keys (each a list of "
+            '{"text": "...", "importance": 1-10}, empty lists are fine):\n'
+            '  "player": who the player is: their name, likes and dislikes, play style, personality, goals, '
+            "what matters to them. Short third-person sentences (\"Likes cherry trees.\").\n"
+            '  "self": your own tastes, feelings and little story that came up, in first person (\"I love sunsets.\").\n'
+            '  "habit": what the player often asks or does (\"Often asks where to find diamonds.\").\n'
+            '  "world": facts about this world: what they built, plans, important places.\n'
+            "Skip small talk and anything already known (listed below) unless it changed; then write the new version.\n"
+            '  "merge": pairs [old_id, kept_id] of already-known items (the #numbers below) that say the same thing, '
+            "so only the better one is kept. Empty if none."
+            % name)
+        system += ('\nThe diary, if asked, is one plain string.')
+        if diary:
+            system += ('\nAlso "diary": one or two warm sentences in first person about this play session '
+                       "(what you did together, anything special).")
+        user = "Already known:\n%s\n\nWhat happened:\n%s" % ("\n".join("- " + k for k in known) or "(nothing yet)", transcript)
         ai = self.cfg["ai"]
-        body = {"model": ai["model"], "temperature": 0.5, "max_tokens": 120, "messages": [
-            {"role": "system", "content": "You are %s, a companion in Minecraft, writing your diary. Write one or two "
-                                          "short, warm sentences about this play session: what you did together and "
-                                          "anything worth remembering. No mood tag." % self.cfg["name"]},
-            {"role": "user", "content": transcript}]}
-        raw = await asyncio.to_thread(post_json, ai["url"].rstrip("/") + "/chat/completions", body, ai.get("api_key", ""))
+        body = {"model": ai["model"], "temperature": 0.3, "max_tokens": 500,
+                "response_format": {"type": "json_object"},
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""))
         try:
-            return parse_reply(raw["choices"][0]["message"].get("content") or "")[0]
+            content = raw["choices"][0]["message"].get("content") or "{}"
         except (KeyError, IndexError, TypeError):
-            return ""
+            raise AIError("unexpected answer while reflecting")
+        m = re.search(r"\{.*\}", content, re.S)
+        try:
+            return json.loads(m.group(0)) if m else {}
+        except ValueError:
+            return {}
+
+    def url(self):
+        return self.cfg["gateway"]["url"].rstrip("/") + "/chat/completions"
+
+    async def recall(self, snapshot, query):
+        """Retrieval: the memories that matter for this message (empty if memory is unavailable)."""
+        self.recalled = ""
+        if self.memory is not None and getattr(self.memory, "world_id", None):
+            try:
+                self.recalled = await self.memory.context(snapshot, query)
+            except Exception as e:  # memory is a bonus, never a reason not to answer
+                log.warning("memory recall failed: %s", e)
 
     async def _ask(self, snapshot, prompt, tools=None, run_tool=None, rounds=4, force=None):
         ai = self.cfg["ai"]
+        await self.recall(snapshot, prompt)
         messages = self.build_messages(snapshot, prompt)
         log.debug("prompt context:\n%s", messages[-1]["content"])
         content = ""
@@ -146,7 +183,7 @@ class Mind:
                 body["tools"] = tools
                 if force and round_ == 0:  # a clear request: it must actually do it
                     body["tool_choice"] = {"type": "function", "function": {"name": force}}
-            raw = await asyncio.to_thread(post_json, ai["url"].rstrip("/") + "/chat/completions", body, ai.get("api_key", ""))
+            raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""))
             try:
                 msg = raw["choices"][0]["message"]
             except (KeyError, IndexError, TypeError):

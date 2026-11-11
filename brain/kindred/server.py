@@ -32,7 +32,7 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
 from . import config, intents, tools, voice
-from .memory import Memory
+from .memory import GatewayMemory, Memory
 from .alerts import Alerts, ambient_mood
 from .mind import AIError, Mind
 
@@ -56,7 +56,8 @@ class Brain:
     def __init__(self, cfg, token, mind=None, alerts=None, clock=time.monotonic, memory=None):
         self.cfg = cfg
         self.token = token
-        self.memory = memory if memory is not None else Memory()
+        self.memory = memory if memory is not None else Memory(
+            GatewayMemory(cfg["gateway"]["url"], cfg["gateway"].get("key", "")))
         self.mind = mind or Mind(cfg, self.memory)
         self.abilities = []
         self.singleplayer = False
@@ -165,66 +166,103 @@ class Brain:
 
     async def run_tool(self, name, args):
         """What happens when the AI uses a tool: memory here, everything else in the game."""
-        if name == "remember":
-            return {"ok": True, "remembered": self.memory.remember(args.get("fact", ""))}
-        if name == "forget":
-            return {"ok": True, "forgot": self.memory.forget(args.get("about", ""))}
-        if name == "name_place":
-            p = self.memory.name_place(args.get("name", ""), self.snapshot)
-            return {"ok": bool(p), "named": args.get("name", "")} if p else {"ok": False, "error": "I don't know where we are"}
+        try:
+            if name == "remember":
+                new = await self.memory.remember(args.get("fact", ""), args.get("about", "player"))
+                return {"ok": True, "remembered": True, "alreadyKnew": not new}
+            if name == "forget":
+                return {"ok": True, "forgot": await self.memory.forget(args.get("about", ""))}
+            if name == "name_place":
+                p = await self.memory.name_place(args.get("name", ""), self.snapshot)
+                return {"ok": bool(p), "named": args.get("name", "")} if p else {"ok": False, "error": "I don't know where we are"}
+            if name == "set_reminder":
+                m = await self.memory.add_reminder(args.get("text", ""), args.get("when", ""))
+                return {"ok": True, "reminder": args.get("text", ""), "when": args.get("when", ""),
+                        "inMinutes": round((m["due"] - time.time()) / 60) if m.get("due") else None}
+            if name == "cancel_reminder":
+                return {"ok": True, "cancelled": await self.memory.cancel_reminder(args.get("about", ""))}
+        except MemoryError as e:
+            return {"ok": False, "error": str(e)}
         if name not in self.abilities:
             return {"ok": False, "error": "My settings don't let me do that (%s)." % self.mind.powers}
         if name == "guide":
-            args = self.guide_target(args)
+            args = await self.guide_target(args)
         result = await self.request(name, args)
         if name in ("find_ore", "locate") and result.get("ok") and "x" in result and result.get("found", True):
             what = result.get("ore") or result.get("what") or args.get("ore") or args.get("what") or "something"
             if name == "find_ore":
                 what += " ore"
             dim = (self.snapshot.get("where") or {}).get("dimension", "minecraft:overworld")
-            self.memory.found(what, result["x"], result.get("y", 64), result["z"], dim)
+            await self.safe(self.memory.found(what, result["x"], result.get("y", 64), result["z"], dim))
+        if result.get("ok"):
+            await self.safe(self.memory.episode("I used %s %s: %s" % (name, json.dumps(args), result.get("where")
+                                                                       or json.dumps(result)[:160]), 4))
         return result
 
-    def guide_target(self, args):
+    async def safe(self, coro):
+        """Memory is a bonus: if the store is unreachable, carry on without it."""
+        try:
+            return await coro
+        except MemoryError as e:
+            log.warning("%s", e)
+            return None
+
+    async def guide_target(self, args):
         """Where to lead: a place it remembers by name, what it just found ("last"), or coordinates
         only if the player actually said numbers (models like to invent them)."""
         to = str(args.get("to") or "").strip().lower()
-        if to and to != "last" and self.memory.world is not None:
-            for name, p in self.memory.world["places"].items():
-                if to in name.lower() or name.lower() in to:
-                    return {"x": p["x"], "y": p["y"], "z": p["z"]}
-            for f in reversed(self.memory.world["found"]):
-                if to in f["what"].lower():
-                    return {"x": f["x"], "y": f["y"], "z": f["z"]}
+        if to and to != "last":
+            places = await self.safe(self.memory.places()) or []
+            for p in places:
+                name = p["meta"].get("name", "").lower()
+                if name and (to in name or name in to):
+                    return {k: p["meta"][k] for k in ("x", "y", "z")}
+            found = await self.safe(self.memory.store.call("list", kinds=["found"], world=self.memory.world_id, limit=40))
+            for f in (found or {}).get("results", []):
+                if to in f["meta"].get("what", "").lower():
+                    return {k: f["meta"][k] for k in ("x", "y", "z")}
         said_numbers = bool(re.search(r"-?\d{2,}", getattr(self, "last_player_text", "")))
         if "x" in args and "z" in args and said_numbers:
             return {k: args[k] for k in ("x", "y", "z") if k in args}
         return {}  # the mod then uses the last thing found or located
 
-    async def end_session(self):
-        """When you leave: a diary entry about the session (if you talked), and the time played."""
-        if self.memory.world is None:
-            return
+    async def reflect(self, session_end=False):
+        """Learning: the AI looks back at what happened and keeps what's worth knowing for good."""
         talk = self.memory.exchanges
         history = list(self.mind.history[-16:])
-        self.memory.end_session()
-        if talk >= 2:
-            transcript = "\n".join("%s: %s" % ("Player" if m["role"] == "user" else "You", m["content"]) for m in history)
-            try:
-                entry = await self.mind.summarize(transcript)
-                self.memory.write_diary(entry)
-                log.info("diary: %s", entry)
-            except AIError as e:
-                log.warning("no diary entry: %s", e)
+        if talk < 2 and not session_end:
+            return
+        if not history:
+            return
+        transcript = "\n".join("%s: %s" % ("Player" if m["role"] == "user" else "You", m["content"]) for m in history)
+        try:
+            known = await self.memory.known_for(transcript[-1500:])
+            lessons = await self.mind.reflect(transcript, known, diary=session_end and talk >= 2)
+            added = await self.memory.learn(lessons)
+            self.memory.since_reflection = 0
+            log.info("learned %d new things%s", added, "; diary: %s" % lessons.get("diary") if lessons.get("diary") else "")
+        except (AIError, MemoryError) as e:
+            log.warning("could not reflect: %s", e)
+
+    async def end_session(self):
+        """When you leave: what it learned, a diary entry, and the time played."""
+        if self.memory.world_id is None:
+            return
+        await self.reflect(session_end=True)
+        await self.safe(self.memory.end_session())
 
     async def on_event(self, name, msg=None):
         msg = msg or {}
         if name == "join":
             self.in_world = True
             self.last_talk = self.clock()
-            self.memory.open_world(msg.get("world") or "unknown")
-            self.mind.history = list(self.memory.world.get("history") or [])
-            self.since = self.memory.start_session()
+            try:
+                await self.memory.open_world(msg.get("world") or "unknown")
+                self.mind.history = list(await self.memory.history())
+                self.since = await self.memory.start_session()
+            except MemoryError as e:
+                log.warning("%s (playing without memory)", e)
+                self.since = None
             if self.cfg["behaviour"].get("greet_on_join") and (self.greet_task is None or self.greet_task.done()):
                 self.greet_task = asyncio.create_task(self.greet())
         elif name == "leave":
@@ -234,6 +272,7 @@ class Brain:
             self.snapshot = {}
         elif name == "arrived":
             asyncio.create_task(self.say(random.choice(intents.ARRIVED_LINES), "excited", instant=True))
+            await self.safe(self.memory.episode("We arrived where I was leading the player.", 4))
         elif name == "petted":
             log.info("petted")
             await self.set_mood("happy", hold=20)
@@ -241,6 +280,26 @@ class Brain:
             if self.clock() - self.last_pet_reply > 60 and not self.talk_lock.locked():
                 self.last_pet_reply = self.clock()
                 asyncio.create_task(self.say(random.choice(intents.PET_LINES), "happy", instant=True))
+
+    async def reminder_loop(self, every=2.0):
+        """Reminders by the clock, and by game time (when night falls, at sunrise)."""
+        last_tod = None
+        while True:
+            await asyncio.sleep(every)
+            if not self.in_world or self.ws is None or self.memory.world_id is None:
+                continue
+            events = [None]
+            tod = (self.snapshot.get("time") or {}).get("timeOfDay")
+            if tod is not None and last_tod is not None:
+                if last_tod < 13000 <= tod:
+                    events.append("night")
+                if tod < last_tod or (last_tod < 23500 <= tod):
+                    events.append("morning")
+            last_tod = tod
+            for ev in events:
+                for r in await self.safe(self.memory.due(ev)) or []:
+                    log.info("reminder: %s", r["text"])
+                    await self.say("Psst, a reminder: %s" % r["text"].rstrip("."), "curious", instant=True)
 
     async def on_snapshot(self, s):
         self.snapshot = s
@@ -331,7 +390,7 @@ class Brain:
         async with self.talk_lock:
             try:
                 self.last_player_text = text
-                force = intents.action_hint(text, self.abilities)
+                force = intents.action_hint(text, self.abilities + ["set_reminder", "name_place", "remember"])
                 reply, mood, gesture = await self.mind.reply(self.snapshot, text, done,
                                                              tools.for_abilities(self.abilities), self.run_tool, force)
             except AIError as e:
@@ -341,7 +400,11 @@ class Brain:
                 return
             log.info("you: %s | %s: [%s]%s %s", text, self.cfg["name"], mood, " {%s}" % gesture if gesture else "", reply)
             self.memory.exchanges += 1
-            self.memory.keep_history(self.mind.history)
+            self.memory.since_reflection += 1
+            await self.safe(self.memory.keep_history(self.mind.history))
+            await self.safe(self.memory.episode("The player said: %s | I said: %s" % (text, reply), 3))
+            if self.memory.since_reflection >= 8:  # learn as we go, not only at the end
+                asyncio.create_task(self.reflect())
             await self.say(reply, mood or "happy", emote=gesture)
             self.last_talk = self.clock()
 
@@ -376,7 +439,11 @@ class Brain:
             return
         async with self.talk_lock:
             try:
-                text, mood, gesture = await self.mind.initiative(self.snapshot, self.memory.welcome(self.since))
+                welcome = await self.safe(self.memory.welcome(self.since)) or "Greet the player warmly in one short sentence."
+                due = await self.safe(self.memory.due("session")) or []
+                if due:
+                    welcome += " Also remind them: " + "; ".join(r["text"] for r in due) + "."
+                text, mood, gesture = await self.mind.initiative(self.snapshot, welcome)
             except AIError as e:
                 log.error("AI error while greeting: %s", e)
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
@@ -412,6 +479,6 @@ async def run(cfg, token):
     host, port = cfg["server"].get("host", "127.0.0.1"), int(cfg["server"]["port"])
     async with serve(brain.handler, host, port, process_request=brain.check_auth, max_size=MAX_MESSAGE,
                      ping_interval=20, ping_timeout=20):
-        log.info("%s's brain is listening on ws://%s:%d (AI: %s, model %s)", cfg["name"], host, port,
-                 cfg["ai"]["url"], cfg["ai"]["model"])
-        await brain.small_talk_loop()
+        log.info("%s's brain is listening on ws://%s:%d (gateway: %s, model %s)", cfg["name"], host, port,
+                 cfg["gateway"]["url"], cfg["ai"]["model"] or "the gateway's")
+        await asyncio.gather(brain.small_talk_loop(), brain.reminder_loop())
