@@ -1,0 +1,12 @@
+# Does the companion get the time of day right? Needs the brain running.
+world kindred-test
+wait 200
+cmd time set 1000
+wait 60
+chat What time of day is it? Answer with the hour if you can.
+wait 140
+cmd time set 14000
+wait 60
+chat And now, what time of day is it?
+wait 140
+quit

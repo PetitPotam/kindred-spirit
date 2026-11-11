@@ -18,12 +18,13 @@ import base64
 import hmac
 import json
 import logging
+import os
 import re
 import time
 
 from websockets.asyncio.server import serve
 
-from . import voice
+from . import config, voice
 from .alerts import Alerts, ambient_mood
 from .mind import AIError, Mind
 
@@ -52,6 +53,7 @@ class Brain:
         self.clock = clock
         self.ws = None
         self.snapshot = {}
+        self.snapshot_at = -1e9
         self.in_world = False
         self.mood = "happy"
         self.mood_until = 0.0
@@ -126,6 +128,8 @@ class Brain:
 
     async def on_snapshot(self, s):
         self.snapshot = s
+        self.snapshot_at = self.clock()
+        self.save_snapshot(s)
         if "health" in s:
             self.in_world = True
         now = self.clock()
@@ -138,6 +142,20 @@ class Brain:
                 return
         if now >= self.mood_until:
             await self.set_mood(ambient_mood(s))
+
+    def save_snapshot(self, s, every=5.0):
+        """Keeps the latest snapshot in logs/last-snapshot.json: handy for bug reports and new alerts."""
+        now = self.clock()
+        if now - getattr(self, "_saved_at", -1e9) < every:
+            return
+        self._saved_at = now
+        try:
+            path = os.path.join(config.HOME, "logs", "last-snapshot.json")
+            with open(path + ".tmp", "w", encoding="utf-8") as fh:
+                json.dump(s, fh, indent=1)
+            os.replace(path + ".tmp", path)
+        except OSError:
+            pass
 
     async def set_mood(self, mood, hold=0.0):
         if hold:
@@ -218,7 +236,13 @@ class Brain:
         await self.answer(text)
 
     async def greet(self):
-        await asyncio.sleep(2.5)  # wait for the first snapshot
+        # Wait for a snapshot taken a moment after joining: the very first one can come before the
+        # server has sent the time of day, and a greeting about "the night" at noon sets a bad tone.
+        joined = self.clock()
+        for _ in range(40):
+            await asyncio.sleep(0.25)
+            if self.snapshot_at - joined >= 2.0:
+                break
         if not self.in_world or self.ws is None:
             return
         async with self.talk_lock:

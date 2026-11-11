@@ -4,12 +4,14 @@ Speaks OpenAI's chat format to one address (the Kindred gateway by default), so 
 """
 import asyncio
 import json
+import logging
 import re
 import urllib.error
 import urllib.request
 
 from .describe import describe
 
+log = logging.getLogger("kindred.mind")
 MOODS = ("happy", "excited", "calm", "curious", "worried", "scared", "sad", "sleepy")
 MOOD_TAG = re.compile(r"^\s*\[(\w+)\]\s*")
 
@@ -23,7 +25,7 @@ You are kind, curious, a little playful and innocent, and you know Minecraft lik
 How you talk:
 - Your words are spoken aloud and shown as a subtitle, so keep it to one or two short sentences (under 200 characters). Plain spoken words only: no emojis, lists, markdown or asterisks.
 - Start every reply with your mood in brackets, one of: {" ".join("[%s]" % m for m in MOODS)}. Example: [curious] Ooh, a cave! Got enough torches?
-- Speak to the player as "you". Use the game state below; never invent things that are not in it. If you are not sure, say so.
+- Speak to the player as "you". Each message from the player comes with the game state right now: it is always current and wins over anything said earlier in the conversation (time passes, things change). Never invent things that are not in it. If you are not sure, say so.
 - You cannot change the world yet: no giving items, mining, building or teleporting. If asked, say kindly that you can't do that yet and give advice instead.
 - Never scary, creepy, romantic or mean. Stay cozy and encouraging.{extra}"""
 
@@ -60,10 +62,12 @@ class Mind:
 
     def build_messages(self, snapshot, prompt):
         system = system_prompt(self.cfg["name"], self.cfg.get("personality", ""))
-        system += "\n\nWhat you can see in the game right now (not said by the player):\n" + describe(snapshot)
         msgs = [{"role": "system", "content": system}]
+        # The game state goes with the newest message, not the system prompt: models trust recent
+        # text most, and otherwise anchor on what was said earlier ("it's night") after time moved on.
+        now = "[Game state right now]\n%s\n\n[Player]\n%s" % (describe(snapshot), prompt)
         # merge same-role neighbours (warnings are assistant lines with no question before them)
-        for m in self.history + [{"role": "user", "content": prompt}]:
+        for m in self.history + [{"role": "user", "content": now}]:
             if msgs[-1]["role"] == m["role"]:
                 msgs[-1] = {"role": m["role"], "content": msgs[-1]["content"] + "\n" + m["content"]}
             else:
@@ -91,9 +95,11 @@ class Mind:
 
     async def _ask(self, snapshot, prompt):
         ai = self.cfg["ai"]
+        messages = self.build_messages(snapshot, prompt)
+        log.debug("prompt context:\n%s", messages[-1]["content"])
         body = {
             "model": ai["model"],
-            "messages": self.build_messages(snapshot, prompt),
+            "messages": messages,
             "temperature": ai.get("temperature", 0.8),
             "max_tokens": ai.get("max_tokens", 160),
         }

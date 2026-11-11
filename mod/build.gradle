@@ -30,8 +30,8 @@ test {
 loom {
     runs {
         client {
-            // Dev-only test script (see DevScript.java); harmless when the file is absent.
-            vmArg "-Dkindredspirit.devScript=${rootProject.projectDir}/run/devscript.txt"
+            // Sandbox test script (see DevScript.java): ./gradlew runClient -PdevScript=devscripts/smoke-test.txt
+            if (project.hasProperty('devScript')) vmArg "-Dkindredspirit.devScript=${file(project.property('devScript'))}"
         }
     }
 }
