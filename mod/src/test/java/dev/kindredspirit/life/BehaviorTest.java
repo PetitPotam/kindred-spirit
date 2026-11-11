@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** The companion's "life", simulated without the game: 20 decisions and 60 frames per second. */
-class BehaviorTest {
+public class BehaviorTest {
     static final double TICK = 0.05, FRAME = 1 / 60.0;
 
     /** Player standing at the origin, eyes at y=1.6, facing south (+Z). */
@@ -117,6 +117,22 @@ class BehaviorTest {
         double off = Math.abs(Math.toDegrees(Math.atan2(-dx, dz)) - yaw);
         assertTrue(off < 8, "still in front of you: " + off + "°");
         assertEquals(Behavior.GazeKind.PLAYER, b.gaze());
+    }
+
+    @Test
+    void driftingIntoYourViewDoesntMakeItStayThere() {
+        Behavior b = companion();
+        Behavior.Senses s = player(); // stands perfectly still for a minute while it wanders
+        run(b, s, 2, Behavior.Activity.IDLE);
+        double inCentre = 0, longest = 0;
+        for (int i = 0; i < 60 * 20; i++) {
+            run(b, s, TICK, Behavior.Activity.IDLE);
+            double dx = b.x - s.ex, dy = b.y - s.ey, dz = b.z - s.ez;
+            double angle = Math.toDegrees(Math.acos(dz / Math.sqrt(dx * dx + dy * dy + dz * dz)));
+            inCentre = angle < 10 && Math.sqrt(dx * dx + dy * dy + dz * dz) < 5 ? inCentre + TICK : 0;
+            longest = Math.max(longest, inCentre);
+        }
+        assertTrue(longest < 1.5, "never lingers in the middle of your view: " + longest + " s");
     }
 
     @Test

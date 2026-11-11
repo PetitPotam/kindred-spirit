@@ -20,7 +20,7 @@ The rule for all of it: everything is a setting, so each player finds the compan
 | Radial command wheel (MAYBE, configurable) | **Planned** (Phase 3): stay, come, follow, look, gestures, skins on one key |
 | Companion screen with a rotating 3D preview (WANT) | **Planned** (Phase 3): pick skin, size, name and personality while it turns in front of you |
 | A real companion mob / autonomous helpers (MAYBE) | **Open question** in the design; never by default |
-| Everything configurable | **Partly**: config file and `/kindred` commands today; the in-game settings screen and switches for each liveliness behavior (wandering, dozing, glances, eye-contact reactions, petting) are Phase 1 leftovers |
+| Everything configurable | **Mostly**: every look and liveliness behavior is a setting (config file, `/kindred skin`, `/kindred life` with 13 switches). Still to come: an in-game settings screen (Phase 1 leftover) |
 
 ## Phase 0: Spike, no Java (one or two evenings)
 Prove the brain idea before writing a mod.
@@ -35,8 +35,8 @@ Prove the brain idea before writing a mod.
 - Fabric mod skeleton (1.21.1). Decide whether to keep MCPFabric as a dependency.
 - Draw the slime ball beside you, client-side only, with bounce and mood colors.
 - Subtitles, a name tag on look, and a settings screen (Mod Menu).
-- Leftovers after 0.1: the name tag on look, the settings screen, and a switch for each liveliness
-  behavior (wandering, dozing, glances, eye-contact reactions, petting).
+- Leftovers after 0.1: the name tag on look and the settings screen. (A switch for each liveliness
+  behavior shipped as `/kindred life`.)
 - Local WebSocket between the mod and the brain, with a token.
 
 **Done when:** a cute slime follows you, talks and reacts, and your world files are untouched.

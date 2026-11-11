@@ -5,8 +5,9 @@ Comment on (or open) the matching GitHub issue before starting, so two people do
 
 ## Mod (Java)
 
-1. **Settings screen with Mod Menu.** Edit `kindredspirit.json` in game: quality, subtitles,
-   captions, size, position, volume. Start: `KindredConfig.java`; add Mod Menu as an optional dependency.
+1. **Settings screen with Mod Menu.** Edit `kindredspirit.json` in game: skin, quality, subtitles,
+   captions, size, position, volume, and the liveliness switches (`LifeSwitches.java` already reads and
+   writes them by name). Start: `KindredConfig.java`; add Mod Menu as an optional dependency.
 2. **Name tag when you look at it.** Show the companion's name above it only while your crosshair
    is on it. Start: `render/CompanionRenderer.java` (a ray-sphere test against the camera ray).
 3. **Hide behind you at night,** peeking out at noises. Start: `life/Behavior.java` (a new follow slot

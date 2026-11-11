@@ -2,6 +2,7 @@ package dev.kindredspirit;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import dev.kindredspirit.life.Behavior;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -34,6 +35,8 @@ public final class KindredConfig {
     public float size = 1.0f;
     /** Push-to-talk limit. The local Whisper is tuned for clips up to 15 s (that makes it ~2x faster). */
     public int maxRecordSeconds = 15;
+    /** Its liveliness, one switch per behavior (see Behavior.Settings); also /kindred life. */
+    public Behavior.Settings life = new Behavior.Settings();
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -50,6 +53,7 @@ public final class KindredConfig {
             KindredSpiritClient.LOG.warn("Could not read {} ({}); using defaults", p, e.toString());
         }
         if (cfg == null) cfg = new KindredConfig();
+        if (cfg.life == null) cfg.life = new Behavior.Settings();
         cfg.save();
         return cfg;
     }

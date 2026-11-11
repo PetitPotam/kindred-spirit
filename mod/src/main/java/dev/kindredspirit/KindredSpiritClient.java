@@ -174,6 +174,44 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                 c.getSource().sendFeedback(Component.literal("Skins reloaded"));
                                 return 1;
                             })))
+                    .then(ClientCommandManager.literal("life")
+                            .executes(c -> {
+                                c.getSource().sendFeedback(Component.literal("Liveliness: " + LifeSwitches.describe(cfg.life)
+                                        + ". Change one with /kindred life <name> <value>, or /kindred life reset."));
+                                return 1;
+                            })
+                            .then(ClientCommandManager.literal("reset").executes(c -> {
+                                LifeSwitches.reset(cfg.life);
+                                cfg.save();
+                                c.getSource().sendFeedback(Component.literal("Liveliness back to the defaults"));
+                                return 1;
+                            }))
+                            .then(ClientCommandManager.argument("name", StringArgumentType.word())
+                                    .suggests((c, b) -> SharedSuggestionProvider.suggest(LifeSwitches.names(), b))
+                                    .executes(c -> {
+                                        String n = StringArgumentType.getString(c, "name");
+                                        String v = LifeSwitches.get(cfg.life, n);
+                                        if (v == null) {
+                                            c.getSource().sendError(Component.literal("No switch called " + n + ". Try: " + String.join(", ", LifeSwitches.names())));
+                                            return 0;
+                                        }
+                                        c.getSource().sendFeedback(Component.literal(n + " = " + v + " (" + LifeSwitches.help(n) + ")"));
+                                        return 1;
+                                    })
+                                    .then(ClientCommandManager.argument("value", StringArgumentType.word())
+                                            .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                                    LifeSwitches.suggestions(StringArgumentType.getString(c, "name")), b))
+                                            .executes(c -> {
+                                                String n = StringArgumentType.getString(c, "name");
+                                                String err = LifeSwitches.set(cfg.life, n, StringArgumentType.getString(c, "value"));
+                                                if (err != null) {
+                                                    c.getSource().sendError(Component.literal(err));
+                                                    return 0;
+                                                }
+                                                cfg.save();
+                                                c.getSource().sendFeedback(Component.literal(n + " = " + LifeSwitches.get(cfg.life, n)));
+                                                return 1;
+                                            }))))
                     .then(ClientCommandManager.literal("emote")
                             .then(ClientCommandManager.argument("name", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(
@@ -326,7 +364,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     companion.mood = mood;
                     companion.say(text, secs, now);
                     Emote gesture = Emote.parse(str(msg, "emote"));
-                    if (gesture != null) companion.life.play(gesture, companion.now());
+                    if (gesture != null && cfg.life.aiGestures) companion.life.play(gesture, companion.now());
                     boolean talking = secs > 0 || more;
                     companion.activity = talking ? Behavior.Activity.SPEAKING : Behavior.Activity.IDLE;
                     // the audio thread needs a moment to start; the next sentence may still be on its way
