@@ -2,7 +2,7 @@
 
 A cute, configurable AI companion for Minecraft Java. It talks with you by voice or chat, understands what you're doing in your world, knows the game like an expert, keeps you company, and helps as much or as little as you choose.
 
-Status: design, November 2026. Nothing is built yet. Feature choices come from the [feature picker](https://claude.ai/artifact/9M8nx31vv6f871iDDeHkUG).
+Status: November 2026. A first preview (0.1) covers parts of Phase 0 and 1 of the [roadmap](ROADMAP.md): the slime companion, voice chat, and danger warnings.
 
 ---
 
@@ -38,14 +38,14 @@ Status: design, November 2026. Nothing is built yet. Feature choices come from t
                │ OpenAI-compatible HTTP
 ┌──────────────▼─────────────────────────────────────┐
 │ Gateway (yours to choose)                          │
-│  default: Kindred gateway (from the Verity setup)  │
+│  default: the Kindred gateway (services/)          │
 │  → Gemini, Ollama, Claude, Groq, OpenRouter, agents │
 └────────────────────────────────────────────────────┘
 ```
 
-**Starting point:** [MCPFabric](https://github.com/denfry/mcpfabric) (MIT) already exposes game state and 70+ actions over a local bridge for 1.21.1. Phase 0 prototypes the brain on top of it with no Java at all. Phase 1 decides whether Kindred keeps MCPFabric as a dependency or carries its own bridge (borrowing MIT code with credit).
+**Bridge: decided (0.1).** [MCPFabric](https://github.com/denfry/mcpfabric) (MIT) exposes game state and 70+ actions over a local HTTP bridge plus a Node MCP server, built for AI agents that *play* the game, many with operator-level power. Kindred needs its own mod anyway to draw the companion, and the brain only needs a small read-only snapshot, so the mod carries its own small WebSocket bridge (token, 127.0.0.1). That keeps one mod, no Node, and no operator-level surface for a companion that never changes your world. MCPFabric stays the reference for actions and the MCP server (Phases 2 and 7): interoperate, or borrow MIT code with credit.
 
-**Voice** reuses the pieces proven in the Verity setup: push-to-talk, local Whisper, the speech cleaner (no illegal-character kicks, no words invented from silence), and local Kokoro voice. Speech services also go through the gateway, so users can swap them.
+**Voice** reuses pieces proven in an earlier local setup: push-to-talk, local Whisper, the speech cleaner (one clean line, no words invented from silence), and local Kokoro voice. Speech services also go through the gateway, so users can swap them.
 
 ## 3. The companion
 
@@ -156,7 +156,7 @@ All configurable:
 
 ## 13. Open questions
 
-1. Keep MCPFabric as a dependency, or build our own bridge after the spike?
+1. ~~Keep MCPFabric as a dependency, or build our own bridge?~~ Own small bridge (see 2).
 2. Autonomous helpers: option 1 only, or also vanilla helper summoning?
 3. License: MIT (proposed).
 4. Activity understanding: how far can rules go before a vision model is needed?
