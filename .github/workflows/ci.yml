@@ -6,16 +6,17 @@ on:
 
 jobs:
   mod:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: mod
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      # Loom (the Fabric build plugin) runs on Java 25; the mod itself is compiled for Java 21
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew build --no-daemon
       - uses: actions/upload-artifact@v4
@@ -24,10 +25,10 @@ jobs:
           path: mod/build/libs/*.jar
 
   brain:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -r brain/requirements-dev.txt
