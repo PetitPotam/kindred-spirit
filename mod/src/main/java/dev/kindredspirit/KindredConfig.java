@@ -30,7 +30,8 @@ public final class KindredConfig {
     public float offsetForward = 1.9f;
     public float offsetUp = -0.3f;
     public float size = 1.0f;
-    public int maxRecordSeconds = 30;
+    /** Push-to-talk limit. The local Whisper is tuned for clips up to 15 s (that makes it ~2x faster). */
+    public int maxRecordSeconds = 15;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
