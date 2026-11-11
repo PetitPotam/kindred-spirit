@@ -2,11 +2,13 @@
 
 Each phase ends with something you can play with. Phases follow the [design](DESIGN.md).
 
+**0.1 preview (November 2026)** covers most of Phase 0 and 1: the slime (bounce, moods, subtitles), the WebSocket bridge with a token, voice chat (Whisper + Kokoro), typed chat, danger warnings, adaptive quality, and the sandbox test harness. Not yet: name tag on look, the settings screen. The bridge question is settled: Kindred carries its own (see the design).
+
 ## Phase 0: Spike, no Java (one or two evenings)
 Prove the brain idea before writing a mod.
 - Install MCPFabric (MIT) on Fabric 1.21.1 in a separate test setup; confirm its real tools (status, inventory, events, find blocks, give items, run commands).
 - Brain v0 (Python): connect to MCPFabric, read a snapshot every few seconds, chat through the gateway (Gemini by default), reply in chat and with the Kokoro voice.
-- Push-to-talk and the speech cleaner from the Verity setup.
+- Push-to-talk and the speech cleaner.
 - One proactive alert: low health or a creeper behind you.
 
 **Done when:** you can talk to it by voice in-game, ask "what's around me?", and it warns you about danger unprompted.
