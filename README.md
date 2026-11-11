@@ -24,6 +24,15 @@ creeper sneaks behind you or your hearts run low.
 - **Light on your computer.** It adapts to your frame rate and hardware (see [Performance](#performance)).
 - **Made to be hacked on.** The mod is thin; the personality lives in a small Python "brain".
 
+## Where it comes from
+
+Kindred Spirit was inspired by [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je), a mod
+with an AI companion who lives in your world. I didn't care about its horror or its story. What
+stayed with me was the idea of a companion that is **present**: it sees what you're doing, talks
+with you, and keeps you company while you play. Kindred Spirit keeps only that idea and makes it
+cozy and configurable. It isn't a fork: none of Verity's code or assets are used, and it's written
+from scratch for Fabric.
+
 > **Status: 0.1 preview.** It's playable and fun, but small. We're looking for contributors:
 > see [what to build next](#help-wanted) and the [design](docs/DESIGN.md).
 
@@ -170,6 +179,7 @@ wake word...). Bigger plans are in the [roadmap](docs/ROADMAP.md). Start with
 
 [Fabric](https://fabricmc.net) · [whisper.cpp](https://github.com/ggml-org/whisper.cpp) ·
 [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) via [kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx) ·
-[websockets](https://github.com/python-websockets/websockets) · design notes from [MCPFabric](https://github.com/denfry/mcpfabric).
+[websockets](https://github.com/python-websockets/websockets) · design notes from [MCPFabric](https://github.com/denfry/mcpfabric) ·
+the idea of a companion that is always there, from [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je).
 
 MIT licensed. Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.
