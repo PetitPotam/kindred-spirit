@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "kindredspirit",
+  "version": "${version}",
+  "name": "Kindred Spirit",
+  "description": "A cute AI companion that floats beside you, talks with you, and never changes your world. Client-side only.",
+  "authors": ["Kindred Spirit contributors"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/kindredspirit/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.kindredspirit.KindredSpiritClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

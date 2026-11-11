@@ -1,0 +1,134 @@
+package dev.kindredspirit;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import dev.kindredspirit.util.Direction8;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Describes the game to the brain: read-only, built on the game thread about once a second
+ * (every two seconds on low quality). Only reads what your own client already knows.
+ */
+public final class Snapshot {
+    private Snapshot() {}
+
+    public static JsonObject build(Minecraft mc, int scanRadius) {
+        LocalPlayer p = mc.player;
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "snapshot");
+        if (p == null || mc.level == null) return o;
+
+        o.addProperty("health", round1(p.getHealth()));
+        o.addProperty("maxHealth", round1(p.getMaxHealth()));
+        o.addProperty("food", p.getFoodData().getFoodLevel());
+        o.addProperty("saturation", round1(p.getFoodData().getSaturationLevel()));
+        o.addProperty("armor", p.getArmorValue());
+        o.addProperty("air", p.getAirSupply());
+        o.addProperty("maxAir", p.getMaxAirSupply());
+        o.addProperty("onFire", p.isOnFire());
+        o.addProperty("gamemode", mc.gameMode == null ? "unknown" : mc.gameMode.getPlayerMode().getName());
+        if (p.getLastDamageSource() != null) o.addProperty("lastDamage", p.getLastDamageSource().getMsgId());
+
+        JsonArray effects = new JsonArray();
+        for (MobEffectInstance e : p.getActiveEffects()) {
+            JsonObject eo = new JsonObject();
+            eo.addProperty("id", e.getEffect().unwrapKey().map(k -> k.location().toString()).orElse("?"));
+            eo.addProperty("level", e.getAmplifier() + 1);
+            eo.addProperty("seconds", e.getDuration() / 20);
+            effects.add(eo);
+        }
+        o.add("effects", effects);
+
+        BlockPos pos = p.blockPosition();
+        JsonObject where = new JsonObject();
+        where.addProperty("x", pos.getX());
+        where.addProperty("y", pos.getY());
+        where.addProperty("z", pos.getZ());
+        where.addProperty("dimension", mc.level.dimension().location().toString());
+        where.addProperty("biome", mc.level.getBiome(pos).unwrapKey().map(k -> k.location().toString()).orElse("?"));
+        where.addProperty("facing", p.getDirection().getName());
+        where.addProperty("yaw", round1(p.getYRot()));
+        where.addProperty("skyVisible", mc.level.canSeeSky(pos.above()));
+        where.addProperty("light", mc.level.getMaxLocalRawBrightness(pos));
+        o.add("where", where);
+
+        long dayTime = mc.level.getDayTime();
+        JsonObject time = new JsonObject();
+        time.addProperty("day", dayTime / 24000 + 1);
+        time.addProperty("timeOfDay", dayTime % 24000);
+        time.addProperty("raining", mc.level.isRaining());
+        time.addProperty("thundering", mc.level.isThundering());
+        o.add("time", time);
+
+        // inventory, merged by item: "32 cobblestone" rather than every slot
+        o.addProperty("holding", itemId(p.getMainHandItem()));
+        o.addProperty("offhand", itemId(p.getOffhandItem()));
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (ItemStack s : p.getInventory().items) {
+            if (!s.isEmpty()) counts.merge(itemId(s), s.getCount(), Integer::sum);
+        }
+        JsonObject inv = new JsonObject();
+        counts.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).limit(30)
+                .forEach(e -> inv.addProperty(e.getKey(), e.getValue()));
+        o.add("inventory", inv);
+        JsonArray armor = new JsonArray();
+        for (ItemStack s : p.getInventory().armor) if (!s.isEmpty()) armor.add(itemId(s));
+        o.add("wearing", armor);
+
+        // what you are looking at, up to 24 blocks away
+        JsonObject look = new JsonObject();
+        Entity target = mc.crosshairPickEntity;
+        HitResult hit = p.pick(24, 1f, false);
+        if (target != null) {
+            look.addProperty("entity", BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()).toString());
+            look.addProperty("distance", round1(target.distanceTo(p)));
+        } else if (hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK) {
+            BlockPos bp = bh.getBlockPos();
+            look.addProperty("block", BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(bp).getBlock()).toString());
+            look.addProperty("distance", round1(Math.sqrt(bp.getCenter().distanceToSqr(p.getEyePosition()))));
+        } else if (hit instanceof EntityHitResult eh) {
+            look.addProperty("entity", BuiltInRegistries.ENTITY_TYPE.getKey(eh.getEntity().getType()).toString());
+        }
+        o.add("lookingAt", look);
+
+        // hostile mobs nearby, closest first, with a direction you can understand
+        List<Mob> mobs = mc.level.getEntitiesOfClass(Mob.class, p.getBoundingBox().inflate(scanRadius),
+                m -> m instanceof Enemy && m.isAlive());
+        mobs.sort(Comparator.comparingDouble(m -> m.distanceToSqr(p)));
+        JsonArray hostiles = new JsonArray();
+        for (Mob m : mobs.subList(0, Math.min(12, mobs.size()))) {
+            JsonObject mo = new JsonObject();
+            mo.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(m.getType()).toString());
+            mo.addProperty("distance", round1(m.distanceTo(p)));
+            mo.addProperty("direction", Direction8.relative(p.getYRot(), m.getX() - p.getX(), m.getZ() - p.getZ()));
+            mo.addProperty("above", round1(m.getY() - p.getY()));
+            hostiles.add(mo);
+        }
+        o.add("hostiles", hostiles);
+        return o;
+    }
+
+    private static String itemId(ItemStack s) {
+        return s.isEmpty() ? "" : BuiltInRegistries.ITEM.getKey(s.getItem()).toString();
+    }
+
+    private static double round1(double v) {
+        return Math.round(v * 10) / 10.0;
+    }
+}
