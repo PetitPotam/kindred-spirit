@@ -1,0 +1,523 @@
+package dev.kindredspirit.life;
+
+import dev.kindredspirit.util.Mood;
+import dev.kindredspirit.util.Smooth;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+/**
+ * What makes the companion feel alive: where it floats and what it looks at.
+ *
+ * <p>Two speeds, like a real creature: {@link #tick} (20 times a second) <em>decides</em>
+ * (follow you or wander, what catches its eye, when to react), and {@link #frame} (every drawn
+ * frame) <em>moves</em> toward those decisions with springs, so nothing ever snaps.
+ *
+ * <p>Rules of thumb that keep it from feeling robotic:
+ * <ul>
+ *   <li>Reactions come after a short, slightly random delay (0.1–0.35 s), like a person noticing.</li>
+ *   <li>Eyes move first and fast, the head follows more slowly.</li>
+ *   <li>Its idle drift is smooth noise, not a loop; it switches sides now and then.</li>
+ *   <li>When you look at it, it looks back; hold its gaze and it gets happy (or shy).</li>
+ *   <li>When you stand still it wanders around you and looks at things; after a long while it dozes.</li>
+ *   <li>It doesn't swing around with every small turn of your head: it keeps its spot until you
+ *       have turned clearly away (with some slack, so it doesn't twitch at the edge), and it holds
+ *       still while you look at it, so you can look it in the eyes.</li>
+ *   <li>It never parks in the middle of your view, unless you are looking at it on purpose.</li>
+ * </ul>
+ * No Minecraft classes here: the game fills in {@link Senses}, and tests can too.
+ */
+public final class Behavior {
+    public enum Activity { IDLE, LISTENING, THINKING, SPEAKING }
+
+    public enum Mode { FOLLOW, STAY, COME }
+
+    public enum Side { RIGHT, LEFT, ABOVE }
+
+    /** What the gaze is on. SHARED = whatever you are looking at ("joint attention"). */
+    public enum GazeKind { PLAYER, SHARED, POINT, DIRECTION }
+
+    public interface Solid {
+        boolean at(double x, double y, double z);
+    }
+
+    /** What the companion knows this tick. Filled by the game (or a test). */
+    public static final class Senses {
+        public double now;                      // seconds
+        public double ex, ey, ez;               // player's eyes
+        public double lx, ly = 0, lz = 1;       // player's look direction (unit)
+        public double yawDeg;                   // player's yaw (Minecraft degrees)
+        public double speed;                    // player's speed, blocks per second
+        public boolean sneaking;
+        public boolean hasLookHit;              // where the player is looking, if it hits something
+        public double hx, hy, hz;
+        /** Hostile mobs, closest first: {x, y, z, 1 if creeper else 0}. */
+        public final List<double[]> threats = new ArrayList<>();
+        /** Things worth a glance (animals, villagers, dropped items): {x, y, z}. */
+        public final List<double[]> interests = new ArrayList<>();
+    }
+
+    // ------------------------------------------------------------------ settings
+    private final double baseRight, baseUp, baseForward;
+    private final double radius;
+    private final Random rng;
+
+    // ------------------------------------------------------------------ outputs, read by the renderer
+    public double x, y, z;
+    public double headYaw, headPitch;          // radians; yaw = atan2(dx, dz), pitch up = positive
+    public double pupilX, pupilY;              // -1..1 within the eye
+    public double leanAngle, leanAxisX, leanAxisZ;
+    public double lift, squish, blink, shiver;
+    public final Emote.Pose pose = new Emote.Pose();
+    public Mode mode = Mode.FOLLOW;
+    public Side sidePreference;                // null = it picks
+    public Emote emote;
+    /** Set when the player pets it (sneak while looking at it); the game clears it after reacting. */
+    public boolean petted;
+
+    // ------------------------------------------------------------------ inner state
+    private boolean placed;
+    private final double[] px = new double[2], py = new double[2], pz = new double[2];
+    private final double[] hyaw = new double[2], hpitch = new double[2];
+    private final double[] pupX = new double[2], pupY = new double[2];
+    private final double[] wanderAmp = {0.22, 0};
+    private final double[] avoid = new double[2];
+    private double emoteStart;
+    private Side side = Side.RIGHT;
+    private double nextSideSwitch = 30;
+    private double stayX, stayY, stayZ, comeUntil;
+
+    private GazeKind gaze = GazeKind.SHARED, pendingGaze;
+    private double gx, gy, gz, pgx, pgy, pgz;  // POINT target, or DIRECTION as a unit vector
+    private double switchAt = -1, glanceUntil, lookOverrideUntil = -1;
+    private GazeKind lookOverride;
+    private double sharedX, sharedY, sharedZ;
+
+    private double lastActive, lastLookX, lastLookY, lastLookZ = 1;
+    private double lookedAtSince = -1, notLookedSince, lastContactReaction = -100;
+    private boolean contactReacted, wasSneaking, exploring, glancing;
+    private double exploreYaw;
+    private double avoidLift;
+    private final double[] slotYaw = {Double.NaN, 0};
+    private boolean catchingUp;
+    static final double TURN_SLACK = 32, TURN_SETTLED = 4;
+    private Activity lastActivity = Activity.IDLE;
+    private double hopPhase, nextBlink = 3, blinkLeft, nextSaccade, saccadeX, saccadeY;
+    private double clock;
+
+    public Behavior(double right, double up, double forward, double radius, long seed) {
+        this.baseRight = right;
+        this.baseUp = up;
+        this.baseForward = forward;
+        this.radius = radius;
+        this.rng = new Random(seed);
+    }
+
+    // ================================================================== commands
+
+    public void setMode(Mode m, double now) {
+        mode = m;
+        if (m == Mode.STAY) {
+            stayX = x;
+            stayY = y;
+            stayZ = z;
+        } else if (m == Mode.COME) {
+            comeUntil = now + 6;
+        }
+        wake(now);
+    }
+
+    public void setSide(Side s) {
+        sidePreference = s;
+        if (s != null) side = s;
+    }
+
+    /** Look at the player, at what the player looks at, or in a direction, for a while. */
+    public void lookAt(GazeKind kind, double dirX, double dirY, double dirZ, double seconds, double now) {
+        lookOverride = kind;
+        lookOverrideUntil = now + seconds;
+        if (kind == GazeKind.DIRECTION) {
+            double n = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+            pgx = dirX / n;
+            pgy = dirY / n;
+            pgz = dirZ / n;
+        }
+        wake(now);
+    }
+
+    public void play(Emote e, double now) {
+        if (emote == Emote.DOZE && e != Emote.DOZE) emote = null;
+        emote = e;
+        emoteStart = now;
+    }
+
+    public boolean dozing() {
+        return emote == Emote.DOZE;
+    }
+
+    public GazeKind gaze() {
+        return gaze;
+    }
+
+    private void wake(double now) {
+        lastActive = now;
+        if (emote == Emote.DOZE) play(Emote.STARTLE, now);
+    }
+
+    // ================================================================== decisions, 20 per second
+
+    public void tick(Senses s, Activity act, Mood mood, Solid solid) {
+        double now = s.now;
+
+        // Are you active? Moving, or turning to look somewhere else.
+        double lookDot = s.lx * lastLookX + s.ly * lastLookY + s.lz * lastLookZ;
+        if (s.speed > 0.6 || lookDot < 0.985 || act != Activity.IDLE) lastActive = now;
+        lastLookX = s.lx;
+        lastLookY = s.ly;
+        lastLookZ = s.lz;
+        double idleFor = now - lastActive;
+        boolean threatNear = nearestThreat(s) != null;
+
+        // dozing off, and waking up softly
+        if (emote == Emote.DOZE) {
+            if (idleFor < 0.5 || threatNear || petted) play(Emote.STARTLE, now);
+        } else if (idleFor > 90 && !threatNear && act == Activity.IDLE && mode != Mode.COME) {
+            play(Emote.DOZE, now);
+        }
+
+        if (mode == Mode.COME && now > comeUntil) mode = Mode.FOLLOW;
+        if (mode == Mode.STAY && dist2(stayX, stayY, stayZ, s.ex, s.ey, s.ez) > 64 * 64) mode = Mode.FOLLOW;
+
+        // switch shoulders now and then, when nothing is going on
+        if (sidePreference == null && now > nextSideSwitch && act == Activity.IDLE && !threatNear) {
+            if (rng.nextDouble() < 0.5) side = side == Side.RIGHT ? Side.LEFT : Side.RIGHT;
+            nextSideSwitch = now + 25 + rng.nextDouble() * 35;
+        }
+        boolean nowExploring = mode == Mode.FOLLOW && idleFor > 8 && act == Activity.IDLE && !threatNear;
+        if (nowExploring && !exploring) exploreYaw = s.yawDeg;
+        exploring = nowExploring;
+
+        // gestures that come from feelings
+        if (act == Activity.THINKING && lastActivity != Activity.THINKING) play(Emote.THINK, now);
+        if (mood == Mood.EXCITED && emote == null && rng.nextDouble() < 0.012) play(Emote.HOP, now);
+        lastActivity = act;
+
+        // eye contact and petting
+        boolean lookedAt = playerLooksAtMe(s);
+        if (lookedAt) {
+            if (lookedAtSince < 0) lookedAtSince = now;
+            notLookedSince = now;
+        } else {
+            lookedAtSince = -1;
+            if (now - notLookedSince > 1.5) contactReacted = false;
+        }
+        double contact = lookedAtSince < 0 ? 0 : now - lookedAtSince;
+        if (contact > 1.3 && !contactReacted && now - lastContactReaction > 10 && emote == null && act == Activity.IDLE) {
+            play(rng.nextDouble() < 0.6 ? Emote.HAPPY : Emote.SHY, now);
+            contactReacted = true;
+            lastContactReaction = now;
+        }
+        if (lookedAt && s.sneaking && !wasSneaking && dist2(x, y, z, s.ex, s.ey, s.ez) < 25) {
+            petted = true;
+            play(Emote.WIGGLE, now);
+        }
+        wasSneaking = s.sneaking;
+
+        decideGaze(s, act, contact, now);
+        avoidWalls(s, solid);
+    }
+
+    private void decideGaze(Senses s, Activity act, double contact, double now) {
+        sharedX = s.hasLookHit ? s.hx : s.ex + s.lx * 8;
+        sharedY = s.hasLookHit ? s.hy : s.ey + s.ly * 8;
+        sharedZ = s.hasLookHit ? s.hz : s.ez + s.lz * 8;
+
+        GazeKind want;
+        double wx = 0, wy = 0, wz = 0;
+        double delay = 0.12 + rng.nextDouble() * 0.23;
+        double[] threat = nearestThreat(s);
+        boolean urgent = now < lookOverrideUntil || threat != null || contact > 0.25
+                || act != Activity.IDLE || mode == Mode.COME;
+        if (!urgent && glancing && now < glanceUntil) {
+            commitPending(now); // keep looking at what caught its eye
+            return;
+        }
+        glancing = !urgent;
+        if (now < lookOverrideUntil) {
+            want = lookOverride;
+            wx = pgx;
+            wy = pgy;
+            wz = pgz;
+            delay = 0.08;
+        } else if (threat != null) {
+            want = GazeKind.POINT;
+            wx = threat[0];
+            wy = threat[1] + 1.2;
+            wz = threat[2];
+            delay = 0.08 + rng.nextDouble() * 0.1;
+        } else if (contact > 0.25 || act != Activity.IDLE || mode == Mode.COME) {
+            want = GazeKind.PLAYER;
+        } else {
+            double r = rng.nextDouble();
+            double explore = exploring ? 0.25 : 0;
+            if (r < 0.45 - explore) {
+                want = GazeKind.SHARED;
+                glanceUntil = now + 3 + rng.nextDouble() * 4;
+            } else if (r < 0.62 - explore) {
+                want = GazeKind.PLAYER;
+                glanceUntil = now + 1.2 + rng.nextDouble() * 1.3;
+            } else if (r < 0.85 && !s.interests.isEmpty()) {
+                double[] it = s.interests.get(rng.nextInt(s.interests.size()));
+                want = GazeKind.POINT;
+                wx = it[0];
+                wy = it[1] + 0.5;
+                wz = it[2];
+                glanceUntil = now + 1.5 + rng.nextDouble() * 2.5;
+            } else {
+                double yaw = -Math.toRadians(s.yawDeg) + (rng.nextDouble() - 0.5) * Math.PI;
+                double pitch = -0.3 + rng.nextDouble() * 0.6;
+                want = GazeKind.DIRECTION;
+                wx = Math.sin(yaw) * Math.cos(pitch);
+                wy = Math.sin(pitch);
+                wz = Math.cos(yaw) * Math.cos(pitch);
+                glanceUntil = now + 1.5 + rng.nextDouble() * 2;
+            }
+        }
+
+        boolean same = want == gaze && (want == GazeKind.PLAYER || want == GazeKind.SHARED
+                || dist2(wx, wy, wz, gx, gy, gz) < (want == GazeKind.POINT ? 1.5 * 1.5 : 0.04));
+        if (same) {
+            pendingGaze = null;
+            if (want == GazeKind.POINT) { gx = wx; gy = wy; gz = wz; } // follow a moving mob smoothly
+            return;
+        }
+        if (pendingGaze != want || dist2(wx, wy, wz, pgx, pgy, pgz) > 1) {
+            pendingGaze = want;
+            pgx = wx;
+            pgy = wy;
+            pgz = wz;
+            switchAt = now + delay;
+        }
+        commitPending(now);
+    }
+
+    /** A decided change of gaze happens only after its reaction delay. */
+    private void commitPending(double now) {
+        if (now >= switchAt && pendingGaze != null) {
+            gaze = pendingGaze;
+            gx = pgx;
+            gy = pgy;
+            gz = pgz;
+            pendingGaze = null;
+        }
+    }
+
+    private double[] nearestThreat(Senses s) {
+        for (double[] t : s.threats) {
+            double d = Math.sqrt(dist2(t[0], t[1], t[2], s.ex, s.ey, s.ez));
+            if (d < (t[3] > 0 ? 10 : 6)) return t;
+        }
+        return null;
+    }
+
+    /** Is the player's crosshair on the companion? A ray against a slightly generous sphere. */
+    boolean playerLooksAtMe(Senses s) {
+        double dx = x - s.ex, dy = y - s.ey, dz = z - s.ez;
+        double along = dx * s.lx + dy * s.ly + dz * s.lz;
+        if (along <= 0.3 || along > 16) return false;
+        double perp2 = dx * dx + dy * dy + dz * dz - along * along;
+        double r = radius * 1.8 + 0.04 * along;
+        return perp2 < r * r;
+    }
+
+    /** If its spot is inside a block, float up until it is free (and come back down later). */
+    private void avoidWalls(Senses s, Solid solid) {
+        if (solid == null || !placed) return;
+        double yaw = Double.isNaN(slotYaw[0]) ? s.yawDeg : slotYaw[0];
+        double[] t = target(s.ex, s.ey, s.ez, yaw, s.lx, s.ly, s.lz, s.now);
+        if (solid.at(t[0], t[1] + avoidLift, t[2])) {
+            avoidLift = Math.min(2.0, avoidLift + 0.5);
+        } else if (avoidLift > 0 && !solid.at(t[0], t[1] + avoidLift - 0.5, t[2])) {
+            avoidLift = Math.max(0, avoidLift - 0.25);
+        }
+    }
+
+    // ================================================================== movement, every frame
+
+    /** Where it wants to be right now (before springs), in world coordinates; yawDeg = the yaw its spot follows. */
+    double[] target(double ex, double ey, double ez, double yawDeg, double lx, double ly, double lz, double now) {
+        double tx, ty, tz;
+        if (mode == Mode.STAY) {
+            tx = stayX + Smooth.noise(now * 0.2, 7) * 0.08;
+            ty = stayY + Smooth.noise(now * 0.25, 8) * 0.06;
+            tz = stayZ + Smooth.noise(now * 0.2, 9) * 0.08;
+            return new double[]{tx, ty, tz};
+        }
+        double r, u, f;
+        if (mode == Mode.COME) {
+            r = 0;
+            u = -0.25;
+            f = 1.1;
+        } else {
+            switch (side) {
+                case LEFT -> { r = -baseRight; u = baseUp; f = baseForward; }
+                case ABOVE -> { r = 0.45; u = 0.4; f = 1.5; }
+                default -> { r = baseRight; u = baseUp; f = baseForward; }
+            }
+            double amp = wanderAmp[0];
+            r += Smooth.noise(now * 0.13, 1) * amp;
+            u += Smooth.noise(now * 0.17, 2) * amp * 0.45;
+            f += Smooth.noise(now * 0.11, 3) * amp * 0.6;
+        }
+        double yaw = Math.toRadians(exploring ? exploreYaw : yawDeg);
+        double fx = -Math.sin(yaw), fz = Math.cos(yaw), rx = -Math.cos(yaw), rz = -Math.sin(yaw);
+        tx = ex + rx * r + fx * f;
+        ty = ey + u;
+        tz = ez + rz * r + fz * f;
+
+        // never park in the middle of the view: slide sideways out of a 14° cone
+        // (unless you are looking at it on purpose: then it stays for the eye contact)
+        if (mode == Mode.FOLLOW && lookedAtSince < 0) {
+            double dx = tx - ex, dy = ty - ey, dz = tz - ez;
+            double along = dx * lx + dy * ly + dz * lz;
+            if (along > 0 && along < 5) {
+                double cx = dx - lx * along, cy = dy - ly * along, cz = dz - lz * along;
+                double perp = Math.sqrt(cx * cx + cy * cy + cz * cz);
+                double need = Math.tan(Math.toRadians(14)) * along;
+                if (perp < need) {
+                    double push = need - perp;
+                    if (perp > 1e-3) { // outward, the way it already leans
+                        tx += cx / perp * push;
+                        ty += cy / perp * push;
+                        tz += cz / perp * push;
+                    } else {           // dead centre: toward its usual side
+                        double sign = side == Side.LEFT ? -1 : 1;
+                        tx += rx * sign * push;
+                        tz += rz * sign * push;
+                    }
+                }
+            }
+        }
+        return new double[]{tx, ty, tz};
+    }
+
+    public void frame(double ex, double ey, double ez, double yawDeg, double lx, double ly, double lz,
+                      double now, double dt, Activity act, Mood mood, double voiceLevel, boolean floaty) {
+        clock = now;
+        // wander wider while you stand still, come close again when you move
+        Smooth.damp(wanderAmp, exploring ? 1.6 : 0.22, exploring ? 3.0 : 0.8, dt, 2);
+        double[] t = target(ex, ey, ez, followYaw(yawDeg, dt), lx, ly, lz, now);
+        t[1] += Smooth.damp(avoid, avoidLift, 0.4, dt, 4);
+
+        if (!placed || dist2(t[0], t[1], t[2], x, y, z) > 14 * 14) {
+            px[0] = t[0]; py[0] = t[1]; pz[0] = t[2];
+            px[1] = py[1] = pz[1] = 0;
+            placed = true;
+        }
+        double smooth = mode == Mode.COME ? 0.35 : (emote == Emote.DOZE || mood == Mood.SLEEPY) ? 0.9 : 0.5;
+        x = Smooth.damp(px, t[0], smooth, dt, 14);
+        y = Smooth.damp(py, t[1], smooth * 0.8, dt, 14);
+        z = Smooth.damp(pz, t[2], smooth, dt, 14);
+
+        // lean into the direction it moves, like something with weight
+        double vx = px[1], vz = pz[1];
+        double sp = Math.sqrt(vx * vx + vz * vz);
+        leanAngle = Smooth.clamp(sp * 0.07, 0, 0.35);
+        leanAxisX = sp > 1e-4 ? vz / sp : 0;
+        leanAxisZ = sp > 1e-4 ? -vx / sp : 0;
+
+        // head toward the gaze target; eyes get there first
+        double[] g = gazePoint(ex, ey, ez);
+        double dx = g[0] - x, dy = g[1] - y, dz = g[2] - z;
+        double wantYaw = Math.atan2(dx, dz);
+        double wantPitch = Smooth.clamp(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)), -0.6, 0.6);
+        if (!Double.isFinite(wantYaw)) { wantYaw = headYaw; wantPitch = headPitch; }
+        double headTime = emote == Emote.DOZE ? 0.8 : gaze == GazeKind.POINT && nearestIsThreat ? 0.15 : 0.28;
+        headYaw = Smooth.dampAngle(hyaw, wantYaw, headTime, dt, 9);
+        headPitch = Smooth.damp(hpitch, wantPitch, headTime, dt, 6);
+
+        if (now > nextSaccade) { // tiny eye flicks: living eyes are never perfectly still
+            saccadeX = (rng.nextDouble() - 0.5) * 0.24;
+            saccadeY = (rng.nextDouble() - 0.5) * 0.16;
+            nextSaccade = now + 0.5 + rng.nextDouble() * 0.9;
+        }
+        pose.reset();
+        if (emote != null) {
+            double et = now - emoteStart;
+            emote.apply(et, pose);
+            if (emote.seconds > 0 && et > emote.seconds) emote = null;
+        }
+        double wantPupX = Smooth.clamp(Math.sin(Smooth.wrap(wantYaw - headYaw)) / 0.55, -1, 1) + saccadeX + pose.pupilX;
+        double wantPupY = Smooth.clamp((wantPitch - headPitch) / 0.45, -1, 1) + saccadeY + pose.pupilY;
+        pupilX = Smooth.clamp(Smooth.damp(pupX, wantPupX, 0.06, dt, 30), -1, 1);
+        pupilY = Smooth.clamp(Smooth.damp(pupY, wantPupY, 0.06, dt, 30), -1, 1);
+
+        // its own little rhythm: hops when it is a slime, a slow float when it is a wisp
+        double moveBoost = 1 + Smooth.clamp(sp / 4, 0, 1.5);
+        double speed = mood.speed * (act == Activity.LISTENING ? 0.4 : 1) * moveBoost;
+        hopPhase += dt * 1.1 * speed;
+        double phase = hopPhase - Math.floor(hopPhase);
+        double arc = Math.sin(Math.PI * phase);
+        if (floaty) {
+            lift = 0.06 * mood.height * Math.sin(hopPhase * Math.PI);
+            squish = 0;
+        } else {
+            lift = 0.07 * mood.height * arc;
+            squish = 0.16 * mood.height * Math.pow(1 - arc, 6);
+        }
+        if (act == Activity.LISTENING) squish -= 0.05; // stretches up, all ears
+        shiver = mood == Mood.SCARED ? Math.sin(now * 55) * 0.012 : 0;
+
+        if (now >= nextBlink) {
+            blinkLeft = 0.12;
+            nextBlink = now + 2.5 + rng.nextDouble() * 3.5;
+        }
+        blinkLeft = Math.max(0, blinkLeft - dt);
+        double sleepy = mood == Mood.SLEEPY || mood == Mood.OFFLINE ? 0.55 : 0;
+        blink = Smooth.clamp(Math.max(Math.max(sleepy, blinkLeft > 0 ? 1 : 0), pose.eyesClosed), 0, 1);
+    }
+
+    private boolean nearestIsThreat;
+
+    /**
+     * The direction its spot beside you follows. It stays put through small turns and while you
+     * look at it; once you have turned more than {@link #TURN_SLACK} degrees away it glides
+     * around to your side again, and settles before it will move again.
+     */
+    private double followYaw(double playerYaw, double dt) {
+        if (exploring) return exploreYaw;
+        if (Double.isNaN(slotYaw[0])) slotYaw[0] = playerYaw;
+        double diff = Math.toDegrees(Smooth.wrap(Math.toRadians(playerYaw - slotYaw[0])));
+        boolean watched = lookedAtSince >= 0;
+        if (!catchingUp && Math.abs(diff) > (watched ? 75 : TURN_SLACK)) catchingUp = true;
+        if (catchingUp && Math.abs(diff) < TURN_SETTLED) catchingUp = false;
+        if (catchingUp) {
+            double[] st = {Math.toRadians(slotYaw[0]), Math.toRadians(slotYaw[1])};
+            Smooth.dampAngle(st, Math.toRadians(playerYaw), 0.45, dt, 8);
+            slotYaw[0] = Math.toDegrees(st[0]);
+            slotYaw[1] = Math.toDegrees(st[1]);
+        } else {
+            slotYaw[1] = 0;
+        }
+        return slotYaw[0];
+    }
+
+    private double[] gazePoint(double ex, double ey, double ez) {
+        nearestIsThreat = false;
+        return switch (gaze) {
+            case PLAYER -> new double[]{ex, ey, ez};
+            case SHARED -> new double[]{sharedX, sharedY, sharedZ};
+            case POINT -> {
+                nearestIsThreat = true;
+                yield new double[]{gx, gy, gz};
+            }
+            case DIRECTION -> new double[]{x + gx * 6, y + gy * 6, z + gz * 6};
+        };
+    }
+
+    private static double dist2(double ax, double ay, double az, double bx, double by, double bz) {
+        double dx = ax - bx, dy = ay - by, dz = az - bz;
+        return dx * dx + dy * dy + dz * dz;
+    }
+}

@@ -1,106 +1,145 @@
 package dev.kindredspirit;
 
+import dev.kindredspirit.life.Behavior;
+import dev.kindredspirit.skin.Skin;
 import dev.kindredspirit.util.Mood;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Comparator;
+import java.util.List;
+
 /**
- * Where the companion is and how it feels, updated once per drawn frame. Nothing here exists in
- * the world: it is a picture drawn on your screen only, so your save files never change.
+ * The companion as the game sees it: feeds what the player is doing into {@link Behavior} (its
+ * "life") and keeps what only matters for drawing: mood color, subtitle, mouth, skin.
+ * Nothing here exists in the world: it is a picture on your screen, so saves never change.
  */
 public final class Companion {
-    public enum Activity { IDLE, LISTENING, THINKING, SPEAKING }
-
-    // position (smoothed, so it drifts after you instead of being glued to the camera)
-    public double x, y, z;
-    private boolean placed;
-
+    public final Behavior life;
     public Mood mood = Mood.OFFLINE;
     /** Current color, eased toward the mood's color. */
     public int rgb = Mood.OFFLINE.rgb;
-    public Activity activity = Activity.IDLE;
+    public Behavior.Activity activity = Behavior.Activity.IDLE;
+    public Skin skin = Skin.fallback();
 
     public String subtitle = "";
     public long subtitleUntil;
+    public float mouth;
 
-    /** Bounce phase in "hops"; one hop = 1.0. */
-    public float hop;
-    public float squish;      // 0 = round, >0 = flattened
-    public float lift;        // height of the current hop, blocks
-    public float mouth;       // 0 closed .. 1 open
-    public float blink;       // 0 open .. 1 shut
-    public float shiver;      // sideways wobble when scared
-    private long nextBlink = 3000;
-    private long lastNanos;
-    private float clock;      // seconds since start
+    private final Behavior.Senses senses = new Behavior.Senses();
+    private final long start = System.nanoTime();
+    private long lastFrame;
+    private int tickCount;
 
-    public void say(String text, double audioSeconds, long now) {
+    public Companion(KindredConfig cfg) {
+        life = new Behavior(cfg.offsetRight, cfg.offsetUp, cfg.offsetForward, 0.2 * cfg.size, System.nanoTime());
+    }
+
+    public double now() {
+        return (System.nanoTime() - start) / 1e9;
+    }
+
+    public void say(String text, double audioSeconds, long nowMs) {
         subtitle = text == null ? "" : text;
         long readMs = 2500 + 60L * subtitle.length();
         long audioMs = (long) (audioSeconds * 1000) + 1500;
-        subtitleUntil = now + Math.max(readMs, audioMs);
+        subtitleUntil = nowMs + Math.max(readMs, audioMs);
     }
 
     /** More voice arrived for the same line: keep the subtitle up while it plays. */
-    public void extend(double audioSeconds, long now) {
-        subtitleUntil = Math.max(subtitleUntil, now + (long) (audioSeconds * 1000) + 1500);
+    public void extend(double audioSeconds, long nowMs) {
+        subtitleUntil = Math.max(subtitleUntil, nowMs + (long) (audioSeconds * 1000) + 1500);
     }
 
-    public boolean showSubtitle(long now) {
-        return !subtitle.isEmpty() && now < subtitleUntil;
+    public boolean showSubtitle(long nowMs) {
+        return !subtitle.isEmpty() && nowMs < subtitleUntil;
     }
 
-    /** Advance the animation by real time (not game ticks, so it stays smooth when the game is paused or lagging). */
-    public void update(Player player, float partialTick, KindredConfig cfg, float voiceLevel) {
-        long nanos = System.nanoTime();
-        float dt = lastNanos == 0 ? 0f : Math.min(0.1f, (nanos - lastNanos) / 1e9f);
-        lastNanos = nanos;
-        clock += dt;
-
-        // Target: beside your eyes, following where you face horizontally (not your pitch, so
-        // looking down at your feet does not drop it under the floor).
-        Vec3 eye = player.getEyePosition(partialTick);
-        double yaw = Math.toRadians(player.getViewYRot(partialTick));
-        double fx = -Math.sin(yaw), fz = Math.cos(yaw);
-        double rx = -Math.cos(yaw), rz = -Math.sin(yaw);
-        double tx = eye.x + rx * cfg.offsetRight + fx * cfg.offsetForward;
-        double ty = eye.y + cfg.offsetUp;
-        double tz = eye.z + rz * cfg.offsetRight + fz * cfg.offsetForward;
-        double dist2 = (tx - x) * (tx - x) + (ty - y) * (ty - y) + (tz - z) * (tz - z);
-        if (!placed || dist2 > 144) { // first frame or teleport: appear right there
-            x = tx; y = ty; z = tz;
-            placed = true;
+    /**
+     * 20 times a second: tell the companion what is going on. The world scan (mobs, animals, items)
+     * runs every 5th tick only and stays within a few blocks, so it costs next to nothing.
+     * @return true when the player just petted it
+     */
+    public boolean tick(Minecraft mc) {
+        LocalPlayer p = mc.player;
+        ClientLevel level = mc.level;
+        if (p == null || level == null) return false;
+        Behavior.Senses s = senses;
+        s.now = now();
+        Vec3 eye = p.getEyePosition();
+        Vec3 look = p.getViewVector(1f);
+        s.ex = eye.x; s.ey = eye.y; s.ez = eye.z;
+        s.lx = look.x; s.ly = look.y; s.lz = look.z;
+        s.yawDeg = p.getYRot();
+        s.speed = p.getDeltaMovement().horizontalDistance() * 20;
+        s.sneaking = p.isShiftKeyDown();
+        HitResult hit = mc.hitResult;
+        Entity target = mc.crosshairPickEntity;
+        if (target != null) {
+            s.hasLookHit = true;
+            s.hx = target.getX(); s.hy = target.getY() + target.getBbHeight() * 0.8; s.hz = target.getZ();
+        } else if (hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK) {
+            s.hasLookHit = true;
+            Vec3 l = bh.getLocation();
+            s.hx = l.x; s.hy = l.y; s.hz = l.z;
         } else {
-            double k = 1 - Math.exp(-dt * 5.0); // ~0.2 s to catch up: floaty but never lost
-            x += (tx - x) * k;
-            y += (ty - y) * k;
-            z += (tz - z) * k;
+            s.hasLookHit = false;
         }
+        if (tickCount++ % 5 == 0) scan(p, level);
+        life.tick(s, activity, mood, (x, y, z) -> {
+            BlockPos pos = BlockPos.containing(x, y, z);
+            return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
+        });
+        if (life.petted) {
+            life.petted = false;
+            for (int i = 0; i < 3; i++) { // little hearts, drawn on your screen only
+                level.addParticle(ParticleTypes.HEART, life.x + (Math.random() - 0.5) * 0.3,
+                        life.y + 0.25 + Math.random() * 0.2, life.z + (Math.random() - 0.5) * 0.3, 0, 0.02, 0);
+            }
+            return true;
+        }
+        return false;
+    }
 
-        // Color eases toward the mood (about half a second).
+    private void scan(LocalPlayer p, ClientLevel level) {
+        senses.threats.clear();
+        senses.interests.clear();
+        List<Mob> mobs = level.getEntitiesOfClass(Mob.class, p.getBoundingBox().inflate(12),
+                m -> m instanceof Enemy && m.isAlive());
+        mobs.sort(Comparator.comparingDouble(m -> m.distanceToSqr(p)));
+        for (Mob m : mobs) senses.threats.add(new double[]{m.getX(), m.getY(), m.getZ(), m instanceof Creeper ? 1 : 0});
+        for (Entity e : level.getEntities(p, p.getBoundingBox().inflate(10), e -> e.isAlive()
+                && (e instanceof Animal || e instanceof AbstractVillager || e instanceof ItemEntity || e instanceof Player))) {
+            if (senses.interests.size() >= 6) break;
+            senses.interests.add(new double[]{e.getX(), e.getY(), e.getZ()});
+        }
+    }
+
+    /** Every drawn frame: move smoothly toward what {@link #tick} decided. */
+    public void frame(Player player, float partialTick, float voiceLevel) {
+        long nanos = System.nanoTime();
+        double dt = lastFrame == 0 ? 0 : Math.min(0.1, (nanos - lastFrame) / 1e9);
+        lastFrame = nanos;
+        Vec3 eye = player.getEyePosition(partialTick);
+        Vec3 look = player.getViewVector(partialTick);
+        life.frame(eye.x, eye.y, eye.z, player.getViewYRot(partialTick), look.x, look.y, look.z,
+                now(), dt, activity, mood, voiceLevel, skin.shape() == Skin.Shape.WISP);
         rgb = Mood.blend(rgb, mood.rgb, 1 - (float) Math.exp(-dt * 4.0));
-
-        // Bounce: little hops, squashing at the bottom like a slime landing.
-        float speed = mood.speed * (activity == Activity.LISTENING ? 0.4f : 1f);
-        hop += dt * 1.1f * speed;
-        float phase = hop - (float) Math.floor(hop);
-        float arc = (float) Math.sin(Math.PI * phase);   // 0 at landing, 1 at the top
-        lift = 0.07f * mood.height * arc;
-        float landing = (float) Math.pow(1 - arc, 6);    // only close to the landing
-        squish = 0.16f * mood.height * landing;
-        if (activity == Activity.LISTENING) squish -= 0.05f; // stretches up, all ears
-        shiver = mood == Mood.SCARED ? (float) Math.sin(clock * 55) * 0.012f : 0f;
-
-        // Mouth follows the voice; a soft smile otherwise.
-        float targetMouth = activity == Activity.SPEAKING ? Math.min(1f, voiceLevel * 1.4f) : 0f;
-        mouth += (targetMouth - mouth) * Math.min(1f, dt * 18f);
-
-        // Blink every few seconds; sleepy keeps them half shut.
-        long ms = (long) (clock * 1000);
-        if (ms >= nextBlink) {
-            blink = 1f;
-            nextBlink = ms + 2500 + (long) (Math.random() * 3500);
-        }
-        blink = Math.max(mood == Mood.SLEEPY || mood == Mood.OFFLINE ? 0.55f : 0f, blink - dt * 8f);
+        float targetMouth = activity == Behavior.Activity.SPEAKING ? Math.min(1f, voiceLevel * 1.4f) : 0f;
+        mouth += (targetMouth - mouth) * (float) Math.min(1, dt * 18);
     }
 }

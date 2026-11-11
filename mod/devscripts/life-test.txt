@@ -1,0 +1,86 @@
+# Life and skins: ./gradlew runClient -PdevScript=devscripts/life-test.txt (brain running)
+# Screenshots in mod/run/screenshots/life-*.png
+world kindred-test
+wait 200
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd time set 1000
+cmd weather clear
+cmd gamemode creative
+skin slime
+look 0 5
+wait 100
+screenshot life-01-beside-you
+# eye contact: look straight at it, it looks back
+lookat companion
+wait 40
+screenshot life-02-eye-contact
+# pet it: sneak while looking at it
+sneak on
+wait 6
+screenshot life-03-petted
+sneak off
+wait 30
+# turn away fast: it drifts after you, leaning
+look 120 0
+wait 4
+screenshot life-04-turning
+wait 60
+# skins
+skin slime_cube
+wait 20
+lookat companion
+wait 30
+screenshot life-05-cube
+skin strawberry
+wait 30
+screenshot life-06-strawberry
+skin wisp
+wait 30
+screenshot life-07-wisp
+# gestures
+skin slime
+wait 10
+emote spin
+wait 12
+screenshot life-08-spin
+wait 30
+lookat companion
+emote shy
+wait 25
+screenshot life-09-shy
+wait 40
+# stay, walk away, it stays and watches you
+act {"move": "stay"}
+wait 10
+cmd tp @s ~ ~ ~-5
+look 180 5
+wait 50
+screenshot life-10-stayed
+act {"move": "come"}
+wait 40
+screenshot life-11-came
+act {"move": "follow"}
+# a creeper to the side: it watches it
+look 0 5
+wait 30
+cmd summon minecraft:creeper ~4 ~ ~3 {NoAI:1b}
+wait 25
+camera front
+wait 10
+screenshot life-12-watching-creeper
+camera first
+cmd kill @e[type=minecraft:creeper]
+# asked through the brain, like speech
+chat Pip, do a spin!
+wait 8
+screenshot life-13-asked-to-spin
+wait 100
+skin starry
+cmd time set 14000
+wait 30
+screenshot life-14-starry-night
+skin slime
+cmd time set 1000
+wait 20
+quit

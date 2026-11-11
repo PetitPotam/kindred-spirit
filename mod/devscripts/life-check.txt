@@ -1,0 +1,34 @@
+# Focused check: eye contact, petting, stay, watching a creeper. Screenshots: mod/run/screenshots/check-*.png
+world kindred-test
+wait 200
+cmd gamemode creative
+cmd time set 1000
+skin slime
+look 0 5
+wait 80
+lookat companion
+wait 20
+lookat companion
+wait 40
+screenshot check-01-eye-contact-held
+sneak on
+wait 3
+screenshot check-02-petted-hearts
+sneak off
+wait 40
+look 0 5
+wait 40
+act {"move": "stay"}
+wait 10
+cmd tp @s ~ ~ ~-6
+look 0 5
+wait 50
+screenshot check-03-stayed-and-watches-you
+act {"move": "follow"}
+wait 60
+cmd summon minecraft:creeper ~-3 ~ ~5 {NoAI:1b}
+wait 30
+screenshot check-04-watching-creeper
+cmd kill @e[type=minecraft:creeper]
+wait 10
+quit

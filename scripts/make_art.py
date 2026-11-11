@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Draws the mod's small images with no image library: the white texture the slime is tinted
-from, and the 128x128 mod icon (a green slime ball with a face). Run it again after changing
-the drawing; the PNGs are committed so nobody needs Python to build the mod.
+from, the 128x128 mod icon, and the textures of the built-in skins. Run it again after changing
+a drawing; the PNGs are committed so nobody needs Python to build the mod.
+
+Skin textures are wrapped around the body like a world map (2:1, e.g. 64x32): left to right goes
+once around, top to bottom goes from the top of the head to the bottom. The face is drawn on top
+by the mod, at one quarter of the way across.
 
     python3 scripts/make_art.py
 """
@@ -79,7 +83,39 @@ def icon_sample(px, py):
     return shade + (255,)
 
 
+def strawberry(x, y, w=64, h=32):
+    u, v = (x + 0.5) / w, (y + 0.5) / h
+    # leafy green cap with a jagged edge
+    edge = 0.16 + 0.05 * math.sin(u * 2 * math.pi * 6)
+    if v < edge:
+        return mix((70, 150, 60), (40, 110, 40), v / edge) + (255,)
+    red = mix((235, 60, 80), (200, 35, 60), v)
+    # seeds on a staggered grid, smaller near the top and bottom
+    gx, gy = u * 16, v * 9
+    if int(gy) % 2:
+        gx += 0.5
+    dx, dy = gx - math.floor(gx) - 0.5, gy - math.floor(gy) - 0.5
+    if dx * dx * 4 + dy * dy * 9 < 0.08 and v > edge + 0.04:
+        return (255, 225, 120, 255)
+    return red + (255,)
+
+
+def starry(x, y, w=64, h=32):
+    u, v = (x + 0.5) / w, (y + 0.5) / h
+    base = mix((40, 50, 130), (90, 40, 140), v)
+    base = mix(base, (120, 160, 255), max(0, 0.35 - abs(v - 0.5)) * 0.8)
+    # deterministic stars
+    hsh = (x * 73856093) ^ (y * 19349663)
+    if hsh % 23 == 0:
+        return (255, 250, 220, 255)
+    if hsh % 41 == 1:
+        return (255, 210, 120, 255)
+    return base + (255,)
+
+
 if __name__ == "__main__":
     png(os.path.join(ASSETS, "textures", "companion", "white.png"), 16, 16, lambda x, y: (255, 255, 255, 255))
     png(os.path.join(ASSETS, "icon.png"), 128, 128, icon)
-    print("wrote white.png and icon.png in", ASSETS)
+    png(os.path.join(ASSETS, "textures", "skins", "strawberry.png"), 64, 32, strawberry)
+    png(os.path.join(ASSETS, "textures", "skins", "starry.png"), 64, 32, starry)
+    print("wrote white.png, icon.png and the skin textures in", ASSETS)

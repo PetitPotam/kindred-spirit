@@ -1,0 +1,9 @@
+{
+  "name": "Starry Night",
+  "shape": "wisp",
+  "texture": "kindredspirit:textures/skins/starry.png",
+  "tint": "none",
+  "glow": true,
+  "shellOpacity": 0.85,
+  "cheeks": "none"
+}

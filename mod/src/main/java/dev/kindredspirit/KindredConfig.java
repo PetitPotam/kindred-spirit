@@ -13,6 +13,8 @@ import java.nio.file.Path;
 public final class KindredConfig {
     /** What the companion is called (subtitles and chat). The brain has its own copy for the AI. */
     public String name = "Pip";
+    /** Which skin it wears: /kindred skins lists them; add your own in config/kindredspirit/skins/. */
+    public String skin = "slime";
     public String brainHost = "127.0.0.1";
     public int brainPort = 47811;
     /** Empty = ~/.kindred-spirit/token, shared with the brain. */
