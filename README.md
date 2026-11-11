@@ -74,7 +74,7 @@ You need: Minecraft Java Edition, [Homebrew](https://brew.sh), and a
 
 ```bash
 brew install openjdk@25 python@3.12 whisper-cpp
-git clone https://github.com/OWNER/kindred-spirit.git && cd kindred-spirit
+git clone https://github.com/PetitPotam/kindred-spirit.git && cd kindred-spirit
 scripts/setup.sh                 # brain, local voice and speech-to-text (~700 MB download)
 open -e ~/.kindred-spirit/secrets.env   # paste your key after GEMINI_API_KEY=
 (cd mod && ./gradlew build)      # builds the mod
