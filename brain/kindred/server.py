@@ -187,7 +187,8 @@ class Brain:
         self.line += 1
         line = self.line
         self.mood = mood or self.mood
-        self.mood_until = self.clock() + 20
+        # a warning's fright passes quickly; a feeling from conversation lasts a bit longer
+        self.mood_until = self.clock() + (8 if instant else 20)
         chunks = sentences(text) if self.cfg["voice"].get("enabled", True) else []
         first = ""
         if chunks and not instant:
@@ -241,7 +242,7 @@ class Brain:
         await self.send({"type": "state", "state": "thinking"})
         try:
             wav = base64.b64decode(msg.get("wav", ""))
-            text = await voice.transcribe(self.cfg, wav)
+            text = await voice.transcribe(self.cfg, wav, prompt="%s. Minecraft." % self.cfg["name"])
         except (ValueError, voice.VoiceError) as e:
             log.error("speech-to-text failed: %s", e)
             await self.send({"type": "notice", "text": "Speech-to-text problem: %s" % str(e)[:120]})
