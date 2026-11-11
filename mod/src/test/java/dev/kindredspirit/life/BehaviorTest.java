@@ -282,6 +282,26 @@ public class BehaviorTest {
     }
 
     @Test
+    void guidesYouThereLookingBackThenCelebrates() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 2, Behavior.Activity.IDLE);
+        b.guide(30, 64, 0, s.now); // 30 blocks to the west... well, +X
+        run(b, s, 2, Behavior.Activity.IDLE);
+        assertEquals(Behavior.Mode.GUIDE, b.mode);
+        assertTrue(b.x > 1.5, "floats ahead toward the target: x=" + b.x);
+        assertEquals(Behavior.GazeKind.PLAYER, b.gaze(), "looks back to check you follow");
+        assertEquals(30, b.guideDistance, 0.5);
+        for (int i = 0; i < 30; i++) { // you walk there
+            s.ex += 1;
+            run(b, s, 0.3, Behavior.Activity.IDLE);
+        }
+        assertEquals(Behavior.Mode.FOLLOW, b.mode, "arrived: back to following");
+        assertTrue(b.arrived);
+        assertEquals(Emote.HAPPY, b.emote);
+    }
+
+    @Test
     void gesturesStartAndEndSoftly() {
         for (Emote e : Emote.values()) {
             if (e.seconds <= 0) continue;

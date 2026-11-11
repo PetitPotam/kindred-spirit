@@ -3,7 +3,7 @@
 it already happened so its answer fits ("Okay, I'll wait right here!").
 
 Each rule is a regular expression on what you said (lowercase) and the act it sends to the mod:
-  move:  stay | follow | come        side: left | right | above | auto
+  move:  stay | follow | come | stop (stop leading the way)        side: left | right | above | auto
   look:  me | there | ahead | up | down | around
   emote: nod | shake | spin | hop | wiggle | happy | shy | think | doze
 Add new ones at the bottom of RULES (and a test in tests/test_intents.py).
@@ -18,6 +18,7 @@ RULES = [
     (r"\b(go|float|move|fly|stay)( over)?( to)?( on)?( my| the)? left\b", {"side": "left"}, "float on the player's left"),
     (r"\b(go|float|move|fly|stay)( over)?( to)?( on)?( my| the)? right\b", {"side": "right"}, "float on the player's right"),
     (r"\b(above|over) (me|my head|my shoulder)\b", {"side": "above"}, "float above the player's shoulder"),
+    (r"\b(stop (guiding|leading)( me)?|you can stop( now)?|we'?re here)\b", {"move": "stop"}, "stop leading the way"),
     # looking
     (r"\blook at me\b", {"look": "me", "seconds": 4}, "look at the player"),
     (r"\blook (at )?(that|this|there|over there)\b", {"look": "there", "seconds": 4}, "look where the player looks"),
@@ -51,6 +52,37 @@ def match(text):
             used.add(key)
     return acts, done
 
+
+# Clear requests for an action: the AI is then required to use that tool (when allowed), so it
+# can't just *say* it placed a torch without doing it.
+ACTION_HINTS = [
+    (r"\b(place|put|light|drop)\b.{0,30}\btorch|\btorch\b.{0,20}\b(here|down|please)", "place_torch"),
+    (r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b", "protect"),
+    (r"\b(give|gimme|get) me\b|\bcan i (have|get)\b", "give_item"),
+    (r"\b(take|lead|guide|bring|show) (me|us)\b", "guide"),
+    (r"\b(find|where|any|nearest|closest|look for)\b.{0,40}\b(diamonds?|iron|gold|coal|copper|redstone|lapis|emeralds?|quartz|ancient debris|netherite)\b", "find_ore"),
+    (r"\b(find|where|nearest|closest|locate)\b.{0,40}\b(village|mineshaft|shipwreck|ruined portal|monument|mansion|stronghold|fortress|bastion|temple|witch hut|igloo|outpost|ancient city|trail ruins|trial chambers?|end city|buried treasure|biome|grove|forest|desert|jungle|ocean|mushroom)", "locate"),
+    (r"\bmake it (day|night|morning|sunrise|sunset|noon)\b|\bset the time\b|\bskip the night\b", "set_time"),
+    (r"\b(stop the rain|make it (rain|sunny|clear|storm)|clear (the|up the) weather)\b", "set_weather"),
+]
+_hints = [(re.compile(p), tool) for p, tool in ACTION_HINTS]
+
+
+def action_hint(text, allowed):
+    """The tool a clear request asks for, if it's allowed; else None."""
+    t = (text or "").lower()
+    for rx, tool in _hints:
+        if tool in allowed and rx.search(t):
+            return tool
+    return None
+
+
+ARRIVED_LINES = [
+    "We're here! Ta-da!",
+    "Here we are! That wasn't so far, was it?",
+    "We made it! What a trip!",
+    "Here it is! I told you I'd find it!",
+]
 
 PET_LINES = [
     "Hehe, that tickles!",

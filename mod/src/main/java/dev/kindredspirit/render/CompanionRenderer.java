@@ -117,6 +117,7 @@ public final class CompanionRenderer {
             String text = c.activity == Behavior.Activity.LISTENING ? "♪ ..."
                     : c.activity == Behavior.Activity.THINKING ? dots(nowMs)
                     : c.showSubtitle(nowMs) ? c.subtitle
+                    : b.mode == Behavior.Mode.GUIDE ? guideText(b)
                     : b.dozing() ? zzz(nowMs) : null;
             if (text != null) subtitle(pose, buffers, cam, mc.font, text, bx - cp.x, by - cp.y + r + 0.12, bz - cp.z);
         }
@@ -196,6 +197,15 @@ public final class CompanionRenderer {
             case 1 -> "..";
             default -> "...";
         };
+    }
+
+    /** While leading the way: how far, and whether it's up or down from here. */
+    private static String guideText(Behavior b) {
+        if (b.guideDistance == Double.MAX_VALUE) return "\u2192";
+        String s = "\u2192 " + Math.round(b.guideDistance) + " blocks";
+        if (b.guideRise > 3) s += "  \u2191" + Math.round(b.guideRise);
+        if (b.guideRise < -3) s += "  \u2193" + Math.round(-b.guideRise);
+        return s;
     }
 
     private static String zzz(long now) {

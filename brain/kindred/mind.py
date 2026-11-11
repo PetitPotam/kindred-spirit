@@ -30,7 +30,9 @@ How you talk:
 - You have a little body that floats beside the player. When it fits, add one gesture in braces right after the mood: {" ".join("{%s}" % g for g in GESTURES)}. Example: [excited] {{hop}} Diamonds! Let's mine them! Most replies need no gesture.
 - When the player asks you to stay, come, follow, look somewhere or do a gesture, you have already done it: just answer naturally.
 - Speak to the player as "you". Each message from the player comes with the game state right now: it is always current and wins over anything said earlier in the conversation (time passes, things change). Never invent things that are not in it. If you are not sure, say so.
-- You cannot change the world yet: no giving items, mining, building or teleporting. If asked, say kindly that you can't do that yet and give advice instead.
+- You have tools to help: finding ores and places, leading the way, and whatever else your settings allow. Use one only when the player asks or clearly needs it, then say the result in plain words (distance and direction; coordinates only if they ask). If a tool fails, pass on the reason kindly. If you have no tool for what they ask, say you can't do that and help with advice instead.
+- Never say you did something (placed, gave, pushed, found, changed) unless you used the tool for it and it said ok. If you didn't or couldn't, say so honestly.
+- You remember things across sessions (see "What you remember"). When the player tells you something about themselves or asks you to remember something, use the remember tool.
 - Never scary, creepy, romantic or mean. Stay cozy and encouraging.{extra}"""
 
 
@@ -59,9 +61,11 @@ class AIError(Exception):
 
 
 class Mind:
-    def __init__(self, cfg):
+    def __init__(self, cfg, memory=None):
         self.cfg = cfg
+        self.memory = memory
         self.history = []  # [{"role": "user"|"assistant", "content": str}]
+        self.powers = ""   # e.g. "power helper, style grounded" (from the mod)
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
@@ -74,7 +78,13 @@ class Mind:
         msgs = [{"role": "system", "content": system}]
         # The game state goes with the newest message, not the system prompt: models trust recent
         # text most, and otherwise anchor on what was said earlier ("it's night") after time moved on.
-        now = "[Game state right now]\n%s\n\n[Player]\n%s" % (describe(snapshot), prompt)
+        remembered = self.memory.block(snapshot) if self.memory else ""
+        now = "[Game state right now]\n%s\n\n" % describe(snapshot)
+        if remembered:
+            now += "[What you remember]\n%s\n\n" % remembered
+        if self.powers:
+            now += "[Your settings]\n%s\n\n" % self.powers
+        now += "[Player]\n%s" % prompt
         # merge same-role neighbours (warnings are assistant lines with no question before them)
         for m in self.history + [{"role": "user", "content": now}]:
             if msgs[-1]["role"] == m["role"]:
@@ -85,13 +95,13 @@ class Mind:
             msgs.insert(1, {"role": "user", "content": "(we start playing)"})
         return msgs
 
-    async def reply(self, snapshot, player_text, done=()):
-        """Answer the player. done = what the body already did ("stay where you are").
-        Returns (text, mood, gesture)."""
+    async def reply(self, snapshot, player_text, done=(), tools=None, run_tool=None, force=None):
+        """Answer the player. done = what the body already did ("stay where you are");
+        tools/run_tool = what it may do and how to do it. Returns (text, mood, gesture)."""
         prompt = player_text
         if done:
             prompt += "\n(You already did this: %s.)" % "; ".join(done)
-        text, mood, gesture = await self._ask(snapshot, prompt)
+        text, mood, gesture = await self._ask(snapshot, prompt, tools, run_tool, force=force)
         self.remember("user", player_text)
         self.remember("assistant", "[%s] %s" % (mood or "happy", text))
         return text, mood, gesture
@@ -106,21 +116,56 @@ class Mind:
         """Remember lines that did not come from the AI (danger warnings)."""
         self.remember("assistant", "[%s] %s" % (mood, text))
 
-    async def _ask(self, snapshot, prompt):
+    async def summarize(self, transcript):
+        """One or two diary sentences about a play session (for memory)."""
+        ai = self.cfg["ai"]
+        body = {"model": ai["model"], "temperature": 0.5, "max_tokens": 120, "messages": [
+            {"role": "system", "content": "You are %s, a companion in Minecraft, writing your diary. Write one or two "
+                                          "short, warm sentences about this play session: what you did together and "
+                                          "anything worth remembering. No mood tag." % self.cfg["name"]},
+            {"role": "user", "content": transcript}]}
+        raw = await asyncio.to_thread(post_json, ai["url"].rstrip("/") + "/chat/completions", body, ai.get("api_key", ""))
+        try:
+            return parse_reply(raw["choices"][0]["message"].get("content") or "")[0]
+        except (KeyError, IndexError, TypeError):
+            return ""
+
+    async def _ask(self, snapshot, prompt, tools=None, run_tool=None, rounds=4, force=None):
         ai = self.cfg["ai"]
         messages = self.build_messages(snapshot, prompt)
         log.debug("prompt context:\n%s", messages[-1]["content"])
-        body = {
-            "model": ai["model"],
-            "messages": messages,
-            "temperature": ai.get("temperature", 0.8),
-            "max_tokens": ai.get("max_tokens", 160),
-        }
-        raw = await asyncio.to_thread(post_json, ai["url"].rstrip("/") + "/chat/completions", body, ai.get("api_key", ""))
-        try:
-            content = raw["choices"][0]["message"].get("content") or ""
-        except (KeyError, IndexError, TypeError):
-            raise AIError("unexpected answer: %s" % json.dumps(raw)[:200])
+        content = ""
+        for round_ in range(rounds):
+            body = {
+                "model": ai["model"],
+                "messages": messages,
+                "temperature": ai.get("temperature", 0.8),
+                "max_tokens": ai.get("max_tokens", 160),
+            }
+            if tools and run_tool and round_ < rounds - 1:
+                body["tools"] = tools
+                if force and round_ == 0:  # a clear request: it must actually do it
+                    body["tool_choice"] = {"type": "function", "function": {"name": force}}
+            raw = await asyncio.to_thread(post_json, ai["url"].rstrip("/") + "/chat/completions", body, ai.get("api_key", ""))
+            try:
+                msg = raw["choices"][0]["message"]
+            except (KeyError, IndexError, TypeError):
+                raise AIError("unexpected answer: %s" % json.dumps(raw)[:200])
+            calls = msg.get("tool_calls") or []
+            content = msg.get("content") or ""
+            if not calls:
+                break
+            # the AI wants to act: do it, hand back what happened, and let it answer in words
+            messages.append({"role": "assistant", "content": content, "tool_calls": calls})
+            for call in calls:
+                fn = call.get("function") or {}
+                try:
+                    args = json.loads(fn.get("arguments") or "{}")
+                except ValueError:
+                    args = {}
+                result = await run_tool(fn.get("name", ""), args if isinstance(args, dict) else {})
+                log.info("tool %s(%s) -> %s", fn.get("name"), json.dumps(args), json.dumps(result)[:300])
+                messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
         text, mood, gesture = parse_reply(content)
         if not text:
             raise AIError("empty answer")

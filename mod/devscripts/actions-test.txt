@@ -1,0 +1,52 @@
+# Actions: find ore, locate, guide, torch, protect, give (magic), memory. Brain must be running.
+world kindred-actions
+wait 220
+cmd gamemode survival
+cmd difficulty easy
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd time set 1000
+cmd weather clear
+cmd kill @e[type=!minecraft:player]
+cmd clear @s
+cmd give @s minecraft:torch 3
+cmd setblock ~4 ~-3 ~6 minecraft:diamond_ore
+kindred power helper
+cmd kindred power helper
+cmd kindred style grounded
+look 0 10
+wait 60
+chat Pip, are there any diamonds near me?
+wait 160
+screenshot act-01-found-diamonds
+chat Where is the nearest village?
+wait 200
+chat Can you take me there?
+wait 120
+screenshot act-02-guiding
+walk 2
+wait 60
+screenshot act-03-guiding-walk
+chat Ok you can stop now
+wait 40
+cmd summon minecraft:zombie ~3 ~ ~2 {NoAI:1b}
+cmd summon minecraft:zombie ~-2 ~ ~3 {NoAI:1b}
+wait 20
+chat Help, push these zombies away!
+wait 140
+screenshot act-04-protect
+cmd kill @e[type=minecraft:zombie]
+chat It's dark here, can you place a torch?
+wait 140
+screenshot act-05-torch
+chat Can you give me some bread?
+wait 140
+cmd kindred style magic
+wait 20
+chat Okay, now can you give me 5 bread?
+wait 160
+screenshot act-06-magic-bread
+cmd kindred style grounded
+chat Remember that my favourite colour is blue. And this spot is my base.
+wait 160
+quit
