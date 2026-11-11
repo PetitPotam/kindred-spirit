@@ -1,6 +1,7 @@
 package dev.kindredspirit;
 
 import com.google.gson.JsonParser;
+import dev.kindredspirit.record.FrameRecorder;
 import dev.kindredspirit.life.Behavior;
 import net.minecraft.client.CameraType;
 import net.minecraft.world.phys.Vec3;
@@ -39,6 +40,17 @@ import java.util.Deque;
  *   act JSON            as if the brain sent {"move": "stay"} and the like
  *   lookat companion    turn the player to look straight at the companion
  *   sneak on|off        hold or release sneak (sneaking while looking at it pets it)
+ *
+ * For demo videos:
+ *   video               HUD hidden (subtitles stay), chat log off, FOV 75, Fancy, no view bobbing
+ *   record start NAME   record the screen to mod/run/recordings/NAME (needs ffmpeg); record stop
+ *   mark NAME           a named moment in the recording (the editing script cuts on them)
+ *   turn YAW PITCH SEC  turn the camera smoothly (eased), instead of "look" which snaps
+ *   turnto companion SEC  turn smoothly to look at the companion
+ *   track companion SEC   keep the camera on the companion for a while, smoothly (like a player would)
+ *   walk SEC            walk forward for a while
+ *   voice FILE.wav      as if the player held the talk key and said this (16 kHz WAV); a file
+ *                       NAME_hq.wav next to it, if present, is the one the video uses
  *   screenshot NAME     save screenshots/NAME.png in the dev game folder
  *   quit                close the game
  * </pre>
@@ -46,6 +58,13 @@ import java.util.Deque;
 public final class DevScript {
     private final Deque<String> lines = new ArrayDeque<>();
     private int waitTicks;
+    // smooth camera turn
+    private float fromYaw, fromPitch, toYaw, toPitch;
+    private long turnStart, turnNanos;
+    private boolean turning;
+    private int walkTicks, voiceTicks;
+    private long trackUntil, lastTrackFrame;
+    private byte[] pendingVoice;
 
     private DevScript() {}
 
@@ -68,7 +87,60 @@ public final class DevScript {
         return s;
     }
 
+    /** Every drawn frame: the smooth camera turn (per frame, so it is not choppy at 20 ticks). */
+    public void frame(Minecraft mc) {
+        if (mc.player == null) return;
+        long now = System.nanoTime();
+        if (now < trackUntil) {
+            double dt = lastTrackFrame == 0 ? 0 : Math.min(0.1, (now - lastTrackFrame) / 1e9);
+            lastTrackFrame = now;
+            Behavior life = KindredSpiritClient.get().companion().life;
+            Vec3 eye = mc.player.getEyePosition();
+            double dx = life.x - eye.x, dy = life.y - eye.y, dz = life.z - eye.z;
+            float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+            float pitch = (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
+            float cy = mc.player.getYRot(), cp = mc.player.getXRot();
+            float d = ((yaw - cy) % 360 + 540) % 360 - 180;
+            float k = (float) (1 - Math.exp(-dt * 6)); // eases on, never snaps
+            float ny = cy + d * k, np = cp + (pitch - cp) * k;
+            mc.player.setYRot(ny);
+            mc.player.yRotO = ny;
+            mc.player.setYHeadRot(ny);
+            mc.player.setXRot(np);
+            mc.player.xRotO = np;
+            return;
+        }
+        lastTrackFrame = 0;
+        if (!turning) return;
+        double u = Math.min(1, (System.nanoTime() - turnStart) / (double) turnNanos);
+        double e = u * u * (3 - 2 * u); // ease in and out
+        float yaw = (float) (fromYaw + (toYaw - fromYaw) * e), pitch = (float) (fromPitch + (toPitch - fromPitch) * e);
+        mc.player.setYRot(yaw);
+        mc.player.yRotO = yaw;
+        mc.player.setYHeadRot(yaw);
+        mc.player.setXRot(pitch);
+        mc.player.xRotO = pitch;
+        if (u >= 1) turning = false;
+    }
+
+    private void startTurn(Minecraft mc, float yaw, float pitch, double seconds) {
+        fromYaw = mc.player.getYRot();
+        fromPitch = mc.player.getXRot();
+        // the short way round
+        float d = ((yaw - fromYaw) % 360 + 540) % 360 - 180;
+        toYaw = fromYaw + d;
+        toPitch = pitch;
+        turnStart = System.nanoTime();
+        turnNanos = (long) (Math.max(0.05, seconds) * 1e9);
+        turning = true;
+    }
+
     public void tick(Minecraft mc) {
+        if (walkTicks > 0 && --walkTicks == 0) mc.options.keyUp.setDown(false);
+        if (voiceTicks > 0 && --voiceTicks == 0 && pendingVoice != null) {
+            KindredSpiritClient.get().sendVoice(pendingVoice);
+            pendingVoice = null;
+        }
         if (waitTicks > 0) {
             waitTicks--;
             return;
@@ -120,6 +192,60 @@ public final class DevScript {
                 mc.player.setXRot((float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz))));
             }
             case "sneak" -> mc.options.keyShift.setDown(arg.trim().equals("on"));
+            case "video" -> {
+                mc.options.hideGui = true;
+                mc.options.fov().set(75);
+                mc.options.graphicsMode().set(net.minecraft.client.GraphicsStatus.FANCY);
+                mc.options.cloudStatus().set(net.minecraft.client.CloudStatus.FANCY);
+                mc.options.bobView().set(false);
+                KindredSpiritClient.get().config().chatLog = false;
+            }
+            case "record" -> {
+                String[] a = arg.trim().split("\\s+");
+                if (a[0].equals("start")) {
+                    FrameRecorder.start(mc.gameDirectory.toPath().resolve("recordings").resolve(a.length > 1 ? a[1] : "demo"));
+                } else {
+                    FrameRecorder.stop();
+                }
+            }
+            case "mark" -> FrameRecorder.mark(arg.trim());
+            case "turn" -> {
+                String[] a = arg.trim().split("\\s+");
+                startTurn(mc, Float.parseFloat(a[0]), Float.parseFloat(a[1]), a.length > 2 ? Double.parseDouble(a[2]) : 1);
+            }
+            case "turnto" -> {
+                String[] a = arg.trim().split("\\s+");
+                Behavior life = KindredSpiritClient.get().companion().life;
+                Vec3 eye = mc.player.getEyePosition();
+                double dx = life.x - eye.x, dy = life.y - eye.y, dz = life.z - eye.z;
+                startTurn(mc, (float) Math.toDegrees(Math.atan2(-dx, dz)),
+                        (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz))),
+                        a.length > 1 ? Double.parseDouble(a[1]) : 1);
+            }
+            case "track" -> {
+                String[] a = arg.trim().split("\\s+");
+                trackUntil = System.nanoTime() + (long) ((a.length > 1 ? Double.parseDouble(a[1]) : 2) * 1e9);
+                turning = false;
+            }
+            case "walk" -> {
+                mc.options.keyUp.setDown(true);
+                walkTicks = (int) Math.round(Double.parseDouble(arg.trim()) * 20);
+            }
+            case "voice" -> {
+                try {
+                    Path wav = Path.of(arg.trim());
+                    pendingVoice = Files.readAllBytes(wav);
+                    String name = wav.getFileName().toString();
+                    Path hq = wav.resolveSibling(name.replace(".wav", "_hq.wav"));
+                    FrameRecorder.soundFile("player", Files.exists(hq) ? hq : wav);
+                    // "hold the key" for as long as the words take, then let go
+                    dev.kindredspirit.util.Wav.Info info = dev.kindredspirit.util.Wav.parse(pendingVoice);
+                    voiceTicks = Math.max(1, (int) Math.round((info == null ? 1 : info.seconds()) * 20) + 4);
+                    KindredSpiritClient.get().companion().activity = Behavior.Activity.LISTENING;
+                } catch (Exception e) {
+                    KindredSpiritClient.LOG.warn("dev script: cannot read {}: {}", arg, e.toString());
+                }
+            }
             case "screenshot" -> Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(),
                     msg -> KindredSpiritClient.LOG.info("dev script: {}", msg.getString()));
             case "quit" -> mc.stop();

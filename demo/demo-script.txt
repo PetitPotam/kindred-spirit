@@ -1,0 +1,120 @@
+# The demo video, filmed by the sandbox game itself. From the mod folder, with the brain running:
+#   ../brain/.venv/bin/python ../demo/make_voices.py
+#   ./gradlew runClient -PdevScript=../demo/demo-script.txt -PvideoSize=960x540
+#   ../brain/.venv/bin/python ../demo/make_video.py   (needs pillow, numpy and ffmpeg)
+# Each "mark X" ... "mark X_end" is a chapter of the edit; Pip's answers are live, not scripted.
+world kindred-test
+wait 200
+video
+cmd gamemode survival
+cmd difficulty easy
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd gamerule doWeatherCycle false
+cmd weather clear
+cmd time set 1000
+cmd kill @e[type=!minecraft:player]
+cmd clear @s
+cmd give @s minecraft:birch_log 48
+cmd tp @s 1.5 127 6.5 0 5
+cmd kindred life reset
+skin slime
+act {"move": "follow"}
+wait 120
+record start demo
+
+# 1. Meet Pip (third person, facing you)
+mark meet
+camera front
+wait 30
+voice ../../demo/out/voices/q_hi.wav
+wait 160
+mark meet_end
+
+# 2. Talk to it
+camera first
+mark talk
+turn -15 2 1.5
+wait 20
+voice ../../demo/out/voices/q_build.wav
+wait 210
+mark talk_end
+
+# 3. It watches your back
+mark danger
+turn 0 5 1
+wait 25
+cmd summon minecraft:creeper ~ ~ ~-4 {NoAI:1b}
+wait 60
+turn 180 8 1.2
+wait 50
+mark danger_end
+cmd kill @e[type=minecraft:creeper]
+turn 0 5 0.8
+wait 30
+
+# 4. It looks back at you; pet it
+mark alive
+track companion 4.5
+wait 55
+sneak on
+wait 3
+sneak off
+wait 60
+mark alive_end
+
+# 5. Ask it things
+mark direct
+voice ../../demo/out/voices/q_spin.wav
+wait 110
+voice ../../demo/out/voices/q_stay.wav
+wait 50
+walk 1.6
+wait 34
+turn 180 6 1.0
+wait 30
+voice ../../demo/out/voices/q_come.wav
+wait 90
+mark direct_end
+
+# 6. Skins
+mark skins
+act {"move": "come", "seconds": 14}
+wait 30
+skin slime_cube
+wait 28
+skin strawberry
+wait 28
+skin wisp
+wait 28
+skin starry
+wait 28
+skin pixie
+wait 28
+skin fairy
+wait 40
+mark skins_end
+
+# 7. Fairy flying with you
+act {"move": "follow"}
+camera front
+mark fairy
+walk 2.5
+wait 60
+turn 220 5 1.5
+wait 50
+mark fairy_end
+camera first
+
+# 8. Glows at night
+mark night
+cmd time set 14000
+act {"move": "come", "seconds": 8}
+track companion 4
+wait 90
+mark night_end
+record stop
+cmd time set 1000
+skin slime
+wait 10
+quit

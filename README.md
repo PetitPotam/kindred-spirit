@@ -7,8 +7,7 @@
 
 Minecraft 1.21.1 · Fabric · MIT · early preview
 
-<!-- DEMO GIF: record ~15 s (talk to it, it answers; a creeper sneaks up; it warns you), save as docs/demo.gif -->
-<img src="docs/demo.gif" width="720" alt="Demo: talking to Pip, then Pip warning about a creeper">
+<img src="docs/demo.gif" width="720" alt="Pip trying on skins: slime, soft cube, strawberry, wisp, starry orb, pixie and fairy">
 </div>
 
 Kindred Spirit is a little slime spirit (we call ours Pip) who keeps you company while you play.
@@ -215,6 +214,9 @@ Three levels, from fastest to most real:
    spawns a frozen creeper behind you, drops your health and takes screenshots in `mod/run/screenshots`.
    `devscripts/life-test.txt` does the same for its liveliness and every skin (eye contact, petting,
    gestures, stay and come, watching a creeper).
+
+The demo video is made the same way: the sandbox films itself from a script and an editing script
+adds titles, captions and music. See [demo/README.md](demo/README.md).
 
 Only then install into your launcher.
 

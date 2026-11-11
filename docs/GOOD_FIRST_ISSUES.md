@@ -40,4 +40,5 @@ Comment on (or open) the matching GitHub issue before starting, so two people do
 15. **Windows start script** (PowerShell): the same steps as `scripts/start.sh` and `setup.sh`.
 16. **Linux check:** run the setup on a Linux distro, fix what breaks, document it.
 17. **A guide for running fully local with Ollama:** which small model works well, how fast it is.
-18. **Record the demo GIF** for the README (see the comment at the top of `README.md`).
+18. **A demo in another setting:** a cave, the Nether, a village. Copy `demo/demo-script.txt`, change the
+    shots, and run `demo/make_video.py` ([demo/README.md](../demo/README.md)).

@@ -1,0 +1,18 @@
+# Recorder check: 6 seconds with a smooth turn and a spoken line.
+world kindred-test
+wait 160
+video
+cmd time set 1000
+skin slime
+look 0 5
+wait 40
+record start smoke
+mark a
+turn 60 5 2
+wait 40
+voice ../../demo/out/voices/q_spin.wav
+wait 80
+mark a_end
+record stop
+wait 20
+quit
