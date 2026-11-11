@@ -10,12 +10,15 @@ class VoiceError(Exception):
     pass
 
 
-def _transcribe(url, wav, timeout=60):
+def _transcribe(url, wav, prompt="", timeout=60):
     boundary = "kindred" + os.urandom(8).hex()
     parts = [
         b"--" + boundary.encode() + b'\r\nContent-Disposition: form-data; name="file"; filename="speech.wav"\r\n'
         b"Content-Type: audio/wav\r\n\r\n" + wav + b"\r\n",
         b"--" + boundary.encode() + b'\r\nContent-Disposition: form-data; name="response_format"\r\n\r\njson\r\n',
+        # a hint so the companion's name is heard right ("Pip", not "Hip")
+        b"--" + boundary.encode() + b'\r\nContent-Disposition: form-data; name="prompt"\r\n\r\n'
+        + prompt.encode("utf-8") + b"\r\n",
         b"--" + boundary.encode() + b"--\r\n",
     ]
     req = urllib.request.Request(url, data=b"".join(parts), method="POST",
@@ -45,8 +48,8 @@ def _speak(url, text, voice, speed, timeout=30):
     return data
 
 
-async def transcribe(cfg, wav):
-    return await asyncio.to_thread(_transcribe, cfg["voice"]["stt_url"], wav)
+async def transcribe(cfg, wav, prompt=""):
+    return await asyncio.to_thread(_transcribe, cfg["voice"]["stt_url"], wav, prompt)
 
 
 async def speak(cfg, text):
