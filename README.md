@@ -47,9 +47,32 @@ from scratch for Fabric.
 | Danger warnings | creeper within 8 blocks, health at 3 hearts or less: instant subtitle, voice right after, with cooldowns |
 | Personality | greets you, small talk when it's been quiet a while (configurable), moods |
 | Subtitles | above the slime, optional captions and a log in your chat (only on your screen) |
+| It feels alive | looks where you look, looks back when you look at it, wanders around you when you stand still, dozes after a long quiet time, leans as it floats, blinks, its eyes move before its head |
+| You can direct it | say or type "stay here", "come here", "follow me", "look at me", "do a spin"; pet it by sneaking while looking at it |
+| Skins | a slime, a soft cube, a glowing wisp, a strawberry, a starry orb, or your own PNG ([how](docs/SKINS.md)) |
 
 Not yet: actions in the world (giving items, lighting, finding structures), memory, the settings
-screen, other shapes. That's the [roadmap](docs/ROADMAP.md).
+screen, fairy and robot shapes. That's the [roadmap](docs/ROADMAP.md).
+
+### It shouldn't feel like a robot
+
+Its movement is designed to feel like a small living thing, not a camera attachment:
+
+- **Springs, never snaps.** Every movement eases in and settles: position, head, eyes. A change of mind
+  curves instead of jerking.
+- **It notices before it reacts.** A short, slightly random delay (0.1–0.35 s) before it turns to
+  something, like a person noticing; threats get a faster reaction.
+- **Eyes first, head after.** Its pupils jump to what caught its attention, and its head follows more slowly.
+  Tiny eye flicks keep it from staring like a doll.
+- **It keeps its spot.** Small turns of your head don't drag it around; it only floats back to your
+  side once you've clearly turned away, and holds still while you look at it, so you can look it in the eyes.
+- **Its own little life.** It drifts on smooth noise (never a visible loop), switches shoulders now and then,
+  glances at animals and items, and wanders around you when you stand still. After a long quiet while it
+  dozes ("z z z") and wakes with a little start when you move.
+- **It stays out of your way.** It never parks in the middle of your view, and floats over walls instead of into them.
+
+Gestures (nod, shake, spin, hop, wiggle, happy, shy, think, startle) are layered on top, and the AI can
+add one to its replies when it fits ("[excited] {hop} Diamonds!").
 
 ## How it fits together
 
@@ -108,8 +131,17 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 |---|---|
 | **V** (hold) | talk; release to send (change it in Controls → Kindred Spirit) |
 | `/kindred <text>` or `/ks <text>` | type to it |
-| `/kindred status` | brain connection, quality level, mood |
+| `/kindred status` | brain connection, skin, mode, quality level, mood |
 | `/kindred reconnect` | after restarting the brain |
+| `/kindred skin <name>` · `/kindred skins` · `/kindred skins reload` | change its look, list skins, reload your skins folder |
+| `/kindred mode follow\|stay\|come` | follow you (default), wait here, come close for a moment |
+| `/kindred side left\|right\|above\|auto` | which side it floats on |
+| `/kindred look me\|there\|ahead\|up\|down\|around` | where to look for a few seconds |
+| `/kindred emote <name>` | nod, shake, spin, hop, wiggle, happy, shy, think, doze |
+| sneak while looking at it | pet it |
+
+Talking works too: "stay here", "come here", "follow me", "go to my left", "look at me", "look at that",
+"do a spin", "dance". It acts at once, before the AI answers.
 
 ## Settings
 
@@ -123,6 +155,7 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
   ```
   Keys go in `~/.kindred-spirit/secrets.env` (readable only by you).
 - Voices: `tts_voice` in brain.toml, e.g. `af_heart`, `af_bella`, `am_puck`, `bf_emma` (54 Kokoro voices).
+- Looks: `skin` in kindredspirit.json, or `/kindred skin <name>`. Make your own: [docs/SKINS.md](docs/SKINS.md).
 
 ## Performance
 
@@ -158,6 +191,8 @@ Three levels, from fastest to most real:
 3. **A sandbox Minecraft:** `cd mod && ./gradlew runClient -PdevScript=devscripts/smoke-test.txt` starts a
    throwaway dev game (its own folder, `mod/run`), creates a test world, talks to the companion,
    spawns a frozen creeper behind you, drops your health and takes screenshots in `mod/run/screenshots`.
+   `devscripts/life-test.txt` does the same for its liveliness and every skin (eye contact, petting,
+   gestures, stay and come, watching a creeper).
 
 Only then install into your launcher.
 

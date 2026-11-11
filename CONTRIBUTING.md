@@ -21,8 +21,12 @@ mod/        Fabric mod (Java 21 target, built with JDK 25, Mojang names). Thin: 
     KindredSpiritClient.java   wiring: keys, events, commands, brain messages, HUD
     BrainLink.java             WebSocket to the brain (reconnects, never blocks the game)
     Snapshot.java              what the brain is told about the game
-    Companion.java             position, mood, bounce, blink: the animation state
-    render/CompanionRenderer   draws the slime (one precomputed sphere, no model files)
+    Companion.java             feeds the game into its life; mood color, subtitle, mouth, skin
+    life/Behavior.java         its "life": where it floats, what it looks at, eye contact, petting,
+                               wandering, dozing (pure Java, unit-tested without the game)
+    life/Emote.java            gestures: nod, spin, hop, shy... as eased curves over time
+    skin/                      skins: JSON + PNG from the mod, resource packs, or config/kindredspirit/skins
+    render/                    draws the companion from its skin and life (shapes built once, no model files)
     audio/                     push-to-talk recording and voice playback
     util/                      plain Java with unit tests (WAV, quality, directions, mesh...)
     DevScript.java             scripted sandbox tests
@@ -64,6 +68,12 @@ CI runs steps 1 and 2 on every pull request.
 - **A new danger alert** (drowning, lava, falling...): add a rule in `brain/kindred/alerts.py`, a test
   in `brain/tests/test_alerts.py`, and if the mod doesn't send what you need yet, add it in
   `Snapshot.java`.
+- **A new gesture:** add it to `life/Emote.java` (a curve that starts and ends at rest; the test
+  `gesturesStartAndEndSoftly` checks it), to `GESTURES` in `brain/kindred/mind.py` so the AI can use it,
+  and a phrase for it in `brain/kindred/intents.py`.
+- **A new skin:** see [docs/SKINS.md](docs/SKINS.md); built-in ones live in
+  `mod/src/main/resources/assets/kindredspirit/skins/`.
+- **Something it can be asked to do** ("go to sleep", "hide"): a rule in `brain/kindred/intents.py`.
 - **A new mood:** add it to `util/Mood.java` (color, bounce) and to `MOODS` in `brain/kindred/mind.py`.
 - **Something new in the snapshot:** `Snapshot.java` (keep it cheap: it runs on the game thread),
   then describe it in `brain/kindred/describe.py` so the AI can use it.
