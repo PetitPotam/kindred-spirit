@@ -42,6 +42,40 @@ public final class Behavior {
         boolean at(double x, double y, double z);
     }
 
+    /**
+     * Switches for each part of its liveliness, so every player can find the companion they want:
+     * from a calm one that just floats beside you to a curious one that wanders and plays.
+     * Saved in kindredspirit.json under "life"; change them in game with /kindred life.
+     */
+    public static final class Settings {
+        /** Wanders around you when you stand still. */
+        public boolean wander = true;
+        /** Gentle drifting beside you: 0 = perfectly still, 1 = normal, 2 = very lively. */
+        public double drift = 1.0;
+        /** Switches shoulders now and then. */
+        public boolean switchSides = true;
+        /** Glances at animals, items and around; off = looks where you look. */
+        public boolean glances = true;
+        /** Looks back at you when you look at it. */
+        public boolean lookBack = true;
+        /** Gets happy or shy when you hold its gaze. */
+        public boolean eyeContactReactions = true;
+        /** Sneaking while looking at it pets it. */
+        public boolean petting = true;
+        /** Turns to watch nearby monsters. */
+        public boolean watchThreats = true;
+        /** Hops when excited, looks up while thinking. */
+        public boolean moodGestures = true;
+        /** Plays the gestures the AI adds to its replies. */
+        public boolean aiGestures = true;
+        /** Dozes off after this many quiet seconds; 0 = never. */
+        public int dozeAfterSeconds = 90;
+        /** Degrees you can turn before it floats back to your side; 0 = always right at your side. */
+        public double turnSlack = 32;
+        /** Never parks in the middle of your view. */
+        public boolean keepOutOfView = true;
+    }
+
     /** What the companion knows this tick. Filled by the game (or a test). */
     public static final class Senses {
         public double now;                      // seconds
@@ -96,17 +130,25 @@ public final class Behavior {
 
     private double lastActive, lastLookX, lastLookY, lastLookZ = 1;
     private double lookedAtSince = -1, notLookedSince, lastContactReaction = -100;
-    private boolean contactReacted, wasSneaking, exploring, glancing;
+    private boolean contactReacted, wasSneaking, exploring, glancing, contactChosen;
+    private double lastTurn = -100;
     private double exploreYaw;
     private double avoidLift;
     private final double[] slotYaw = {Double.NaN, 0};
     private boolean catchingUp;
-    static final double TURN_SLACK = 32, TURN_SETTLED = 4;
+    static final double TURN_SETTLED = 4;
     private Activity lastActivity = Activity.IDLE;
     private double hopPhase, nextBlink = 3, blinkLeft, nextSaccade, saccadeX, saccadeY;
     private double clock;
 
+    public final Settings settings;
+
     public Behavior(double right, double up, double forward, double radius, long seed) {
+        this(right, up, forward, radius, seed, new Settings());
+    }
+
+    public Behavior(double right, double up, double forward, double radius, long seed, Settings settings) {
+        this.settings = settings;
         this.baseRight = right;
         this.baseUp = up;
         this.baseForward = forward;
@@ -173,6 +215,7 @@ public final class Behavior {
         // Are you active? Moving, or turning to look somewhere else.
         double lookDot = s.lx * lastLookX + s.ly * lastLookY + s.lz * lastLookZ;
         if (s.speed > 0.6 || lookDot < 0.985 || act != Activity.IDLE) lastActive = now;
+        if (lookDot < 0.9995) lastTurn = now; // the player moved the view (more than ~2°)
         lastLookX = s.lx;
         lastLookY = s.ly;
         lastLookZ = s.lz;
@@ -181,8 +224,9 @@ public final class Behavior {
 
         // dozing off, and waking up softly
         if (emote == Emote.DOZE) {
-            if (idleFor < 0.5 || threatNear || petted) play(Emote.STARTLE, now);
-        } else if (idleFor > 90 && !threatNear && act == Activity.IDLE && mode != Mode.COME) {
+            if (idleFor < 0.5 || threatNear || petted || settings.dozeAfterSeconds <= 0) play(Emote.STARTLE, now);
+        } else if (settings.dozeAfterSeconds > 0 && idleFor > settings.dozeAfterSeconds && !threatNear
+                && act == Activity.IDLE && mode != Mode.COME) {
             play(Emote.DOZE, now);
         }
 
@@ -190,35 +234,40 @@ public final class Behavior {
         if (mode == Mode.STAY && dist2(stayX, stayY, stayZ, s.ex, s.ey, s.ez) > 64 * 64) mode = Mode.FOLLOW;
 
         // switch shoulders now and then, when nothing is going on
-        if (sidePreference == null && now > nextSideSwitch && act == Activity.IDLE && !threatNear) {
+        if (settings.switchSides && sidePreference == null && now > nextSideSwitch && act == Activity.IDLE && !threatNear) {
             if (rng.nextDouble() < 0.5) side = side == Side.RIGHT ? Side.LEFT : Side.RIGHT;
             nextSideSwitch = now + 25 + rng.nextDouble() * 35;
         }
-        boolean nowExploring = mode == Mode.FOLLOW && idleFor > 8 && act == Activity.IDLE && !threatNear;
+        boolean nowExploring = settings.wander && mode == Mode.FOLLOW && idleFor > 8 && act == Activity.IDLE && !threatNear;
         if (nowExploring && !exploring) exploreYaw = s.yawDeg;
         exploring = nowExploring;
 
         // gestures that come from feelings
-        if (act == Activity.THINKING && lastActivity != Activity.THINKING) play(Emote.THINK, now);
-        if (mood == Mood.EXCITED && emote == null && rng.nextDouble() < 0.012) play(Emote.HOP, now);
+        if (settings.moodGestures && act == Activity.THINKING && lastActivity != Activity.THINKING) play(Emote.THINK, now);
+        if (settings.moodGestures && mood == Mood.EXCITED && emote == null && rng.nextDouble() < 0.012) play(Emote.HOP, now);
         lastActivity = act;
 
         // eye contact and petting
         boolean lookedAt = playerLooksAtMe(s);
         if (lookedAt) {
-            if (lookedAtSince < 0) lookedAtSince = now;
+            if (lookedAtSince < 0) {
+                lookedAtSince = now;
+                // You turned toward it: that's eye contact you chose. If it drifted into your view
+                // while you held still, it may glance back but must still get out of the way.
+                contactChosen = now - lastTurn < 1.5;
+            }
             notLookedSince = now;
         } else {
             lookedAtSince = -1;
             if (now - notLookedSince > 1.5) contactReacted = false;
         }
-        double contact = lookedAtSince < 0 ? 0 : now - lookedAtSince;
-        if (contact > 1.3 && !contactReacted && now - lastContactReaction > 10 && emote == null && act == Activity.IDLE) {
+        double contact = lookedAtSince < 0 || !settings.lookBack ? 0 : now - lookedAtSince;
+        if (settings.eyeContactReactions && contact > 1.3 && !contactReacted && now - lastContactReaction > 10 && emote == null && act == Activity.IDLE) {
             play(rng.nextDouble() < 0.6 ? Emote.HAPPY : Emote.SHY, now);
             contactReacted = true;
             lastContactReaction = now;
         }
-        if (lookedAt && s.sneaking && !wasSneaking && dist2(x, y, z, s.ex, s.ey, s.ez) < 25) {
+        if (settings.petting && lookedAt && s.sneaking && !wasSneaking && dist2(x, y, z, s.ex, s.ey, s.ez) < 25) {
             petted = true;
             play(Emote.WIGGLE, now);
         }
@@ -236,7 +285,7 @@ public final class Behavior {
         GazeKind want;
         double wx = 0, wy = 0, wz = 0;
         double delay = 0.12 + rng.nextDouble() * 0.23;
-        double[] threat = nearestThreat(s);
+        double[] threat = settings.watchThreats ? nearestThreat(s) : null;
         boolean urgent = now < lookOverrideUntil || threat != null || contact > 0.25
                 || act != Activity.IDLE || mode == Mode.COME;
         if (!urgent && glancing && now < glanceUntil) {
@@ -259,7 +308,7 @@ public final class Behavior {
         } else if (contact > 0.25 || act != Activity.IDLE || mode == Mode.COME) {
             want = GazeKind.PLAYER;
         } else {
-            double r = rng.nextDouble();
+            double r = settings.glances ? rng.nextDouble() : 0; // no glances: shares your view
             double explore = exploring ? 0.25 : 0;
             if (r < 0.45 - explore) {
                 want = GazeKind.SHARED;
@@ -366,6 +415,7 @@ public final class Behavior {
                 default -> { r = baseRight; u = baseUp; f = baseForward; }
             }
             double amp = wanderAmp[0];
+            amp *= Math.max(0, settings.drift);
             r += Smooth.noise(now * 0.13, 1) * amp;
             u += Smooth.noise(now * 0.17, 2) * amp * 0.45;
             f += Smooth.noise(now * 0.11, 3) * amp * 0.6;
@@ -378,7 +428,7 @@ public final class Behavior {
 
         // never park in the middle of the view: slide sideways out of a 14° cone
         // (unless you are looking at it on purpose: then it stays for the eye contact)
-        if (mode == Mode.FOLLOW && lookedAtSince < 0) {
+        if (settings.keepOutOfView && mode == Mode.FOLLOW && !(lookedAtSince >= 0 && contactChosen)) {
             double dx = tx - ex, dy = ty - ey, dz = tz - ez;
             double along = dx * lx + dy * ly + dz * lz;
             if (along > 0 && along < 5) {
@@ -482,15 +532,21 @@ public final class Behavior {
 
     /**
      * The direction its spot beside you follows. It stays put through small turns and while you
-     * look at it; once you have turned more than {@link #TURN_SLACK} degrees away it glides
+     * look at it; once you have turned more than {@link Settings#turnSlack} degrees away it glides
      * around to your side again, and settles before it will move again.
      */
     private double followYaw(double playerYaw, double dt) {
         if (exploring) return exploreYaw;
+        double slack = settings.turnSlack;
+        if (slack <= 0) { // glued to your side: its spot turns with you (the springs still smooth it)
+            slotYaw[0] = playerYaw;
+            slotYaw[1] = 0;
+            return playerYaw;
+        }
         if (Double.isNaN(slotYaw[0])) slotYaw[0] = playerYaw;
         double diff = Math.toDegrees(Smooth.wrap(Math.toRadians(playerYaw - slotYaw[0])));
-        boolean watched = lookedAtSince >= 0;
-        if (!catchingUp && Math.abs(diff) > (watched ? 75 : TURN_SLACK)) catchingUp = true;
+        boolean watched = lookedAtSince >= 0 && contactChosen;
+        if (!catchingUp && Math.abs(diff) > (watched ? Math.max(75, slack) : slack)) catchingUp = true;
         if (catchingUp && Math.abs(diff) < TURN_SETTLED) catchingUp = false;
         if (catchingUp) {
             double[] st = {Math.toRadians(slotYaw[0]), Math.toRadians(slotYaw[1])};

@@ -74,6 +74,26 @@ Its movement is designed to feel like a small living thing, not a camera attachm
 Gestures (nod, shake, spin, hop, wiggle, happy, shy, think, startle) are layered on top, and the AI can
 add one to its replies when it fits ("[excited] {hop} Diamonds!").
 
+**Every one of these is a switch**, so you can have anything from a calm companion that just floats
+beside you to a curious one that wanders and plays. `/kindred life` lists them; change one in game
+with `/kindred life <name> <value>` (saved right away), or `/kindred life reset`:
+
+| Switch | Default | What it does |
+|---|---|---|
+| `wander` | on | wanders around you when you stand still |
+| `drift` | 1 | gentle drifting beside you: 0 still, 1 normal, 2 lively |
+| `switchSides` | on | switches shoulders now and then |
+| `glances` | on | glances at animals, items and around (off: looks where you look) |
+| `lookBack` | on | looks back at you when you look at it |
+| `eyeContactReactions` | on | gets happy or shy when you hold its gaze |
+| `petting` | on | sneak while looking at it to pet it |
+| `watchThreats` | on | turns to watch nearby monsters |
+| `moodGestures` | on | hops when excited, looks up while thinking |
+| `aiGestures` | on | plays the gestures the AI adds to its replies |
+| `dozeAfterSeconds` | 90 | dozes off after this many quiet seconds; 0 = never |
+| `turnSlack` | 32 | degrees you can turn before it floats back to your side; 0 = always right at your side |
+| `keepOutOfView` | on | never parks in the middle of your view |
+
 ## How it fits together
 
 ```
@@ -138,6 +158,7 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 | `/kindred side left\|right\|above\|auto` | which side it floats on |
 | `/kindred look me\|there\|ahead\|up\|down\|around` | where to look for a few seconds |
 | `/kindred emote <name>` | nod, shake, spin, hop, wiggle, happy, shy, think, doze |
+| `/kindred life` · `/kindred life <name> <value>` · `/kindred life reset` | its liveliness switches (see above) |
 | sneak while looking at it | pet it |
 
 Talking works too: "stay here", "come here", "follow me", "go to my left", "look at me", "look at that",
@@ -146,7 +167,8 @@ Talking works too: "stay here", "come here", "follow me", "go to my left", "look
 ## Settings
 
 - **Brain:** `~/.kindred-spirit/brain.toml` (name, personality, model, voice, chattiness, alerts).
-- **Mod:** `minecraft-kindred/config/kindredspirit.json` (quality, subtitles, captions, position, size, volume).
+- **Mod:** `minecraft-kindred/config/kindredspirit.json` (skin, quality, subtitles, captions, position, size,
+  volume, and the liveliness switches under `"life"`).
 - **AI provider:** the gateway, live, no restart:
   ```bash
   python3 services/kindred_gateway.py upstream ollama     # or gemini, groq, openai, openrouter, mistral

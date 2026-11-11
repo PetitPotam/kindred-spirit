@@ -46,7 +46,7 @@ public final class Companion {
     private int tickCount;
 
     public Companion(KindredConfig cfg) {
-        life = new Behavior(cfg.offsetRight, cfg.offsetUp, cfg.offsetForward, 0.2 * cfg.size, System.nanoTime());
+        life = new Behavior(cfg.offsetRight, cfg.offsetUp, cfg.offsetForward, 0.2 * cfg.size, System.nanoTime(), cfg.life);
     }
 
     public double now() {

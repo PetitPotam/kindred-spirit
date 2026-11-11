@@ -1,0 +1,13 @@
+# /kindred life in the real game: list, change, check it was saved, reset.
+world kindred-test
+wait 200
+cmd kindred life
+cmd kindred life wander off
+cmd kindred life dozeAfterSeconds 20
+cmd kindred life drift 9
+cmd kindred life petting maybe
+cmd kindred life drift
+wait 20
+screenshot switches-01-chat
+wait 10
+quit
