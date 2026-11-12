@@ -100,9 +100,17 @@ her voice across prompts and models, and her conversation on Gemini 3 Flash.
   note-block sounds; one can get stuck in her head for a day and change a little.
 - **Learning from your reactions** (like Black & White's creature): what you laugh at, answer or pet
   makes her do it a bit more; what you ignore or stop, a bit less. A small learner on your own play.
-- **An expressive voice.** Kokoro can't do emotion. Audition Kokoro blends for an ageless sound now;
-  then try an expressive model (Chatterbox, Qwen3-TTS, Orpheus) for her answers, keeping Kokoro for
-  instant reactions.
+- **Her voice, later (parked: Lily works for now).** Chosen from an audition: Kokoro `bf_lily`
+  (speed 1.12, pitch 1.1; excited 1.28/1.16), with per-sentence intonation and hums played as
+  note-block tunes. Tried and set aside on an M4 MacBook Air: Chatterbox (Lily cloned, real emotion,
+  but 2.5-7 s before she speaks), Orpheus (great laughs and sighs, 10-24 s), sung hums (creepy) and
+  vocoder tuning of Kokoro (buzzy). Ideas for later:
+  - *A younger Lily*: move Lily's Kokoro style vector away from the older British voices (bf_emma,
+    bf_isabella, bf_alice) by a small step (voice arithmetic: no download, instant to try); or a
+    gentle pitch lift that doesn't sound chipmunk.
+  - Fast models still untested: Chatterbox Turbo, Pocket TTS (Kyutai), Soprano, Kitten TTS.
+  - Pre-rendering her written-ahead instinct lines with an expressive model in the background, so
+    they play instantly with real emotion while live answers stay on Kokoro.
 
 ## Phase 4: Expertise and understanding
 - Recipes and items (minecraft-data), wiki knowledge search.
