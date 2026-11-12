@@ -845,3 +845,251 @@ def test_a_whole_section_in_order_and_where_it_goes_on():
     rest = s.section(page="Tutorial:Lamp farming", name="tower", start=sec["next_start"], max_chars=100000)
     assert "Step 4." in rest["text"] and not rest["more"]
     assert s.section(page="Tutorial:Lamp farming", name="collect")["text"] == "Hoppers into a chest."
+
+
+# ---------------------------------------------------------------- one edition, one version, the right pages
+
+def test_edition_notes_keep_what_is_true_in_java():
+    f = textify.edition_filter
+    assert f("Ravager | 70%[JE only], 75%[BE only]", "java") == "Ravager | 70%"
+    assert f("Immune to arrows [JE only] and fire.", "java") == "Immune to arrows and fire."
+    assert f("It floats.\n- It is part of the monster family[Bedrock Edition only].", "java") == "It floats."
+    assert f("Kill these 41[until: JE 26.4]/42[upcoming: JE 26.4] mobs: Zomboid, Frostling[upcoming], Ghost",
+             "java") == "Kill these 41 mobs: Zomboid, Ghost", "upcoming facts go, [until] notes go and their facts stay"
+    assert f("A glow lamp[until: BE 26.70] or lamp[upcoming: BE 26.70] is a block", "java") == "A glow lamp is a block"
+    assert f("[Crafting recipe (shapeless): 1 Ink, 1 Bone -> 2 Dye] | [Bedrock Edition and Minecraft Education only] Lamp",
+             "java").startswith("[Crafting recipe (shapeless): 1 Ink, 1 Bone -> 2 Dye] | ")
+    assert f("Blocks of iron and diamond[BE only] work.", "java") == "Blocks of iron work."
+    assert f("70%[JE only], 75%[BE only]", None) == "70%[JE only], 75%[BE only]", "no edition: untouched"
+
+
+HISTORY = (heading(2, "History") + '<table data-description="History"><tr><th><a href="/w/Java_Edition_1.21.6" '
+           'title="Java Edition 1.21.6">1.21.6</a></th><td>Added.</td></tr><tr><th><a href="/w/Java_Edition_1.21.9" '
+           'title="Java Edition 1.21.9">1.21.9</a></th><td>Faster.</td></tr></table>')
+
+
+def test_page_status_from_the_wiki_itself():
+    st = textify.wiki_status
+    housekeeping = {"categories": ["Pages needing historical sounds", "Java Edition upcoming tag", "Obsolete information",
+                                   "Legacy Console Edition", "Hostile mobs"]}
+    assert st(housekeeping, "Creeper", "", "1.21.1", "java") == "current", "maintenance categories are not 'outdated'"
+    assert st({"categories": ["Java Edition upcoming", "Upcoming"], "since_java": "1.0.0"}, "Zombie", "", "1.21.1") == \
+        "current", "one upcoming detail doesn't make the zombie a future mob"
+    assert st({"categories": ["In development", "Java Edition upcoming"]}, "Frostling", "", "1.21.1") == "future"
+    assert st({"categories": ["Named updates"]}, "Lamp Drop") == "meta" and st({"categories": ["Websites"]}, "X") == "meta"
+    assert st({"categories": ["Joke features"]}, "Moon Cow") == "joke"
+    assert st({"categories": ["Minecraft Education mobs"]}, "Agent") == "spin-off"
+    assert st({"categories": ["Bedrock Edition", "Entities"]}, "Ghost", "", None, "java") == "other-edition"
+    assert st({"categories": ["Bedrock Edition", "Unknown Java version history", "Gameplay"]}, "Brewing", "", None,
+              "java") == "current", "both editions share it"
+    assert st({"categories": ["Removed mobs"]}, "Giant") == "removed" and st({}, "Villager (old)") == "removed"
+    assert st({"categories": ["Outdated tutorials"]}, "Tutorial:Old farm") == "outdated"
+    assert st({}, "Tutorial:X", "This tutorial describes it as it formerly worked prior to 1.14.") == "outdated"
+    page = wiki_page("Floaty Ghast", 5, "<p>A big friendly made-up ghast.</p>" + HISTORY, categories=("Mobs",))
+    assert textify.wiki_since(page) == "1.21.6"
+    assert st({"since_java": "1.21.6"}, "Floaty Ghast", "", "1.21.1") == "future"
+    assert st({"since_java": "1.20.1"}, "Glow Lamp", "", "1.21.1") == "current"
+    assert st({"since_java": "26.2"}, "Glow Lamp", "", "1.21.1") == "future", "new version numbers compare too"
+
+
+def test_only_current_pages_answer_and_jokes_are_not_kept():
+    web = FakeWeb(dict(wiki_routes(), **{
+        WIKI + "/w/Floaty_Ghast": html(body=wiki_page("Floaty Ghast", 5, "<p>A floaty ghast carries players.</p>" + HISTORY,
+                                                      categories=("Mobs",))),
+        WIKI + "/w/Moon_Zomboid": html(body=wiki_page("Moon Zomboid", 6, "<p>A zomboid from the moon.</p>",
+                                                      categories=("Joke features", "Mobs"))),
+        WIKI + "/w/Bedrock_Lamp": html(body=wiki_page("Bedrock Lamp", 7, "<p>Bedrock lamp details. "
+                                                      "It glows[BE only]. It hums.</p>" + heading(2, "Bedrock Edition")
+                                                      + "<p>Only there.</p>", categories=("Blocks",)))}))
+    s, f = store(), fetcher(web)
+    out = crawler.crawl(s, wiki_source(), f, {"pages": ["Floaty Ghast", "Moon Zomboid", "Bedrock Lamp"]}, log=quiet)
+    assert out["skipped"] == 1 and not s.page("test-wiki", "Moon Zomboid"), "April Fools pages are not kept"
+    assert json.loads(s.source_row("test-wiki")["params"])["pages"] == ["Bedrock Lamp", "Floaty Ghast"], \
+        "refresh doesn't ask for what wasn't kept"
+    ghast = s.ask("how do I ride a floaty ghast")
+    assert ghast["results"][0]["status"] == "future" and ghast["results"][0]["outdated"] and not ghast["covered"]
+    assert ghast["results"][0]["since"] == "1.21.6"
+    lamp = s.section(page="Bedrock Lamp")
+    assert "It hums." in lamp["text"] and "glows" not in lamp["text"] and "Only there" not in json.dumps(s.section(
+        page="Bedrock Lamp", name="Bedrock")), "facts and sections for the other edition are left out"
+
+
+def test_crawl_grows_along_the_links_pages_share():
+    links = lambda *ts: "".join('<a href="/w/%s" title="%s">%s</a>' % (t.replace(" ", "_"), t, t) for t in ts)
+    routes = dict(wiki_routes())
+    for i, name in enumerate(("Lamp A", "Lamp B", "Lamp C")):
+        routes[WIKI + "/w/" + name.replace(" ", "_")] = html(body=wiki_page(name, 10 + i, "<p>%s uses %s.</p>" % (
+            name, links("Glow Lamp", "Zomboid" if i else "Glow Lamp", "File:X.png", "Moon Zomboid"))))
+    s, f = store(), fetcher(FakeWeb(routes))
+    crawler.crawl(s, wiki_source(), f, {"pages": ["Lamp A", "Lamp B", "Lamp C"]}, log=quiet)
+    assert crawler.linked_titles(s, wiki_source(), min_links=2) == [("Glow Lamp", 3), ("Moon Zomboid", 3),
+                                                                     ("Zomboid", 2)]
+    assert crawler.linked_titles(s, wiki_source(), min_links=3) == [("Glow Lamp", 3), ("Moon Zomboid", 3)]
+    real = {"glow lamp": "Glow Lamp", "zomboid": "Zomboid"}  # the sitemap's titles: no "Moon Zomboid" page
+    assert crawler.linked_titles(s, wiki_source(), min_links=2, canonical=real) == [("Glow Lamp", 3), ("Zomboid", 2)]
+    assert not wiki_source().wanted("Pocket Edition v0.12.1 alpha") and not wiki_source().wanted("Wii U Edition Patch 3")
+    assert not wiki_source().wanted("Block tag (Java Edition)") and wiki_source().wanted("Observer")
+
+
+def test_learning_finds_the_thing_asked_about():
+    items = [Item(t, t, WIKI + "/w/" + t.replace(" ", "_")) for t in (
+        "Wheat", "Simple Block", "Tutorial:Crop farming", "Librarian", "Mending", "Trading", "Parrot",
+        "Purple Parrot Party Palace", "Pet Parrot", "Tutorial:Redstone", "Tutorial:Secret door", "Diamond",
+        "Diamond Ore", "Level", "Potion of Night Vision", "Night Vision")]
+    titles = lambda q: [i.title for i in learn.rank_titles(q, items)]
+    assert titles("how do I make a simple wheat farm, step by step?") == ["Wheat"], "'simple' is how, not what"
+    assert titles("how to build a redstone door")[0] == "Tutorial:Secret door", "the door is the thing"
+    assert set(titles("how do I get a librarian with mending")) == {"Librarian", "Mending"}, "both things asked"
+    assert titles("how do I tame a parrot") == ["Parrot"]
+    assert "Level" not in titles("what level is best for diamonds") and "Diamond Ore" in titles(
+        "what level is best for diamonds")
+    assert learn.focus("That thing ignored me. Do you think it likes flowers? How do I tame a parrot? Thanks!") == \
+        "How do I tame a parrot?"
+    chat = ("That fuzzy little thing ignored me completely. Do you think it only listens to flowers? I'm looking at "
+            "the forest. What is the coordinates of my base? Can you tell me please?")
+    assert learn.focus(chat) == "" and learn.rank_titles(chat, items) == []
+    assert learn.focus("Hey there. Can you tell me how to tame a parrot?") == "Can you tell me how to tame a parrot?"
+    out = learn.learn(store(), learn_source(), fetcher(FakeWeb(learn_routes())), chat, tempfile.mkdtemp())
+    assert out["status"] == "nothing" and out["requests"] == 0, "chit-chat is not looked up"
+
+
+def test_learning_goes_past_pages_it_does_not_keep():
+    routes = dict(learn_routes())
+    routes[WIKI + "/sitemap.xml.gz"] = sitemap([("Zomboid", "2026-01-02T00:00:00Z"),
+                                                ("Pet_Zomboid", "2026-01-02T00:00:00Z")])
+    routes[WIKI + "/w/Pet_Zomboid"] = html(body=wiki_page("Pet Zomboid", 8, "<p>An April Fools zomboid pet.</p>",
+                                                          categories=("Joke features",)))
+    s = store()
+    out = learn.learn(s, learn_source(), fetcher(FakeWeb(routes)), "where do zomboids spawn", tempfile.mkdtemp())
+    assert out["status"] == "learned" and [a["title"] for a in out["added"] if a["status"] == "new"] == ["Zomboid"]
+    assert not s.page("test-wiki", "Pet Zomboid")
+
+
+def test_a_word_in_passing_is_not_an_answer():
+    s = store()
+    src = wiki_source()
+    s.upsert_source(src)
+    s.put_document(src, sources.Document("Bone Dust", "Bone Dust", WIKI + "/w/Bone_Dust",
+                                         [{"path": "Usage", "text": "Bone dust grows crops. Use it next to a bed or a "
+                                                                    "lamp to make flowers grow faster at night."}],
+                                         {}, {"categories": ["Items"]}, "t"))
+    assert not s.ask("how do I craft a bed")["covered"], "'bed' in the bone dust page doesn't answer it"
+    _guide(s, "Tutorial:Building a lamp city", [("Expand", "Build lamp farms and mob farms around your city.")])
+    assert not s.ask("how do I build a mob farm")["covered"], "a guide must be about the thing: its title names it"
+    _guide(s, "Tutorial:Mob farm", [("Design", "Build a dark room and drop the mobs into a pit.")])
+    assert s.ask("how do I build a mob farm")["covered"]
+
+
+def test_vectors_are_half_size_and_older_ones_still_work():
+    import struct
+    from knowledge import store as store_mod
+    v = [0.6, -0.8, 0.0, 0.25]
+    blob = store_mod._pack(v)
+    assert len(blob) == 1 + 2 * len(v) and [round(x, 3) for x in store_mod._unpack(blob)] == v
+    old = struct.pack("<4f", *v)
+    assert store_mod._unpack(old) == [x for x in struct.unpack("<4f", old)]
+    vec = {"glow": [1.0, 0.0, 0.0], "zomb": [0.0, 1.0, 0.0]}
+
+    def embed(texts, query=False):
+        return [vec["glow"] if "glow" in t.lower() else vec["zomb"] for t in texts]
+    s = _filled_store(embed, "toy")
+    s.db.execute("update chunks set emb = ? where title = 'Zomboid'", (struct.pack("<3f", 0.0, 1.0, 0.0),))
+    s.db.commit()
+    s._matrix = None
+    assert s.search("zomboid spawning", k=1)[0]["title"] == "Zomboid", "a 32-bit vector from before still counts"
+    assert s.compact() > 0 and s.db.execute("select count(*) from chunks where length(emb) % 2 = 0").fetchone()[0] == 0
+    s._matrix = None
+    assert s.search("zomboid spawning", k=1)[0]["title"] == "Zomboid"
+
+
+MCDATA = {
+    "dataPaths.json": {"pc": {"1.21.1": {"items": "pc/1.21.1", "recipes": "pc/1.21.1", "blocks": "pc/1.21.1",
+                                         "foods": "pc/1.21.1"}}},
+    "pc/1.21.1/items.json": [
+        {"id": 1, "name": "oak_planks", "displayName": "Oak Planks", "stackSize": 64},
+        {"id": 2, "name": "birch_planks", "displayName": "Birch Planks", "stackSize": 64},
+        {"id": 3, "name": "torch", "displayName": "Torch", "stackSize": 64},
+        {"id": 4, "name": "glow_lamp", "displayName": "Glow Lamp", "stackSize": 64},
+        {"id": 5, "name": "lamp_bread", "displayName": "Lamp Bread", "stackSize": 64},
+        {"id": 6, "name": "wheat", "displayName": "Wheat", "stackSize": 64},
+        {"id": 7, "name": "glow_ore", "displayName": "Glow Ore", "stackSize": 64},
+        {"id": 8, "name": "glow_dust", "displayName": "Glow Dust", "stackSize": 64},
+        {"id": 9, "name": "stone_pickaxe", "displayName": "Stone Pickaxe", "stackSize": 1},
+        {"id": 10, "name": "iron_pickaxe", "displayName": "Iron Pickaxe", "stackSize": 1}],
+    "pc/1.21.1/recipes.json": {
+        "4": [{"inShape": [[1, 3, 1]], "result": {"id": 4, "count": 2}},
+              {"inShape": [[2, 3, 2]], "result": {"id": 4, "count": 2}}],
+        "5": [{"ingredients": [6, 6, 8], "result": {"id": 5, "count": 1}}]},
+    "pc/1.21.1/blocks.json": [{"id": 70, "name": "glow_ore", "displayName": "Glow Ore", "hardness": 3.0, "diggable": True,
+                               "harvestTools": {"9": True, "10": True}, "drops": [8]}],
+    "pc/1.21.1/foods.json": [{"id": 5, "name": "lamp_bread", "foodPoints": 5, "saturation": 6.0}],
+}
+
+
+def test_minecraft_data_gives_exact_recipes_for_the_version():
+    base = "https://data.example"
+    routes = {base + "/robots.txt": None}
+    for path, body in MCDATA.items():
+        routes[base + "/" + path] = (200, {"Content-Type": "application/json"}, json.dumps(body))
+    web = FakeWeb(routes)
+    s, f = store(), fetcher(web)
+    src = sources.make("mcdata", {"mcdata": dict(sources.MINECRAFT_DATA, base=base)})
+    out = crawler.crawl(s, src, f, {}, log=quiet)
+    assert out["new"] == 8 and out["requests"] == 6, "robots.txt and five small files, whatever the number of items"
+    lamp = s.ask("how do I make a glow lamp")
+    top = lamp["results"][0]
+    assert top["title"] == "Glow Lamp (Java 1.21.1 data)" and lamp["covered"]
+    assert "[Crafting recipe for 2 Glow Lamp: in one row: any Planks, Torch, any Planks." in top["text"]
+    assert top["data"]["recipes"][0]["ingredients"] == {"any Planks": 2, "Torch": 1}
+    assert top["license"].startswith("MIT")
+    ore = s.section(page="Glow Ore (Java 1.21.1 data)", name="Mining")["text"]
+    assert ore == "Glow Ore: hardness 3. It needs at least a Stone Pickaxe to drop anything. Mined, it drops Glow Dust."
+    bread = s.section(page="Lamp Bread (Java 1.21.1 data)", name="Food")["text"]
+    assert bread == "Lamp Bread restores 5 hunger (2.5 drumsticks) and 6 saturation."
+    assert "Glow Lamp" in s.section(page="Torch (Java 1.21.1 data)", name="Used to make")["text"]
+    web.log.clear()
+    again = crawler.crawl(s, src, f, {}, log=quiet, refresh=True)
+    assert again["new"] == 0 and again["changed"] == 0
+
+
+def test_a_page_answers_to_its_other_names_and_word_forms():
+    from knowledge.store import stem
+    assert stem("endermen") == stem("enderman") and stem("trading") == stem("trade") and stem("slimes") == stem("slime")
+    page = wiki_page("Glow Comparator", 31, "<p>A <b>glow comparator</b> (or simply <b>comparator</b>) is a made-up "
+                                            "block that compares two lamps.</p>" + heading(2, "Usage")
+                     + "<p>It compares the light of two lamps and outputs the stronger one.</p>")
+    assert textify.wiki_aliases(page) == ["glow comparator", "comparator"]
+    web = FakeWeb(dict(wiki_routes(), **{WIKI + "/w/Glow_Comparator": html(body=page)}))
+    s = store()
+    crawler.crawl(s, wiki_source(), fetcher(web), {"pages": ["Glow Comparator", "Zomboid"]}, log=quiet)
+    ans = s.ask("what does a comparator do")
+    assert ans["results"][0]["title"] == "Glow Comparator" and ans["results"][0]["title_match"] == 1.0 and ans["covered"]
+    assert s.ask("where do zomboids spawn")["covered"]
+
+
+def test_a_redirect_to_a_page_left_out_is_not_kept():
+    index = wiki_page("Tutorials", 41, "<p>All the tutorials: lamp farm, zomboid trap, ...</p>", categories=("Tutorials",))
+    web = FakeWeb(dict(wiki_routes(), **{
+        WIKI + "/w/Tutorial:Lamps": (301, {"Location": WIKI + "/w/Tutorials"}, ""),
+        WIKI + "/w/Tutorials": html(body=index)}))
+    s = store()
+    out = crawler.crawl(s, wiki_source(), fetcher(web), {"pages": ["Tutorial:Lamps"]}, log=quiet)
+    assert out["skipped"] == 1 and not s.page("test-wiki", "Tutorials") and not s.page("test-wiki", "Tutorial:Lamps")
+
+
+def test_without_numpy_a_big_store_is_searched_page_by_page_first():
+    from knowledge import store as store_mod
+    vec = {"glow": [1.0, 0.0, 0.0], "zomb": [0.0, 1.0, 0.0], "farm": [0.0, 0.0, 1.0]}
+
+    def embed(texts, query=False):
+        return [vec["glow"] if "glow" in t.lower() else vec["farm"] if "farm" in t.lower() else vec["zomb"]
+                for t in texts]
+    saved = (store_mod.np, KnowledgeStore.PURE_FULL_SCAN, KnowledgeStore.PURE_PAGES)
+    try:
+        store_mod.np, KnowledgeStore.PURE_FULL_SCAN, KnowledgeStore.PURE_PAGES = None, 1, 1
+        s = _filled_store(embed, "toy")
+        s._matrix = None
+        assert s.search("glowing light block", k=1)[0]["title"] == "Glow Lamp", "the nearest page's chunks"
+        assert s.search("zomboid", k=1)[0]["title"] == "Zomboid", "keyword hits are compared too"
+    finally:
+        store_mod.np, KnowledgeStore.PURE_FULL_SCAN, KnowledgeStore.PURE_PAGES = saved

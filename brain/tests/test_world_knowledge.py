@@ -90,3 +90,26 @@ def test_a_build_question_gets_the_whole_guide_and_she_can_listen_for_more(stubs
     section_calls = [body for op, body in stubs.kb_requests if op == "section"]
     assert section_calls[0]["chunk_id"] == 9, "the current guide, not the outdated one"
     assert section_calls[1]["start"] == 2 and "Add a zombie" in more["world_remembers"]
+
+
+def test_what_is_not_in_her_world_says_so():
+    from kindred import knowledge as kb
+    ghast = {"title": "Happy Ghast", "section": "Riding", "text": "Put a harness on it.", "status": "future",
+             "since": "1.21.6", "title_match": 1.0, "outdated": True}
+    assert kb.not_in_this_world([ghast]) == "Happy Ghast: not in this world: it came later (Java 1.21.6), after the " \
+                                            "player's version."
+    assert "(not in this world" in kb.remembered([ghast]) and "(" not in kb.remembered([PISTON]).split(":")[0]
+    assert kb.not_in_this_world([PISTON]) == "", "a current page is simply the answer"
+    old = dict(GOLEM, status="outdated", title_match=1.0)
+    assert kb.not_in_this_world([old]) == "", "an outdated guide: listen for the current one instead"
+    assert "(how it worked in an older version)" in kb.remembered([old])
+
+
+def test_a_chatty_message_is_not_a_world_question():
+    chat = ("That fuzzy little thing ignored me completely. Do you think it only listens to flowers? I'm looking at "
+            "the forest. What is the coordinates of my base? Can you tell me please?")
+    assert not is_world_question(chat)
+    assert is_world_question("Wow, look at that. How do I tame a parrot?")
+    assert not is_world_question("Can you place this block for me?"), "a request for her powers"
+    assert is_world_question("can you tell me how to tame a wolf?") and is_world_question("could you show me where "
+                                                                                          "diamonds spawn?")
