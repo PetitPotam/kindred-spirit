@@ -1881,7 +1881,8 @@ class Brain:
                              + " | ".join(entries)) if entries else " Your diary is still empty: say so, simply."
                 note += await self.world_answer(text)  # how the world works: what it remembers, or listen
                 offered = self.heart.offered_tools(self.abilities, force or (asked if note_cross else None))
-                if moving and not intents.LEADING.search(text):  # (the AI can't turn "follow me" into leading either)
+                if (moving or vouched) and not intents.LEADING.search(text):
+                    # (the AI can't turn "follow me" into leading either; "do what Robin says" isn't "go to Robin")
                     offered = [a for a in offered if a not in ("guide", "follow_player")]
                 self.offered = offered
                 fib = "" if force or (self.snapshot.get("hostiles") or []) else self.heart.fib(self.clock())
@@ -1955,6 +1956,7 @@ class Brain:
         host = (self.snapshot or {}).get("playerName", "")
         trusted = self.heart.trusts_friend(who)
         acts = intents.match(text)[0] if trusted else []
+        moved = any(a.get("move") in ("follow", "stay", "come") for a in acts)
         for act in acts:  # a friend the player vouched for: "follow me", "stay here" work for them too
             if act.get("move") == "follow":
                 res = await self.request("follow_player", {"name": who})
@@ -1976,6 +1978,8 @@ class Brain:
                         "that's the player's call (they can ask you); say so kindly, and don't go looking for %s."
                         % (who, who))))) if x)
                 offered = [a for a in self.abilities if a in self.GUEST_TOOLS] if powers else []
+                if moved:  # a trusted friend's "follow me": done already, and never a trip for the player
+                    offered = [a for a in offered if a not in ("guide", "follow_player", "stop_guide")]
                 if not offered:
                     self.mind.heart += ("\nWith %s you only talk: your powers are for the player alone right now. If "
                                         "they ask for something, say so kindly; never pretend to do it." % who)

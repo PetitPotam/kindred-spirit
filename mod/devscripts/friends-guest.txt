@@ -1,0 +1,34 @@
+# Two-game check, friend side (runGuest, no brain: light mode). Joins the host's LAN world.
+wait 1100
+join 127.0.0.1:25599
+wait 300
+lookat
+screenshot friends-guest-1
+type Pip, you're useless and ugly
+wait 200
+lookat
+press attack
+wait 40
+lookat
+press attack
+# 30 s pass: the host says nothing
+wait 900
+type Pip, sorry, you're actually lovely
+wait 200
+type Pip, where am I?
+wait 250
+type Pip, follow me
+wait 450
+# after the host vouched for Robin
+type Pip, follow me
+wait 250
+lookat
+press attack
+wait 300
+type Pip, give us bread, for both of us
+wait 300
+type Pip, give me levitation
+wait 900
+screenshot friends-guest-2
+wait 600
+quit

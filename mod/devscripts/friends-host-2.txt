@@ -1,0 +1,84 @@
+# Focused two-game check: a friend hits and pets her up close, you stand up for her; both of us; a playful
+# effect; a nether portal on its own. Guest: friends-guest-2.txt, started about 15 s after this one.
+world Friends Test
+wait 200
+cmd time set day
+cmd publish false survival 25599
+look 0 5
+do build {"shape": "portal"}
+wait 60
+screenshot friends-08-portal
+look 180 5
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+chat Robin, stop hitting Pip! Leave her alone
+wait 150
+chat Robin, stop hitting Pip! Leave her alone
+wait 150
+chat Robin, stop hitting Pip! Leave her alone
+wait 150
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+cmd tp Robin ~-1.5 ~ ~2.5 0 0
+wait 100
+quit
