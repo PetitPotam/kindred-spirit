@@ -4,263 +4,587 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kindred Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 16C76 16 90 38 90 60S72 90 50 90 10 82 10 60 24 16 50 16Z' fill='%237ADC6E'/%3E%3Cellipse cx='38' cy='58' rx='5' ry='7' fill='%232b1b17'/%3E%3Cellipse cx='62' cy='58' rx='5' ry='7' fill='%232b1b17'/%3E%3C/svg%3E">
 <style>
+/* ------------------------------------------------------------------ colors (light, then dark) */
 :root {
-  --bg: #f6f4fa; --panel: #ffffff; --ink: #221f2b; --muted: #6d6880; --line: #e4e0ee;
-  --accent: #7c5cc4; --accent-soft: #ece6fb; --good: #2f8f5b; --warn: #b7791f; --bad: #c2413b;
-  --you: #e9f1ff; --pip: #f3ecff; --code: #f3f1f7; --bar: #d9d2ee;
+  --bg: #f6f4fa; --panel: #ffffff; --panel-2: #faf8fd; --ink: #1f1b2b; --muted: #676180; --faint: #9a94ad;
+  --line: #e9e5f1; --line-2: #d9d3e6; --accent: #7055c8; --accent-ink: #ffffff; --accent-soft: #efeafc;
+  --good: #1f8556; --good-soft: #e1f3e9; --warn: #a3640b; --warn-soft: #fcf0d9; --bad: #c03a35; --bad-soft: #fbe5e3;
+  --you: #e6efff; --pip: #f1ecff; --code: #f4f2f8; --shadow: 0 1px 2px rgba(40, 25, 80, .05), 0 6px 20px rgba(40, 25, 80, .04);
+  --f-affection: #dd5b98; --f-trust: #3b82d6; --f-respect: #c28512; --f-familiarity: #24998b; --f-resentment: #d1443c;
+  --k-reply: #7055c8; --k-own: #dd5b98; --k-reflect: #24998b; --k-fold: #c28512; --k-other: #9a94ad;
+  --mood: #7ADC6E; --radius: 14px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #15131b; --panel: #1e1b27; --ink: #ece9f3; --muted: #a29cb6; --line: #2e2a3b;
-    --accent: #a98cf0; --accent-soft: #2c2540; --good: #5cc48b; --warn: #e0a84a; --bad: #ee6b63;
-    --you: #1f2a3d; --pip: #2a2240; --code: #191622; --bar: #3a3352;
+    --bg: #110f17; --panel: #1a1723; --panel-2: #1f1b2a; --ink: #ece9f4; --muted: #a49eba; --faint: #6f6987;
+    --line: #2a2638; --line-2: #3a3550; --accent: #a68cf1; --accent-ink: #15111f; --accent-soft: #29223f;
+    --good: #5cc48b; --good-soft: #15291f; --warn: #e5ad55; --warn-soft: #33260f; --bad: #f0716a; --bad-soft: #391c1e;
+    --you: #1c2740; --pip: #251e3b; --code: #15121d; --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    --f-affection: #f07ab0; --f-trust: #6aa7f0; --f-respect: #e3a83a; --f-familiarity: #3fc0b0; --f-resentment: #f0716a;
+    --k-reply: #a68cf1; --k-own: #f07ab0; --k-reflect: #3fc0b0; --k-fold: #e3a83a; --k-other: #6f6987;
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #15131b; --panel: #1e1b27; --ink: #ece9f3; --muted: #a29cb6; --line: #2e2a3b;
-  --accent: #a98cf0; --accent-soft: #2c2540; --good: #5cc48b; --warn: #e0a84a; --bad: #ee6b63;
-  --you: #1f2a3d; --pip: #2a2240; --code: #191622; --bar: #3a3352;
+  --bg: #110f17; --panel: #1a1723; --panel-2: #1f1b2a; --ink: #ece9f4; --muted: #a49eba; --faint: #6f6987;
+  --line: #2a2638; --line-2: #3a3550; --accent: #a68cf1; --accent-ink: #15111f; --accent-soft: #29223f;
+  --good: #5cc48b; --good-soft: #15291f; --warn: #e5ad55; --warn-soft: #33260f; --bad: #f0716a; --bad-soft: #391c1e;
+  --you: #1c2740; --pip: #251e3b; --code: #15121d; --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  --f-affection: #f07ab0; --f-trust: #6aa7f0; --f-respect: #e3a83a; --f-familiarity: #3fc0b0; --f-resentment: #f0716a;
+  --k-reply: #a68cf1; --k-own: #f07ab0; --k-reflect: #3fc0b0; --k-fold: #e3a83a; --k-other: #6f6987;
+  color-scheme: dark;
 }
+
+/* ------------------------------------------------------------------ base */
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 16px; }
-.top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .2px; }
-.pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-.pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--code); color: var(--muted); white-space: nowrap; }
-.pill b { color: var(--ink); font-weight: 600; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; background: var(--muted); }
-.dot.ok { background: var(--good); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
-nav { display: flex; gap: 2px; margin-top: 10px; overflow-x: auto; }
-nav button { border: 0; background: none; color: var(--muted); padding: 7px 12px; border-radius: 8px; font: inherit; cursor: pointer; white-space: nowrap; }
-nav button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-main { padding: 16px; max-width: 1280px; margin: 0 auto; }
-.tab { display: none; } .tab.on { display: block; }
-.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; }
-.card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
-.wide { grid-column: 1 / -1; }
-.big { font-size: 26px; font-weight: 650; }
-.muted { color: var(--muted); } .small { font-size: 12px; }
-.meter { height: 10px; background: var(--code); border-radius: 6px; overflow: hidden; margin: 8px 0; }
-.meter > i { display: block; height: 100%; background: linear-gradient(90deg, #f3a6c4, var(--accent)); border-radius: 6px; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); cursor: default; border: 0; font-family: inherit; }
-button.chip { cursor: pointer; } button.chip.off { background: var(--code); color: var(--muted); }
-pre { background: var(--code); border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 340px; overflow: auto; }
-details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 6px; }
-.bubble { padding: 7px 10px; border-radius: 10px; margin: 6px 0; max-width: 92%; }
-.bubble.you { background: var(--you); margin-left: auto; }
-.bubble.pip { background: var(--pip); }
-.feed { display: flex; flex-direction: column; gap: 4px; }
-.ev { display: grid; grid-template-columns: 64px 92px 1fr; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--line); align-items: baseline; }
-.ev .t { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.badge { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--code); color: var(--muted); justify-self: start; text-transform: lowercase; }
-.k-chat { background: var(--pip); color: var(--accent); } .k-tool { background: #e3f4ea; color: var(--good); }
-.k-problem, .k-check { background: #fbe7e5; color: var(--bad); } .k-awakening, .k-own { background: #fff3dc; color: var(--warn); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .k-tool { background: #18301f; } :root:not([data-theme="light"]) .k-problem, :root:not([data-theme="light"]) .k-check { background: #3a1d1d; } :root:not([data-theme="light"]) .k-awakening, :root:not([data-theme="light"]) .k-own { background: #382a14; } }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+a { color: var(--accent); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); } .faint { color: var(--faint); } .small { font-size: 12.5px; } .tiny { font-size: 11.5px; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.num { font-variant-numeric: tabular-nums; }
+.good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ------------------------------------------------------------------ layout: a side bar, the page */
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; }
+.side { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; padding: 16px 12px; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 4px; }
+.brand-name { font-weight: 700; font-size: 16px; letter-spacing: .1px; }
+.brand-sub { font-size: 12px; color: var(--muted); }
+.mark { width: 40px; height: 40px; flex: none; }
+.mark svg { width: 100%; height: 100%; overflow: visible; }
+nav { display: flex; flex-direction: column; gap: 1px; }
+.nav-group { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--faint); font-weight: 600; padding: 12px 10px 4px; }
+nav button { display: flex; align-items: center; gap: 10px; border: 0; background: none; color: var(--muted); padding: 7px 10px;
+  border-radius: 9px; cursor: pointer; text-align: left; white-space: nowrap; font-weight: 500; }
+nav button svg { width: 17px; height: 17px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+nav button:hover { background: var(--code); color: var(--ink); }
+nav button.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.status { margin-top: auto; display: grid; gap: 6px; padding: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; font-size: 12.5px; }
+.status .s { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.status .s span:last-child { margin-left: auto; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status .svc { color: var(--faint); font-size: 11.5px; line-height: 1.45; border-top: 1px solid var(--line); padding-top: 6px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+.dot.ok { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); } .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+.dot.bad { background: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
+.theme { display: flex; gap: 2px; background: var(--code); border-radius: 9px; padding: 2px; }
+.theme button { flex: 1; border: 0; background: none; color: var(--muted); padding: 4px 6px; border-radius: 7px; cursor: pointer; font-size: 12px; }
+.theme button.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+main { padding: 22px 28px 60px; max-width: 1320px; width: 100%; }
+.page-head { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.page-head h1 { font-size: 22px; margin: 0; font-weight: 700; letter-spacing: -.2px; }
+.page-head p { margin: 2px 0 0; color: var(--muted); }
+.tab { display: none; } .tab.on { display: block; animation: fade .18s ease-out; }
+@keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------------------ building blocks */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c5 { grid-column: span 5; } .c6 { grid-column: span 6; }
+.c7 { grid-column: span 7; } .c8 { grid-column: span 8; } .c12 { grid-column: 1 / -1; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; min-width: 0; box-shadow: var(--shadow); }
+.card > h2, .h2 { font-size: 13px; font-weight: 650; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.card > h2 .sub, .h2 .sub { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.card > h2 .right, .h2 .right { margin-left: auto; font-weight: 400; }
+.big { font-size: 28px; font-weight: 700; letter-spacing: -.4px; line-height: 1.1; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 1.6; padding: 1px 9px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); border: 1px solid transparent; white-space: nowrap; }
+.chip.plain { background: var(--code); color: var(--muted); }
+.chip.good { background: var(--good-soft); color: var(--good); } .chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+button.chip { cursor: pointer; font-family: inherit; }
+button.chip.off { background: transparent; color: var(--faint); border-color: var(--line-2); }
+button.chip .n { opacity: .7; font-variant-numeric: tabular-nums; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line-2); background: var(--panel);
+  color: var(--ink); padding: 6px 12px; border-radius: 9px; cursor: pointer; font-weight: 550; font-size: 13px; white-space: nowrap; }
+.btn:hover { border-color: var(--faint); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.ghost:hover { background: var(--code); color: var(--ink); }
+.btn.danger { color: var(--bad); }
+.btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 8px; }
+.btn:disabled { opacity: .5; cursor: default; }
+input[type=search], input[type=text], input[type=number], select, textarea { background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 9px; padding: 6px 10px; min-width: 0; }
+input[type=search]:focus, input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+input[type=range] { accent-color: var(--accent); }
+input[type=checkbox] { accent-color: var(--accent); }
+input.switch { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 999px; background: color-mix(in srgb, var(--faint) 60%, var(--line-2)); position: relative;
+  cursor: pointer; transition: background .15s; margin: 0; flex: none; }
+input.switch::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .15s; }
+input.switch:checked { background: var(--accent); }
+input.switch:checked::before { transform: translateX(14px); }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar input[type=search] { flex: 1 1 240px; }
+.search { position: relative; flex: 1 1 240px; display: flex; }
+.search input { flex: 1; padding-left: 32px !important; }
+.search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; stroke: var(--faint); fill: none; stroke-width: 2; pointer-events: none; }
+pre { background: var(--code); border-radius: 10px; padding: 10px 12px; white-space: pre-wrap; word-break: break-word; margin: 6px 0 0;
+  font: 12px/1.55 var(--mono); max-height: 340px; overflow: auto; }
+details > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; padding: 4px 0; list-style: none; display: flex; align-items: center; gap: 6px; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s; margin: 0 3px; }
+details[open] > summary::before { transform: rotate(45deg); }
+details > summary:hover { color: var(--ink); }
+.empty { color: var(--muted); padding: 26px 12px; text-align: center; }
+.empty b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+.err { background: var(--bad-soft); color: var(--bad); padding: 9px 14px; border-radius: 10px; margin-bottom: 14px; display: none; }
+.note { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.divider { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { font-size: 12px; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
-td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-tr.click { cursor: pointer; } tr.click:hover td { background: var(--code); }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; position: sticky; top: 0; background: var(--panel); z-index: 1; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--panel-2); } tr.open td { background: var(--accent-soft); }
+tr.detail td { background: var(--panel-2); padding: 12px 14px; }
 .clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.stat { background: var(--code); border-radius: 10px; padding: 10px 12px; }
-.stat .v { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.scroll-x { overflow-x: auto; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.stat .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.3px; }
 .stat .l { font-size: 12px; color: var(--muted); }
-.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-input[type=search], select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; }
-input[type=search] { flex: 1 1 220px; }
-.mem { padding: 8px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 54px 1fr; gap: 10px; }
-.imp { height: 6px; background: var(--code); border-radius: 4px; margin-top: 7px; overflow: hidden; } .imp > i { display: block; height: 100%; background: var(--accent); }
-.kv { display: grid; grid-template-columns: minmax(120px, 34%) 1fr; gap: 4px 12px; font-size: 13px; }
-.kv div:nth-child(odd) { color: var(--muted); word-break: break-word; }
-.kv div:nth-child(even) { word-break: break-word; }
-svg text { fill: var(--muted); font-size: 10px; }
-.empty { color: var(--muted); padding: 18px 0; text-align: center; }
-.err { background: #fbe7e5; color: var(--bad); padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; display: none; }
-@media (max-width: 640px) {
-  main { padding: 12px 16px; }
-  .ev { grid-template-columns: 52px 1fr; } .ev .badge { grid-column: 2; } .ev > :last-child { grid-column: 1 / -1; }
+.kv { display: grid; grid-template-columns: minmax(110px, 36%) 1fr; gap: 5px 14px; font-size: 13px; }
+.kv > div:nth-child(odd) { color: var(--muted); word-break: break-word; }
+.kv > div:nth-child(even) { word-break: break-word; }
+.badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 6px; background: var(--code); color: var(--muted); white-space: nowrap; }
+svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
+
+/* ------------------------------------------------------------------ live: her, right now */
+.hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 22px; align-items: center; }
+.avatar { width: 112px; height: 112px; }
+.avatar svg { width: 100%; height: 100%; overflow: visible; }
+.bob { animation: bob 2.6s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes bob { 0%, 100% { transform: translateY(0) scale(1, 1); } 45% { transform: translateY(-5px) scale(.98, 1.02); } 90% { transform: translateY(0) scale(1.03, .97); } }
+@media (prefers-reduced-motion: reduce) { .bob, .tab.on { animation: none; } }
+.hero h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+.hero h2 .mood { color: var(--accent); text-transform: lowercase; }
+.hero .summary { color: var(--muted); margin: 2px 0 12px; font-size: 14.5px; }
+.levels { position: relative; margin: 6px 0 4px; }
+.levels .track { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: var(--code); }
+.levels .track i { display: block; height: 100%; border-right: 2px solid var(--panel); }
+.levels .track i:last-child { border-right: 0; }
+.levels .fill { position: absolute; left: 0; top: 0; height: 12px; border-radius: 999px; background: linear-gradient(90deg, #f3a6c4, var(--accent)); }
+.levels .knob { position: absolute; top: -4px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--panel); border: 3px solid var(--accent); box-shadow: var(--shadow); }
+.levels .names { display: flex; font-size: 11px; color: var(--faint); margin-top: 6px; }
+.levels .names span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.levels .names span.here { color: var(--accent); font-weight: 650; }
+.feel { display: grid; grid-template-columns: 92px minmax(0, 1fr) 30px; gap: 10px; align-items: center; margin: 7px 0; font-size: 13px; }
+.feel .bar { height: 8px; border-radius: 999px; background: var(--code); overflow: hidden; }
+.feel .bar i { display: block; height: 100%; border-radius: 999px; }
+.feel .v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.feel .name { display: flex; align-items: center; gap: 7px; }
+.feel .name::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--c); }
+.list-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.list-item:last-child { border-bottom: 0; }
+.list-item .ic { width: 22px; flex: none; text-align: center; }
+.bubble { padding: 8px 12px; border-radius: 14px; max-width: 86%; width: fit-content; word-break: break-word; }
+.bubble.you { background: var(--you); margin-left: auto; border-bottom-right-radius: 5px; }
+.bubble.pip { background: var(--pip); border-bottom-left-radius: 5px; }
+.bubble .who { font-size: 11.5px; color: var(--muted); display: flex; gap: 6px; align-items: center; margin-bottom: 1px; flex-wrap: wrap; }
+.chat { display: flex; flex-direction: column; gap: 6px; }
+
+/* ------------------------------------------------------------------ timelines */
+.feed { display: flex; flex-direction: column; }
+.day { position: sticky; top: 0; z-index: 1; font-size: 11.5px; font-weight: 650; color: var(--muted); background: var(--panel); padding: 10px 0 6px;
+  text-transform: uppercase; letter-spacing: .6px; border-bottom: 1px solid var(--line); }
+.ev { display: grid; grid-template-columns: 62px 112px minmax(0, 1fr); gap: 12px; padding: 9px 2px; border-bottom: 1px solid var(--line); align-items: start; }
+.ev .t { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.kind { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); padding-top: 1px; white-space: nowrap; }
+.kind::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--kc, var(--faint)); flex: none; }
+.k-chat { --kc: var(--accent); } .k-tool { --kc: var(--good); } .k-notice { --kc: var(--f-familiarity); } .k-own { --kc: var(--f-affection); }
+.k-awakening { --kc: var(--warn); } .k-bond { --kc: var(--f-affection); } .k-check { --kc: var(--bad); } .k-problem { --kc: var(--bad); }
+.k-learn { --kc: var(--f-trust); } .k-pet { --kc: var(--f-affection); } .k-act { --kc: var(--faint); } .k-game { --kc: var(--faint); }
+.k-weather { --kc: var(--f-trust); } .k-protect { --kc: var(--good); }
+.ev .times { display: inline-block; font-size: 11px; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0 7px; margin-left: 6px; font-weight: 600; }
+.delta { display: inline-block; font-weight: 700; font-variant-numeric: tabular-nums; border-radius: 6px; padding: 0 6px; margin-right: 6px; }
+.delta.up { color: var(--good); background: var(--good-soft); } .delta.down { color: var(--bad); background: var(--bad-soft); }
+.tags { display: inline-flex; gap: 4px; margin-right: 6px; vertical-align: 1px; }
+.tags span { font-size: 10.5px; padding: 0 6px; border-radius: 5px; background: var(--code); color: var(--muted); }
+
+/* ------------------------------------------------------------------ AI chart */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.legend i.line { height: 2px; border-radius: 1px; width: 14px; }
+.chart rect.b { cursor: pointer; } .chart rect.b:hover { opacity: .75; }
+
+/* ------------------------------------------------------------------ memory */
+.mem { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.mem:last-child { border-bottom: 0; }
+.imp { display: inline-flex; gap: 2px; vertical-align: middle; }
+.imp i { width: 6px; height: 6px; border-radius: 50%; background: var(--line-2); }
+.imp i.on { background: var(--accent); }
+.mem-group h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 18px 0 2px; font-weight: 650; }
+.recall { background: var(--accent-soft); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.recall .mem { border-color: color-mix(in srgb, var(--accent) 18%, transparent); }
+.score { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 650; }
+
+/* ------------------------------------------------------------------ sessions */
+.split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.ses { padding: 10px 12px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; margin-bottom: 2px; }
+.ses:hover { background: var(--panel-2); }
+.ses.on { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+.ses .w { font-weight: 600; } .ses .m { font-size: 12px; color: var(--muted); }
+.tl { display: flex; flex-direction: column; gap: 6px; }
+.tl .sys { font-size: 12px; color: var(--muted); text-align: center; padding: 2px 0; }
+.tl .sys.bad { color: var(--bad); } .tl .sys.warn { color: var(--warn); }
+.tl .t { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.tl .row-you { display: flex; flex-direction: column; align-items: flex-end; }
+.tl .row-pip { display: flex; flex-direction: column; align-items: flex-start; }
+.tl details { max-width: 86%; }
+.play { border: 0; background: var(--panel); color: var(--accent); width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 10px; box-shadow: var(--shadow); flex: none; }
+
+/* ------------------------------------------------------------------ try Pip */
+.sim { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.sim-chat { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.sim-top { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.sim-top .who { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.sim-top .mini { width: 34px; height: 34px; } .sim-top .mini svg { width: 100%; height: 100%; overflow: visible; }
+#sim-log { height: min(56vh, 520px); overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; background: var(--panel-2); }
+#sim-log .sys { font-size: 12px; color: var(--muted); text-align: center; }
+#sim-log .sys.warn { color: var(--warn); }
+.typing { display: inline-flex; gap: 4px; padding: 12px 14px; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: .4; animation: blink 1.2s infinite; }
+.typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); align-items: center; }
+.composer input { flex: 1; padding: 9px 12px; }
+.mic { touch-action: none; user-select: none; -webkit-user-select: none; }
+.mic.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 14px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.form { display: grid; gap: 10px; font-size: 13px; }
+.form label { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; color: var(--muted); }
+.form label > :last-child { color: var(--ink); width: 100%; min-width: 0; }
+.form input[type=range] { min-width: 0; }
+.form label.inline > :last-child { width: auto; justify-self: start; }
+
+/* ------------------------------------------------------------------ settings */
+.settings { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 20px; align-items: start; }
+.subnav { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 1px; }
+.subnav a { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13px; }
+.subnav a:hover { background: var(--code); color: var(--ink); }
+.subnav a .n { font-size: 11px; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0 6px; font-weight: 650; }
+.sgroup { scroll-margin-top: 16px; margin-bottom: 16px; }
+.sgroup > h3 { font-size: 15px; margin: 0; font-weight: 700; }
+.sgroup > .where { font-size: 12px; color: var(--muted); margin: 1px 0 10px; }
+.srows { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); column-gap: 28px; }
+.srow { display: grid; grid-template-columns: minmax(0, 1fr) auto 28px; gap: 4px 12px; align-items: center; padding: 10px 8px; border-bottom: 1px solid var(--line);
+  border-radius: 8px; position: relative; }
+.srow.long { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) 28px; }
+.srow.long .ctl { grid-column: 1 / 2; grid-row: 2; }
+.srow .lbl { font-size: 13.5px; font-weight: 550; }
+.srow .help { font-size: 12px; color: var(--muted); line-height: 1.4; margin-top: 1px; }
+.srow .was { font-size: 11.5px; color: var(--accent); margin-top: 2px; }
+.srow .ctl { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.srow .ctl input[type=range] { width: 130px; }
+.srow .ctl .rv { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); }
+.srow .ctl input[type=search], .srow .ctl input[type=text] { width: 190px; }
+.srow .ctl input[type=number] { width: 90px; text-align: right; }
+.srow .ctl textarea { width: 100%; min-height: 64px; resize: vertical; }
+.srow.custom::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--accent); opacity: .55; }
+.srow.dirty { background: var(--warn-soft); }
+.srow.dirty::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--warn); opacity: 1; }
+.reset { border: 0; background: none; color: var(--faint); width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 15px; visibility: hidden; }
+.reset:hover { background: var(--code); color: var(--accent); }
+.srow.custom .reset { visibility: visible; }
+.srow[hidden] { display: none; }
+.savebar { position: sticky; bottom: 14px; z-index: 6; display: none; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px 10px 16px;
+  background: var(--ink); color: var(--panel); border-radius: 12px; box-shadow: 0 10px 30px rgba(20, 10, 40, .25); }
+.savebar.show { display: flex; }
+.savebar .btn.ghost { color: var(--panel); opacity: .8; } .savebar .btn.ghost:hover { background: rgba(255, 255, 255, .1); color: var(--panel); }
+.savebar .msg { margin-right: auto; font-size: 13px; }
+.profiles { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.profiles .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.cmp td, .cmp th { font-size: 12.5px; }
+.cmp td.v { font-family: var(--mono); font-size: 12px; }
+
+/* ------------------------------------------------------------------ small screens */
+@media (max-width: 1100px) {
+  .c3, .c4, .c5 { grid-column: span 6; } .c7, .c8 { grid-column: 1 / -1; } .c6 { grid-column: span 6; }
+  .sim { grid-template-columns: minmax(0, 1fr); }
+  .settings { grid-template-columns: minmax(0, 1fr); }
+  .subnav { position: static; flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .subnav a { background: var(--code); }
+}
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .side { position: sticky; top: 0; z-index: 10; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px 16px 0; gap: 8px 12px;
+    border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand { padding: 0; } .mark { width: 30px; height: 30px; } .brand-sub { display: none; }
+  .status { order: 2; margin: 0 0 0 auto; padding: 0; background: none; border: 0; display: flex; gap: 10px; }
+  .status .s span:last-child, .status .svc { display: none; }
+  .status .s .lbl { font-size: 11.5px; color: var(--muted); }
+  .theme { order: 3; }
+  nav { order: 4; flex-direction: row; width: calc(100% + 32px); margin: 0 -16px; padding: 0 12px 8px; overflow-x: auto; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  .nav-group { display: none; }
+  nav button { padding: 6px 10px; }
+  main { padding: 16px 16px 60px; }
+  .grid > * { grid-column: 1 / -1 !important; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .hero { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; } .avatar { width: 72px; height: 72px; }
+  .ev { grid-template-columns: 54px minmax(0, 1fr); } .ev > :last-child { grid-column: 1 / -1; }
   .hide-sm { display: none; }
+  .form label { grid-template-columns: 96px minmax(0, 1fr); }
+  .srow { grid-template-columns: minmax(0, 1fr) 28px; } .srow .ctl { grid-column: 1 / 2; grid-row: 2; justify-content: flex-start; }
+  .srow .reset { grid-column: 2; grid-row: 1 / 3; }
+  .srow.bool { grid-template-columns: minmax(0, 1fr) auto 28px; } .srow.bool .ctl { grid-column: 2; grid-row: 1; } .srow.bool .reset { grid-column: 3; grid-row: 1; }
+  .kv { grid-template-columns: minmax(90px, 40%) 1fr; }
+}
+@media (max-width: 520px) {
+  .status .lbl { display: none; }
+  .theme button { padding: 4px 5px; }
 }
 </style>
 </head>
 <body>
-<header>
-  <div class="top">
-    <h1 id="title">Kindred</h1>
-    <div class="pills" id="pills"></div>
-  </div>
-  <nav id="nav">
-    <button data-tab="live" class="on">Live</button>
-    <button data-tab="talk">Conversation</button>
-    <button data-tab="ai">AI calls</button>
-    <button data-tab="voice">Speech &amp; voice</button>
-    <button data-tab="memory">Memory</button>
-    <button data-tab="knowledge">Knowledge</button>
-    <button data-tab="sessions">Sessions</button>
-    <button data-tab="sim">Try Pip</button>
-    <button data-tab="settings">Settings</button>
-  </nav>
-</header>
-<main>
-  <div class="err" id="err"></div>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="mark" id="mark"></div><div><div class="brand-name" id="title">Pip</div><div class="brand-sub">Kindred Spirit</div></div></div>
+    <nav id="nav" aria-label="Sections">
+      <div class="nav-group">Now</div>
+      <button data-tab="live" class="on"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></svg>Live</button>
+      <button data-tab="sim"><svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 1 7 7c0 4-3 8-7 8s-7-4-7-8a7 7 0 0 1 7-7Z"/><path d="M9.5 10v1M14.5 10v1M10 14c1 .8 3 .8 4 0"/></svg>Try Pip</button>
+      <div class="nav-group">What happened</div>
+      <button data-tab="talk"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4Z"/></svg>Conversation</button>
+      <button data-tab="sessions"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>Sessions</button>
+      <div class="nav-group">Inside her head</div>
+      <button data-tab="memory"><svg viewBox="0 0 24 24"><path d="M12 4l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 9.3l5-.7Z"/></svg>Memory</button>
+      <button data-tab="knowledge"><svg viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0-2 2Z"/><path d="M5 20a2 2 0 0 0 2 1h12"/></svg>Knowledge</button>
+      <button data-tab="ai"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>AI calls</button>
+      <button data-tab="voice"><svg viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>Speech &amp; voice</button>
+      <div class="nav-group">Make her yours</div>
+      <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings</button>
+    </nav>
+    <div class="status" id="pills"><div class="s"><span class="dot"></span><span class="lbl">Loading…</span></div></div>
+    <div class="theme" role="group" aria-label="Theme"><button data-theme="auto" class="on">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div>
+  </aside>
 
-  <section class="tab on" id="tab-live">
-    <div class="grid">
-      <div class="card"><h2>Bond</h2><div id="bond"></div></div>
-      <div class="card"><h2>Mood</h2><div id="mood"></div></div>
-      <div class="card"><h2>Powers</h2><div id="powers"></div></div>
-      <div class="card"><h2>Game right now</h2><div id="game"></div></div>
-      <div class="card wide"><h2>Conversation window</h2><div id="window"></div></div>
-      <div class="card wide"><h2>What the AI was given last</h2><div id="sent"></div></div>
-    </div>
-  </section>
+  <main>
+    <div class="page-head"><div><h1 id="page-title">Right now</h1><p id="page-sub"></p></div></div>
+    <div class="err" id="err" role="alert"></div>
 
-  <section class="tab" id="tab-talk">
-    <div class="card">
-      <div class="row"><input type="search" id="talk-q" placeholder="Search what happened"><span class="chips" id="talk-kinds"></span></div>
-      <div class="feed" id="feed"></div>
-    </div>
-  </section>
-
-  <section class="tab" id="tab-ai">
-    <div class="grid">
-      <div class="card wide"><h2>Totals</h2><div id="ai-stats"></div></div>
-      <div class="card wide"><h2>Tokens and time per call</h2><div id="ai-chart"></div></div>
-      <div class="card wide">
-        <div class="row"><input type="search" id="ai-q" placeholder="Search prompts and replies"><span class="chips" id="ai-kinds"></span></div>
-        <div style="overflow-x:auto"><table id="ai-table"></table></div>
+    <!-- ============================================================ live -->
+    <section class="tab on" id="tab-live">
+      <div class="grid">
+        <div class="card c12" id="hero"></div>
+        <div class="card c4"><h2>Her heart <span class="sub">five feelings about you</span></h2><div id="bond"></div></div>
+        <div class="card c4"><h2>Mood <span class="sub">how good she feels, how stirred up</span></h2><div id="mood"></div></div>
+        <div class="card c4"><h2>Powers</h2><div id="powers"></div></div>
+        <div class="card c12" id="between-card"><h2>Between you</h2><div id="between"></div></div>
+        <div class="card c5"><h2>The game, as she sees it</h2><div id="game"></div></div>
+        <div class="card c7"><h2>Conversation window <span class="sub" id="window-sub"></span></h2><div id="window"></div></div>
+        <div class="card c12"><h2>What the AI was given last</h2><div id="sent"></div></div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="tab" id="tab-voice">
-    <div class="grid">
-      <div class="card wide"><h2>Averages</h2><div id="voice-stats"></div></div>
-      <div class="card wide"><div style="overflow-x:auto"><table id="voice-table"></table></div></div>
-    </div>
-  </section>
+    <!-- ============================================================ conversation -->
+    <section class="tab" id="tab-talk">
+      <div class="card">
+        <div class="toolbar"><label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input type="search" id="talk-q" placeholder="Search what happened" aria-label="Search what happened"></label></div>
+        <div class="chips" id="talk-kinds" style="margin-bottom:6px"></div>
+        <div class="feed" id="feed"></div>
+      </div>
+    </section>
 
-  <section class="tab" id="tab-memory">
-    <div class="grid">
-      <div class="card wide">
-        <div class="row">
-          <select id="mem-world"></select>
-          <input type="search" id="mem-q" placeholder="What would she recall for… (try: sheep, my name, the base)">
+    <!-- ============================================================ AI calls -->
+    <section class="tab" id="tab-ai">
+      <div class="grid">
+        <div class="card c12"><h2>Today</h2><div id="ai-stats"></div></div>
+        <div class="card c12"><h2>The last calls <span class="sub">click a bar to open the call</span></h2><div id="ai-chart"></div></div>
+        <div class="card c12">
+          <div class="toolbar"><label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+            <input type="search" id="ai-q" placeholder="Search prompts and replies" aria-label="Search prompts and replies"></label><span class="chips" id="ai-kinds"></span></div>
+          <div class="scroll-x"><table id="ai-table"></table></div>
         </div>
-        <div id="mem-search"></div>
-        <div class="chips" id="mem-kinds" style="margin:8px 0 4px"></div>
-        <div id="mem-list"></div>
       </div>
-      <div class="card wide"><h2>Saved state</h2><div id="mem-docs"></div></div>
-    </div>
-  </section>
+    </section>
 
-  <section class="tab" id="tab-knowledge">
-    <div class="grid">
-      <div class="card wide"><h2>What the world remembers</h2><div id="kb-stats"></div></div>
-      <div class="card wide">
-        <div class="row"><input type="search" id="kb-q" placeholder="Ask like the player would: how do I build an iron farm?">
-          <button class="chip" id="kb-learn" title="Read the wiki pages that answer this question, now">Learn this</button></div>
-        <div id="kb-results"><div class="empty">Type a question to see what she'd be told, and whether it counts as known.</div></div>
+    <!-- ============================================================ speech & voice -->
+    <section class="tab" id="tab-voice">
+      <div class="grid">
+        <div class="card c12"><h2>On average</h2><div id="voice-stats"></div></div>
+        <div class="card c12"><div class="scroll-x"><table id="voice-table"></table></div></div>
       </div>
-      <div class="card"><h2>Learned while playing</h2><div id="kb-log"></div></div>
-      <div class="card"><h2>Latest pages</h2><div id="kb-pages" style="max-height:420px;overflow:auto"></div></div>
-    </div>
-  </section>
+    </section>
 
-  <section class="tab" id="tab-sessions">
-    <div class="grid">
-      <div class="card"><h2>Play sessions</h2><div id="ses-list" style="max-height:640px;overflow:auto"></div></div>
-      <div class="card" style="grid-column: span 2"><h2>What happened</h2><div id="ses-one"><div class="empty">Pick a session.</div></div></div>
-    </div>
-  </section>
-
-  <section class="tab" id="tab-sim">
-    <div class="grid">
-      <div class="card" style="grid-column: span 2">
-        <h2>Talk to Pip (no Minecraft needed)</h2>
-        <div class="small muted" id="sim-status">Not connected. Close the game first: her brain talks to one game at a time.</div>
-        <div class="row" style="margin-top:8px"><button class="chip" id="sim-connect">Connect</button>
-          <label class="small"><input type="checkbox" id="sim-voice" checked> her voice</label>
-          <label class="small">tools <select id="sim-tools"><option value="pretend">pretend they worked</option><option value="fail">fail honestly</option></select></label></div>
-        <div id="sim-log" style="height:380px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0"></div>
-        <div class="row"><input type="search" id="sim-text" placeholder="Say something to her (Enter)" style="flex:1 1 300px">
-          <button class="chip" id="sim-send">Send</button><button class="chip" id="sim-mic" title="Hold to talk">🎙 hold to talk</button></div>
-        <div class="row small">Do: <button class="chip" data-ev="petted">pet her</button><button class="chip" data-ev="hit">hit her</button>
-          <button class="chip" data-ev="death">die</button><button class="chip" data-ev="arrived">arrive</button></div>
-      </div>
-      <div class="card"><h2>The pretend world</h2>
-        <div class="small" style="display:grid;gap:6px">
-          <label>Biome <select id="w-biome"><option>plains</option><option>forest</option><option>flower_forest</option><option>jungle</option><option>desert</option><option>snowy_plains</option><option>swamp</option><option>dark_forest</option><option>cherry_grove</option><option>deep_dark</option></select></label>
-          <label>Time <select id="w-time"><option value="1000">morning</option><option value="6000">noon</option><option value="12500">sunset</option><option value="18000">midnight</option></select></label>
-          <label>Weather <select id="w-weather"><option>clear</option><option>rain</option><option>thunder</option></select></label>
-          <label>Health <input type="range" id="w-health" min="1" max="20" value="20"></label>
-          <label>Holding <select id="w-hold"><option value="">nothing</option><option>minecraft:iron_sword</option><option>minecraft:stone_pickaxe</option><option>minecraft:oak_log</option><option>minecraft:torch</option><option>minecraft:bread</option></select></label>
-          <label>Animals in sight <input type="search" id="w-animals" value="sheep, cow" placeholder="sheep, cow, pig"></label>
-          <label>Monsters near <select id="w-mob"><option value="">none</option><option value="zombie">a zombie</option><option value="creeper">a creeper</option><option value="skeleton">a skeleton</option></select></label>
-          <label>Underground <input type="checkbox" id="w-cave"></label>
+    <!-- ============================================================ memory -->
+    <section class="tab" id="tab-memory">
+      <div class="grid">
+        <div class="card c12">
+          <div class="toolbar">
+            <select id="mem-world" aria-label="World"></select>
+            <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+              <input type="search" id="mem-q" placeholder="What would she recall for… (try: sheep, my name, the base)" aria-label="What would she recall"></label>
+          </div>
+          <div id="mem-search"></div>
+          <div class="chips" id="mem-kinds"></div>
+          <div id="mem-list"></div>
         </div>
-        <div class="small muted" style="margin-top:8px">Sent to her every 2 seconds, like the game does. World: <b>sim:Playground</b> (its own companion and memories).</div>
-        <h2 style="margin-top:14px">Her heart</h2><div id="sim-heart" class="small muted">–</div>
+        <div class="card c12"><h2>Saved state <span class="sub">click one to see it</span></h2><div id="mem-docs"></div></div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="tab" id="tab-settings">
-    <div class="grid">
-      <div class="card wide"><h2>Change settings</h2>
-        <div id="prof" class="small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)"></div>
-        <div id="prof-cmp"></div>
-        <div id="set-edit"></div>
-        <div class="small muted" style="margin-top:8px">Everything applies without a restart: her brain within a few seconds (saved in ~/.kindred-spirit/brain-overrides.json, on top of brain.toml), the gateway on the next call, the game within two seconds, even while you play. ↺ puts one setting back to its default.</div></div>
-      <div class="card"><h2>In use</h2><div id="set-use"></div></div>
-      <div class="card"><h2>Special instructions</h2><div id="set-instr"></div></div>
-      <div class="card wide"><h2>Her heart (brain.toml)</h2><div id="set-heart"></div></div>
-      <div class="card"><h2>Brain</h2><div id="set-brain"></div></div>
-      <div class="card"><h2>Mod (kindredspirit.json)</h2><div id="set-mod"></div></div>
-      <div class="card wide"><h2>Gateway (keys hidden)</h2><details><summary>Show everything</summary><pre id="set-gw"></pre></details></div>
-    </div>
-  </section>
-</main>
+    <!-- ============================================================ knowledge -->
+    <section class="tab" id="tab-knowledge">
+      <div class="grid">
+        <div class="card c12"><div id="kb-stats"></div></div>
+        <div class="card c12">
+          <h2>Ask it like the player would</h2>
+          <div class="toolbar"><label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+            <input type="search" id="kb-q" placeholder="how do I build an iron farm?" aria-label="Question"></label>
+            <button class="btn primary" id="kb-learn" title="Read the wiki pages that answer this question, now">Learn this</button></div>
+          <div id="kb-results"><div class="empty">Type a question to see what she'd be told, and whether it counts as known.</div></div>
+        </div>
+        <div class="card c6"><h2>Learned while playing</h2><div id="kb-log" style="max-height:460px;overflow:auto"></div></div>
+        <div class="card c6"><h2>Latest pages</h2><div id="kb-pages" style="max-height:460px;overflow:auto"></div></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ sessions -->
+    <section class="tab" id="tab-sessions">
+      <div class="split">
+        <div class="card" style="padding:8px"><div id="ses-list" style="max-height:calc(100vh - 150px);overflow:auto"></div></div>
+        <div class="card"><div id="ses-one"><div class="empty">Pick a session.</div></div></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ try Pip -->
+    <section class="tab" id="tab-sim">
+      <div class="sim">
+        <div class="card sim-chat">
+          <div class="sim-top">
+            <div class="who"><div class="mini" id="sim-face"></div><div style="min-width:0"><b id="sim-name">Pip</b>
+              <div class="tiny muted" id="sim-status">Not connected. Close the game first: her brain talks to one game at a time.</div></div></div>
+            <label class="small muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="switch" id="sim-voice" checked> her voice</label>
+            <label class="small muted">tools <select id="sim-tools"><option value="pretend">pretend they worked</option><option value="fail">fail honestly</option></select></label>
+            <button class="btn primary" id="sim-connect">Connect</button>
+          </div>
+          <div id="sim-log" aria-live="polite"><div class="empty" id="sim-hello"><b>Say hello</b>Connect, then type or hold the microphone to talk. She hears you through her real speech-to-text.</div></div>
+          <div class="composer">
+            <input type="search" id="sim-text" placeholder="Say something to her…" aria-label="Say something to her">
+            <button class="btn mic" id="sim-mic" title="Hold to talk" aria-label="Hold to talk">🎙</button>
+            <button class="btn primary" id="sim-send">Send</button>
+          </div>
+          <div class="quick">Do something: <button class="btn sm" data-ev="petted">pet her</button><button class="btn sm" data-ev="hit">hit her</button>
+            <button class="btn sm" data-ev="death">die</button><button class="btn sm" data-ev="arrived">arrive</button></div>
+        </div>
+        <div style="display:grid;gap:16px">
+          <div class="card"><h2>Her heart</h2><div id="sim-heart" class="small muted">Connect to see how she feels about you.</div></div>
+          <div class="card"><h2>The pretend world</h2>
+            <div class="form">
+              <label>Biome <select id="w-biome"><option>plains</option><option>forest</option><option>flower_forest</option><option>jungle</option><option>desert</option><option>snowy_plains</option><option>swamp</option><option>dark_forest</option><option>cherry_grove</option><option>deep_dark</option></select></label>
+              <label>Time <select id="w-time"><option value="1000">morning</option><option value="6000">noon</option><option value="12500">sunset</option><option value="18000">midnight</option></select></label>
+              <label>Weather <select id="w-weather"><option>clear</option><option>rain</option><option>thunder</option></select></label>
+              <label>Health <span style="display:flex;gap:8px;align-items:center"><input type="range" id="w-health" min="1" max="20" value="20" style="flex:1"><span class="num muted" id="w-health-v" style="flex:none;width:40px;text-align:right">20/20</span></span></label>
+              <label>Holding <select id="w-hold"><option value="">nothing</option><option>minecraft:iron_sword</option><option>minecraft:stone_pickaxe</option><option>minecraft:oak_log</option><option>minecraft:torch</option><option>minecraft:bread</option></select></label>
+              <label>Animals <input type="search" id="w-animals" value="sheep, cow" placeholder="sheep, cow, pig"></label>
+              <label>Monster <select id="w-mob"><option value="">none</option><option value="zombie">a zombie</option><option value="creeper">a creeper</option><option value="skeleton">a skeleton</option></select></label>
+              <label class="inline">Underground <input type="checkbox" class="switch" id="w-cave"></label>
+            </div>
+            <div class="note">Sent to her every 2 seconds, like the game does. World: <b>sim:Playground</b>, with its own companion and memories.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ settings -->
+    <section class="tab" id="tab-settings">
+      <div class="card" style="margin-bottom:16px"><h2>Profiles <span class="sub">saved sets of settings, to switch and compare</span></h2>
+        <div id="prof" class="profiles"></div><div id="prof-cmp"></div></div>
+      <div class="settings">
+        <div class="subnav" id="set-nav"></div>
+        <div>
+          <div class="toolbar">
+            <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+              <input type="search" id="set-q" placeholder="Find a setting (voice, pranks, size…)" aria-label="Find a setting"></label>
+            <label class="small muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="switch" id="set-only"> only the ones you changed</label>
+            <button class="btn ghost" id="st-defaults" title="every setting back to its default (then Save)">↺ Reset all to defaults</button>
+          </div>
+          <div id="set-edit"></div>
+          <div class="savebar" id="savebar"><span class="msg" id="st-msg"></span><button class="btn ghost" id="st-discard">Discard</button><button class="btn primary" id="st-save">Save changes</button></div>
+          <div class="note">Everything applies without a restart: her brain within a few seconds (saved in ~/.kindred-spirit/brain-overrides.json, on top of brain.toml),
+            the gateway on the next call, the game within two seconds, even while you play. A colored edge marks a setting that isn't at its default; ↺ puts it back.</div>
+          <div class="grid" style="margin-top:20px">
+            <div class="card c6"><h2>In use</h2><div id="set-use"></div></div>
+            <div class="card c6"><h2>Special instructions <span class="sub">from the gateway</span></h2><div id="set-instr"></div></div>
+            <div class="card c12"><h2>The files, as they are</h2>
+              <details><summary>Her heart (brain.toml)</summary><div id="set-heart" style="padding:6px 0 10px"></div></details>
+              <details><summary>Her brain (brain.toml)</summary><div id="set-brain" style="padding:6px 0 10px"></div></details>
+              <details><summary>The mod (kindredspirit.json)</summary><div id="set-mod" style="padding:6px 0 10px"></div></details>
+              <details><summary>The gateway (gateway.json, keys hidden)</summary><pre id="set-gw"></pre></details></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
 
 <script>
 const STATUS_WHY = {outdated: "the wiki marks this as how it worked in an older version", future: "added after the player's game version",
   removed: "removed from the game, or never used", "other-edition": "only in another edition", joke: "an April Fools joke",
   "spin-off": "from another Minecraft game"};
+const PAGES = {
+  live: ["Right now", "How she feels about you, what she sees, and what the AI was told last."],
+  sim: ["Try Pip", "Talk to her brain without Minecraft, in a pretend world."],
+  talk: ["Conversation", "Everything that happened, newest first."],
+  sessions: ["Play sessions", "Each time you played: what was said, why, and what the AI saw."],
+  memory: ["Memory", "What she remembers in each world, and what would come to her mind."],
+  knowledge: ["What the world remembers", "The knowledge she draws on (to her, the old stones and the wind)."],
+  ai: ["AI calls", "Every call to the AI: why, how long it took, how many tokens, what it cost."],
+  voice: ["Speech & voice", "Hearing you, and making her voice."],
+  settings: ["Settings", "Everything about her, each with its default. Changes apply without a restart."],
+};
 const $ = (id) => document.getElementById(id);
-// her five feelings, her stance, the hurts between you and why (brain/kindred/bonds.py)
-function relationship(R) {
-  if (!R) return "";
-  const bar = (label, v, bad) => `<div class="small" style="display:flex;gap:8px;align-items:center;margin-top:4px">
-    <span style="width:84px">${label}</span><div class="meter" style="flex:1;margin:0"><i style="width:${v}%;${bad ? "background:var(--bad)" : ""}"></i></div>
-    <span class="muted" style="width:28px;text-align:right">${Math.round(v)}</span></div>`;
-  const inc = (R.incidents || []).filter((i) => i.state !== "repaired").map((i) => `<div class="small" style="margin-top:4px">
-    ${i.state === "scar" ? "🩹" : i.state === "probation" ? "⏳" : "💢"} <b>${esc(i.kind.replace(/_/g, " "))}</b>
-    ${i.words ? "“" + esc(i.words) + "”" : ""} · ${esc(i.intent)} · ${esc(i.state)}${i.probation ? ` (${i.probation[0]} of ${i.probation[1]} min)` : ""} · ${esc(i.ago)}</div>`).join("");
-  const bel = (R.beliefs || []).map((b) => `<div class="small" style="margin-top:4px">${b.good ? "🌱" : "🌧"} ${esc(b.text)}</div>`).join("");
-  const log = (R.log || []).slice(-5).reverse().map((l) => `<div class="small muted" style="margin-top:2px;font-family:var(--mono, monospace)">${esc(l.line)}</div>`).join("");
-  const T = R.temperament || {};
-  return `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
-    <div><span class="chip">${esc(R.stance)}</span> ${esc(R.summary)}</div>
-    ${bar("affection", R.affection)}${bar("trust", R.trust)}${bar("respect", R.respect)}${bar("familiarity", R.familiarity)}${bar("resentment", R.resentment, true)}
-    <div class="small muted" style="margin-top:6px">sting ${R.sting} · pattern ${R.pattern} · apology credit ${R.credit}${R.floor ? " · scar floor " + R.floor : ""}
-      · temperament: sensitivity ${T.sensitivity}, forgiveness ${T.forgiveness}, warmth ${T.warmth}, pride ${T.pride}</div>
-    ${R.gesture ? `<div class="small" style="margin-top:6px">She'd like you to make up: <b>${esc(R.gesture.kind)}</b></div>` : ""}
-    ${inc ? `<div style="margin-top:8px"><b class="small">Between you</b>${inc}</div>` : ""}
-    ${bel ? `<div style="margin-top:8px"><b class="small">What she's come to believe</b>${bel}</div>` : ""}
-    ${log ? `<div style="margin-top:8px"><b class="small">Why (latest first)</b>${log}</div>` : ""}</div>`;
-}
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const fmt = (n) => n == null ? "–" : Number(n).toLocaleString();
 const ago = (s) => s == null ? "–" : s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
-const hhmm = (t) => (t || "").slice(11, 19);
+const hhmm = (t) => (t || "").slice(11, 16);
+const hhmmss = (t) => (t || "").slice(11, 19);
+const nice = (s) => String(s ?? "").replace(/_/g, " ");
 let tab = "live", world = null, memKinds = new Set(), talkOff = new Set(["info"]), aiOff = new Set(), openCall = null, lastAI = [];
 const name = () => (window._brain && window._brain.name) || "Pip";
+
+// ---------------------------------------------------------------- her face (the same colors as in the game)
+const MOOD_COLORS = {happy: "#7ADC6E", excited: "#FFD250", calm: "#6EC8DC", curious: "#AA8CFF", worried: "#FF9646",
+  scared: "#F05A78", sad: "#6E8CE6", sleepy: "#A096BE", offline: "#9A9AA2"};
+let faceN = 0;
+function face(mood, valence = 0.3, opts = {}) {
+  const c = MOOD_COLORS[mood] || MOOD_COLORS.offline, id = "pf" + (++faceN);
+  const sleepy = mood === "sleepy" || mood === "offline";
+  const eyes = sleepy
+    ? `<path d="M31 58q6 5 12 0M57 58q6 5 12 0" stroke="#2b1b17" stroke-width="3" fill="none" stroke-linecap="round"/>`
+    : `<ellipse cx="37" cy="56" rx="5.2" ry="${mood === "scared" ? 8 : 7}" fill="#2b1b17"/><ellipse cx="63" cy="56" rx="5.2" ry="${mood === "scared" ? 8 : 7}" fill="#2b1b17"/>
+       <circle cx="38.8" cy="53" r="1.9" fill="#fff"/><circle cx="64.8" cy="53" r="1.9" fill="#fff"/>`;
+  const mouth = mood === "excited" ? `<path d="M43 66q7 9 14 0z" fill="#5a2a2a"/>`
+    : mood === "scared" || mood === "worried" ? `<ellipse cx="50" cy="69" rx="3.4" ry="${mood === "scared" ? 4 : 2.6}" fill="#5a2a2a"/>`
+    : mood === "curious" ? `<path d="M45 68q3-3 6 0t6 0" stroke="#5a2a2a" stroke-width="2.6" fill="none" stroke-linecap="round"/>`
+    : valence > 0.15 ? `<path d="M44 66q6 6 12 0" stroke="#5a2a2a" stroke-width="2.8" fill="none" stroke-linecap="round"/>`
+    : valence < -0.15 ? `<path d="M44 70q6-5 12 0" stroke="#5a2a2a" stroke-width="2.8" fill="none" stroke-linecap="round"/>`
+    : `<path d="M46 68h8" stroke="#5a2a2a" stroke-width="2.8" stroke-linecap="round"/>`;
+  return `<svg viewBox="0 0 100 100" role="img" aria-label="${esc(name())}, ${esc(mood || "")}">
+    <defs><radialGradient id="${id}" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".35" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".12"/></radialGradient></defs>
+    <ellipse cx="50" cy="95" rx="28" ry="4" fill="#000" opacity=".12"/>
+    <g class="${opts.still ? "" : "bob"}">
+      <path d="M50 14C77 14 91 37 91 60S73 91 50 91 9 83 9 60 23 14 50 14Z" fill="${c}"/>
+      <path d="M50 14C77 14 91 37 91 60S73 91 50 91 9 83 9 60 23 14 50 14Z" fill="url(#${id})"/>
+      <ellipse cx="30" cy="34" rx="8" ry="5" fill="#fff" opacity=".55" transform="rotate(-28 30 34)"/>
+      ${eyes}
+      <ellipse cx="27" cy="66" rx="6" ry="3.6" fill="#ff8fa3" opacity="${mood === "sad" ? .15 : .45}"/><ellipse cx="73" cy="66" rx="6" ry="3.6" fill="#ff8fa3" opacity="${mood === "sad" ? .15 : .45}"/>
+      ${mouth}
+    </g></svg>`;
+}
 
 async function get(path) {
   const r = await fetch(path, {cache: "no-store"});
@@ -269,108 +593,205 @@ async function get(path) {
   return j;
 }
 function showErr(e) { const el = $("err"); el.style.display = e ? "block" : "none"; el.textContent = e ? String(e.message || e) : ""; }
+const emptyState = (title, text) => `<div class="empty"><b>${esc(title)}</b>${esc(text || "")}</div>`;
 
-// ---------------------------------------------------------------- header + live
+// ---------------------------------------------------------------- theme
+function setTheme(t) {
+  if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+  document.querySelectorAll(".theme button").forEach((b) => b.classList.toggle("on", b.dataset.theme === t));
+  try { localStorage.setItem("kindred-theme", t); } catch (e) {}
+}
+document.querySelector(".theme").onclick = (ev) => { const b = ev.target.closest("button"); if (b) setTheme(b.dataset.theme); };
+try { setTheme(localStorage.getItem("kindred-theme") || "auto"); } catch (e) {}
+
+// ---------------------------------------------------------------- the side bar + live
+const LEVELS = [[0, "hurt"], [15, "wary"], [35, "friend"], [65, "close"], [85, "best friend"]];
+const FEELINGS = [["affection", "how much she likes being with you"], ["trust", "she feels safe with you; your word means something"],
+  ["respect", "how you act with the world and with her"], ["familiarity", "time and shared firsts"], ["resentment", "unresolved hurt, separate from liking"]];
+function bondMeter(bond, level) {
+  const segs = LEVELS.map(([t], i) => (LEVELS[i + 1] ? LEVELS[i + 1][0] : 100) - t);
+  return `<div class="levels" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(bond)}" aria-label="bond">
+    <div class="track">${segs.map((w) => `<i style="width:${w}%"></i>`).join("")}</div>
+    <div class="fill" style="width:${bond}%"></div><div class="knob" style="left:${bond}%"></div>
+    <div class="names">${LEVELS.map(([t, n], i) => `<span style="width:${segs[i]}%" class="${n === level ? "here" : ""}">${n}</span>`).join("")}</div></div>`;
+}
+// her five feelings, her stance, the hurts between you and why (brain/kindred/bonds.py)
+function feelings(R) {
+  if (!R) return emptyState("No feelings recorded yet", "");
+  return FEELINGS.map(([k, why]) => `<div class="feel" title="${esc(why)}" style="--c:var(--f-${k})"><span class="name">${k}</span>
+    <div class="bar"><i style="width:${Math.max(0, Math.min(100, R[k] || 0))}%;background:var(--f-${k})"></i></div><span class="v">${Math.round(R[k] || 0)}</span></div>`).join("") +
+    `<details style="margin-top:8px"><summary>Under the hood</summary><div class="small muted" style="line-height:1.7">
+      sting ${R.sting} (the hurt of right now) · pattern ${R.pattern} · apology credit ${R.credit}${R.floor ? " · scar floor " + R.floor : ""}<br>
+      temperament: sensitivity ${(R.temperament || {}).sensitivity}, forgiveness ${(R.temperament || {}).forgiveness}, warmth ${(R.temperament || {}).warmth}, pride ${(R.temperament || {}).pride}</div></details>`;
+}
+function between(R) {
+  if (!R) return "";
+  const inc = (R.incidents || []).filter((i) => i.state !== "repaired").map((i) => `<div class="list-item"><span class="ic">${i.state === "scar" ? "🩹" : i.state === "probation" ? "⏳" : "💢"}</span>
+    <div><b>${esc(nice(i.kind))}</b>${i.words ? ` <span class="muted">“${esc(i.words)}”</span>` : ""}
+    <div class="small muted">${esc(i.intent)} · ${esc(i.state)}${i.probation ? ` (${i.probation[0]} of ${i.probation[1]} min)` : ""} · ${esc(i.ago)}</div></div></div>`).join("");
+  const bel = (R.beliefs || []).map((b) => `<div class="list-item"><span class="ic">${b.good ? "🌱" : "🌧"}</span><div>${esc(b.text)}</div></div>`).join("");
+  const log = (R.log || []).slice(-6).reverse().map((l) => `<div class="mono muted" style="padding:2px 0">${esc(l.line)}</div>`).join("");
+  if (!inc && !bel && !log && !R.gesture) return "";
+  return `<div class="grid" style="gap:20px">
+    <div class="c4"><div class="h2">Hurts not mended yet</div>${inc || `<div class="small muted">None. 🌤</div>`}
+      ${R.gesture ? `<div class="chip warn" style="margin-top:8px">She'd like you to make up: ${esc(nice(R.gesture.kind))}</div>` : ""}</div>
+    <div class="c4"><div class="h2">What she's come to believe</div>${bel || `<div class="small muted">Nothing settled yet.</div>`}</div>
+    <div class="c4"><div class="h2">Why her feelings moved <span class="sub">latest first</span></div>${log || `<div class="small muted">Nothing yet.</div>`}</div></div>`;
+}
 async function live() {
   const d = await get("/api/live");
   const b = d.brain, h = d.health, g = h.gateway || {};
   window._brain = b;
   const fresh = h.brain_age != null && h.brain_age < 10;
-  $("title").textContent = "Kindred · " + (b ? b.name : "Pip");
-  const pills = [];
-  pills.push(`<span class="pill"><span class="dot ${b && b.connected && fresh ? "ok" : "bad"}"></span>Game <b>${b && b.connected && fresh ? esc((b.world || "").replace(/^sp:/, "")) || "connected" : "not connected"}</b></span>`);
-  pills.push(`<span class="pill"><span class="dot ${fresh ? "ok" : "bad"}"></span>Brain <b>${fresh ? "running" : h.brain_age == null ? "no data" : "stopped " + ago(h.brain_age) + " ago"}</b></span>`);
-  pills.push(`<span class="pill"><span class="dot ${g.status === "ok" ? (g.paused ? "warn" : "ok") : "bad"}"></span>Gateway <b>${g.status === "ok" ? (g.paused ? "paused" : "ok") : "down"}</b></span>`);
-  if (g.status === "ok") pills.push(`<span class="pill hide-sm">AI <b>${esc(g.ai)}</b> · STT <b>${esc(g.stt)}</b> · voice <b>${esc(g.tts)}</b> · memory <b>${esc(g.memory)}</b></span>`);
-  $("pills").innerHTML = pills.join("");
-  if (!b) { $("bond").innerHTML = `<div class="empty">The brain hasn't written its state yet. Is it running (scripts/start.sh)?</div>`; return; }
-  const H = b.heart;
-  $("bond").innerHTML = `<div class="big">${Math.round(H.bond)}<span class="muted small"> / 100</span></div>
-    <div class="meter"><i style="width:${H.bond}%"></i></div>
-    <div><b>${esc(H.level)}</b>${H.angry ? ` · <span style="color:var(--bad)">upset with you</span>` : ""}</div>
-    <div class="small muted">floats ${H.closeness >= .6 ? "close" : H.closeness >= .3 ? "nearby" : "at a distance"} (closeness ${H.closeness}) · ${b.per_world ? "this world's own companion" : "the same companion in every world"}</div>
-    <div class="small muted" style="margin-top:6px">last message from you felt <b>${esc(b.last_regard)}</b> · talked ${ago(b.seconds_since_talk)} ago</div>
-    ${relationship(H.relationship)}`;
+  const gameOn = b && b.connected && fresh;
+  const nm = b ? b.name : "Pip";
+  $("title").textContent = nm;
+  document.title = nm + " · Kindred";
+  $("mark").innerHTML = face(gameOn ? b.mood : fresh ? (b && b.mood) || "calm" : "offline", b ? b.heart.valence : 0, {still: true});
+  const row = (cls, label, value) => `<div class="s"><span class="dot ${cls}"></span><span class="lbl">${label}</span><span>${value}</span></div>`;
+  $("pills").innerHTML = row(gameOn ? "ok" : "bad", "Game", gameOn ? esc((b.world || "").replace(/^(sp|sim):/, "")) || "connected" : "not connected") +
+    row(fresh ? "ok" : "bad", "Brain", fresh ? "running" : h.brain_age == null ? "no data" : "stopped " + ago(h.brain_age) + " ago") +
+    row(g.status === "ok" ? (g.paused ? "warn" : "ok") : "bad", "Gateway", g.status === "ok" ? (g.paused ? "paused" : "ok") : "down") +
+    (g.status === "ok" ? `<div class="svc">AI ${esc(g.ai)} · hearing ${esc(g.stt)}<br>voice ${esc(g.tts)} · memory ${esc(g.memory)}</div>` : "");
+  if (tab !== "live") return;
+  if (!b) { $("hero").innerHTML = emptyState("Her brain hasn't written its state yet", "Is it running? (scripts/start.sh)"); return; }
+  const H = b.heart, R = H.relationship || {};
+  const where = H.closeness >= .6 ? "floats close" : H.closeness >= .3 ? "floats nearby" : "keeps her distance";
+  $("hero").innerHTML = `<div class="hero"><div class="avatar">${face(b.mood, H.valence)}</div><div style="min-width:0">
+      <h2>${esc(nm)} feels <span class="mood">${esc(b.mood)}</span>${H.angry ? ` <span class="chip bad" style="vertical-align:4px">upset with you</span>` : ""}</h2>
+      <div class="summary">${esc(R.summary || "")}</div>
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span class="big num">${Math.round(H.bond)}</span><span class="muted">bond, out of 100 ·</span>
+        <b>${esc(H.level)}</b>${R.stance ? `<span class="chip" title="her stance: how she acts toward you">${esc(R.stance)}</span>` : ""}</div>
+      ${bondMeter(H.bond, H.level)}
+      <div class="chips" style="margin-top:12px">
+        <span class="chip plain">${where} (${H.closeness})</span>
+        <span class="chip plain">${b.per_world ? "this world's own companion" : "the same companion in every world"}</span>
+        <span class="chip plain">your last message felt ${esc(b.last_regard || "–")}</span>
+        <span class="chip plain">talked ${ago(b.seconds_since_talk)} ago</span>
+        ${gameOn ? `<span class="chip good">in ${esc((b.world || "").replace(/^(sp|sim):/, ""))}</span>` : `<span class="chip plain">not in a world</span>`}
+      </div></div></div>`;
+  $("bond").innerHTML = feelings(H.relationship);
+  const bt = between(H.relationship);
+  $("between-card").style.display = bt ? "" : "none";
+  $("between").innerHTML = bt;
   // mood: valence (left/right) and arousal (down/up)
-  const x = 10 + (H.valence + 1) / 2 * 120, y = 130 - H.arousal * 120;
-  $("mood").innerHTML = `<div style="display:flex;gap:14px;align-items:center">
-    <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="mood score">
-      <rect x="10" y="10" width="120" height="120" rx="8" fill="var(--code)"/>
-      <line x1="70" y1="10" x2="70" y2="130" stroke="var(--line)"/><line x1="10" y1="70" x2="130" y2="70" stroke="var(--line)"/>
-      <text x="12" y="24">stirred</text><text x="12" y="126">calm</text><text x="98" y="82">good</text><text x="12" y="82">bad</text>
-      <circle cx="${x}" cy="${y}" r="7" fill="var(--accent)"/></svg>
-    <div><div class="big" style="text-transform:capitalize">${esc(b.mood)}</div>
-      <div class="small muted">feels ${H.valence >= 0 ? "good" : "bad"} ${H.valence} · stirred ${H.arousal}</div>
-      <div class="small muted">something new: ${H.novelty}</div></div></div>`;
-  const aw = (b.awakening || []).map((a) => `<div class="small" style="margin-top:6px">✨ <b>${esc(a.power.replace(/_/g, " "))}</b> is waking up: senses at ${a.plan.sense}s, wakes at ${a.plan.reveal}s${a.favour ? `, favour: ${esc(a.favour)}${a.favour_done ? " (done)" : ""}` : ""}${a.plan.tangent ? ", with a tangent" : ""}</div>`).join("");
-  const req = (H.requests || []).map((r) => `<span class="chip">always: ${esc(r.what)}${r.detail ? " " + esc(r.detail) : ""}</span>`).join("");
-  $("powers").innerHTML = `<div class="small muted">${H.amnesia ? "Discovers her powers as you ask" : "Knows all her allowed powers"}</div>
-    <div class="chips" style="margin-top:8px">${(H.discovered || []).map((p) => `<span class="chip">${esc(p.replace(/_/g, " "))}</span>`).join("") || `<span class="muted small">none discovered yet</span>`}</div>
-    ${aw}${req ? `<div class="chips" style="margin-top:8px">${req}</div>` : ""}
-    ${b.offer || b.her_offer ? `<div class="small" style="margin-top:8px">Waiting for your yes: <b>${esc(b.offer || b.her_offer)}</b></div>` : ""}
-    <div class="small muted" style="margin-top:8px">Allowed by the mod: ${esc((b.abilities || []).join(", ") || "–")}</div>
-    <div class="small muted">Met: ${esc((H.species_met || []).map((s) => s.replace("minecraft:", "")).join(", ") || "no animals yet")} · pets: ${H.pets}</div>`;
-  const snapAge = d.snapshot ? "" : "";
-  $("game").innerHTML = b.last_sent.game ? `<pre>${esc(b.last_sent.game)}</pre>` : `<div class="empty">No game state yet: join a world.</div>`;
-  const hist = (b.conversation.history || []).map((m) => {
+  const x = 14 + (H.valence + 1) / 2 * 172, y = 186 - H.arousal * 172;
+  $("mood").innerHTML = `<svg viewBox="0 0 200 200" width="100%" style="max-width:240px;display:block;margin:0 auto" role="img" aria-label="mood: feels ${H.valence >= 0 ? "good" : "bad"} ${H.valence}, stirred ${H.arousal}">
+      <rect x="14" y="14" width="86" height="86" rx="10" fill="var(--bad-soft)"/><rect x="100" y="14" width="86" height="86" rx="10" fill="var(--warn-soft)"/>
+      <rect x="14" y="100" width="86" height="86" rx="10" fill="var(--code)"/><rect x="100" y="100" width="86" height="86" rx="10" fill="var(--good-soft)"/>
+      <text x="22" y="30">upset, scared</text><text x="178" y="30" text-anchor="end">excited</text>
+      <text x="22" y="180">low, sad</text><text x="178" y="180" text-anchor="end">content, calm</text>
+      <circle cx="${x}" cy="${y}" r="14" fill="${MOOD_COLORS[b.mood] || "var(--accent)"}" opacity=".3"/>
+      <circle cx="${x}" cy="${y}" r="7" fill="${MOOD_COLORS[b.mood] || "var(--accent)"}" stroke="var(--panel)" stroke-width="2.5"/></svg>
+    <div class="small muted" style="text-align:center;margin-top:6px">feels ${H.valence >= 0 ? "good" : "bad"} <b class="num">${H.valence}</b> · stirred <b class="num">${H.arousal}</b> · something new <b class="num">${H.novelty}</b></div>`;
+  const aw = (b.awakening || []).map((a) => `<div class="list-item"><span class="ic">✨</span><div><b>${esc(nice(a.power))}</b> is waking up
+    <div class="small muted">senses it at ${a.plan.sense}s, wakes at ${a.plan.reveal}s${a.favour ? ` · favour: ${esc(a.favour)}${a.favour_done ? " (done)" : ""}` : ""}${a.plan.tangent ? " · with a tangent" : ""}</div></div></div>`).join("");
+  const req = (H.requests || []).map((r) => `<span class="chip plain">always: ${esc(r.what)}${r.detail ? " " + esc(r.detail) : ""}</span>`).join("");
+  $("powers").innerHTML = `<div class="small muted" style="margin-bottom:8px">${H.amnesia ? "She discovers her powers as you ask." : "She knows all her allowed powers."}</div>
+    <div class="chips">${(H.discovered || []).map((p) => `<span class="chip">${esc(nice(p))}</span>`).join("") || `<span class="muted small">None discovered yet.</span>`}</div>
+    ${aw}${req ? `<div class="chips" style="margin-top:10px">${req}</div>` : ""}
+    ${b.offer || b.her_offer ? `<div class="chip warn" style="margin-top:10px">Waiting for your yes: ${esc(b.offer || b.her_offer)}</div>` : ""}
+    <hr class="divider"><div class="small muted">Allowed by the mod: ${esc((b.abilities || []).map(nice).join(", ") || "–")}</div>
+    <div class="small muted" style="margin-top:4px">Animals met: ${esc((H.species_met || []).map((s) => s.replace("minecraft:", "")).join(", ") || "none yet")} · petted ${H.pets}×</div>`;
+  $("game").innerHTML = b.last_sent.game ? `<pre style="max-height:420px;margin:0">${esc(b.last_sent.game)}</pre>` : emptyState("No game yet", "Join a world (or try her in the simulator).");
+  const histL = b.conversation.history || [];
+  const hist = histL.map((m) => {
     const you = m.role === "user";
-    return `<div class="bubble ${you ? "you" : "pip"}"><span class="small muted">${you ? "You" : esc(b.name)}</span><br>${esc(m.content)}</div>`;
+    return `<div class="bubble ${you ? "you" : "pip"}"><div class="who">${you ? "You" : esc(b.name)}</div>${you ? esc(m.content) : tagsOf(m.content)}</div>`;
   }).join("");
-  $("window").innerHTML = `${b.conversation.summary ? `<div class="small muted">Earlier, summarized:</div><pre>${esc(b.conversation.summary)}</pre>` : ""}
-    <div class="small muted" style="margin-top:8px">Sent word for word with each message (${(b.conversation.history || []).length} lines)${b.conversation.waiting_to_fold ? `, ${b.conversation.waiting_to_fold} waiting to be summarized` : ""}:</div>
-    <div style="max-height:420px;overflow:auto">${hist || `<div class="empty">Nothing said yet in this session.</div>`}</div>`;
+  $("window-sub").textContent = `${histL.length} line${histL.length === 1 ? "" : "s"} sent word for word with each message${b.conversation.waiting_to_fold ? `, ${b.conversation.waiting_to_fold} waiting to be summarized` : ""}`;
+  $("window").innerHTML = `${b.conversation.summary ? `<details><summary>Earlier, summarized</summary><pre>${esc(b.conversation.summary)}</pre></details>` : ""}
+    <div class="chat" style="max-height:420px;overflow:auto;margin-top:6px">${hist || emptyState("Nothing said yet", "in this session.")}</div>`;
   $("sent").innerHTML = `<details open><summary>Memories she recalled</summary><pre>${esc(b.last_sent.memories || "(nothing yet)")}</pre></details>
     <details><summary>Her feelings and notes for the AI</summary><pre>${esc(b.last_sent.feelings || "(nothing yet)")}</pre></details>
     <details><summary>Her settings for the AI</summary><pre>${esc(b.last_sent.settings || "(nothing yet)")}</pre></details>
-    <div class="small muted" style="margin-top:6px">Powers offered to the AI on the last turn: ${esc(b.offered_to_ai == null ? "all allowed" : (b.offered_to_ai.join(", ") || "none"))}</div>`;
+    <div class="small muted" style="margin-top:8px">Powers offered to the AI on the last turn: ${esc(b.offered_to_ai == null ? "all allowed" : (b.offered_to_ai.map(nice).join(", ") || "none"))}</div>`;
 }
 
 // ---------------------------------------------------------------- conversation feed
 const KIND_NAMES = {chat: "talk", tool: "tool", notice: "noticed", own: "on her own", awakening: "awakening", bond: "bond",
   act: "body", check: "honesty check", learn: "learned", game: "game", protect: "protect", weather: "weather", pet: "petted", problem: "problem", info: "other"};
+function tagsOf(s) {  // "[happy][sweet] {hop} Hello" -> chips + text
+  const m = /^((?:\s*(?:\[[^\]\n]{1,24}\]|\{[^}\n]{1,24}\}))+)\s*/.exec(s || "");
+  if (!m) return esc(s);
+  const tags = m[1].match(/\[[^\]]+\]|\{[^}]+\}/g).map((t) => `<span>${esc(t.slice(1, -1))}</span>`).join("");
+  return `<span class="tags">${tags}</span>${esc(s.slice(m[0].length))}`;
+}
 function evText(e) {
   switch (e.kind) {
-    case "chat": return `<div class="bubble you">${esc(e.you)}</div><div class="bubble pip"><span class="small muted">${esc(e.mood)}${e.gesture ? " · " + esc(e.gesture) : ""}</span><br>${esc(e.said)}</div>`;
-    case "tool": return `<b>${esc(e.tool)}</b> <span class="small muted">${esc(e.args)}</span><pre>${esc(e.result)}</pre>`;
-    case "notice": return `<span class="small muted">${esc(e.event)} ${esc(e.detail)}</span><br>${esc(e.said)}`;
-    case "own": case "check": return esc(e.said);
-    case "awakening": return `<b>${esc(e.power)}</b> <span class="small muted">${esc(e.plan)}</span>`;
-    case "bond": return `<b>${esc(e.change)}</b> (${esc(e.why)}) → ${esc(e.value)} ${esc(e.level)}`;
-    case "learn": return `learned ${esc(e.n)} new thing(s)${e.diary ? `<br><span class="muted">diary: ${esc(e.diary)}</span>` : ""}`;
+    case "chat": return `<div class="chat"><div class="bubble you">${esc(e.you)}</div><div class="bubble pip"><div class="who">${esc(e.name || name())}
+      ${e.mood ? `<span class="tags"><span>${esc(e.mood)}</span>${e.gesture ? `<span>${esc(e.gesture)}</span>` : ""}</span>` : ""}</div>${esc(e.said)}</div></div>`;
+    case "tool": return `<b>${esc(e.tool)}</b> <span class="mono muted">${esc(e.args)}</span><details><summary>what the game answered</summary><pre>${esc(e.result)}</pre></details>`;
+    case "notice": return `<span class="small muted">${esc(nice(e.event))} ${esc((e.detail || "").replace("minecraft:", ""))}</span><br>“${esc(e.said)}”`;
+    case "own": case "check": return `“${esc(e.said)}”`;
+    case "awakening": return `<b>${esc(nice(e.power))}</b> is waking up <span class="small muted mono">${esc(e.plan)}</span>`;
+    case "bond": {
+      const up = !String(e.change).startsWith("-"), [level, ...rest] = String(e.level || "").split(" | ");
+      return `<span class="delta ${up ? "up" : "down"}">${esc(e.change)}</span>${esc(e.why)} → <b>${esc(e.value)}</b> ${esc(level)}${rest.length ? `<div class="small muted">${esc(rest.join(" | "))}</div>` : ""}`;
+    }
+    case "learn": return `learned ${esc(e.n)} new thing${e.n == 1 ? "" : "s"}${e.diary ? `<div class="small muted">diary: ${esc(e.diary)}</div>` : ""}`;
     default: return esc(e.text);
   }
 }
+function dayName(d) {
+  const t = new Date(), y = new Date(Date.now() - 864e5), iso = (x) => x.toISOString().slice(0, 10);
+  const local = (x) => new Date(x.getTime() - x.getTimezoneOffset() * 6e4);
+  return d === iso(local(t)) ? "Today" : d === iso(local(y)) ? "Yesterday" : new Date(d + "T12:00").toLocaleDateString(undefined, {weekday: "long", month: "long", day: "numeric"});
+}
 async function talk() {
   const d = await get("/api/events");
-  const kinds = [...new Set(d.events.map((e) => e.kind))];
-  $("talk-kinds").innerHTML = kinds.map((k) => `<button class="chip ${talkOff.has(k) ? "off" : ""}" data-k="${k}">${esc(KIND_NAMES[k] || k)}</button>`).join("");
+  const counts = {};
+  d.events.forEach((e) => (counts[e.kind] = (counts[e.kind] || 0) + 1));
+  $("talk-kinds").innerHTML = Object.keys(counts).map((k) => `<button class="chip ${talkOff.has(k) ? "off" : ""}" data-k="${k}">${esc(KIND_NAMES[k] || k)} <span class="n">${counts[k]}</span></button>`).join("");
   const q = $("talk-q").value.toLowerCase();
   const evs = d.events.filter((e) => !talkOff.has(e.kind) && (!q || JSON.stringify(e).toLowerCase().includes(q))).reverse();
-  $("feed").innerHTML = evs.map((e) => `<div class="ev"><span class="t">${hhmm(e.time)}</span><span class="badge k-${e.kind}">${esc(KIND_NAMES[e.kind] || e.kind)}</span><div>${evText(e)}</div></div>`).join("") || `<div class="empty">Nothing yet.</div>`;
+  // the same thing many times in a row (petted ×9) is one line
+  const runs = [];
+  evs.forEach((e) => {
+    const last = runs[runs.length - 1];
+    if (last && e.kind !== "chat" && last.e.kind === e.kind && last.e.text === e.text && last.e.time.slice(0, 10) === e.time.slice(0, 10)) { last.n++; last.first = e.time; }
+    else runs.push({e, n: 1, first: e.time});
+  });
+  let day = null;
+  $("feed").innerHTML = runs.map(({e, n, first}) => {
+    const dd = (e.time || "").slice(0, 10), head = dd !== day ? `<div class="day">${esc(dayName(dd))}</div>` : "";
+    day = dd;
+    return head + `<div class="ev"><span class="t" title="${esc(e.time)}">${hhmm(e.time)}${n > 1 ? `<br><span class="faint">${hhmm(first)}</span>` : ""}</span>
+      <span class="kind k-${e.kind}">${esc(KIND_NAMES[e.kind] || e.kind)}</span><div style="min-width:0">${evText(e)}${n > 1 ? `<span class="times">×${n}</span>` : ""}</div></div>`;
+  }).join("") || emptyState("Nothing yet", q ? "Nothing matches that search." : "Play a little, or try her in the simulator.");
 }
-$("talk-kinds").onclick = (ev) => { const k = ev.target.dataset.k; if (!k) return; talkOff.has(k) ? talkOff.delete(k) : talkOff.add(k); talk(); };
+$("talk-kinds").onclick = (ev) => { const b = ev.target.closest("[data-k]"); if (!b) return; const k = b.dataset.k; talkOff.has(k) ? talkOff.delete(k) : talkOff.add(k); talk(); };
 $("talk-q").oninput = () => talk();
 
 // ---------------------------------------------------------------- AI calls
 const AI_KIND = {reply: "reply to you", own: "on her own", reflect: "learning", fold: "summarizing", other: "other"};
 function chart(calls) {
-  const c = calls.slice(-80), W = 900, H = 150, pad = 26, n = c.length;
-  if (!n) return `<div class="empty">No AI calls yet.</div>`;
-  const maxT = Math.max(1, ...c.map((x) => (x.tokens_in || 0) + (x.tokens_out || 0)));
-  const maxS = Math.max(0.5, ...c.map((x) => x.seconds || 0));
-  const bw = (W - pad * 2) / n;
-  const bars = c.map((x, i) => { const t = (x.tokens_in || 0) + (x.tokens_out || 0), h = t / maxT * (H - pad * 2);
-    return `<rect x="${pad + i * bw + 1}" y="${H - pad - h}" width="${Math.max(1, bw - 2)}" height="${h}" rx="2" fill="var(--bar)"><title>${esc(hhmm(x.time))} ${fmt(t)} tokens, ${x.seconds}s</title></rect>`; }).join("");
-  const line = c.map((x, i) => `${pad + i * bw + bw / 2},${H - pad - (x.seconds || 0) / maxS * (H - pad * 2)}`).join(" ");
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="tokens and latency per call">
-    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>
-    <text x="${pad}" y="14">bars: tokens per call (max ${fmt(maxT)})   line: seconds (max ${maxS.toFixed(1)}s)</text>
-    <text x="${pad}" y="${H - 8}">${esc(hhmm(c[0].time))}</text><text x="${W - pad - 40}" y="${H - 8}">${esc(hhmm(c[n - 1].time))}</text>${bars}</svg>`;
+  const c = calls.map((x, i) => [x, i]).slice(-90), W = 960, H = 210, L = 46, Rp = 40, T = 14, B = 26, n = c.length;
+  if (!n) return emptyState("No AI calls yet", "");
+  const tok = (x) => (x.tokens_in || 0) + (x.tokens_out || 0);
+  const maxT = Math.max(1, ...c.map(([x]) => tok(x))), maxS = Math.max(0.5, ...c.map(([x]) => +x.seconds || 0));
+  const ih = H - T - B, bw = (W - L - Rp) / n, Y = (v, m) => T + ih - v / m * ih;
+  const grid = [0, .5, 1].map((f) => `<line x1="${L}" x2="${W - Rp}" y1="${Y(f * maxT, maxT)}" y2="${Y(f * maxT, maxT)}" stroke="var(--line)"/>
+    <text x="${L - 6}" y="${Y(f * maxT, maxT) + 3}" text-anchor="end">${f ? fmt(Math.round(f * maxT)) : 0}</text>
+    <text x="${W - Rp + 6}" y="${Y(f * maxT, maxT) + 3}">${(f * maxS).toFixed(f ? 1 : 0)}s</text>`).join("");
+  const bars = c.map(([x, i], j) => { const t = tok(x), h = t / maxT * ih, hi = (x.tokens_in || 0) / maxT * ih;
+    return `<g><title>${esc(hhmmss(x.time))} · ${esc(AI_KIND[x.kind] || x.kind)} · ${fmt(x.tokens_in)} in, ${fmt(x.tokens_out)} out · ${x.seconds}s</title>
+      <rect class="b" data-i="${i}" x="${L + j * bw + 1}" y="${T + ih - h}" width="${Math.max(1.5, bw - 2)}" height="${Math.max(0, h - hi)}" rx="1.5" fill="var(--k-${x.kind || "other"})"/>
+      <rect class="b" data-i="${i}" x="${L + j * bw + 1}" y="${T + ih - hi}" width="${Math.max(1.5, bw - 2)}" height="${hi}" rx="1.5" fill="var(--k-${x.kind || "other"})" opacity=".42"/></g>`; }).join("");
+  const pts = c.map(([x], j) => [L + j * bw + bw / 2, Y(+x.seconds || 0, maxS)]);
+  const line = `<polyline points="${pts.map((p) => p.join(",")).join(" ")}" fill="none" stroke="var(--ink)" stroke-opacity=".55" stroke-width="1.5" stroke-linejoin="round"/>` +
+    pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="2" fill="var(--ink)" fill-opacity=".7"/>`).join("");
+  const kinds = [...new Set(c.map(([x]) => x.kind || "other"))];
+  return `<div class="legend">${kinds.map((k) => `<span><i style="background:var(--k-${k})"></i>${esc(AI_KIND[k] || k)}</span>`).join("")}
+      <span><i style="background:var(--faint);opacity:.45"></i>lighter part: tokens sent</span><span><i class="line" style="background:var(--ink);opacity:.55"></i>seconds (right axis)</span></div>
+    <svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="tokens and seconds for the last ${n} calls">${grid}${bars}${line}
+    <text x="${L}" y="${H - 6}">${esc(hhmm(c[0][0].time))}</text><text x="${W - Rp}" y="${H - 6}" text-anchor="end">${esc(hhmm(c[n - 1][0].time))}</text>
+    <text x="${L - 6}" y="9" text-anchor="end">tokens</text></svg>`;
 }
-function stats(t, label) {
-  const part = t.measured < t.calls ? ` (${t.measured} of ${t.calls} calls counted)` : "";
+function stats(t) {
+  const part = t.measured < t.calls ? ` (${t.measured} of ${t.calls} counted)` : "";
   const none = !t.measured;
-  return `<div class="stat"><div class="v">${fmt(t.calls)}</div><div class="l">${label} calls</div></div>
+  return `<div class="stat"><div class="v">${fmt(t.calls)}</div><div class="l">calls</div></div>
     <div class="stat"><div class="v">${none ? "–" : fmt(t.tokens_in)}</div><div class="l">tokens sent${none ? " (not counted before the dashboard)" : part}</div></div>
     <div class="stat"><div class="v">${none ? "–" : fmt(t.tokens_out)}</div><div class="l">tokens back</div></div>
     <div class="stat"><div class="v">${none ? "–" : "$" + t.cost.toFixed(3)}</div><div class="l">estimated cost${part}</div></div>
@@ -378,32 +799,39 @@ function stats(t, label) {
 }
 function callDetail(c) {
   const parts = Object.entries(c.parts || {}).map(([k, v]) => `<details ${k === "Player" ? "open" : ""}><summary>${esc(k)}</summary><pre>${esc(v)}</pre></details>`).join("");
-  const acts = (c.actions || []).map((a) => `<b>${esc(a.name)}</b> ${esc(a.arguments)}`).join("<br>");
+  const acts = (c.actions || []).map((a) => `<b>${esc(a.name)}</b> <span class="mono">${esc(a.arguments)}</span>`).join("<br>");
   const ctl = c.controls ? Object.entries(c.controls).map(([k, v]) => `${esc(k)}: ${esc(v === true ? "on" : v)}`).join(", ") : "";
-  return `<div class="small muted">${esc(c.upstream)} · ${esc(c.model)} · ${c.messages ?? "?"} messages · tools offered: ${esc((c.tools || []).join(", ") || "none")}${c.forced ? ` · <b>had to use ${esc(c.forced)}</b>` : ""}${ctl ? ` · special instructions: ${ctl}` : ""}</div>
+  return `<div class="chips" style="margin-bottom:6px"><span class="chip plain">${esc(c.upstream)}</span><span class="chip plain">${esc(c.model)}</span>
+      <span class="chip plain">${c.messages ?? "?"} messages</span><span class="chip plain">tools offered: ${esc((c.tools || []).join(", ") || "none")}</span>
+      ${c.forced ? `<span class="chip warn">had to use ${esc(c.forced)}</span>` : ""}${ctl ? `<span class="chip plain">special instructions: ${ctl}</span>` : ""}</div>
     ${parts || (c.prompt ? `<pre>${esc(c.prompt)}</pre>` : "")}
-    ${acts ? `<div style="margin-top:6px">Actions: ${acts}</div>` : ""}
-    <div style="margin-top:6px"><span class="small muted">Answer</span><pre>${esc(c.reply || "(tool call only)")}</pre></div>`;
+    ${acts ? `<div style="margin-top:8px">Actions: ${acts}</div>` : ""}
+    <div style="margin-top:8px"><span class="small muted">Answer</span><pre>${esc(c.reply || "(tool call only)")}</pre></div>`;
 }
 async function ai() {
   const d = await get("/api/ai");
   lastAI = d.calls;
-  $("ai-stats").innerHTML = `<div class="stats">${stats(d.today, "Today:")}</div><div class="small muted" style="margin-top:8px">Costs are estimated at $${d.totals.price.in} per million tokens sent and $${d.totals.price.out} per million back (Gemini 3.1 Flash-Lite list prices; set KINDRED_PRICE_IN / KINDRED_PRICE_OUT for another model). Calls made before the dashboard existed have no token counts.</div>`;
+  $("ai-stats").innerHTML = `<div class="stats">${stats(d.today)}</div><div class="note">Costs are estimated at $${d.totals.price.in} per million tokens sent and $${d.totals.price.out} per million back (Gemini 3.1 Flash-Lite list prices; set KINDRED_PRICE_IN / KINDRED_PRICE_OUT for another model). Calls made before the dashboard existed have no token counts.</div>`;
   $("ai-chart").innerHTML = chart(d.calls);
-  $("ai-kinds").innerHTML = Object.keys(AI_KIND).filter((k) => d.calls.some((c) => c.kind === k)).map((k) => `<button class="chip ${aiOff.has(k) ? "off" : ""}" data-k="${k}">${AI_KIND[k]}</button>`).join("");
+  const counts = {}; d.calls.forEach((c) => (counts[c.kind] = (counts[c.kind] || 0) + 1));
+  $("ai-kinds").innerHTML = Object.keys(AI_KIND).filter((k) => counts[k]).map((k) => `<button class="chip ${aiOff.has(k) ? "off" : ""}" data-k="${k}">${AI_KIND[k]} <span class="n">${counts[k]}</span></button>`).join("");
   renderAI();
 }
 function renderAI() {
   const q = $("ai-q").value.toLowerCase();
   const rows = lastAI.map((c, i) => [c, i]).filter(([c]) => !aiOff.has(c.kind) && (!q || JSON.stringify(c).toLowerCase().includes(q))).reverse().slice(0, 200);
-  $("ai-table").innerHTML = `<tr><th>Time</th><th>Kind</th><th>Asked</th><th>Answer / action</th><th class="num">Wait</th><th class="num">Tokens</th></tr>` +
-    rows.map(([c, i]) => `<tr class="click" data-i="${i}"><td class="num">${esc(hhmm(c.time))}</td><td><span class="badge">${esc(AI_KIND[c.kind] || c.kind)}</span>${c.forced ? `<br><span class="small muted">must: ${esc(c.forced)}</span>` : ""}</td>
-      <td><div class="clip">${esc(c.said)}</div></td><td><div class="clip">${esc(c.reply || (c.actions || []).map((a) => a.name).join(", "))}</div></td>
-      <td class="num">${c.seconds}s</td><td class="num">${c.tokens_in ? fmt(c.tokens_in) + " / " + fmt(c.tokens_out) : "–"}</td></tr>
-      ${openCall === i ? `<tr><td colspan="6">${callDetail(c)}</td></tr>` : ""}`).join("");
+  $("ai-table").innerHTML = `<tr><th>Time</th><th>Why</th><th>Asked</th><th>Answer / action</th><th class="num">Wait</th><th class="num hide-sm">Tokens in / out</th></tr>` +
+    rows.map(([c, i]) => `<tr class="click ${openCall === i ? "open" : ""}" data-i="${i}"><td class="num">${esc(hhmmss(c.time))}</td>
+      <td><span class="kind" style="--kc:var(--k-${c.kind || "other"})">${esc(AI_KIND[c.kind] || c.kind)}</span>${c.forced ? `<div class="tiny muted">must: ${esc(c.forced)}</div>` : ""}</td>
+      <td style="min-width:170px;max-width:300px"><div class="clip">${esc(c.said)}</div></td><td><div class="clip">${tagsOf(c.reply || (c.actions || []).map((a) => "→ " + a.name).join(", "))}</div></td>
+      <td class="num ${+c.seconds > 5 ? "warn" : ""}">${c.seconds}s</td><td class="num hide-sm">${c.tokens_in ? fmt(c.tokens_in) + " / " + fmt(c.tokens_out) : "–"}</td></tr>
+      ${openCall === i ? `<tr class="detail"><td colspan="6">${callDetail(c)}</td></tr>` : ""}`).join("") +
+    (rows.length ? "" : `<tr><td colspan="6">${emptyState("No calls", q ? "Nothing matches that search." : "")}</td></tr>`);
 }
 $("ai-table").onclick = (ev) => { const tr = ev.target.closest("tr.click"); if (!tr) return; const i = +tr.dataset.i; openCall = openCall === i ? null : i; renderAI(); };
-$("ai-kinds").onclick = (ev) => { const k = ev.target.dataset.k; if (!k) return; aiOff.has(k) ? aiOff.delete(k) : aiOff.add(k); ai(); };
+$("ai-chart").onclick = (ev) => { const r = ev.target.closest("[data-i]"); if (!r) return; openCall = +r.dataset.i; aiOff.clear(); $("ai-q").value = ""; renderAI();
+  const tr = document.querySelector(`#ai-table tr[data-i="${openCall}"]`); if (tr) tr.scrollIntoView({behavior: "smooth", block: "center"}); };
+$("ai-kinds").onclick = (ev) => { const b = ev.target.closest("[data-k]"); if (!b) return; const k = b.dataset.k; aiOff.has(k) ? aiOff.delete(k) : aiOff.add(k); ai(); };
 $("ai-q").oninput = () => renderAI();
 
 // ---------------------------------------------------------------- speech & voice
@@ -411,23 +839,27 @@ async function voice() {
   const d = await get("/api/services");
   const pick = (k) => d.services.filter((s) => s.kind === k);
   const avg = (xs) => xs.length ? (xs.reduce((a, x) => a + parseFloat(x.seconds || 0), 0) / xs.length).toFixed(2) + "s" : "–";
-  const stt = pick("stt"), tts = pick("tts"), aiC = pick("ai");
+  const stt = pick("stt"), tts = pick("tts"), aiC = pick("ai"), probs = pick("problem").length;
   $("voice-stats").innerHTML = `<div class="stats">
     <div class="stat"><div class="v">${avg(stt)}</div><div class="l">hearing you (${stt.length} times)</div></div>
     <div class="stat"><div class="v">${avg(tts)}</div><div class="l">making her voice (${tts.length} lines)</div></div>
     <div class="stat"><div class="v">${avg(aiC)}</div><div class="l">AI answer (${aiC.length} calls)</div></div>
-    <div class="stat"><div class="v">${d.services.filter((s) => s.kind === "problem").length}</div><div class="l">problems</div></div></div>`;
+    <div class="stat"><div class="v ${probs ? "bad" : ""}">${probs}</div><div class="l">problems</div></div></div>`;
   const rows = d.services.filter((s) => s.kind !== "ai" && s.kind !== "other").reverse().slice(0, 250);
-  $("voice-table").innerHTML = `<tr><th>Time</th><th>What</th><th>Details</th><th class="num">Took</th></tr>` + rows.map((s) =>
-    `<tr><td class="num">${esc(hhmm(s.time))}</td><td><span class="badge k-${s.kind === "problem" ? "problem" : "tool"}">${s.kind === "stt" ? "heard you" : s.kind === "tts" ? "voice" : s.kind === "start" ? "started" : "problem"}</span></td>
-     <td>${s.kind === "stt" ? esc(s.text) : s.kind === "tts" ? `${esc(s.provider)}, ${esc(s.chars)} characters` : s.kind === "start" ? esc(s.parts) : esc(s.text)}</td>
-     <td class="num">${s.seconds ? esc(s.seconds) + "s" : ""}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">Nothing yet.</td></tr>`;
+  const KN = {stt: ["heard you", "k-chat"], tts: ["her voice", "k-own"], start: ["started", "k-game"], problem: ["problem", "k-problem"]};
+  $("voice-table").innerHTML = `<tr><th>Time</th><th>What</th><th>Details</th><th class="num">Took</th></tr>` + rows.map((s) => {
+    const [label, cls] = KN[s.kind] || KN.problem;
+    return `<tr><td class="num">${esc(hhmmss(s.time))}</td><td><span class="kind ${cls}">${label}</span></td>
+     <td>${s.kind === "stt" ? `“${esc(s.text)}”` : s.kind === "tts" ? `<span class="muted">${esc(s.provider)}, ${esc(s.chars)} characters</span>` : s.kind === "start" ? `<span class="muted">${esc(s.parts)}</span>` : `<span class="bad">${esc(s.text)}</span>`}</td>
+     <td class="num ${parseFloat(s.seconds) > 3 ? "warn" : ""}">${s.seconds ? esc(s.seconds) + "s" : ""}</td></tr>`;
+  }).join("") || `<tr><td colspan="4">${emptyState("Nothing yet", "")}</td></tr>`;
 }
 
 // ---------------------------------------------------------------- memory
 let memData = null;
 const KINDS = ["player", "self", "origin", "core", "taste", "habit", "world", "place", "found", "reminder", "diary", "episode"];
 const KIND_LABEL = {player: "about you", self: "about her", origin: "her story", core: "moments that shaped her", taste: "her tastes", habit: "your habits", world: "the world", place: "places", found: "found", reminder: "reminders", diary: "diary", episode: "what happened"};
+const dots = (n) => `<span class="imp" title="importance ${n}/10">${[2, 4, 6, 8, 10].map((t) => `<i class="${n >= t - 1 ? "on" : ""}"></i>`).join("")}</span>`;
 async function memoryTab() {
   memData = await get("/api/memory");
   const worlds = Object.keys(memData.worlds);
@@ -436,20 +868,23 @@ async function memoryTab() {
   if (world === "all") $("mem-world").value = "all";
   renderMemory();
   const docs = memData.docs || [];
-  $("mem-docs").innerHTML = docs.length ? `<table><tr><th>Saved</th><th class="num">Size</th><th class="num">Updated</th></tr>${docs.map((x) => `<tr class="click" data-key="${esc(x.key)}"><td>${esc(x.key)}</td><td class="num">${fmt(x.size)} B</td><td class="num">${new Date(x.updated * 1000).toLocaleString()}</td></tr>`).join("")}</table><pre id="doc-view" style="display:none"></pre>`
-    : `<div class="empty">No saved state yet (or restart the gateway to list it).</div>`;
+  $("mem-docs").innerHTML = docs.length ? `<div class="scroll-x"><table><tr><th>Saved</th><th class="num">Size</th><th class="num">Updated</th></tr>${docs.map((x) => `<tr class="click" data-key="${esc(x.key)}"><td class="mono">${esc(x.key)}</td><td class="num">${fmt(x.size)} B</td><td class="num">${new Date(x.updated * 1000).toLocaleString()}</td></tr>`).join("")}</table></div><pre id="doc-view" style="display:none"></pre>`
+    : emptyState("No saved state yet", "(or restart the gateway to list it)");
 }
 function renderMemory() {
   const rows = memData.memories.filter((m) => world === "all" || (m.world || "(every world)") === world);
   const counts = {};
   rows.forEach((m) => counts[m.kind] = (counts[m.kind] || 0) + 1);
-  $("mem-kinds").innerHTML = KINDS.filter((k) => counts[k]).map((k) => `<button class="chip ${memKinds.has(k) ? "off" : ""}" data-k="${k}">${KIND_LABEL[k]} ${counts[k]}</button>`).join("");
+  $("mem-kinds").innerHTML = KINDS.filter((k) => counts[k]).map((k) => `<button class="chip ${memKinds.has(k) ? "off" : ""}" data-k="${k}">${KIND_LABEL[k]} <span class="n">${counts[k]}</span></button>`).join("");
   const shown = rows.filter((m) => !memKinds.has(m.kind)).sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || b.importance - a.importance);
-  $("mem-list").innerHTML = shown.map((m) => `<div class="mem"><div><span class="badge">${esc(KIND_LABEL[m.kind] || m.kind)}</span><div class="imp" title="importance ${m.importance}/10"><i style="width:${m.importance * 10}%"></i></div></div>
-    <div>${esc(m.text)}<div class="small muted">${new Date(m.updated * 1000).toLocaleString()}${m.uses ? ` · recalled ${m.uses}×` : ""}${m.meta && m.meta.expires ? (m.expired ? " · <b>faded</b> (passing feeling)" : " · passing, fades " + new Date(m.meta.expires * 1000).toLocaleString()) : ""}${m.meta && m.meta.imported_from ? " · imported from " + esc(m.meta.imported_from) : ""}${world === "all" ? " · " + esc(m.world || "every world") : ""}</div></div></div>`).join("") || `<div class="empty">No memories here yet.</div>`;
+  const groups = [];
+  shown.forEach((m) => { const g = groups[groups.length - 1]; if (g && g.kind === m.kind) g.items.push(m); else groups.push({kind: m.kind, items: [m]}); });
+  $("mem-list").innerHTML = groups.map((g) => `<div class="mem-group"><h3>${esc(KIND_LABEL[g.kind] || g.kind)}</h3>${g.items.map((m) => `<div class="mem"><div>${esc(m.text)}
+    <div class="tiny muted">${new Date(m.updated * 1000).toLocaleString()}${m.uses ? ` · recalled ${m.uses}×` : ""}${m.meta && m.meta.expires ? (m.expired ? " · <b>faded</b> (passing feeling)" : " · passing, fades " + new Date(m.meta.expires * 1000).toLocaleString()) : ""}${m.meta && m.meta.imported_from ? " · imported from " + esc(m.meta.imported_from) : ""}${world === "all" ? " · " + esc(m.world || "every world") : ""}</div></div>
+    <div>${dots(m.importance)}</div></div>`).join("")}</div>`).join("") || emptyState("No memories here yet", "");
 }
 $("mem-world").onchange = (ev) => { world = ev.target.value; renderMemory(); };
-$("mem-kinds").onclick = (ev) => { const k = ev.target.dataset.k; if (!k) return; memKinds.has(k) ? memKinds.delete(k) : memKinds.add(k); renderMemory(); };
+$("mem-kinds").onclick = (ev) => { const b = ev.target.closest("[data-k]"); if (!b) return; const k = b.dataset.k; memKinds.has(k) ? memKinds.delete(k) : memKinds.add(k); renderMemory(); };
 let searchTimer = null;
 $("mem-q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(memSearch, 300); };
 async function memSearch() {
@@ -457,8 +892,8 @@ async function memSearch() {
   if (!q) { $("mem-search").innerHTML = ""; return; }
   try {
     const d = await get(`/api/memory/search?q=${encodeURIComponent(q)}&world=${encodeURIComponent(world || "")}`);
-    $("mem-search").innerHTML = `<div class="small muted" style="margin-bottom:4px">What would come to her mind (meaning + keywords + recency + importance):</div>` +
-      (d.results.map((m) => `<div class="mem"><div><span class="badge">${(m.score ?? 0).toFixed(2)}</span></div><div>${esc(m.text)} <span class="small muted">${esc(KIND_LABEL[m.kind] || m.kind)}</span></div></div>`).join("") || `<div class="empty">Nothing comes to mind.</div>`);
+    $("mem-search").innerHTML = `<div class="recall"><div class="small" style="margin-bottom:2px"><b>What would come to her mind</b> <span class="muted">(meaning + keywords + recency + importance)</span></div>` +
+      (d.results.map((m) => `<div class="mem"><div>${esc(m.text)} <span class="tiny muted">${esc(KIND_LABEL[m.kind] || m.kind)}</span></div><span class="score">${(m.score ?? 0).toFixed(2)}</span></div>`).join("") || `<div class="small muted" style="padding:6px 0">Nothing comes to mind.</div>`) + `</div>`;
   } catch (e) { showErr(e); }
 }
 $("mem-docs").onclick = async (ev) => {
@@ -474,14 +909,14 @@ async function knowledgeTab() {
   const d = await get("/api/knowledge");
   const s = d.stats || {}, L = d.learning || {};
   const src = Object.entries(s.sources || {}).map(([k, v]) => `<div class="stat"><div class="v">${fmt(v.pages)}</div><div class="l">pages from ${esc(v.title || k)} (${fmt(v.chunks)} passages, ${esc(v.license || "")})</div></div>`).join("");
-  $("kb-stats").innerHTML = `<div class="stats">${src || `<div class="empty">Nothing yet: crawl a source (docs/KNOWLEDGE.md).</div>`}
+  $("kb-stats").innerHTML = `<div class="stats">${src || `<div class="stat"><div class="v">0</div><div class="l">pages: crawl a source (docs/KNOWLEDGE.md)</div></div>`}
       <div class="stat"><div class="v">${((s.db_bytes || 0) / 1e6).toFixed(1)} MB</div><div class="l">on this computer</div></div>
-      <div class="stat"><div class="v">${L.enabled ? "on" : "off"}</div><div class="l">learning while playing${L.enabled ? ` (up to ${L.max_per_hour}/hour, ${L.pages_per_learn} pages each)` : ""}</div></div></div>
-    <div class="small muted" style="margin-top:8px">To Pip, this is what her world remembers (the old stones, the wind): she never mentions where it comes from. Sources and licenses stay here. ${d.error ? "(" + esc(d.error) + ")" : ""}</div>`;
-  $("kb-log").innerHTML = (d.log || []).map((r) => `<div class="mem"><div><span class="badge ${r.status === "learned" ? "k-tool" : r.status === "nothing" ? "k-problem" : ""}">${esc(r.status)}</span></div>
-      <div>${esc(r.query)}<div class="small muted">${when(r.t)} · ${r.chunks || 0} passages · ${(r.seconds || 0).toFixed(1)}s${r.pages ? " · " + esc(pageTitles(r.pages)) : ""}</div></div></div>`).join("") || `<div class="empty">Nothing learned while playing yet.</div>`;
-  $("kb-pages").innerHTML = (d.pages || []).map((p) => `<div class="mem" style="grid-template-columns:1fr"><div><a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(p.title)}</a>
-      <div class="small muted">${p.chunks} passages · ${when(p.fetched)}</div></div></div>`).join("");
+      <div class="stat"><div class="v ${L.enabled ? "good" : ""}">${L.enabled ? "on" : "off"}</div><div class="l">learning while playing${L.enabled ? ` (up to ${L.max_per_hour}/hour, ${L.pages_per_learn} pages each)` : ""}</div></div></div>
+    <div class="note">To ${esc(name())}, this is what her world remembers (the old stones, the wind): she never mentions where it comes from. Sources and licenses stay here. ${d.error ? `<span class="bad">(${esc(d.error)})</span>` : ""}</div>`;
+  $("kb-log").innerHTML = (d.log || []).map((r) => `<div class="mem"><div>${esc(r.query)}<div class="tiny muted">${when(r.t)} · ${r.chunks || 0} passages · ${(r.seconds || 0).toFixed(1)}s${r.pages ? " · " + esc(pageTitles(r.pages)) : ""}</div></div>
+      <div><span class="chip ${r.status === "learned" ? "good" : r.status === "nothing" ? "bad" : "plain"}">${esc(r.status)}</span></div></div>`).join("") || emptyState("Nothing learned while playing yet", "");
+  $("kb-pages").innerHTML = (d.pages || []).map((p) => `<div class="mem"><div><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>
+      <div class="tiny muted">${p.chunks} passages · ${when(p.fetched)}</div></div></div>`).join("") || emptyState("No pages yet", "");
 }
 let kbTimer = null;
 $("kb-q").oninput = () => { clearTimeout(kbTimer); kbTimer = setTimeout(kbSearch, 350); };
@@ -489,9 +924,12 @@ async function kbSearch() {
   const q = $("kb-q").value.trim();
   if (!q) return;
   const d = await get(`/api/knowledge/search?q=${encodeURIComponent(q)}`);
-  $("kb-results").innerHTML = `<div class="small" style="margin-bottom:6px">${d.covered ? `<b style="color:var(--good)">Known</b>: she'd answer from this` : `<b style="color:var(--warn)">Not known well</b>: she'd say she'll listen to the world, and learn it`} (best match ${(d.best ?? 0).toFixed(2)}, needs ${d.threshold ?? "?"})</div>` +
-    (d.results || []).map((r) => `<div class="mem"><div><span class="badge">${(r.score ?? 0).toFixed(2)}</span>${r.outdated ? `<br><span class="badge k-problem" title="${esc(STATUS_WHY[r.status] || STATUS_WHY.outdated)}: ranked lower, never counts as the answer">${esc(r.status || "outdated")}${r.since ? " " + esc(r.since) : ""}</span>` : ""}</div><div><b>${esc(r.title)}</b>${r.section ? ` <span class="muted">/ ${esc(r.section)}</span>` : ""}
-      <pre id="kb-sec-${r.id}">${esc(r.text)}</pre>${r.id != null ? `<button class="chip" data-sec="${r.id}">Show the whole section</button>` : ""}<div class="small muted"><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--muted)">${esc(r.url)}</a> · ${esc(r.license || "")}</div></div></div>`).join("");
+  $("kb-results").innerHTML = `<div class="${d.covered ? "chip good" : "chip warn"}" style="margin-bottom:10px">${d.covered ? `Known: she'd answer from this` : `Not known well: she'd say she'll listen to the world, and learn it`} · best match ${(d.best ?? 0).toFixed(2)}, needs ${d.threshold ?? "?"}</div>` +
+    (d.results || []).map((r) => `<div class="mem"><div style="min-width:0"><b>${esc(r.title)}</b>${r.section ? ` <span class="muted">/ ${esc(r.section)}</span>` : ""}
+      ${r.outdated ? ` <span class="chip bad" title="${esc(STATUS_WHY[r.status] || STATUS_WHY.outdated)}: ranked lower, never counts as the answer">${esc(r.status || "outdated")}${r.since ? " " + esc(r.since) : ""}</span>` : ""}
+      <pre id="kb-sec-${r.id}">${esc(r.text)}</pre>${r.id != null ? `<button class="btn sm" data-sec="${r.id}" style="margin-top:6px">Show the whole section</button>` : ""}
+      <div class="tiny muted" style="margin-top:4px"><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--muted)">${esc(r.url)}</a> · ${esc(r.license || "")}</div></div>
+      <span class="score">${(r.score ?? 0).toFixed(2)}</span></div>`).join("");
 }
 $("kb-results").onclick = async (ev) => {
   const id = ev.target.dataset && ev.target.dataset.sec;
@@ -502,19 +940,19 @@ $("kb-results").onclick = async (ev) => {
 };
 $("kb-learn").onclick = async () => {
   const q = $("kb-q").value.trim();
-  if (!q) return;
-  $("kb-learn").textContent = "Learning…";
+  if (!q) { $("kb-q").focus(); return; }
+  $("kb-learn").textContent = "Learning…"; $("kb-learn").disabled = true;
   try {
     const r = await fetch("/api/knowledge/learn", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({query: q})});
     const d = await r.json();
     showErr(r.ok ? null : d.error);
-    $("kb-results").insertAdjacentHTML("afterbegin", `<div class="small" style="margin-bottom:8px">Learning: <b>${esc(d.status || "?")}</b>${d.added ? ` · ${d.added.length} pages: ${esc(d.added.map((a) => a.title).join(", "))}` : ""}${d.seconds ? ` · ${d.seconds}s` : ""}</div>`);
     await knowledgeTab();
     await kbSearch();
-  } finally { $("kb-learn").textContent = "Learn this"; }
+    $("kb-results").insertAdjacentHTML("afterbegin", `<div class="small" style="margin-bottom:8px">Learning: <b>${esc(d.status || "?")}</b>${d.added ? ` · ${d.added.length} pages: ${esc(d.added.map((a) => a.title).join(", "))}` : ""}${d.seconds ? ` · ${d.seconds}s` : ""}</div>`);
+  } finally { $("kb-learn").textContent = "Learn this"; $("kb-learn").disabled = false; }
 };
 
-// ---------------------------------------------------------------- settings
+// ---------------------------------------------------------------- settings (what's in use, the files)
 function kv(obj) {
   return `<div class="kv">${Object.entries(obj || {}).map(([k, v]) => `<div>${esc(k)}</div><div>${esc(typeof v === "object" ? JSON.stringify(v) : v)}</div>`).join("")}</div>`;
 }
@@ -522,14 +960,14 @@ async function settingsTab() {
   const d = await get("/api/settings");
   $("set-use").innerHTML = kv({"AI": d.in_use.ai + (d.instructions.model ? " (model " + d.instructions.model + ")" : ""), "Speech to text": d.in_use.stt, "Voice": d.in_use.tts, "Embeddings": d.in_use.embeddings, "Memory": d.in_use.memory, "Keys set": (d.secrets_set || []).join(", ") || "none"});
   const i = d.instructions;
-  $("set-instr").innerHTML = (i.paused ? `<div style="color:var(--warn)"><b>Paused:</b> passed through without any of these.</div>` : "") +
+  $("set-instr").innerHTML = (i.paused ? `<div class="chip warn" style="margin-bottom:8px">Paused: passed through without any of these</div>` : "") +
     kv({"Persona": i.persona || "(none)", "Facts": (i.facts || []).length ? i.facts.join(" · ") : "(none)", "Next reply only": i.hint_next || "(none)", "Temperature": i.temperature ?? "default"}) +
-    `<div class="small muted" style="margin-top:8px">Set with services/kindred_gateway.py persona / fact / hint "…"</div>`;
+    `<div class="note">Set with <span class="mono">services/kindred_gateway.py persona / fact / hint "…"</span></div>`;
   const brain = d.brain || {};
   $("set-heart").innerHTML = kv(brain.heart);
   const top = {}; Object.entries(brain).forEach(([k, v]) => { if (k !== "heart") top[k] = v; });
   $("set-brain").innerHTML = kv(top);
-  $("set-mod").innerHTML = d.mod ? kv(d.mod) : `<div class="empty">The mod's settings file wasn't found.</div>`;
+  $("set-mod").innerHTML = d.mod ? kv(d.mod) : emptyState("The mod's settings file wasn't found", "");
   $("set-gw").textContent = JSON.stringify(d.gateway, null, 2);
   if (!editing) await profilesBar();
   await settingsEditor();
@@ -539,135 +977,179 @@ async function settingsTab() {
 async function post(url, body) {
   const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   if (!r.ok) { let m = r.statusText; try { m = (await r.json()).error || m; } catch (e) {} throw new Error(m); }
-  return r.headers.get("Content-Type", "").includes("json") ? r.json() : r.blob();
+  return (r.headers.get("Content-Type") || "").includes("json") ? r.json() : r.blob();
 }
-let editing = false;
+let editing = false, settingsAll = [];
+const SET_GROUPS = [
+  ["who", "Who she is", "her brain · brain-overrides.json"], ["ai", "Her AI", "her brain · brain-overrides.json"],
+  ["voice", "Her voice", "her brain · brain-overrides.json"], ["behaviour", "How she behaves", "her brain · brain-overrides.json"],
+  ["heart", "Her heart", "her brain · brain-overrides.json"], ["gateway", "AI, voice and hearing", "the gateway · gateway.json · next call"],
+  ["mod", "In game", "the mod · kindredspirit.json · within two seconds"], ["life", "Her liveliness in game", "the mod · kindredspirit.json · within two seconds"]];
+const groupOf = (x) => x.where === "gateway" ? "gateway" : x.where === "mod" ? (x.path.startsWith("life.") ? "life" : "mod")
+  : (["name", "personality"].includes(x.path.split(".")[0]) ? "who" : x.path.split(".")[0]);
+const idOf = (x) => "st-" + x.where + "-" + x.path.replace(/\W/g, "_");
+const showV = (v) => v === "" ? "(empty)" : v === null || v === undefined ? "?" : v === true ? "on" : v === false ? "off" : String(v);
+const valOf = (x) => { const el = $(idOf(x)); return !el ? undefined : x.type === "bool" ? el.checked : el.value; };
+const hasDefault = (x) => x.default !== null && x.default !== undefined;
 async function settingsEditor() {
   if (editing) return;  // (don't redraw under your fingers)
   const d = await get("/api/settings/editable");
-  const all = d.settings;
-  const idOf = (x) => "st-" + x.where + "-" + x.path.replace(/\W/g, "_");
-  const show = (v) => v === "" ? "(empty)" : v === null || v === undefined ? "?" : String(v);
-  const SECTION = {name: "Her", personality: "Her", ai: "Her AI", voice: "Her voice", behaviour: "How she behaves", heart: "Her heart"};
-  const groups = [];
-  all.forEach((x) => {
-    const title = x.where === "brain" ? "Her brain · " + (SECTION[x.path.split(".")[0]] || x.path.split(".")[0])
-      : x.where === "gateway" ? "AI, voice and hearing (gateway)" : "In game (mod)" + (x.path.startsWith("life.") ? " · her liveliness" : "");
-    let g = groups.find((g) => g.title === title); if (!g) groups.push(g = {title, items: []}); g.items.push(x);
-  });
+  const all = settingsAll = d.settings;
   const row = (x) => {
     const id = idOf(x);
     let input;
-    if (x.type === "bool") input = `<input type="checkbox" id="${id}" ${x.value ? "checked" : ""}>`;
+    if (x.type === "bool") input = `<input type="checkbox" class="switch" id="${id}" ${x.value ? "checked" : ""} aria-label="${esc(x.label)}">`;
     else if (x.type === "choice") input = `<select id="${id}">${x.choices.map((c) => `<option value="${esc(c)}" ${c === x.value ? "selected" : ""}>${esc(c === "" ? "(same / default)" : c)}</option>`).join("")}</select>`;
-    else if (x.type === "longtext") input = `<textarea id="${id}" rows="2" style="width:100%;font:inherit">${esc(x.value ?? "")}</textarea>`;
-    else if (x.range) input = `<input type="range" id="${id}" min="${x.range[0]}" max="${x.range[1]}" step="${x.range[2]}" value="${esc(x.value ?? 0)}"
-        oninput="this.nextElementSibling.textContent=this.value" style="width:120px"><span class="muted" style="width:34px;text-align:right">${esc(x.value ?? "")}</span>`;
-    else if (x.suggest) input = `<input type="search" id="${id}" list="${id}-dl" value="${esc(x.value ?? "")}" style="width:190px">
+    else if (x.type === "longtext") input = `<textarea id="${id}" rows="3" placeholder="e.g. she loves bad puns about rocks">${esc(x.value ?? "")}</textarea>`;
+    else if (x.range) input = `<input type="range" id="${id}" min="${x.range[0]}" max="${x.range[1]}" step="${x.range[2]}" value="${esc(x.value ?? 0)}"><span class="rv">${esc(x.value ?? "")}</span>`;
+    else if (x.suggest) input = `<input type="search" id="${id}" list="${id}-dl" value="${esc(x.value ?? "")}" placeholder="${x.path.endsWith("model") ? "the gateway's choice" : ""}">
         <datalist id="${id}-dl">${x.suggest.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>`;
-    else input = `<input type="search" id="${id}" value="${esc(x.value ?? "")}" style="width:${x.type === "text" ? 170 : 70}px">`;
-    const changed = x.default !== null && x.default !== undefined && String(x.value ?? "") !== String(x.default);
-    const reset = x.default === null || x.default === undefined ? "" :
-      `<button class="chip ${changed ? "" : "off"}" data-reset="${esc(id)}" title="back to the default: ${esc(show(x.default))}">↺</button>`;
-    return `<label class="small" style="display:flex;justify-content:space-between;gap:8px;align-items:center;${x.type === "longtext" ? "grid-column:1/-1" : ""}">
-      <span>${esc(x.label)}${changed ? ` <span class="muted">(default ${esc(show(x.default))})</span>` : ""}</span><span style="display:flex;gap:4px;align-items:center">${input}${reset}</span></label>`;
+    else if (x.type === "int" || x.type === "float") input = `<input type="number" step="${x.type === "int" ? 1 : "any"}" id="${id}" value="${esc(x.value ?? "")}">`;
+    else input = `<input type="search" id="${id}" value="${esc(x.value ?? "")}">`;
+    const search = (x.label + " " + (x.help || "") + " " + x.path).toLowerCase();
+    return `<div class="srow ${x.type === "longtext" ? "long" : x.type === "bool" ? "bool" : ""}" data-id="${id}" data-search="${esc(search)}">
+      <div><div class="lbl"><label for="${id}">${esc(x.label)}</label></div>${x.help ? `<div class="help">${esc(x.help)}</div>` : ""}<div class="was"></div></div>
+      <div class="ctl">${input}</div>
+      ${hasDefault(x) ? `<button class="reset" data-reset="${id}" title="back to the default: ${esc(showV(x.default))}" aria-label="Reset ${esc(x.label)}">↺</button>` : "<span></span>"}</div>`;
   };
-  $("set-edit").innerHTML = `<div class="row" style="margin:10px 0 0"><button class="chip" id="st-save-top">Save changes</button>
-      <button class="chip off" id="st-defaults-top" title="every setting back to its default (then Save)">↺ Reset all to defaults</button>
-      <span class="small muted">or ↺ on a row for just that one</span></div>` + groups.map((g) => `<h3 class="small" style="margin:12px 0 4px">${esc(g.title)}</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:6px 18px">${g.items.map(row).join("")}</div>`).join("") +
-    `<div class="row" style="margin-top:12px"><button class="chip" id="st-save">Save changes</button>
-      <button class="chip off" id="st-defaults" title="every setting back to its default (then Save)">Reset all to defaults</button>
-      <span class="small muted" id="st-msg"></span></div>`;
-  const setTo = (x, v) => { const el = $(idOf(x)); if (!el) return; if (x.type === "bool") el.checked = !!v; else el.value = v ?? "";
-    if (x.range && el.nextElementSibling) el.nextElementSibling.textContent = el.value; };
-  const dirty = () => { editing = true; $("st-msg").textContent = "unsaved changes"; };
-  $("set-edit").oninput = dirty;
-  $("set-edit").onclick = (ev) => {
-    const b = ev.target.closest("[data-reset]"); if (!b) return;
-    ev.preventDefault(); const x = all.find((x) => idOf(x) === b.dataset.reset); if (x) { setTo(x, x.default); dirty(); }
-  };
-  $("st-defaults").onclick = () => { all.forEach((x) => { if (x.default !== null && x.default !== undefined) setTo(x, x.default); }); dirty();
-    $("st-msg").textContent = "everything set back to its default: Save to keep it"; };
-  $("st-defaults-top").onclick = () => $("st-defaults").click();
-  $("st-save-top").onclick = () => $("st-save").click();
-  $("st-save").onclick = async () => {
-    const changes = [];
-    all.forEach((x) => {
-      const el = $(idOf(x)); if (!el) return;
-      const v = x.type === "bool" ? el.checked : el.value;
-      if (String(v) !== String(x.value ?? "")) changes.push({where: x.where, path: x.path, value: v});
-    });
-    if (!changes.length) { $("st-msg").textContent = "nothing changed"; editing = false; return; }
-    try { const r = await post("/api/settings", {changes}); editing = false;
-      $("st-msg").textContent = "saved " + r.changed.length + " setting" + (r.changed.length > 1 ? "s" : ""); await settingsTab(); }
-    catch (e) { $("st-msg").textContent = "not saved: " + e.message; }
-  };
+  const groups = SET_GROUPS.map(([k, title, where]) => ({k, title, where, items: all.filter((x) => groupOf(x) === k)}))
+    .concat([{k: "other", title: "Other", where: "", items: all.filter((x) => !SET_GROUPS.some(([k]) => k === groupOf(x)))}]).filter((g) => g.items.length);
+  $("set-edit").innerHTML = groups.map((g) => `<div class="card sgroup" id="sg-${g.k}"><h3>${esc(g.title)}</h3><div class="where">${esc(g.where)}</div>
+    <div class="srows">${g.items.map(row).join("")}</div></div>`).join("");
+  $("set-nav").innerHTML = groups.map((g) => `<a href="#sg-${g.k}" data-g="${g.k}"><span>${esc(g.title)}</span><span class="n" hidden></span></a>`).join("");
+  $("set-nav").onclick = (ev) => { const a = ev.target.closest("a"); if (!a) return; ev.preventDefault(); $("sg-" + a.dataset.g).scrollIntoView({behavior: "smooth", block: "start"}); };
+  refreshMarks();
+  filterSettings();
+}
+// what's changed: from the default (a colored edge, "default: x"), and not saved yet (yellow, the save bar)
+function refreshMarks() {
+  let dirty = 0;
+  const custom = {};
+  settingsAll.forEach((x) => {
+    const el = $(idOf(x)); if (!el) return;
+    const r = el.closest(".srow"), v = valOf(x);
+    if (x.range) el.nextElementSibling.textContent = el.value;
+    const isDirty = String(v) !== String(x.value ?? "");
+    const isCustom = hasDefault(x) && String(v) !== String(x.default);
+    r.classList.toggle("dirty", isDirty); r.classList.toggle("custom", isCustom);
+    const atDefault = hasDefault(x) && String(x.value ?? "") === String(x.default);
+    r.querySelector(".was").textContent = isDirty ? `was ${showV(x.value)}${atDefault ? " (the default)" : isCustom ? ` · default ${showV(x.default)}` : ""}` : isCustom ? `default: ${showV(x.default)}` : "";
+    if (isDirty) dirty++;
+    if (isCustom) { const g = groupOf(x); custom[g] = (custom[g] || 0) + 1; }
+  });
+  document.querySelectorAll("#set-nav a").forEach((a) => { const n = a.querySelector(".n"), c = custom[a.dataset.g] || 0; n.hidden = !c; n.textContent = c; n.title = c + " not at the default"; });
+  editing = dirty > 0;
+  $("savebar").classList.toggle("show", dirty > 0);
+  if (dirty) $("st-msg").textContent = `${dirty} unsaved change${dirty > 1 ? "s" : ""}`;
+}
+function filterSettings() {
+  const q = $("set-q").value.trim().toLowerCase(), only = $("set-only").checked;
+  document.querySelectorAll(".srow").forEach((r) => { r.hidden = (q && !r.dataset.search.includes(q)) || (only && !r.classList.contains("custom") && !r.classList.contains("dirty")); });
+  document.querySelectorAll(".sgroup").forEach((g) => { g.hidden = !g.querySelector(".srow:not([hidden])"); });
+}
+$("set-q").oninput = filterSettings;
+$("set-only").onchange = filterSettings;
+$("set-edit").oninput = $("set-edit").onchange = () => refreshMarks();
+$("set-edit").onclick = (ev) => {
+  const b = ev.target.closest("[data-reset]"); if (!b) return;
+  ev.preventDefault(); const x = settingsAll.find((x) => idOf(x) === b.dataset.reset); if (x) { setTo(x, x.default); refreshMarks(); }
+};
+function setTo(x, v) { const el = $(idOf(x)); if (!el) return; if (x.type === "bool") el.checked = !!v; else el.value = v ?? ""; }
+$("st-defaults").onclick = () => { settingsAll.forEach((x) => { if (hasDefault(x)) setTo(x, x.default); }); refreshMarks();
+  if (editing) $("st-msg").textContent += " · everything back to its default: Save to keep it"; };
+$("st-discard").onclick = () => { settingsAll.forEach((x) => setTo(x, x.value)); refreshMarks(); };
+$("st-save").onclick = async () => {
+  const changes = [];
+  settingsAll.forEach((x) => { const v = valOf(x); if (v !== undefined && String(v) !== String(x.value ?? "")) changes.push({where: x.where, path: x.path, value: v}); });
+  if (!changes.length) { editing = false; refreshMarks(); return; }
+  $("st-save").disabled = true;
+  try { const r = await post("/api/settings", {changes}); editing = false;
+    toast("Saved " + r.changed.length + " setting" + (r.changed.length > 1 ? "s" : "")); await settingsTab(); }
+  catch (e) { $("st-msg").textContent = "Not saved: " + e.message; }
+  finally { $("st-save").disabled = false; }
+};
+function toast(t) {
+  const el = document.createElement("div");
+  el.textContent = t; el.setAttribute("role", "status");
+  el.style.cssText = "position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--good);color:#fff;padding:9px 16px;border-radius:10px;z-index:50;box-shadow:var(--shadow);font-weight:600";
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2600);
 }
 
 // ---------------------------------------------------------------- profiles: saved sets of settings
 async function profilesBar() {
   const d = await get("/api/profiles");
   const opts = (sel, extra) => extra.concat(d.profiles.map((p) => p.name)).map((n) => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("");
-  $("prof").innerHTML = `<b>Profiles</b>
-    <select id="pf-pick">${opts("", []) || "<option value=''>(none saved yet)</option>"}</select>
-    <button class="chip" id="pf-apply" title="use these settings now">Use</button><button class="chip off" id="pf-del">Delete</button>
-    <span class="muted">·</span><input type="search" id="pf-name" placeholder="name, e.g. calm Pip" style="width:150px"><button class="chip" id="pf-save">Save current as</button>
-    <span class="muted">·</span>Compare <select id="pf-a">${opts("current", ["current", "defaults"])}</select> with <select id="pf-b">${opts("defaults", ["current", "defaults"])}</select>
-    <button class="chip" id="pf-cmp">Compare</button><span id="pf-msg" class="muted"></span>`;
+  $("prof").innerHTML = `<select id="pf-pick" aria-label="Profile">${opts("", []) || "<option value=''>(none saved yet)</option>"}</select>
+    <button class="btn primary" id="pf-apply" title="use these settings now">Use</button><button class="btn ghost danger" id="pf-del">Delete</button>
+    <span class="sep"></span><input type="text" id="pf-name" placeholder="name, e.g. calm Pip" style="width:160px" aria-label="New profile name"><button class="btn" id="pf-save">Save current as</button>
+    <span class="sep"></span><span class="small muted">Compare</span> <select id="pf-a" aria-label="First">${opts("current", ["current", "defaults"])}</select> <span class="small muted">with</span> <select id="pf-b" aria-label="Second">${opts("defaults", ["current", "defaults"])}</select>
+    <button class="btn" id="pf-cmp">Compare</button><span id="pf-msg" class="small muted"></span>`;
   const msg = (t) => ($("pf-msg").textContent = " " + t);
-  $("pf-save").onclick = async () => { const n = $("pf-name").value.trim(); if (!n) return msg("give it a name");
-    try { await post("/api/profiles", {action: "save", name: n}); msg("saved " + n); profilesBar(); } catch (e) { msg(e.message); } };
+  $("pf-save").onclick = async () => { const n = $("pf-name").value.trim(); if (!n) { $("pf-name").focus(); return msg("give it a name"); }
+    try { await post("/api/profiles", {action: "save", name: n}); await profilesBar(); toast("Saved the profile " + n); } catch (e) { msg(e.message); } };
   $("pf-apply").onclick = async () => { const n = $("pf-pick").value; if (!n) return;
-    try { const r = await post("/api/profiles", {action: "apply", name: n}); msg(`using ${n} (${r.changed.length} changed)`); editing = false; settingsTab(); } catch (e) { msg(e.message); } };
+    try { const r = await post("/api/profiles", {action: "apply", name: n}); editing = false; await settingsTab(); toast(`Using ${n} (${r.changed.length} changed)`); } catch (e) { msg(e.message); } };
   $("pf-del").onclick = async () => { const n = $("pf-pick").value; if (!n || !confirm("Delete the profile " + n + "?")) return;
-    try { await post("/api/profiles", {action: "delete", name: n}); msg("deleted"); profilesBar(); } catch (e) { msg(e.message); } };
+    try { await post("/api/profiles", {action: "delete", name: n}); await profilesBar(); msg("deleted " + n); } catch (e) { msg(e.message); } };
   $("pf-cmp").onclick = async () => {
     const r = await get(`/api/profiles/compare?a=${encodeURIComponent($("pf-a").value)}&b=${encodeURIComponent($("pf-b").value)}`);
-    $("prof-cmp").innerHTML = `<div class="small" style="margin:8px 0">${r.differences.length ? `<table style="width:100%;border-collapse:collapse">
-      <tr><th style="text-align:left">Setting</th><th style="text-align:left">${esc(r.a)}</th><th style="text-align:left">${esc(r.b)}</th></tr>` +
-      r.differences.map((x) => `<tr style="border-top:1px solid var(--line)"><td>${esc(x.label)} <span class="muted">(${esc(x.where)})</span></td><td>${esc(JSON.stringify(x.a))}</td><td>${esc(JSON.stringify(x.b))}</td></tr>`).join("") +
-      `</table>` : `<span class="muted">${esc(r.a)} and ${esc(r.b)} are the same.</span>`} <button class="chip off" onclick="this.parentNode.remove()">close</button></div>`;
+    $("prof-cmp").innerHTML = `<div style="margin-top:12px">${r.differences.length ? `<div class="scroll-x"><table class="cmp">
+      <tr><th>Setting</th><th>${esc(r.a)}</th><th>${esc(r.b)}</th></tr>` +
+      r.differences.map((x) => `<tr><td>${esc(x.label)} <span class="tiny muted">${esc(x.where)}</span></td><td class="v">${esc(JSON.stringify(x.a))}</td><td class="v">${esc(JSON.stringify(x.b))}</td></tr>`).join("") +
+      `</table></div>` : `<span class="small muted">${esc(r.a)} and ${esc(r.b)} are the same.</span>`} <button class="btn sm ghost" style="margin-top:6px" onclick="this.parentNode.remove()">Close</button></div>`;
   };
 }
 
 // ---------------------------------------------------------------- sessions
-let sesOpen = null;
+let sesOpen = null, sessionsSeen = [];
 async function sessionsTab() {
   const d = await get("/api/sessions");
-  $("ses-list").innerHTML = d.sessions.length ? d.sessions.map((x) => `<div class="small" style="padding:6px 4px;border-bottom:1px solid var(--line);cursor:pointer;${x.id === sesOpen ? "background:var(--accent-soft)" : ""}" data-id="${esc(x.id)}">
-      <b>${esc(x.world)}</b> · ${x.at ? new Date(x.at * 1000).toLocaleString() : esc(x.id)}<br>
-      <span class="muted">${x.minutes} min · you ${x.you} · Pip ${x.pip} (${x.own} on her own)${x.errors ? ` · <span style="color:var(--bad)">${x.errors} errors</span>` : ""}</span></div>`).join("")
-    : `<div class="empty">No sessions yet: play a little.</div>`;
-  $("ses-list").onclick = (ev) => { const r = ev.target.closest("[data-id]"); if (r) { sesOpen = r.dataset.id; sessionsTab(); openSession(sesOpen); } };
+  sessionsSeen = d.sessions;
+  $("ses-list").innerHTML = d.sessions.length ? d.sessions.map((x) => `<div class="ses ${x.id === sesOpen ? "on" : ""}" data-id="${esc(x.id)}" tabindex="0" role="button">
+      <div class="w">${esc(x.world)}</div><div class="m">${x.at ? new Date(x.at * 1000).toLocaleString(undefined, {weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"}) : esc(x.id)} · ${x.minutes} min</div>
+      <div class="m">you ${x.you} · ${esc(name())} ${x.pip} (${x.own} on her own)${x.errors ? ` · <span class="bad">${x.errors} error${x.errors > 1 ? "s" : ""}</span>` : ""}</div></div>`).join("")
+    : emptyState("No sessions yet", "Play a little.");
+  const pick = (r) => { sesOpen = r.dataset.id; document.querySelectorAll(".ses").forEach((x) => x.classList.toggle("on", x === r)); openSession(sesOpen); };
+  $("ses-list").onclick = (ev) => { const r = ev.target.closest("[data-id]"); if (r) pick(r); };
+  $("ses-list").onkeydown = (ev) => { const r = ev.target.closest("[data-id]"); if (r && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); pick(r); } };
+  if (!sesOpen && d.sessions.length) { sesOpen = d.sessions[0].id; document.querySelector(".ses").classList.add("on"); openSession(sesOpen); }
 }
+const SOURCE = {reply: "answering you", own: "on her own", instinct: "on instinct", warning: "a warning"};
 async function openSession(id) {
   const d = await get("/api/sessions/one?id=" + encodeURIComponent(id));
   const calls = d.calls || [];
-  const fmt = (t) => String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  const mmss = (t) => String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(Math.floor(t % 60)).padStart(2, "0");
   const callFor = (t) => calls.filter((c) => c.t >= t - 1 && c.t <= t + 30 && (c.kind === "reply" || c.kind === "own"));
   let used = new Set();
   const rows = d.events.map((e) => {
-    const t = `<span class="muted">${fmt(e.t)}</span>`;
+    const t = `<span class="t">${mmss(e.t)}</span>`;
     if (e.kind === "you") {
       const c = callFor(e.t).find((c) => !used.has(c)); if (c) used.add(c);
-      return `<div style="margin:6px 0">${t} <b>You</b>${e.spoken ? " 🎙" : ""}: ${esc(e.text)}${c ? `<details class="small"><summary class="muted">what went to the AI (${esc(c.model || c.kind)}, ${c.seconds}s, ${c.tokens_in || "?"}→${c.tokens_out || "?"} tokens) and what came back</summary>
-        <pre style="white-space:pre-wrap;max-height:260px;overflow:auto">${esc(c.input)}</pre><div><b>Came back:</b> ${esc(c.reply)}</div>${c.actions ? `<div><b>Tools:</b> ${esc(JSON.stringify(c.actions))}</div>` : ""}</details>` : ""}</div>`;
+      return `<div class="row-you"><div class="bubble you"><div class="who">${t} You${e.spoken ? " 🎙" : ""}</div>${esc(e.text)}</div>${c ? `<details class="small"><summary>what went to the AI (${esc(c.model || c.kind)}, ${c.seconds}s, ${c.tokens_in || "?"} → ${c.tokens_out || "?"} tokens) and what came back</summary>
+        <pre style="max-height:260px">${esc(c.input)}</pre><div style="margin-top:4px"><b>Came back:</b> ${tagsOf(c.reply)}</div>${c.actions ? `<div><b>Tools:</b> <span class="mono">${esc(JSON.stringify(c.actions))}</span></div>` : ""}</details>` : ""}</div>`;
     }
-    if (e.kind === "pip") return `<div style="margin:6px 0">${t} <b style="color:var(--accent)">Pip</b> <span class="chip">${esc(e.source || "")}</span> ${esc(e.text)}
-      <button class="chip" data-say="${esc(e.text)}" data-mood="${esc(e.mood || "")}" title="hear it again">▶</button>${e.why ? `<div class="small muted">why: ${esc(e.why)}</div>` : ""}</div>`;
-    if (e.kind === "not_said") return `<div class="small muted" style="margin:4px 0">${t} held back (${esc(e.reason)}): ${esc(e.text)}</div>`;
-    if (e.kind === "cut") return `<div class="small" style="margin:4px 0;color:var(--warn)">${t} interrupted${e.by_player ? " by you" : ""}${e.rest ? ": " + esc(e.rest) : ""}</div>`;
-    if (e.kind === "tool") return `<div class="small" style="margin:4px 0">${t} 🔧 ${esc(e.name)} ${esc(e.args || "")} → <span style="color:${e.ok ? "var(--good)" : "var(--bad)"}">${esc(e.result || "")}</span></div>`;
-    if (e.kind === "answer") return `<div class="small muted" style="margin:2px 0">${t} answered: first words after ${e.first_words}s</div>`;
-    if (e.kind === "error") return `<div class="small" style="margin:4px 0;color:var(--bad)">${t} error: ${esc(e.text)}</div>`;
-    if (e.kind === "alert") return `<div class="small" style="margin:4px 0">${t} ⚠️ ${esc(e.text)}</div>`;
-    if (e.kind === "heart") return `<div class="small muted" style="margin:2px 0">${t} ♥ ${e.change > 0 ? "+" : ""}${e.change} (${esc(e.why)}) → ${e.bond}, ${esc(e.stance || "")}</div>`;
+    if (e.kind === "pip") return `<div class="row-pip"><div class="bubble pip"><div class="who">${t} ${esc(name())} <span class="tags"><span>${esc(SOURCE[e.source] || e.source || "")}</span>${e.mood ? `<span>${esc(e.mood)}</span>` : ""}</span>
+      <button class="play" data-say="${esc(e.text)}" data-mood="${esc(e.mood || "")}" title="hear it again" aria-label="hear it again">▶</button></div>${esc(e.text)}</div>${e.why ? `<div class="tiny muted" style="margin:2px 0 0 8px">why: ${esc(e.why)}</div>` : ""}</div>`;
+    if (e.kind === "not_said") return `<div class="sys">${t} held back (${esc(e.reason)}): <i>${esc(e.text)}</i></div>`;
+    if (e.kind === "cut") return `<div class="sys warn">${t} interrupted${e.by_player ? " by you" : ""}${e.rest ? ": " + esc(e.rest) : ""}</div>`;
+    if (e.kind === "tool") return `<div class="sys">${t} 🔧 <b>${esc(e.name)}</b> <span class="mono">${esc(e.args || "")}</span> → <span class="${e.ok ? "good" : "bad"}">${esc(e.result || "")}</span></div>`;
+    if (e.kind === "answer") return `<div class="sys">${t} first words after <b>${e.first_words}s</b></div>`;
+    if (e.kind === "error") return `<div class="sys bad">${t} error: ${esc(e.text)}</div>`;
+    if (e.kind === "alert") return `<div class="sys warn">${t} ⚠️ ${esc(e.text)}</div>`;
+    if (e.kind === "heart") return `<div class="sys">${t} ♥ <span class="delta ${e.change > 0 ? "up" : "down"}">${e.change > 0 ? "+" : ""}${e.change}</span>${esc(e.why)} → ${e.bond}${e.stance ? ", " + esc(e.stance) : ""}</div>`;
     return "";
   }).join("");
   const sum = (d.summary || "").split("## Timeline")[0];
-  $("ses-one").innerHTML = (sum ? `<details open><summary class="small muted">Summary</summary><pre style="white-space:pre-wrap">${esc(sum)}</pre></details>` : "") +
-    `<div style="max-height:620px;overflow:auto">${rows || `<div class="empty">Nothing recorded.</div>`}</div>`;
+  const S = (sessionsSeen || []).find((x) => x.id === id) || {};
+  const said = d.events.filter((e) => e.kind === "pip"), firsts = d.events.filter((e) => e.kind === "answer").map((e) => +e.first_words).filter((x) => x >= 0);
+  const head = `<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;margin-bottom:10px">
+      <div><div class="h2" style="font-size:16px;margin:0">${esc(S.world || id)}</div><div class="small muted">${S.at ? new Date(S.at * 1000).toLocaleString() : ""}${S.minutes != null ? " · " + S.minutes + " min" : ""}</div></div>
+      <div class="chips"><span class="chip plain">you ${d.events.filter((e) => e.kind === "you").length}</span><span class="chip plain">${esc(name())} ${said.length}</span>
+        <span class="chip plain">${said.filter((e) => e.source === "own").length} on her own</span>
+        ${firsts.length ? `<span class="chip plain">answers start after ${(firsts.reduce((a, b) => a + b, 0) / firsts.length).toFixed(1)}s</span>` : ""}
+        ${d.events.some((e) => e.kind === "error") ? `<span class="chip bad">${d.events.filter((e) => e.kind === "error").length} errors</span>` : ""}</div></div>`;
+  $("ses-one").innerHTML = head + (sum ? `<details><summary>Summary of what stands out</summary><pre>${esc(sum)}</pre></details>` : "") +
+    `<div class="tl" style="margin-top:8px">${rows || emptyState("Nothing recorded", "")}</div>`;
   $("ses-one").onclick = playLine;
 }
 async function playLine(ev) {
@@ -681,8 +1163,21 @@ async function playLine(ev) {
 }
 
 // ---------------------------------------------------------------- try Pip (a pretend game for her brain)
-const sim = {ws: null, timer: null, queue: [], playing: false, n: 0};
-function simLog(html) { const el = $("sim-log"); el.insertAdjacentHTML("beforeend", `<div style="margin:5px 0">${html}</div>`); el.scrollTop = el.scrollHeight; }
+const sim = {ws: null, timer: null, queue: [], playing: false, n: 0, waiting: null, mood: "calm"};
+function simLog(html, cls) {
+  const el = $("sim-log"), hello = $("sim-hello"); if (hello) hello.remove();
+  const typing = $("sim-typing");
+  const div = document.createElement("div"); if (cls) div.className = cls; div.innerHTML = html;
+  el.insertBefore(div, typing || null); el.scrollTop = el.scrollHeight;
+}
+function simThinking(on) {
+  clearTimeout(sim.waiting); sim.waiting = null;
+  let t = $("sim-typing");
+  if (on && !t) { $("sim-log").insertAdjacentHTML("beforeend", `<div id="sim-typing" class="bubble pip typing" aria-label="she's thinking"><i></i><i></i><i></i></div>`); $("sim-log").scrollTop = 1e9;
+    sim.waiting = setTimeout(() => simThinking(false), 25000); }
+  if (!on && t) t.remove();
+}
+function simFace(mood) { if (mood) sim.mood = mood; $("sim-face").innerHTML = face(sim.ws ? sim.mood : "offline", 0.3, {still: true}); }
 function simSnapshot() {
   const mob = $("w-mob").value, cave = $("w-cave").checked, tod = +$("w-time").value, w = $("w-weather").value;
   const animals = $("w-animals").value.split(",").map((x) => x.trim()).filter(Boolean)
@@ -714,54 +1209,60 @@ async function simConnect() {
   let tok;
   try { tok = (await get("/api/sim/token")).token; } catch (e) { $("sim-status").textContent = "No token: " + e.message; return; }
   const ws = new WebSocket("ws://127.0.0.1:47811/?token=" + encodeURIComponent(tok));
-  sim.ws = ws; $("sim-status").textContent = "connecting…";
+  sim.ws = ws; $("sim-status").textContent = "connecting…"; $("sim-connect").textContent = "Cancel";
   ws.onopen = () => {
-    $("sim-status").textContent = "Connected to her brain, in the pretend world sim:Playground."; $("sim-connect").textContent = "Disconnect";
+    $("sim-status").innerHTML = `<span class="good">● connected</span> · in the pretend world sim:Playground`; $("sim-connect").textContent = "Disconnect";
+    $("sim-connect").classList.remove("primary"); simFace(); $("sim-text").focus();
     ws.send(JSON.stringify({type: "hello", mod: "dashboard-simulator", minecraft: "1.21.1", power: "helper", style: "grounded", singleplayer: true,
       abilities: Object.keys(PRETEND), glow: true}));
     ws.send(JSON.stringify({type: "event", event: "join", world: "sim:Playground"}));
     ws.send(JSON.stringify(simSnapshot()));
     sim.timer = setInterval(() => ws.readyState === 1 && ws.send(JSON.stringify(simSnapshot())), 2000);
   };
-  ws.onclose = () => { clearInterval(sim.timer); sim.ws = null; $("sim-status").textContent = "Disconnected."; $("sim-connect").textContent = "Connect"; };
+  ws.onclose = () => { clearInterval(sim.timer); sim.ws = null; simThinking(false); $("sim-status").textContent = "Disconnected."; $("sim-connect").textContent = "Connect";
+    $("sim-connect").classList.add("primary"); simFace(); };
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
-    if (msg.type === "say") { simLog(`<b style="color:var(--accent)">Pip</b> <span class="muted small">${esc(msg.mood || "")}${msg.emote ? " · " + esc(msg.emote) : ""}</span> <span id="ln-${msg.line}">${esc(msg.text)}</span>`); simPlay(msg.audio); }
-    else if (msg.type === "say_more") { const el = $("ln-" + msg.line); if (el) el.textContent += " " + msg.text; }
+    if (msg.type === "say") { simThinking(false); simFace(msg.mood);
+      simLog(`<div class="who">${esc(name())} <span class="tags">${msg.mood ? `<span>${esc(msg.mood)}</span>` : ""}${msg.emote ? `<span>${esc(msg.emote)}</span>` : ""}</span></div><span id="ln-${msg.line}">${esc(msg.text)}</span>`, "bubble pip"); simPlay(msg.audio); }
+    else if (msg.type === "say_more") { const el = $("ln-" + msg.line); if (el) el.textContent += " " + msg.text; $("sim-log").scrollTop = 1e9; }
     else if (msg.type === "audio") simPlay(msg.audio);
-    else if (msg.type === "heard") simLog(`<span class="small muted">she heard: ${esc(msg.text)}</span>`);
-    else if (msg.type === "notice") simLog(`<span class="small" style="color:var(--warn)">${esc(msg.text)}</span>`);
-    else if (msg.type === "bond") $("sim-heart").innerHTML = `bond <b>${msg.value}</b> · ${esc(msg.level)}${msg.stance ? " · " + esc(msg.stance) : ""}${msg.change ? ` (${msg.change > 0 ? "+" : ""}${msg.change})` : ""}`;
-    else if (msg.type === "tune") simLog(`<span class="small muted">🎵 hums a tune (${msg.notes.length} notes, ${esc(msg.instrument)})</span>`);
-    else if (msg.type === "act" && (msg.move || msg.emote)) simLog(`<span class="small muted">↳ ${esc(msg.move || "")} ${esc(msg.emote || "")} ${esc(msg.look || "")}</span>`);
+    else if (msg.type === "heard") simLog(`she heard: “${esc(msg.text)}”`, "sys");
+    else if (msg.type === "notice") simLog(esc(msg.text), "sys warn");
+    else if (msg.type === "bond") $("sim-heart").innerHTML = `<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="big num" style="color:var(--ink)">${Math.round(msg.value)}</span>
+        <b style="color:var(--ink)">${esc(msg.level)}</b>${msg.stance ? `<span class="chip">${esc(msg.stance)}</span>` : ""}${msg.change ? `<span class="delta ${msg.change > 0 ? "up" : "down"}">${msg.change > 0 ? "+" : ""}${msg.change}</span>` : ""}</div>${bondMeter(msg.value, msg.level)}`;
+    else if (msg.type === "tune") simLog(`🎵 hums a tune (${msg.notes.length} notes, ${esc(msg.instrument)})`, "sys");
+    else if (msg.type === "act" && (msg.move || msg.emote)) simLog(`↳ ${esc(msg.move || "")} ${esc(msg.emote || "")} ${esc(msg.look || "")}`, "sys");
     else if (msg.type === "do") {
       const ok = $("sim-tools").value === "pretend" && PRETEND[msg.action];
       const res = ok ? Object.assign({type: "done", id: msg.id, ok: true, simulated: true}, PRETEND[msg.action])
                      : {type: "done", id: msg.id, ok: false, error: "There's no real world here (simulator)."};
-      simLog(`<span class="small">🔧 ${esc(msg.action)} ${esc(JSON.stringify(msg.args || {}))} → ${ok ? "pretended it worked" : "failed"}</span>`);
+      simLog(`🔧 <b>${esc(msg.action)}</b> <span class="mono">${esc(JSON.stringify(msg.args || {}))}</span> → ${ok ? `<span class="good">pretended it worked</span>` : `<span class="bad">failed</span>`}`, "sys");
       ws.send(JSON.stringify(res));
     }
   };
 }
 function simSend() {
-  const t = $("sim-text").value.trim(); if (!t || !sim.ws) return;
-  sim.ws.send(JSON.stringify({type: "chat", text: t})); simLog(`<b>You</b>: ${esc(t)}`); $("sim-text").value = "";
+  const t = $("sim-text").value.trim(); if (!t) return;
+  if (!sim.ws) { $("sim-status").innerHTML = `<span class="warn">Connect first.</span>`; return; }
+  sim.ws.send(JSON.stringify({type: "chat", text: t})); simLog(esc(t), "bubble you"); $("sim-text").value = ""; simThinking(true);
 }
 // hold to talk: the microphone, as a 16 kHz WAV, through her real speech-to-text
 const mic = {ctx: null, src: null, proc: null, chunks: [], stream: null};
-async function micDown() {
-  if (!sim.ws) return;
+async function micDown(ev) {
+  if (!sim.ws) { $("sim-status").innerHTML = `<span class="warn">Connect first.</span>`; return; }
+  if (ev && ev.pointerId != null) try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
   mic.stream = await navigator.mediaDevices.getUserMedia({audio: true});
   mic.ctx = new AudioContext(); mic.src = mic.ctx.createMediaStreamSource(mic.stream);
   mic.proc = mic.ctx.createScriptProcessor(4096, 1, 1); mic.chunks = [];
   mic.proc.onaudioprocess = (e) => mic.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
   mic.src.connect(mic.proc); mic.proc.connect(mic.ctx.destination);
-  sim.ws.send(JSON.stringify({type: "event", event: "listening"})); $("sim-mic").textContent = "🎙 listening…";
+  sim.ws.send(JSON.stringify({type: "event", event: "listening"})); $("sim-mic").classList.add("on"); $("sim-mic").textContent = "● listening";
 }
 function micUp() {
   if (!mic.ctx) return;
   mic.proc.disconnect(); mic.src.disconnect(); mic.stream.getTracks().forEach((t) => t.stop());
-  const rate = mic.ctx.sampleRate; mic.ctx.close(); mic.ctx = null; $("sim-mic").textContent = "🎙 hold to talk";
+  const rate = mic.ctx.sampleRate; mic.ctx.close(); mic.ctx = null; $("sim-mic").classList.remove("on"); $("sim-mic").textContent = "🎙";
   const all = new Float32Array(mic.chunks.reduce((n, c) => n + c.length, 0)); let o = 0; mic.chunks.forEach((c) => { all.set(c, o); o += c.length; });
   const n = Math.floor(all.length * 16000 / rate), pcm = new Int16Array(n); let peak = 0;
   for (let i = 0; i < n; i++) { const v = Math.max(-1, Math.min(1, all[Math.floor(i * rate / 16000)] || 0)); pcm[i] = v * 32767; peak = Math.max(peak, Math.abs(v)); }
@@ -770,39 +1271,46 @@ function micUp() {
   dv.setUint32(24, 16000, true); dv.setUint32(28, 32000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, "data"); dv.setUint32(40, n * 2, true);
   new Int16Array(buf, 44).set(pcm);
   let bin = ""; new Uint8Array(buf).forEach((b) => (bin += String.fromCharCode(b)));
-  sim.ws.send(JSON.stringify({type: "voice", wav: btoa(bin), peak})); simLog(`<span class="small muted">🎙 (you spoke)</span>`);
+  sim.ws.send(JSON.stringify({type: "voice", wav: btoa(bin), peak})); simLog("🎙 (you spoke)", "bubble you"); simThinking(true);
 }
 let simReady = false;
 async function simTab() {
   if (simReady) return; simReady = true;
+  simFace();
   $("sim-connect").onclick = simConnect; $("sim-send").onclick = simSend;
   $("sim-text").onkeydown = (e) => { if (e.key === "Enter") simSend(); };
-  $("sim-mic").onpointerdown = micDown; $("sim-mic").onpointerup = micUp; $("sim-mic").onpointerleave = micUp;
-  document.querySelectorAll("[data-ev]").forEach((b) => (b.onclick = () => { if (sim.ws) { sim.ws.send(JSON.stringify({type: "event", event: b.dataset.ev})); simLog(`<span class="small muted">(you ${esc(b.textContent)})</span>`); } }));
+  $("sim-mic").onpointerdown = micDown; $("sim-mic").onpointerup = micUp; $("sim-mic").onpointercancel = micUp;
+  $("w-health").oninput = () => ($("w-health-v").textContent = $("w-health").value + "/20");
+  document.querySelectorAll("[data-ev]").forEach((b) => (b.onclick = () => { if (sim.ws) { sim.ws.send(JSON.stringify({type: "event", event: b.dataset.ev})); simLog(`(you ${esc(b.textContent)})`, "sys"); } else $("sim-status").innerHTML = `<span class="warn">Connect first.</span>`; }));
 }
 
 // ---------------------------------------------------------------- tabs + refresh
 const LOAD = {live, talk, ai, voice, memory: memoryTab, knowledge: knowledgeTab, settings: settingsTab, sessions: sessionsTab, sim: simTab};
 const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, knowledge: 30000, settings: 30000, sessions: 20000, sim: 60000};
-$("nav").onclick = (ev) => {
-  const b = ev.target.closest("button"); if (!b) return;
-  tab = b.dataset.tab;
-  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
-  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.id === "tab-" + tab));
-  try { localStorage.setItem("kindred-tab", tab); } catch (e) {}
+function go(t, push) {
+  if (!LOAD[t]) t = "live";
+  tab = t;
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x.dataset.tab === t));
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.id === "tab-" + t));
+  $("page-title").textContent = PAGES[t][0]; $("page-sub").textContent = PAGES[t][1];
+  try { localStorage.setItem("kindred-tab", t); } catch (e) {}
+  if (push && location.hash !== "#" + t) history.replaceState(null, "", "#" + t);
+  const b = document.querySelector(`nav button[data-tab="${t}"]`); if (b && b.scrollIntoView && window.innerWidth < 900) b.scrollIntoView({inline: "center", block: "nearest"});
   refresh();
-};
+}
+$("nav").onclick = (ev) => { const b = ev.target.closest("button"); if (b) go(b.dataset.tab, true); };
+window.onhashchange = () => { const t = location.hash.slice(1); if (LOAD[t] && t !== tab) go(t); };
 let timer = null;
 async function refresh() {
   clearTimeout(timer);
   try {
-    if (tab !== "live") await live().catch(() => {});  // keep the header fresh
+    if (tab !== "live") await live().catch(() => {});  // keep the side bar fresh
     await LOAD[tab]();
     showErr(null);
   } catch (e) { showErr(e); }
   timer = setTimeout(refresh, document.hidden ? 15000 : EVERY[tab]);
 }
-try { const t = localStorage.getItem("kindred-tab"); if (t && LOAD[t]) document.querySelector(`nav button[data-tab="${t}"]`).click(); else refresh(); } catch (e) { refresh(); }
+(() => { let t = location.hash.slice(1); try { if (!LOAD[t]) t = localStorage.getItem("kindred-tab"); } catch (e) {} go(LOAD[t] ? t : "live"); })();
 </script>
 </body>
 </html>
