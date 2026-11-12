@@ -529,5 +529,5 @@ def test_a_pang_of_jealousy_when_you_talk_about_yourself_a_lot():
     for said in ("i am a teacher", "my family is big", "i love cherry trees", "i live by the sea"):
         h.hear(said)
         c.t += 30
-    assert "jealousy" in h.guidance("happy")
-    assert "jealousy" not in h.guidance("happy"), "once, not every time"
+    assert "envious" in h.guidance("happy")
+    assert "envious" not in h.guidance("happy"), "once, not every time"
