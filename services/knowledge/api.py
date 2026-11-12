@@ -43,7 +43,7 @@ def call(op, req, embed=None, model="", path=None):
     req = req or {}
     if op == "sources":
         return {"sources": [sources_mod.make(n).describe() for n in sources_mod.load_configs()]}
-    if op not in ("search", "stats", "learn"):
+    if op not in ("search", "stats", "learn", "section"):
         raise LookupError("unknown knowledge operation " + op)
     if op == "learn":
         return _learn(req, embed, model, path)
@@ -55,6 +55,9 @@ def call(op, req, embed=None, model="", path=None):
     store = store_for(embed, model, path)
     if op == "stats":
         return store.stats()
+    if op == "section":  # a whole section of a page, in order (step-by-step guides)
+        return store.section(req.get("chunk_id"), req.get("page"), req.get("name"), int(req.get("start") or 0),
+                             int(req.get("max_chars") or 4500))
     query = str(req.get("query") or "").strip()
     if not query:
         raise ValueError("query is empty")
@@ -66,8 +69,7 @@ def call(op, req, embed=None, model="", path=None):
 
 def _trim(results, cut):
     for r in results:
-        r.pop("page_id", None)
-        r.pop("id", None)
+        r.pop("page_id", None)  # (the chunk "id" stays: it asks for the whole section)
         if cut and len(r["text"]) > cut:
             r["text"] = r["text"][:cut].rsplit(" ", 1)[0] + " ..."
 

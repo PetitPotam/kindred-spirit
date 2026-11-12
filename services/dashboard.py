@@ -378,6 +378,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, settings())
             if url.path == "/api/knowledge":
                 return self.send(200, knowledge_overview())
+            if url.path == "/api/knowledge/section":
+                return self.send(200, knowledge("section", chunk_id=int(q.get("id", 0)), max_chars=100000))
             if url.path == "/api/knowledge/search":
                 return self.send(200, knowledge("search", query=q.get("q", ""), k=8, max_chars=700))
             return self.send(404, {"error": "not found"})

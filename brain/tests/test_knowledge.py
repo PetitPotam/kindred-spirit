@@ -811,3 +811,37 @@ def test_a_similar_name_is_not_an_answer():
                                          {}, "t"))
     ans = s.ask("where do zomboids spawn")
     assert ans["results"][0]["title"] == "Smiling Zomboid" and not ans["covered"]
+
+
+def _guide(s, title, sections, categories=("Tutorials",)):
+    src = wiki_source()
+    s.upsert_source(src)
+    s.put_document(src, sources.Document(title, title, WIKI + "/w/" + title.replace(" ", "_"),
+                                         [{"path": p, "text": t} for p, t in sections], {},
+                                         {"categories": list(categories)}, "t"))
+
+
+def test_current_guides_come_before_outdated_ones():
+    old_only = store()
+    _guide(old_only, "Tutorial:Door-based lamp farming",
+           [("Basics", "This tutorial describes lamp farming as it formerly worked prior to Java Edition 1.14. "
+                       "Build a lamp farm with doors and villagers.")], ("Outdated tutorials", "Tutorials"))
+    ans = old_only.ask("how do I build a lamp farm")
+    assert ans["results"][0]["outdated"] and not ans["covered"], "an old version alone is not an answer: learn the current one"
+    _guide(old_only, "Tutorial:Lamp farming", [("Basics", "Build a lamp farm with beds, workstations and villagers.")])
+    ans = old_only.ask("how do I build a lamp farm")
+    assert ans["results"][0]["title"] == "Tutorial:Lamp farming" and ans["covered"]
+
+
+def test_a_whole_section_in_order_and_where_it_goes_on():
+    s = store()
+    steps = ["Step %d. " % i + ("Place cobblestone in a ring around the lamps. " * 30) for i in range(1, 5)]
+    _guide(s, "Tutorial:Lamp farming", [("Basics", "A lamp farm needs lamps."), ("Tower design", "\n\n".join(steps)),
+                                        ("Collection", "Hoppers into a chest.")])
+    first = s.search("tower design lamp farm cobblestone", k=1)[0]
+    sec = s.section(chunk_id=first["id"], max_chars=2000)
+    assert sec["section"] == "Tower design" and sec["text"].startswith("Step 1.") and sec["more"]
+    assert sec["outline"] == ["Basics", "Tower design", "Collection"] and sec["next_section"] == "Collection"
+    rest = s.section(page="Tutorial:Lamp farming", name="tower", start=sec["next_start"], max_chars=100000)
+    assert "Step 4." in rest["text"] and not rest["more"]
+    assert s.section(page="Tutorial:Lamp farming", name="collect")["text"] == "Hoppers into a chest."

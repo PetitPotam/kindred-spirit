@@ -137,6 +137,7 @@ class Brain:
         self.tipped = {}             # power -> when the player last got a settings tip for it
         self.kb = kb.Knowledge(cfg)  # what the world remembers (services/knowledge)
         self.listening = set()       # questions she's listening to the world about right now
+        self.reading = None          # the guide she was last told about (listen_more goes on from there)
         self.recent = []             # (when, what) just happened: deaths, respawns, big hits (see happened)
         self.prev_where = None
         self.inbox, self.inbox_task = [], None  # what the player said while she was busy (hear_player)
@@ -260,6 +261,8 @@ class Brain:
                         "inMinutes": round((m["due"] - time.time()) / 60) if m.get("due") else None}
             if name == "cancel_reminder":
                 return {"ok": True, "cancelled": await self.memory.cancel_reminder(args.get("about", ""))}
+            if name == "listen_more":
+                return await self.listen_more(args.get("what", "next"))
             if name == "standing_request":
                 what = args.get("what", "")
                 if not args.get("stop") and not intents.STANDING.search(getattr(self, "last_player_text", "")):
@@ -402,7 +405,7 @@ class Brain:
             return ""  # (a request to do something, "can you find diamonds?", is for her powers)
         found = await asyncio.to_thread(self.kb.search, text)
         if found.get("covered"):
-            self.mind.world_knowledge = kb.remembered(found["results"])
+            self.mind.world_knowledge = await self.what_the_world_remembers(text, found["results"])
             log.info("the world remembers (%.2f): %s", found.get("best", 0), found["results"][0].get("title"))
             return ""
         if found.get("error") or text.lower() in self.listening:
@@ -412,6 +415,41 @@ class Brain:
         return ("You don't know how that works yet. Don't guess: tell them, in your world's words, that you'll listen to "
                 "what the world remembers (the old stones remember everything that's been built; the wind has passed "
                 "over every village), just for a moment. ")
+
+    async def what_the_world_remembers(self, question, results):
+        """For something to build or a how-to: the whole section of the best current guide, in order (she
+        guides step by step and can listen for more). For a simple fact: the top passages."""
+        top = kb.best_guide(results)
+        if top and top.get("id") is not None and kb.HOWTO.search(question):
+            sec = await asyncio.to_thread(self.kb.section, top["id"])
+            if sec.get("text"):
+                self.reading = {"page": sec["title"], "section": sec["section"], "next_start": sec.get("next_start"),
+                                "next_section": sec.get("next_section")}
+                return kb.as_guide(sec)
+        if top:
+            self.reading = {"page": top["title"], "section": top.get("section"), "next_start": None, "next_section": None}
+        return kb.remembered([r for r in results if not r.get("outdated")] or results)
+
+    async def listen_more(self, what):
+        """The listen_more tool: the next part of the guide she's telling about, or a part by name."""
+        r = self.reading
+        if not r:
+            return {"ok": False, "error": "You haven't been told about any guide or thing yet."}
+        what = (what or "next").strip()
+        if what.lower() in ("next", "more", "the next part", ""):
+            if r.get("next_start") is not None:
+                sec = await asyncio.to_thread(self.kb.section, None, r["page"], r["section"], r["next_start"])
+            elif r.get("next_section"):
+                sec = await asyncio.to_thread(self.kb.section, None, r["page"], r["next_section"])
+            else:
+                return {"ok": True, "world_remembers": "That's all the world remembers about %s." % r["page"]}
+        else:
+            sec = await asyncio.to_thread(self.kb.section, None, r["page"], what)
+        if not sec.get("text"):
+            return {"ok": False, "error": "The world is quiet about that part."}
+        self.reading = {"page": sec["title"], "section": sec["section"], "next_start": sec.get("next_start"),
+                        "next_section": sec.get("next_section")}
+        return {"ok": True, "world_remembers": kb.as_guide(sec)}
 
     async def listen_to_the_world(self, question):
         """She drifts, looks around and listens, while the brain learns the answer; then she comes back."""
@@ -424,7 +462,7 @@ class Brain:
             if not await self.quiet_moment():
                 return
             if found.get("covered"):
-                self.mind.world_knowledge = kb.remembered(found["results"])
+                self.mind.world_knowledge = await self.what_the_world_remembers(question, found["results"])
                 await self.speak_up(
                     "You listened to what your world remembers about what the player asked (\"%s\"), and it told you "
                     "(see What the world remembers). Come back and tell them, delighted, as what the stones or the wind "

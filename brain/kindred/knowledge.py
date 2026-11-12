@@ -61,9 +61,37 @@ class Knowledge:
         r.setdefault("results", [])
         return r
 
+    def section(self, chunk_id=None, page=None, name=None, start=0):
+        """A whole section of a guide, in order (see services/knowledge/store.py section())."""
+        return self._call("section", {"chunk_id": chunk_id, "page": page, "name": name, "start": start,
+                                      "max_chars": 4500}, timeout=5)
+
     def learn(self, query):
         """Reads the few pages that answer one question (a few seconds). See docs/KNOWLEDGE.md."""
         return self._call("learn", {"query": query}, timeout=45)
+
+
+HOWTO = re.compile(r"\b(how (do|can|to|should) (i|we|you)? ?(build|make|craft|farm|get|breed|set up|start|grow|"
+                   r"automate|design)|build|farm|tutorial|step|guide|design|setup|set up|automatic)\b", re.I)
+
+
+def best_guide(results):
+    """The best result that is current (not about an older version), else the best one."""
+    return next((r for r in results if not r.get("outdated")), results[0] if results else None)
+
+
+def as_guide(sec):
+    """A whole section of a guide, for her: in order, with where it goes on (no URL)."""
+    head = "%s / %s (part %d to %d of %d)" % (sec.get("title"), sec.get("section"), sec.get("part", 1),
+                                           (sec.get("next_start") or sec.get("parts", 1)), sec.get("parts", 1))
+    more = []
+    if sec.get("more"):
+        more.append("it goes on in this section")
+    if sec.get("next_section"):
+        more.append("next section: %s" % sec["next_section"])
+    tail = ("\n(%s: listen more to hear it.)" % "; ".join(more)) if more else ""
+    outline = ", ".join(s for s in (sec.get("outline") or [])[:14] if s)
+    return "%s:\n%s%s\n(This guide's parts: %s.)" % (head, sec.get("text", ""), tail, outline)
 
 
 def remembered(results, n=2):
