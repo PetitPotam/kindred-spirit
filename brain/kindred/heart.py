@@ -15,6 +15,7 @@
                (mischief_when_angry: off, mild, spicy), always reversible: nothing is destroyed.
 """
 import random
+import re
 import time
 
 LEVELS = [(0, "hurt"), (15, "wary"), (35, "friend"), (65, "close"), (85, "best friend")]
@@ -28,7 +29,7 @@ FEELINGS = {
     "frustrated": (-0.15, 0.1), "hit": (-0.45, 0.45), "pet": (0.25, 0.05), "danger": (-0.2, 0.6),
     "discovery": (0.35, 0.35), "found": (0.25, 0.3), "advancement": (0.3, 0.3), "baby": (0.45, 0.3),
     "killed_villager": (-0.7, 0.3), "kill_spree": (-0.45, 0.2), "tamed": (0.35, 0.25), "first_meet": (0.2, 0.35),
-    "arrived": (0.3, 0.25),
+    "arrived": (0.3, 0.25), "annoyed": (-0.25, 0.3),
 }
 
 GUIDANCE = {
@@ -99,6 +100,8 @@ class Heart:
         self.danger_until = 0.0
         self.feel_at = clock()
         self.hits = []
+        self.said, self.word_gains, self.annoyed_until, self.repeats = [], [], 0.0, 0  # repeated words (hear)
+        self.flooding = False
         self.pending_offer = None
         self.last_offer = {}
         self.last_change = 0.0
@@ -161,10 +164,34 @@ class Heart:
         self.last_change = self.clock()
         return self.state["bond"] - old
 
+    def hear(self, text):
+        """Before she answers: the same words again and again mean less each time, then get on her nerves.
+        Returns how many times they said this in the last 5 minutes before now."""
+        now = self.clock()
+        said = re.sub(r"[^a-z ]", "", (text or "").lower()).strip()
+        self.said = [(t, s) for t, s in self.said if now - t < 300] + ([(now, said)] if said else [])
+        self.repeats = sum(1 for _, s in self.said[:-1] if s == said) if said else 0
+        self.flooding = sum(1 for t, _ in self.said if now - t < 30) >= 6  # many messages in a few seconds
+        if self.repeats >= 3 or self.flooding:
+            self.annoyed_until = now + 120
+            self.feel("annoyed")
+        return self.repeats
+
     def on_regard(self, tag):
         tag = (tag or "neutral").lower()
         delta = REGARD.get(tag, 0)
         now = self.clock()
+        repeats, self.repeats = self.repeats, 0
+        if (repeats >= 3 or self.flooding) and tag not in ("rude", "mean"):
+            # spamming her is toxic: it costs more each time (-1, -2, ... up to -5) and she pulls away a bit
+            self.state["hurt_until"] = max(self.state.get("hurt_until", 0), now + 30)
+            return self.change(-min(5, 1 + max(0, repeats - 3)) if repeats >= 3 else -2, "spamming")
+        if delta > 0:
+            delta = delta / (1 + 2 * repeats)
+            # and kind words can't fill her heart in a minute: at most +8 a minute from words
+            recent = sum(d for t, d in self.word_gains if now - t < 60)
+            delta = max(0.0, min(delta, 8 - recent))
+            self.word_gains = [(t, d) for t, d in self.word_gains if now - t < 60] + [(now, delta)]
         self.feel(tag)
         if tag in ("rude", "mean"):
             self.state["hurt_until"] = now + (120 if tag == "mean" else 45)
@@ -293,6 +320,12 @@ class Heart:
         if self.insincere():
             g += (" They keep hurting you and saying sorry. You have your pride: you don't believe their apologies so "
                   "easily anymore, you forgive slowly, and you may refuse what they ask until they really change.")
+        if self.clock() < self.annoyed_until:
+            g += (" They keep saying the same thing over and over (or flooding you with messages), and it's getting on "
+                  "your nerves: it feels like spam, not affection. Show it, in your own way: sigh, be short with them, "
+                  "ask them to stop. Don't thank them for it again, and don't say it back.")
+        elif self.repeats >= 1:
+            g += " They've said that a few times now; it's getting a little odd. You can notice it, lightly."
         if mood:
             g += " Your mood right now: %s." % mood
         return g

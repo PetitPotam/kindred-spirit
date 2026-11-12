@@ -93,11 +93,15 @@ class GatewayMemory:
                                      headers={"Content-Type": "application/json"})
         if self.key:
             req.add_header("Authorization", "Bearer " + self.key)
-        try:
-            with urllib.request.urlopen(req, timeout=20) as r:
-                return json.loads(r.read())
-        except (urllib.error.URLError, OSError, ValueError) as e:
-            raise MemoryError("memory store not reachable: %s" % getattr(e, "reason", e))
+        for attempt in (1, 2):  # a dropped connection is worth one more try
+            try:
+                with urllib.request.urlopen(req, timeout=20) as r:
+                    return json.loads(r.read())
+            except urllib.error.HTTPError as e:
+                raise MemoryError("memory store refused %s: %s" % (op, e.read()[:200].decode("utf-8", "replace")))
+            except (urllib.error.URLError, OSError, ValueError) as e:
+                if attempt == 2:
+                    raise MemoryError("memory store not reachable: %s" % getattr(e, "reason", e))
 
     async def call(self, op, **body):
         return await asyncio.to_thread(self._call, op, body)
@@ -264,7 +268,8 @@ class Memory:
                 world=self.world_id, k=8))
         now = self.clock()
         player, me, habits, reminders, places, recalled = (
-            [m for m in c["results"] if (m.get("meta") or {}).get("expires", now + 1) > now] for c in core)
+            [m for m in c["results"] if m.get("text") and (m.get("meta") or {}).get("expires", now + 1) > now]
+            for c in core)
         seen = {m["id"] for group in (player, me, habits, reminders, places) for m in group}
         lines = []
         if player:

@@ -79,17 +79,19 @@ def test_a_forbidden_tool_is_refused_without_asking_the_game(stubs):
     stubs.ai_script = [
         {"role": "assistant", "content": "", "tool_calls": [
             {"id": "c3", "type": "function", "function": {"name": "give_item", "arguments": "{\"item\": \"diamond\"}"}}]},
-        {"role": "assistant", "content": "[sad] I can't make diamonds appear in grounded style."},
+        {"role": "assistant", "content": "[sad] I can't make diamonds appear out of nothing."},
     ]
 
     async def scenario(url):
         async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
             await ws.send(hello(["find_ore"]))
             await ws.send(json.dumps({"type": "chat", "text": "give me diamonds"}))
+            tip = await recv_until(ws, "notice")  # the way to allow it: a hint for the player, not her words
+            assert "/kindred style magic" in tip["text"]
             say = await recv_until(ws, "say")  # no "do" ever arrives
-            assert "grounded" in say["text"]
+            assert "out of nothing" in say["text"]
     asyncio.run(with_brain(make_cfg(stubs.port), scenario))
-    assert "settings don't let me" in stubs.ai_requests[-1]["messages"][-1]["content"]
+    assert "beyond what you can do" in stubs.ai_requests[-1]["messages"][-1]["content"]
 
 
 def test_leaving_writes_a_diary_entry(stubs):

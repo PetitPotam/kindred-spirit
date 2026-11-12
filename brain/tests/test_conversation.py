@@ -64,3 +64,37 @@ def test_fibs_only_as_a_prank_among_friends_or_when_cross():
     assert any(fibs) and all("admit" in f for f in fibs if f)
     off = Heart(config.merge(config.DEFAULTS, {"heart": {"start_bond": 80, "fibs": False}}), rng=random.Random(1))
     assert not any(off.fib(i * 1000) for i in range(200))
+
+
+def test_messages_that_pile_up_get_one_answer():
+    from kindred.server import merge_messages
+    assert merge_messages(["hi"]) == "hi"
+    assert merge_messages(["i love you"] * 9) == "i love you (said 9 times in a row)"
+    m = merge_messages(["i love you", "I love you!", "protect me"])
+    assert "i love you (said 2 times in a row)" in m and m.endswith("protect me")
+
+
+def test_a_burst_of_messages_while_she_thinks_becomes_one_reply(stubs):
+    from test_heart import _brain
+    stubs.ai_script = [{"role": "assistant", "content": "[happy][sweet] Hi Alex!"},
+                       {"role": "assistant", "content": "[sad][neutral] Okay, okay, I heard you. Please stop."}]
+    b = _brain(stubs)
+    sent = []
+
+    async def send(msg):
+        sent.append(msg)
+    b.send = send
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        b.hear_player("hi")
+        await asyncio.sleep(0.05)  # she's thinking about "hi"...
+        for _ in range(9):  # ...when these arrive
+            b.hear_player("i love you")
+        while b.inbox_task and not b.inbox_task.done():
+            await asyncio.sleep(0.05)
+    asyncio.run(run())
+    says = [m for m in sent if m["type"] == "say"]
+    assert len(says) == 2, "two answers, not ten"
+    assert "said 9 times in a row" in stubs.ai_requests[-1]["messages"][-1]["content"]
+    assert b.heart.bond < 30, "nine times the same words is spam, not love (%.1f)" % b.heart.bond
