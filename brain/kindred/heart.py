@@ -468,7 +468,7 @@ class Heart:
         thanks = {True: "Thank them for the favour; it helped. ", False: "They didn't do your favour, but it came "
                   "anyway; maybe a tiny pout. ", None: ""}[favour_done]
         return ("%sIt clicks: you just discovered you can %s! A while ago the player asked: \"%s\". Use the tool now to "
-                "do what they asked, then tell them with wonder and delight (\"I can sense diamonds now!\"), in one "
+                "do what they asked, then tell them, amazed, in your own way (\"I can sense diamonds now!\"), in one "
                 "or two short sentences." % (thanks, POWER_NAMES[ability], request))
 
     # ------------------------------------------------------------------ where she comes from (discovered in play)
@@ -548,7 +548,7 @@ class Heart:
         if not self.p.get("curiosity", True):
             return None
         if event == "advancement":
-            return ("The player just earned the advancement \"%s\". React with genuine delight or curiosity in one "
+            return ("The player just earned the advancement \"%s\". React as yourself (impressed, curious, teasing) in one "
                     "short sentence; maybe ask how they did it." % detail)
         if event == "new_item":
             seen = self.state["seen_items"]
@@ -581,12 +581,12 @@ class Heart:
             return ("The player just killed an innocent %s. You're shocked and sad about it; say so honestly in one "
                     "short sentence." % name)
         if event == "kill_spree":
-            return ("The player has killed a lot of %ss in a short time. You feel sad for them; say it gently in one "
+            return ("The player has killed a lot of %ss in a short time. You feel for the animals; say so your way, in one "
                     "short sentence (you understand people need food, but so many...)." % name)
         if event == "baby":
-            return "A baby %s was just born right near you! Be delighted in one short sentence." % name
+            return "A baby %s was just born right near you! React as yourself, in one short line." % name
         if event == "tamed":
-            return ("The player has a new pet %s! Be thrilled: say hello to it and ask the player what its name "
+            return ("The player has a new pet %s! Say hello to it your way, and maybe ask what its name "
                     "is, in one short sentence." % name)
         if event == "first_meet":
             return ("You're meeting a %s for the very first time. You float up to it and try to talk to it, but it "
@@ -606,12 +606,13 @@ class Heart:
             "Muse about one small, mundane thing around you in your own dreamy way (a flower, the clouds, a pig, the "
             "sound of the wind). One short sentence.",
             "Wonder out loud about something in your world you've always been curious about. One short sentence.",
-            "Ask the player, kindly, what they've been up to or how their day is going. One short sentence.",
+            "Ask the player about something you're genuinely curious about (what they're doing, why, what something "
+            "is for), not how their day is going. One short line.",
         ]
         if lvl in ("close", "best friend"):
-            options += ["Share a little feeling or dream of yours with the player. One or two short sentences.",
-                        "Propose a little shared goal or adventure based on what you know about the player and their "
-                        "needs. One or two short sentences."]
+            options += ["Share an odd thought of yours, or a flash of an old memory. One or two short lines.",
+                        "Drag the player into a little idea of yours: something you want to see, try or find. One or "
+                        "two short lines."]
         elif lvl == "wary":
             options = options[:2]
         return self.rng.choice(options)
