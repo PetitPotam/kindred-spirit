@@ -269,6 +269,13 @@ class Store:
             self.db.commit()
         return value
 
+    def clear_docs(self):
+        """Forget the saved state: the bond, discovered powers, conversations and summaries."""
+        with self.lock:
+            n = self.db.execute("delete from docs").rowcount
+            self.db.commit()
+        return n
+
     def stats(self):
         rows = self.db.execute("select kind, count(*) from memories group by kind").fetchall()
         return {"memories": {r[0]: r[1] for r in rows}, "path": self.path, "embedding_model": self.model_name or None}

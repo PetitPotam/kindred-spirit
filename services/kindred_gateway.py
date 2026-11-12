@@ -333,6 +333,8 @@ def memory_call(store, op, req):
         return {"deleted": store.delete(req.get("id"), req.get("kinds"), req.get("world"), req.get("contains"))}
     if op == "doc":
         return {"value": store.doc(req["key"], req.get("value"))}
+    if op == "clear_docs":
+        return {"cleared": store.clear_docs()}
     if op == "stats":
         return store.stats()
     if op == "reembed":

@@ -58,5 +58,6 @@ exactly when it's relevant ("how's the cherry house?" brings up the cherry house
   [GATEWAY.md](GATEWAY.md)). Nothing is uploaded anywhere else; the AI provider sees only the few
   memories included in each message.
 - `scripts/memory.sh` shows everything it remembers;
-  `scripts/memory.sh forget` erases it all (after asking).
+  `scripts/memory.sh forget` erases every memory but keeps the bond and her powers;
+  `scripts/memory.sh reset` makes her a brand-new companion (memories, bond, powers, conversations).
 - In game: "forget that I ..." removes matching memories.

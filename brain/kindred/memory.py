@@ -19,7 +19,8 @@ your habits, active reminders and nearby places; plus the memories that best mat
 being said, ranked by meaning, keywords, recency and importance (the gateway does the ranking).
 
     python -m kindred.memory            show what it remembers
-    python -m kindred.memory forget     forget everything (asks first)
+    python -m kindred.memory forget     forget every memory (asks first); keeps the bond and her powers
+    python -m kindred.memory reset      a brand-new companion: memories, bond, powers, conversations
 """
 import asyncio
 import json
@@ -327,6 +328,14 @@ def main(argv):
             n = store._call("delete", {"kinds": ["player", "self", "habit", "world", "place", "found", "episode",
                                                  "diary", "reminder"], "contains": ""})
             print("Forgotten (%s)." % n)
+        return 0
+    if argv[:1] == ["reset"]:  # (scripts/memory.sh reset stops the brain first, then starts it again)
+        if input("Reset your companion completely: every memory, the bond, discovered powers and "
+                 "conversations? Type yes: ").strip().lower() == "yes":
+            n = store._call("delete", {"kinds": ["player", "self", "habit", "world", "place", "found", "episode",
+                                                 "diary", "reminder"], "contains": ""})
+            d = store._call("clear_docs", {})
+            print("Reset: %s, %s. Next time you play, you'll meet a brand-new companion." % (n, d))
         return 0
     for kind in ("player", "self", "habit", "reminder", "world", "place", "found", "diary", "episode"):
         rows = store._call("list", {"kinds": [kind], "limit": 15, "order": "important", "all_worlds": True})["results"]

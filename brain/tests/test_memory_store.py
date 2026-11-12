@@ -61,3 +61,11 @@ def test_docs_and_reembed():
     s.add("player", "Likes diamonds")
     s2 = memory_store.Store(s.path, embed=words, model_name="test")
     assert s2.reembed() == 1 and s2.reembed() == 0
+
+
+def test_a_full_reset_also_clears_the_bond_and_conversations():
+    s = store()
+    s.doc("heart", {"bond": 80, "discovered": ["find_ore"]})
+    s.doc("world:sp:A:history", [{"role": "user", "content": "hi"}])
+    assert s.clear_docs() == 2
+    assert s.doc("heart") is None and s.doc("world:sp:A:history") is None
