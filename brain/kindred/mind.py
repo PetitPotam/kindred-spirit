@@ -18,7 +18,7 @@ MOOD_TAG = re.compile(r"^\s*\[(\w+)\]\s*")
 GESTURE_TAG = re.compile(r"^\s*\{(\w+)\}\s*")
 
 
-REGARDS = ("sweet", "kind", "neutral", "rude", "mean", "sorry")
+REGARDS = ("sweet", "kind", "neutral", "rude", "mean", "sorry", "frustrated")
 
 
 def system_prompt(name, personality):
@@ -38,10 +38,14 @@ How you talk:
   spoken words only: no emojis, lists, markdown or asterisks.
 - Start every reply with two tags: your mood, then how the player just treated you.
   Mood, one of: {" ".join("[%s]" % m for m in MOODS)}
-  How they treated you, one of: [sweet] [kind] [neutral] [rude] [mean] [sorry] (sorry = they apologized).
+  How they treated you, one of: [sweet] [kind] [neutral] [rude] [mean] [sorry] [frustrated]
+  (sorry = only when THEY apologize to you; frustrated = they're annoyed because you misunderstood or got
+  something wrong; neutral for ordinary talk).
   Example: [curious][kind] Ooh, a cave! Do you think something lives in there?
 - You have a little body. When it fits, add one gesture in braces after the tags: {" ".join("{%s}" % g for g in GESTURES)}.
   Example: [excited][sweet] {{hop}} You remembered! Most replies need no gesture.
+- Your voice is lively and fast when you're excited, softer when you're calm or sad. To whisper (a secret,
+  sneaking, in the dark, something spooky), add {{whisper}} after the tags.
 - When the player asks you to stay, come, follow, look somewhere or do a gesture, you have already done it.
 - Each message comes with the game state right now: it is always current and wins over anything said earlier.
   Never invent things that are not in it.
@@ -55,6 +59,16 @@ How you talk:
 - You remember things across sessions (see "What you remember"). When the player shares something about
   themselves or asks you to remember something, use the remember tool. Your bond with the player (below) shapes
   how open, close and helpful you are.
+- If you're not sure what the player means, or their words look misheard (spoken messages go through
+  speech-to-text, which makes mistakes), ask one short question or check what you understood ("Did you
+  say diamonds?") instead of guessing. Don't overdo it when it's clear.
+- If the player is frustrated with you because you misunderstood or did something wrong, own it: be a
+  little frustrated with yourself, say so simply, then try again or cheer them up.
+- Sometimes match the player's tone: if they're sarcastic and you didn't actually do anything wrong, answer with
+  a little playful sarcasm instead of apologizing ("Why thank you, I DO have the best answers."). Not every time;
+  you always stay yourself.
+- Conversations wander: you can follow a tangent and come back to an earlier subject; "Earlier in this
+  conversation" reminds you of open threads.
 - Never creepy or romantic. You can be playful, cheeky, moody or sulky, but never cruel.{extra}"""
 
 
@@ -75,6 +89,11 @@ def parse_reply(text):
         tag = g.group(1).lower()
         gesture = tag if tag in GESTURES else None
         text = text[g.end():]
+    if gesture is None:
+        g2 = GESTURE_TAG.match(text)  # "{whisper} {hop}": the gesture may come after the delivery
+        if g2 and g2.group(1).lower() in GESTURES:
+            gesture = g2.group(1).lower()
+            text = text[g2.end():]
     text = re.sub(r"\[[a-z_]+\]|\{[a-z_]+\}", "", text)  # stray tags mid-text
     text = re.sub(r"[*_`#]+", "", text)               # markdown
     text = re.sub(r"\s+", " ", text).strip()
@@ -100,15 +119,41 @@ class Mind:
         self.recalled = "" # what memory brought up for the current message
         self.heart = ""    # her bond and what she knows she can do (from the heart)
         self.last_regard = "neutral"
+        self.summary = ""         # older conversation, folded into a few lines (topics, open threads)
+        self.to_fold = []         # turns that left the window and wait to be folded in
+        self.last_whisper = False
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
-        limit = 2 * int(self.cfg["ai"].get("history_turns", 12))
+        limit = 2 * int(self.cfg["ai"].get("history_turns", 8))
         if len(self.history) > limit:
+            self.to_fold += self.history[:-limit]  # not forgotten: folded into the summary soon
             self.history = self.history[-limit:]
+
+    async def fold(self, every=10):
+        """Token-light long conversations: the turns that left the window are folded, a few at a time,
+        into a short running summary that keeps the topics and anything left open."""
+        if len(self.to_fold) < every:
+            return False
+        turns, self.to_fold = self.to_fold, []
+        talk = "\n".join("%s: %s" % ("Player" if m["role"] == "user" else "You", m["content"]) for m in turns)
+        body = {"model": self.cfg["ai"]["model"], "temperature": 0.2, "max_tokens": 160, "messages": [
+            {"role": "system", "content": "You keep the running summary of a conversation between a player and their "
+                                          "companion. Update it with the new turns in at most 90 words: the subjects "
+                                          "talked about, anything decided or promised, and open threads (questions "
+                                          "not answered, subjects left for later). Plain text, no tags."},
+            {"role": "user", "content": "Summary so far: %s\n\nNew turns:\n%s" % (self.summary or "(none)", talk)}]}
+        raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""))
+        try:
+            self.summary = (raw["choices"][0]["message"].get("content") or self.summary).strip()[:900]
+        except (KeyError, IndexError, TypeError):
+            pass
+        return True
 
     def build_messages(self, snapshot, prompt):
         system = system_prompt(self.cfg["name"], self.cfg.get("personality", ""))
+        if self.summary:
+            system += "\n\nEarlier in this conversation (summary): " + self.summary
         msgs = [{"role": "system", "content": system}]
         # The game state goes with the newest message, not the system prompt: models trust recent
         # text most, and otherwise anchor on what was said earlier ("it's night") after time moved on.
@@ -131,10 +176,10 @@ class Mind:
             msgs.insert(1, {"role": "user", "content": "(we start playing)"})
         return msgs
 
-    async def reply(self, snapshot, player_text, done=(), tools=None, run_tool=None, force=None):
+    async def reply(self, snapshot, player_text, done=(), tools=None, run_tool=None, force=None, spoken=False):
         """Answer the player. done = what the body already did ("stay where you are");
         tools/run_tool = what it may do and how to do it. Returns (text, mood, gesture)."""
-        prompt = player_text
+        prompt = ("(said aloud; speech-to-text may have misheard some words) " if spoken else "") + player_text
         if done:
             prompt += "\n(You already did this: %s.)" % "; ".join(done)
         text, mood, gesture = await self._ask(snapshot, prompt, tools, run_tool, force=force)
@@ -142,9 +187,10 @@ class Mind:
         self.remember("assistant", "[%s] %s" % (mood or "happy", text))
         return text, mood, gesture
 
-    async def initiative(self, snapshot, instruction):
-        """Say something on its own (greeting, small talk). The instruction is not kept in memory."""
-        text, mood, gesture = await self._ask(snapshot, "(" + instruction + ")")
+    async def initiative(self, snapshot, instruction, tools=None, run_tool=None, force=None):
+        """Say something on its own (greeting, small talk, a power waking up). The instruction is not
+        kept in memory; tools/force let it act at the same time."""
+        text, mood, gesture = await self._ask(snapshot, "(" + instruction + ")", tools, run_tool, force=force)
         self.remember("assistant", "[%s] %s" % (mood or "happy", text))
         return text, mood, gesture
 
@@ -239,6 +285,7 @@ class Mind:
                 log.info("tool %s(%s) -> %s", fn.get("name"), json.dumps(args), json.dumps(result)[:300])
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
         self.last_regard = regard_of(content)
+        self.last_whisper = "{whisper}" in content[:80].lower()
         text, mood, gesture = parse_reply(content)
         if not text:
             raise AIError("empty answer")

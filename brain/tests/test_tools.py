@@ -45,7 +45,9 @@ def test_find_diamonds_goes_to_the_game_and_back(stubs):
                                       "x": 21, "y": 58, "z": -21, "distance": 9, "direction": "ahead"}))
             say = await recv_until(ws, "say")
             assert "Diamonds" in say["text"] and say.get("emote") == "hop"
-    asyncio.run(with_brain(make_cfg(stubs.port), scenario, memory=mem))
+    cfg = make_cfg(stubs.port)
+    cfg["heart"]["awakening"] = "instant"  # (the slow first time is tested in test_heart)
+    asyncio.run(with_brain(cfg, scenario, memory=mem))
     second = next(r for r in stubs.ai_requests if any(m.get("role") == "tool" for m in r["messages"]))["messages"]
     assert second[-2]["tool_calls"][0]["id"] == "call_1", "the call goes back to the AI with its id"
     assert second[-1]["role"] == "tool" and json.loads(second[-1]["content"])["distance"] == 9

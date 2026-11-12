@@ -5,6 +5,11 @@ machine (kokoro-onnx), so it is free, private and works offline.
     POST http://127.0.0.1:8885/v1/audio/speech
     {"input": "Hello!", "voice": "af_heart", "speed": 1.0}   ->  audio/wav
 
+Beyond the OpenAI fields, for giving a character its own voice:
+    "voice": "af_sky*0.5+af_bella*0.5"   a blend of voices (weights are normalized)
+    "pitch": 1.08                        higher (>1) or lower, without changing the speed
+    "gain": 0.45                         quieter (<1), e.g. for a whisper
+
 Light on purpose, because it runs next to Minecraft: one synthesis at a time and a capped number
 of CPU threads (KINDRED_TTS_THREADS, chosen by scripts/start.sh from your hardware).
 
@@ -25,6 +30,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import numpy as np
 import onnxruntime as rt
 import soundfile as sf
 from kokoro_onnx import Kokoro
@@ -48,10 +54,35 @@ def clean_text(text):
     return re.sub(r"\s+", " ", text).strip()[:MAX_CHARS]
 
 
-def synthesize(text, voice, speed):
-    lang = "en-gb" if voice.startswith("b") else "en-us"
+def voice_style(expr):
+    """'af_sky*0.5+af_bella*0.5' -> a blended style vector (or the plain name if it is one voice)."""
+    parts = [p.strip() for p in expr.split("+") if p.strip()]
+    if len(parts) == 1 and "*" not in parts[0]:
+        return parts[0] if parts[0] in _voices else DEFAULT_VOICE
+    mix, total = [], 0.0
+    for p in parts:
+        name, _, w = p.partition("*")
+        name = name.strip()
+        if name in _voices:
+            weight = float(w) if w else 1.0
+            mix.append((name, weight))
+            total += weight
+    if not mix:
+        return DEFAULT_VOICE
+    return sum(_engine.get_voice_style(n) * (w / total) for n, w in mix).astype(np.float32)
+
+
+def synthesize(text, voice, speed, pitch=1.0, gain=1.0):
+    style = voice_style(voice)
+    lang = "en-gb" if isinstance(style, str) and style.startswith("b") else "en-us"
+    pitch = min(max(pitch, 0.8), 1.25)
     with _lock:
-        audio, rate = _engine.create(text, voice=voice, speed=speed, lang=lang)
+        audio, rate = _engine.create(text, voice=style, speed=speed / pitch, lang=lang)
+    if abs(pitch - 1.0) > 1e-3:  # resample: higher (or lower) pitch, back to the requested speed
+        n = int(len(audio) / pitch)
+        audio = np.interp(np.arange(n) * pitch, np.arange(len(audio)), audio).astype(np.float32)
+    if gain != 1.0:
+        audio = audio * min(max(gain, 0.05), 2.0)
     buf = io.BytesIO()
     sf.write(buf, audio, rate, format="WAV", subtype="PCM_16")
     return buf.getvalue()
@@ -99,15 +130,15 @@ class Handler(BaseHTTPRequestHandler):
             self.error(400, "nothing to say")
             return
         voice = (req.get("voice") or DEFAULT_VOICE).strip()
-        if voice not in _voices:
-            voice = DEFAULT_VOICE if DEFAULT_VOICE in _voices else sorted(_voices)[0]
         try:
             speed = min(max(float(req.get("speed") or 1.0), 0.5), 2.0)
+            pitch = float(req.get("pitch") or 1.0)
+            gain = float(req.get("gain") or 1.0)
         except (TypeError, ValueError):
-            speed = 1.0
+            speed, pitch, gain = 1.0, 1.0, 1.0
         started = time.time()
         try:
-            wav = synthesize(text, voice, speed)
+            wav = synthesize(text, voice, speed, pitch, gain)
         except Exception as exc:
             log.exception("synthesis failed")
             self.error(500, "Kokoro failed: %s" % exc)

@@ -277,6 +277,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     })));
             dispatcher.register(ClientCommandManager.literal("ks").redirect(root));
         });
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (world.isClientSide && (entity instanceof net.minecraft.world.entity.animal.Animal
+                    || entity instanceof net.minecraft.world.entity.npc.AbstractVillager)) {
+                attacked.put(entity.getId(), System.currentTimeMillis());
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.isClientSide && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem bi) {
                 BlockPos at = world.getBlockState(hit.getBlockPos()).canBeReplaced() ? hit.getBlockPos()
@@ -566,7 +573,37 @@ public final class KindredSpiritClient implements ClientModInitializer {
     }
 
     /** Which block you're placing (confirmed a tick later) and which items are new in your pockets. */
+    private int visiting = -1;
+    private final java.util.Map<Integer, Long> attacked = new java.util.HashMap<>();
+
     private void trackWorld(Minecraft mc) {
+        // she follows the animal she's visiting as it wanders
+        if (visiting >= 0) {
+            net.minecraft.world.entity.Entity e = mc.level.getEntity(visiting);
+            if (e != null && companion.life.mode == Behavior.Mode.VISIT) {
+                companion.life.updateVisit(e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ());
+            } else {
+                visiting = -1;
+            }
+        }
+        // creatures you attacked that died: was it a villager, or many animals?
+        if (!attacked.isEmpty()) {
+            long t = System.currentTimeMillis();
+            attacked.entrySet().removeIf(en -> {
+                net.minecraft.world.entity.Entity e = mc.level.getEntity(en.getKey());
+                boolean dead = e instanceof net.minecraft.world.entity.LivingEntity le && (le.isDeadOrDying() || !le.isAlive());
+                if (dead) {
+                    JsonObject o = new JsonObject();
+                    o.addProperty("type", "event");
+                    o.addProperty("event", "killed");
+                    o.addProperty("detail", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
+                    o.addProperty("villager", e instanceof net.minecraft.world.entity.npc.AbstractVillager);
+                    link.send(o);
+                    return true;
+                }
+                return e == null || t - en.getValue() > 5000;
+            });
+        }
         if (pendingPlace != null && --pendingTicks <= 0) {
             if (mc.level.getBlockState(pendingPlace).is(pendingBlock)) {
                 dev.kindredspirit.act.Pranks.lastPlaced = pendingPlace;
@@ -654,6 +691,23 @@ public final class KindredSpiritClient implements ClientModInitializer {
             reply.accept(res);
             return;
         }
+        if (action.equals("bonk") || action.equals("play_hit") || action.equals("mood_weather")) {
+            boolean allowed = action.equals("mood_weather") ? cfg.allowMoodWeather : cfg.allowPranks;
+            if (!allowed) {
+                JsonObject no = new JsonObject();
+                no.addProperty("ok", false);
+                no.addProperty("error", "turned off in kindredspirit.json");
+                reply.accept(no);
+                return;
+            }
+            Minecraft m = Minecraft.getInstance();
+            (action.equals("bonk") ? dev.kindredspirit.act.Pranks.bonk(m, life.x, life.z)
+                    : action.equals("play_hit") ? dev.kindredspirit.act.Pranks.playHit(m, life.x, life.z)
+                    : dev.kindredspirit.act.Pranks.weather(m, args.has("weather") ? args.get("weather").getAsString() : "clear"))
+                    .thenAccept(res -> m.execute(() -> reply.accept(res)));
+            if (!action.equals("mood_weather")) life.play(dev.kindredspirit.life.Emote.HOP, companion.now());
+            return;
+        }
         if (action.equals("prank_sound") || action.equals("steal_block") || action.equals("return_block")) {
             if (!cfg.allowPranks && !action.equals("return_block")) {
                 JsonObject no = new JsonObject();
@@ -704,6 +758,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
         double now = companion.now();
         double seconds = msg.has("seconds") ? msg.get("seconds").getAsDouble() : 4;
         if (msg.has("closeness")) life.closeness = msg.get("closeness").getAsDouble();
+        if (msg.has("visit") && mc.level != null) {
+            net.minecraft.world.entity.Entity e = mc.level.getEntity(msg.get("visit").getAsInt());
+            if (e != null) {
+                visiting = e.getId();
+                life.visit(e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), seconds, now);
+            }
+        }
         switch (str(msg, "move")) {
             case "hide" -> life.hide(seconds, now);
             case "stop" -> {

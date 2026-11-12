@@ -10,13 +10,35 @@ Settings: `~/.kindred-spirit/brain.toml`, section `[heart]` (all of it is option
 
 ## Discovering her powers (amnesia)
 
-She starts not knowing what she can do, and she never lists commands. When you ask for something
-("are there diamonds near me?", "push them away"), she *tries*, and the first time it works she's
-amazed. Discovered powers are remembered (also as a memory: "I discovered I can find ores").
-You discover the companion's abilities by playing, not by reading a list.
+She starts not knowing what she can do, and she never lists commands. You discover what she can do
+by asking, not by reading a list. Discovered powers are remembered (also as a memory: "I discovered
+I can find ores").
+
+**Think fast, think slow.** The first time you ask for something she has never done, she answers
+at once from the gut, in her mood of the moment ("Diamonds? Ooh, I don't know if I can... but I'll
+try!"). Meanwhile, in the background, the power slowly wakes up:
+
+1. After a while (about 20 seconds) she trails off, maybe after a little tangent about something
+   around her, because she senses something strange: a humming under the ground, a pull from far
+   away, the sky feeling like it would listen. She looks around and may whisper.
+2. Sometimes she asks a small favour so the feeling gets stronger: stand still for a few seconds,
+   pet her, or say her name. Doing it brings you closer; if you don't, it comes anyway (with a tiny
+   pout).
+3. Then it clicks: "I can sense diamonds now!", and she does what you asked back then.
+
+If you ask again while it's waking up, she tells you it isn't there yet. If she's too upset to
+focus (you've been mean), it slips away and you can ask again later. Powers you need right now
+(pushing monsters away, a torch) wake up on instinct, instantly, the first time. Once discovered, a
+power just works.
+
+| Setting | |
+|---|---|
+| `awakening = "slow"` | the above; `"instant"`: she tries and it works on the spot |
+| `awakening_seconds = 40` | about how long a power takes to wake up (it varies each time) |
+| `favours = true` | whether she may ask a small favour while it wakes up |
+| `amnesia = false` | she knows all her allowed powers from the start |
 
 What she *could* do is still capped by `/kindred power` and `/kindred style` (see the README).
-`amnesia = false` gives her all her allowed powers from the start.
 
 ## The bond
 
@@ -32,14 +54,49 @@ A number from 0 to 100, shown as a small heart meter (top right) whenever it cha
 | best friend | 85–100 | affectionate, teases you, plans adventures for the two of you |
 
 What changes it: each message you send is judged by the AI (sweet +4, kind +2, rude −5, mean −12,
-an apology +6 and instant forgiveness), petting her +1.5, hitting her −6 (attacking while looking
-at her). She also floats closer when the bond is high and keeps her distance when it's low or
-when she's just been hurt.
+an apology +6 and instant forgiveness), petting her +1.5, doing her a favour +2, hitting her −6
+(attacking while looking at her). She also floats closer when the bond is high and keeps her
+distance when it's low or when she's just been hurt.
 
 She forgives quickly: below a friendly baseline (40) the bond slowly recovers on its own, but time
 alone never makes her love you. Hit her three times within a minute, or be really cruel when the
 bond is already low, and she **vanishes** for a minute or two ("I need a moment alone."), then
 comes back on her own, a bit shy (`can_vanish = false` to turn this off).
+
+**Accidents and pride.** One hit between friends is probably an accident: just an "Oof! Watch it!"
+and a small dip. But she has her pride: hit her and say sorry, again and again, and the sorries
+count for less and less until she stops buying it, stays hurt for a while, and may refuse what you
+ask.
+
+**Play-fights** (`play_fights = true`). As close friends, if you hit her by accident she may bonk you
+back (a little knockback, no damage). And now and then, when you're at full health and nothing is
+around, she play-hits you for fun, says sorry and heals you right away.
+
+**Her tears bring rain** (`weather_follows_mood = true`, singleplayer). When you're really mean, or
+she leaves crying, it starts raining; a real apology clears the sky ("Look, sunshine!").
+
+## Her mood
+
+Her mood isn't picked at random by the AI: it comes from a small score of how good she feels and how
+stirred up she is. Everything moves it: your words, petting, hits, danger, discoveries, babies, a
+villager killed. Feelings fade back to her resting state within a few minutes (happier when she likes
+you), with a little whimsy so she's never quite the same twice. The mood colours her body, her
+voice and what she says.
+
+## How she talks
+
+- Short, spoken lines, whimsical and curious. Her voice (Kokoro, a blend of two young voices) is
+  lively and quick when she's excited, softer when she's calm or sad, and she **whispers** secrets,
+  spooky things and what she senses in the dark.
+- Spoken messages go through speech-to-text, so when your words look misheard or unclear she checks
+  ("Did you say diamonds?") instead of guessing.
+- When she gets something wrong and you're frustrated, she owns it, is a little frustrated with
+  herself, then tries again or cheers you up.
+- Sometimes she matches your tone: if you're sarcastic and she did nothing wrong, she can be
+  playfully sarcastic back instead of apologizing. She always stays herself.
+- Conversations wander: she follows tangents and comes back to what you were talking about. Older
+  turns are folded into a short running summary, so long conversations stay cheap and she doesn't
+  lose the thread.
 
 ## Helping: asked, standing, or offered
 
@@ -53,13 +110,25 @@ She cares about you and gets scared *for* you, but she acts when:
 
 `auto_protect = true` makes her protect you without asking.
 
-## Curiosity
+## Curiosity and animals
 
 She notices and talks about: advancements you earn, items you get for the first time, new biomes,
 your deaths, long mining sessions and building sprees. When it's quiet (`small_talk_minutes`), she
 muses about little things in her world or asks about your day; as you get closer, she shares
 feelings and proposes plans. You can answer in role-play or for real; she learns either way
 ([MEMORY.md](MEMORY.md)).
+
+Animals are people to her, at first:
+
+- the first time she meets a kind of animal she floats up to it and tries to talk to it, and is
+  puzzled (or amused) that it doesn't answer;
+- a new pet makes her thrilled: she goes to say hello and asks its name; later she visits your pets
+  now and then;
+- a baby animal or villager being born delights her;
+- she's sad when you kill an innocent villager, or a lot of animals in a short time.
+
+Small things she skips if she just spoke; moments that matter (a baby, a new pet, a first meeting,
+a death) wait for a pause in the conversation instead.
 
 ## Pranks and mischief
 
@@ -84,11 +153,18 @@ false` in `kindredspirit.json` turns off all of them at the game's side.
 ```toml
 [heart]
 amnesia = true               # she discovers her powers with you
+awakening = "slow"           # slow: "I'll try!" at once, the power wakes up a little later | instant
+awakening_seconds = 40       # about how long a new power takes to wake up
+favours = true               # while it wakes up, she may ask you a small favour
 start_bond = 30              # where the bond starts (0-100)
 auto_protect = false         # protect you without being asked
-curiosity = true             # notices advancements, items, biomes... and talks about them
+curiosity = true             # notices advancements, items, biomes, animals... and talks about them
 pranks = true                # playful pranks once you're friends
 block_pranks = true          # pranks may borrow a block you just placed
 mischief_when_angry = "spicy"  # off | mild | spicy
 can_vanish = true            # disappears for a while when mistreated
+play_fights = true           # as close friends: bonks you back, or play-hits you and heals you
+weather_follows_mood = true  # her tears bring rain, an apology brings the sun back (singleplayer)
 ```
+
+Her voice is set in `[voice]` (and the gateway, see [GATEWAY.md](GATEWAY.md#her-voice)).

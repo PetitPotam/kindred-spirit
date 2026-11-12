@@ -1,0 +1,35 @@
+# Animals (first meeting, new pet, baby: none may be dropped), then "think fast, think slow":
+# she answers "can you find diamonds?" at once, and the power wakes up a little later.
+world kindred-heart
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd kill @e[type=!minecraft:player]
+cmd fill ~-3 ~-6 ~-3 ~3 ~-4 ~3 minecraft:diamond_ore replace minecraft:stone
+look 0 5
+wait 100
+cmd summon minecraft:cow ~3 ~ ~4 {NoAI:1b}
+wait 60
+cmd summon minecraft:cat ~-2 ~ ~3 {NoAI:1b}
+cmd data modify entity @e[type=minecraft:cat,limit=1,sort=nearest] Owner set from entity @p UUID
+wait 60
+cmd summon minecraft:cow ~4 ~ ~5 {NoAI:1b,Age:-24000}
+wait 900
+screenshot awaken-00-animals
+chat can you find diamonds for me?
+wait 200
+screenshot awaken-01-try
+wait 300
+screenshot awaken-02
+wait 300
+screenshot awaken-03
+wait 300
+screenshot awaken-04
+wait 300
+screenshot awaken-05
+wait 300
+screenshot awaken-06
+wait 300
+screenshot awaken-07
+quit

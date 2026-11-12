@@ -96,7 +96,11 @@ DEFAULT_STATE = {
     }},
     # ---- text to speech ----
     "tts": {"use": "local_kokoro", "providers": {
-        "local_kokoro": {"url": "http://127.0.0.1:8885/v1/audio/speech", "key": "", "model": "kokoro", "voice": "af_heart", "speed": 1.05},
+        # Pip's voice: sky and bella blended, a little brighter; "styles" change how she says each line
+        "local_kokoro": {"url": "http://127.0.0.1:8885/v1/audio/speech", "key": "", "model": "kokoro",
+                         "voice": "af_sky*0.5+af_bella*0.5", "speed": 1.12, "pitch": 1.08,
+                         "styles": {"excited": {"speed": 1.3}, "calm": {"speed": 1.0}, "sad": {"speed": 0.95, "pitch": 1.04},
+                                    "whisper": {"voice": "af_sky*0.2+af_bella*0.2+af_nicole*0.6", "speed": 0.95, "gain": 0.45}}},
         "openai": {"url": "https://api.openai.com/v1/audio/speech", "key": "env:OPENAI_API_KEY", "model": "gpt-4o-mini-tts", "voice": "coral"},
     }},
     # ---- embeddings (what memories mean) ----
@@ -500,6 +504,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         body = {"model": p.get("model", ""), "input": text, "voice": req.get("voice") or p.get("voice", ""),
                 "response_format": "wav", "speed": req.get("speed") or p.get("speed", 1.0)}
+        for k in ("pitch", "gain"):  # extras only some providers understand (local Kokoro does)
+            if p.get(k):
+                body[k] = p[k]
+        style = (p.get("styles") or {}).get(req.get("style") or "")
+        if style:  # how she says it: excited, calm, sad, whisper...
+            body.update(style)
         started = time.time()
         status, data, rtype = http_call("POST", p["url"], json.dumps(body).encode(), {"Content-Type": "application/json"},
                                         key_of(p.get("key")), timeout=60)

@@ -88,6 +88,55 @@ public final class Pranks {
         });
     }
 
+    /** A playful bonk back: pushes you a little, no damage. */
+    public static CompletableFuture<JsonObject> bonk(Minecraft mc, double fromX, double fromZ) {
+        return onServer(mc, server -> {
+            ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
+            if (sp == null) return error("not here");
+            sp.knockback(0.6, fromX - sp.getX(), fromZ - sp.getZ());
+            sp.hurtMarked = true;
+            sp.serverLevel().playSound(null, sp.blockPosition(), SoundEvents.SLIME_JUMP_SMALL, SoundSource.NEUTRAL, 1f, 1.4f);
+            return ok();
+        });
+    }
+
+    /** A play-hit between close friends: one heart, healed right back a moment later. */
+    public static CompletableFuture<JsonObject> playHit(Minecraft mc, double fromX, double fromZ) {
+        return onServer(mc, server -> {
+            ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
+            if (sp == null || sp.getHealth() < sp.getMaxHealth()) return error("not at full health");
+            sp.hurt(sp.damageSources().magic(), 2f);
+            sp.knockback(0.4, fromX - sp.getX(), fromZ - sp.getZ());
+            sp.hurtMarked = true;
+            Thread t = new Thread(() -> { // and she heals you right back
+                try { Thread.sleep(1500); } catch (InterruptedException ignored) { }
+                server.execute(() -> {
+                    sp.heal(2f);
+                    sp.serverLevel().sendParticles(net.minecraft.core.particles.ParticleTypes.HEART, sp.getX(), sp.getY() + 1.8,
+                            sp.getZ(), 4, 0.4, 0.3, 0.4, 0);
+                });
+            }, "kindred-heal");
+            t.setDaemon(true);
+            t.start();
+            return ok();
+        });
+    }
+
+    /** Her tears bring rain; comfort brings the sun back (the overworld's weather, like /weather). */
+    public static CompletableFuture<JsonObject> weather(Minecraft mc, String weather) {
+        return onServer(mc, server -> {
+            ServerLevel l = server.getLevel(net.minecraft.world.level.Level.OVERWORLD);
+            if (l == null) return error("no overworld");
+            if ("rain".equals(weather)) {
+                if (l.isRaining()) return error("it's already raining");
+                l.setWeatherParameters(0, 2400, true, false); // two minutes of rain at most
+            } else {
+                l.setWeatherParameters(6000, 0, false, false);
+            }
+            return ok();
+        });
+    }
+
     private static CompletableFuture<JsonObject> onServer(Minecraft mc, java.util.function.Function<MinecraftServer, JsonObject> job) {
         MinecraftServer server = mc.getSingleplayerServer();
         if (server == null) return done(error("only in singleplayer"));

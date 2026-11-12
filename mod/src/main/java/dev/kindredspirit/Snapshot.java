@@ -121,6 +121,26 @@ public final class Snapshot {
             hostiles.add(mo);
         }
         o.add("hostiles", hostiles);
+
+        // animals and villagers nearby: babies, your pets, species she hasn't met yet
+        java.util.List<net.minecraft.world.entity.LivingEntity> near = mc.level.getEntitiesOfClass(
+                net.minecraft.world.entity.LivingEntity.class, p.getBoundingBox().inflate(16),
+                e -> e.isAlive() && (e instanceof net.minecraft.world.entity.animal.Animal
+                        || e instanceof net.minecraft.world.entity.npc.AbstractVillager));
+        near.sort(Comparator.comparingDouble(e -> e.distanceToSqr(p)));
+        JsonArray animals = new JsonArray();
+        for (net.minecraft.world.entity.LivingEntity e : near.subList(0, Math.min(15, near.size()))) {
+            JsonObject ao = new JsonObject();
+            ao.addProperty("id", e.getId());
+            ao.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
+            ao.addProperty("distance", round1(e.distanceTo(p)));
+            ao.addProperty("baby", e.isBaby());
+            ao.addProperty("tamed", e instanceof net.minecraft.world.entity.OwnableEntity own
+                    && p.getUUID().equals(own.getOwnerUUID()));
+            if (e.hasCustomName()) ao.addProperty("name", e.getCustomName().getString());
+            animals.add(ao);
+        }
+        o.add("animals", animals);
         return o;
     }
 

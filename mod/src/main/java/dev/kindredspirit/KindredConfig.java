@@ -22,6 +22,8 @@ public final class KindredConfig {
     public String style = "grounded";
     /** Let her play pranks (a sound behind you, borrowing a block you just placed). When she does is up to her (brain.toml [heart]). */
     public boolean allowPranks = true;
+    /** Let her moods change the weather in singleplayer (rain when she cries). Up to her: brain.toml [heart]. */
+    public boolean allowMoodWeather = true;
     /** Show the little heart meter when your bond with her changes. */
     public boolean showBond = true;
     public String brainHost = "127.0.0.1";
