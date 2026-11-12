@@ -184,6 +184,9 @@ svg text { fill: var(--muted); font-size: 10px; }
 </main>
 
 <script>
+const STATUS_WHY = {outdated: "the wiki marks this as how it worked in an older version", future: "added after the player's game version",
+  removed: "removed from the game, or never used", "other-edition": "only in another edition", joke: "an April Fools joke",
+  "spin-off": "from another Minecraft game"};
 const $ = (id) => document.getElementById(id);
 // her five feelings, her stance, the hurts between you and why (brain/kindred/bonds.py)
 function relationship(R) {
@@ -442,7 +445,7 @@ async function kbSearch() {
   if (!q) return;
   const d = await get(`/api/knowledge/search?q=${encodeURIComponent(q)}`);
   $("kb-results").innerHTML = `<div class="small" style="margin-bottom:6px">${d.covered ? `<b style="color:var(--good)">Known</b>: she'd answer from this` : `<b style="color:var(--warn)">Not known well</b>: she'd say she'll listen to the world, and learn it`} (best match ${(d.best ?? 0).toFixed(2)}, needs ${d.threshold ?? "?"})</div>` +
-    (d.results || []).map((r) => `<div class="mem"><div><span class="badge">${(r.score ?? 0).toFixed(2)}</span>${r.outdated ? `<br><span class="badge k-problem" title="the wiki marks this as how it worked in an older version: ranked lower">outdated</span>` : ""}</div><div><b>${esc(r.title)}</b>${r.section ? ` <span class="muted">/ ${esc(r.section)}</span>` : ""}
+    (d.results || []).map((r) => `<div class="mem"><div><span class="badge">${(r.score ?? 0).toFixed(2)}</span>${r.outdated ? `<br><span class="badge k-problem" title="${esc(STATUS_WHY[r.status] || STATUS_WHY.outdated)}: ranked lower, never counts as the answer">${esc(r.status || "outdated")}${r.since ? " " + esc(r.since) : ""}</span>` : ""}</div><div><b>${esc(r.title)}</b>${r.section ? ` <span class="muted">/ ${esc(r.section)}</span>` : ""}
       <pre id="kb-sec-${r.id}">${esc(r.text)}</pre>${r.id != null ? `<button class="chip" data-sec="${r.id}">Show the whole section</button>` : ""}<div class="small muted"><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--muted)">${esc(r.url)}</a> · ${esc(r.license || "")}</div></div></div>`).join("");
 }
 $("kb-results").onclick = async (ev) => {

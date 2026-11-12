@@ -3,7 +3,9 @@
     POST /v1/knowledge/search   {"query": "how do I make a piston", "k": 5, "sources": ["minecraft-wiki"],
                                  "max_chars": 1200}
         -> {"results": [{title, section, text, url, source, license, license_url, attribution, edition,
-                         score, data}], "count": n}
+                         score, data, status, since}], "count": n}
+        status: "current", or why the page isn't about the player's game ("future" with since
+        "1.21.6", "outdated", "removed", "other-edition"); "outdated": true for anything not current
         and how well it is covered: "best" (the top score), "covered" (true when the best chunk is
         about everything the question names and scores >= "threshold"; see store.coverage)
     POST /v1/knowledge/learn    {"query": "how do I build an iron farm"}
