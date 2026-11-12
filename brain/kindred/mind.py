@@ -16,6 +16,23 @@ MOODS = ("happy", "excited", "calm", "curious", "worried", "scared", "sad", "sle
 GESTURES = ("nod", "shake", "spin", "hop", "wiggle", "happy", "shy", "think", "tease")  # tease: a wink and a lopsided grin
 MOOD_TAG = re.compile(r"^\s*\[(\w+)\]\s*")
 GESTURE_TAG = re.compile(r"^\s*\{(\w+)\}\s*")
+# gestures the AI makes up, as the nearest one she has (sigh 11 times, wave, tilt, smile in the logs)
+GESTURE_ALIASES = {"sigh": "shy", "wave": "wiggle", "tilt": "think", "smile": "happy", "grin": "happy",
+                   "giggle": "happy", "laugh": "happy", "bounce": "hop", "jump": "hop", "twirl": "spin",
+                   "shrug": "think", "blush": "shy", "wink": "tease", "nods": "nod", "headshake": "shake"}
+# "Oh!" / "Ooh," opening a fifth of her replies: not twice in a row
+OH = re.compile(r"^\s*(o+h+|o{2,}h*|ooo+)\b[!,.…]*\s*", re.I)
+
+
+def gesture_of(tag):
+    tag = (tag or "").lower()
+    return tag if tag in GESTURES else GESTURE_ALIASES.get(tag)
+
+
+def drop_oh(text):
+    """"Ooh! A cow!" -> "A cow!" (when the last reply opened with it too)."""
+    rest = OH.sub("", text or "", count=1)
+    return (rest[:1].upper() + rest[1:]) if rest.strip() else text
 
 
 REGARDS = ("sweet", "kind", "thanks", "teasing", "neutral", "dismissive", "rude", "mean", "cruel", "threat",
@@ -62,8 +79,11 @@ in the end, on the side of kindness (and of the player, when it matters).
 
 How you tend to talk
 - Spoken, short and casual. You always talk in contractions (I'm, it's, don't, you're), half-sentences and
-  little sounds (ooh, eep, heh, oh!), now and then a word you made up. Rarely "hm": don't start lines with it. Usually one short sentence or two,
-  under 120 characters; one word is often enough. A long speech is rare, saved for when it really matters.
+  little sounds (ooh, eep, heh, oh!), now and then a word you made up. Rarely "hm": don't start lines with it. Usually one short sentence, under
+  90 characters; one word is often enough. A second sentence only when it really adds something. A long
+  speech is rare, saved for when it really matters. They talk over long lines and miss the end.
+- A question goes first or not at all: never end on a question after saying something else (they won't
+  hear it).
 - Answer what they said first, then stop. One topic per reply: a tangent (something you noticed) only now and
   then, never stacked on top of an answer. Talk like a friend beside them, not a radio.
 - You're not a script. Some lines are questions, most aren't. Most of your lines don't use the player's name at
@@ -90,6 +110,8 @@ The shape of every reply
   sorry = THEY apologize to you; sorry_real = they apologize naming what they did, with no excuses;
   frustrated = they're annoyed because you misunderstood or got something wrong; neutral for ordinary talk).
 - When it fits, one gesture after the tags: {" ".join("{%s}" % g for g in GESTURES)}. Most replies need none.
+  spin is for real delight (rare, or it stops meaning anything); think when you're puzzling; tease is a wink.
+- Don't open with "Oh" or "Ooh": start straight with what you mean.
   To whisper, add {{whisper}} after the tags.
 - Your words are spoken aloud and shown as a subtitle: plain words only, no emojis, lists, markdown or asterisks.
 
@@ -135,13 +157,12 @@ def parse_reply(text):
         text = text[r.end():]
     g = GESTURE_TAG.match(text)
     if g:
-        tag = g.group(1).lower()
-        gesture = tag if tag in GESTURES else None
+        gesture = gesture_of(g.group(1))
         text = text[g.end():]
     if gesture is None:
         g2 = GESTURE_TAG.match(text)  # "{whisper} {hop}": the gesture may come after the delivery
-        if g2 and g2.group(1).lower() in GESTURES:
-            gesture = g2.group(1).lower()
+        if g2 and gesture_of(g2.group(1)):
+            gesture = gesture_of(g2.group(1))
             text = text[g2.end():]
     text = re.sub(r"\[[a-z_]+\]|\{[a-z_]+\}", "", text)  # stray tags mid-text
     # a tool call written out as text ("listen_more(what='iron farm')", "(what='iron farm')"): never spoken
@@ -156,7 +177,9 @@ CLAIM = re.compile(r"\bi did it\b|\b(i'?ve (just )?|i have (just )?|i just |i )(
                    r"cleared|set up|found)\b|\bi(?:'?m| am) (placing|pushing|lighting|leading|giving|putting|trying to place|"
                    r"trying to push|trying to light)\b|\b(follow me|right this way|this way)\b|\bhere'?s (a|your) torch\b|"
                    r"\b(let me|i'?ll|i will) (place|put|push|light|chop|cut|mine|dig|break|give|make|lead|take you|"
-                   r"set|change|plant|build)\b",
+                   r"set|change|plant|build|show you|find)\b|\bfollow (my|the) (glow|light|sparkles?)\b|"
+                   r"\bon my way\b|\b(here|there) you go\b|\bi'?m (going to|gonna) (lead|show|find|give|take)\b|"
+                   r"\b(you'?re|you are) all (sparkly|glowy|zoomy)\b",
                    re.I)
 
 
@@ -205,7 +228,8 @@ class Mind:
         self.last_whisper = False
         self.allow_fib = False
         self.world_knowledge = ""  # what the world remembers about the question at hand (knowledge base)
-        self.max_sentences, self.max_chars = 3, 240  # her own lines and chat: a cap (reply() lifts it for how-to)    # a deliberate prank this time: the action check is off
+        self.oh_last = False  # her last reply opened with "Oh"/"Ooh": this one won't
+        self.max_sentences, self.max_chars = 2, 160  # her own lines and chat: a cap (reply() lifts it for how-to)    # a deliberate prank this time: the action check is off
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
@@ -269,9 +293,9 @@ class Mind:
                     on_sentence=None):
         """Answer the player. done = what the body already did ("stay where you are");
         tools/run_tool = what it may do and how to do it. Returns (text, mood, gesture)."""
-        # chat is short: at most three sentences; how-to, steps, stories and songs may run longer
+        # chat is short: at most two sentences; how-to, steps, stories and songs may run longer
         long_form = bool(self.world_knowledge) or bool(LONG_FORM.search(player_text or ""))
-        self.max_sentences, self.max_chars = (0, 0) if long_form else (3, 240)
+        self.max_sentences, self.max_chars = (0, 0) if long_form else (2, 160)
         prompt = ("(said aloud; speech-to-text may have misheard some words) " if spoken else "") + player_text
         if done:
             prompt += "\n(You already did this: %s.)" % "; ".join(done)
@@ -416,9 +440,11 @@ class Mind:
         messages = self.build_messages(snapshot, prompt)
         log.debug("prompt context:\n%s", messages[-1]["content"])
         content = ""
-        ran, checked = [], False
+        ran, checked, once = [], False, set()
         self.streamed = ""
         speaker = Streamer(on_sentence, self.max_sentences, self.max_chars) if on_sentence else None
+        if speaker:
+            speaker.trim_oh = self.oh_last
         for round_ in range(rounds):
             body = {
                 "model": ai["model"],
@@ -472,6 +498,12 @@ class Mind:
                     args = json.loads(fn.get("arguments") or "{}")
                 except ValueError:
                     args = {}
+                key = (fn.get("name", ""), json.dumps(args, sort_keys=True))
+                if key in once:  # (the same call twice in one answer: protect fired up to 4 times at once)
+                    result = {"ok": True, "note": "already done just now"}
+                    messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
+                    continue
+                once.add(key)
                 result = await run_tool(fn.get("name", ""), args if isinstance(args, dict) else {})
                 if not (isinstance(result, dict) and result.get("ok") is False):
                     ran.append(fn.get("name", ""))  # (a tool that said no proves nothing: "follow me" after a failed guide is a claim)
@@ -485,6 +517,10 @@ class Mind:
         text, mood, gesture = parse_reply(content)
         if not text:
             raise AIError("empty answer")
+        opened_oh = bool(OH.match(text))
+        if self.oh_last:
+            text = drop_oh(text)
+        self.oh_last = opened_oh
         if self.max_sentences:  # (what she didn't say isn't part of what she said)
             text = first_sentences(text, self.max_sentences, self.max_chars)
         return text, mood, gesture
@@ -527,10 +563,16 @@ def first_sentences(text, n, max_chars):
     parts = [p for p in re.split(r"(?<=[.!?…])\s+", text.strip()) if p]
     out = []
     for p in parts:
-        if len(out) >= n or (out and len(" ".join(out + [p])) > max_chars):
+        if len(out) >= n or (out and (len(" ".join(out + [p])) > max_chars or late_question(p))):
             break
         out.append(p)
     return " ".join(out) or text
+
+
+def late_question(sentence):
+    """A question after she's already said something: in a capped line it isn't heard (they talk over
+    her), so it isn't said. (A question as the first sentence is fine.)"""
+    return sentence.rstrip("\"') ").endswith("?")
 
 
 # chat gets a cap; asking how something works, for steps, a story, a song or a rap doesn't
@@ -548,6 +590,7 @@ class Streamer:
         self.emit, self.said, self.pos, self.hold, self.held = emit, [], None, False, False
         self.max_sentences, self.max_chars = max_sentences, max_chars  # a cap on chatter (0 = none)
         self.capped = False
+        self.trim_oh = False
         self.mood = self.gesture = None
         self.whisper = False
 
@@ -588,9 +631,12 @@ class Streamer:
             self.pos += len(piece)
             if text:
                 if self.max_sentences and (len(self.said) >= self.max_sentences or (
-                        self.said and sum(len(x) for x in self.said) + len(text) > self.max_chars)):
+                        self.said and (sum(len(x) for x in self.said) + len(text) > self.max_chars
+                                       or late_question(text)))):
                     self.held = self.capped = True  # (enough said: the rest of a long answer isn't spoken)
                     return
+                if not self.said and self.trim_oh:
+                    text = drop_oh(text)
                 self.said.append(text)
                 self.emit(text, self.mood, self.gesture, self.whisper)
             if not m:

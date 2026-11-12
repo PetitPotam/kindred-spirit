@@ -11,10 +11,10 @@ from kindred.instinct import Instinct, clean, prompt
 def test_only_usable_lines_are_kept():
     lines = clean({"hit": ["Ow, Alex! Why?!", "[sad] tagged", "x" * 120, "Ow!"],
                    "creeper": ["Creeper {where}! Run, Alex!", "Creeper! Run!", "Creeper {hearts}!"],
-                   "low_health": ["Only {hearts} hearts, Alex!"], "nonsense": ["hi"]})
+                   "low_health": ["Only {hearts} hearts, Alex!", "You're hurt, Alex! Eat!"], "nonsense": ["hi"]})
     assert lines["hit"] == ["Ow, Alex! Why?!", "Ow!"]
     assert lines["creeper"] == ["Creeper! Run!"], "a warning is a shout: no place to fill in"
-    assert "nonsense" not in lines and lines["low_health"]
+    assert "nonsense" not in lines and lines["low_health"] == ["You're hurt, Alex! Eat!"], "no numbers in a shout"
 
 
 def test_her_words_replace_the_builtin_ones_and_dont_repeat():
@@ -158,8 +158,8 @@ def test_her_portrait_reaches_her_quick_mind(stubs):  # noqa: F811
 
 def test_a_broken_line_never_reaches_a_warning():
     lines = clean({"creeper": ["Creeper {where!", "Creeper {where}} run!", "Creeper, run!"],
-                   "low_health": ["{hearts hearts!", "Only {hearts} hearts!"], "hit": ["Ow! {", "Ow! }", "Ow!"]})
-    assert lines == {"creeper": ["Creeper, run!"], "low_health": ["Only {hearts} hearts!"], "hit": ["Ow!"]}
+                   "low_health": ["{hearts hearts!", "You're hurt! Eat!"], "hit": ["Ow! {", "Ow! }", "Ow!"]})
+    assert lines == {"creeper": ["Creeper, run!"], "low_health": ["You're hurt! Eat!"], "hit": ["Ow!"]}
     from kindred import becoming
     assert becoming.clean("Lately I hum {hop} all day long and the pig and I are friends now.") == ""
     assert becoming.clean("Lately I ignore everything except bees, and I hum bzz-dee-bum all day.") == ""

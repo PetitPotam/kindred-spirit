@@ -95,6 +95,8 @@ She answers them in chat as "[Pip] ...", knows who said what, and sees them in t
 
 Nothing friends say changes her bond with you. `lanGuests: false` turns all of it off.
 
+A friend setting up light mode on Windows: [PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md).
+
 ### It shouldn't feel like a robot
 
 Its movement is designed to feel like a small living thing, not a camera attachment:

@@ -244,6 +244,7 @@ class Brain:
         self.unfinished, self.resume_task = None, None
         self.seconds_to_say = estimate_seconds  # (tests make it instant)
         self.player_talked, self.player_listening, self.listening_since = -1e9, False, 0.0
+        self.transcribing = False
         self.recent_said = []        # (when, text) she said lately (to recognise her own voice in your microphone)
         self.last_kill = None        # (when, what) the player last killed (for "how did you take it down?")
         self.recent = []             # (when, what) just happened: deaths, respawns, big hits (see happened)
@@ -1435,8 +1436,10 @@ class Brain:
         if self.player_listening and now - self.listening_since > 20:
             self.player_listening = False  # (the recording never came: don't stay quiet forever)
         left = self.speaking_until - now
-        if rank == 0 and (self.inbox or self.talk_lock.locked() or self.player_listening
-                          or now - self.player_talked < 6):
+        # from the moment you start talking until her answer: nothing of her own (asides and reactions
+        # wait or are dropped; warnings still come)
+        waiting = self.inbox or self.talk_lock.locked() or self.player_listening or self.transcribing
+        if (rank == 0 and (waiting or now - self.player_talked < 6)) or (rank == 1 and waiting):
             log.info("not now (%s): %s", prio, text[:70])
             self.session.event("not_said", text=text, reason="you were talking or waiting for an answer", prio=prio)
             return None
@@ -1759,7 +1762,7 @@ class Brain:
                                               "Wait, I lost it. What did you say?",
                                               "Ugh, my head's all cloudy. One more time?"]), "calm",
                                why="your thoughts went foggy for a moment (the thinking failed); the player sees a "
-                                   "notice about it")
+                                   "notice about it", prio="reply")  # (it is her answer: not held like her own lines)
                 return
             log.info("you: %s | %s: [%s]%s %s", text, self.cfg["name"], mood, " {%s}" % gesture if gesture else "", reply)
             self.memory.exchanges += 1
@@ -1841,6 +1844,13 @@ class Brain:
             self.last_talk = self.clock()
 
     async def on_voice(self, msg):
+        self.transcribing = True  # (still your turn: she holds her own lines until she answers)
+        try:
+            await self._on_voice(msg)
+        finally:
+            self.transcribing = False
+
+    async def _on_voice(self, msg):
         self.player_listening = False
         await self.send({"type": "state", "state": "thinking"})
         try:

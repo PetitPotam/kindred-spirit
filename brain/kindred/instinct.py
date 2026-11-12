@@ -33,13 +33,14 @@ MOMENTS = {
                  ["Hmm...", "Ooh, let me think...", "Hmm, good question..."]),
     "creeper": ("URGENT: a creeper is close. An instinctive shout, 2 to 5 words, no directions (\"Creeper! Watch out!\")",
                 None),
-    "low_health": ("URGENT warning: the player has only {hearts} hearts left. Short.", None),
+    "low_health": ("URGENT: the player is badly hurt. An instinctive shout, 2 to 6 words, no numbers "
+                   "(\"You're hurt! Eat something!\")", None),
     "lava": ("URGENT: lava right there. An instinctive shout, 2 to 5 words, no directions", None),
     "drop": ("a big drop right at their feet. A quick shout, 2 to 5 words, no directions", None),
 }
-NEEDS = {"low_health": "{hearts}"}
+NEEDS = {}
 PER_MOMENT = 6
-VERSION = 2  # 2: warnings are shouts without directions (older lines are written again)
+VERSION = 3  # 2: warnings are shouts without directions; 3: and without numbers (older lines are written again)
 
 
 def prompt(name, who_she_is, bond_level, player_name):
@@ -47,13 +48,13 @@ def prompt(name, who_she_is, bond_level, player_name):
     return (
         "You are writing the instant, spoken reactions of %s, an ancient spirit with a child's heart who floats "
         "beside the player in Minecraft (not a girl or a boy, not young or old; a bit of an oddball with opinions). "
-        "Minecraft is their real world: no game words, no buttons, no numbers except {hearts}. Casual and spoken: "
+        "Minecraft is their real world: no game words, no buttons, no numbers. Casual and spoken: "
         "contractions, little sounds (eep, ooh, heh), odd turns of phrase; not sugary, not needy. Short lines "
         "(under 70 characters), no emojis or asterisks; use the player's name only now and then.\n"
         "Who she is right now:\n%s\nHer bond with the player: %s.%s Never call the player by her own name or nickname.\n\n"
         "Write %d different lines for each moment below, in her own voice and colored by how she feels about the "
-        "player (warmer and more teasing when close, shorter and colder when hurt). Keep {hearts} exactly as written "
-        "where a moment has it (it becomes '2'...). Warnings are instinctive shouts, never directions. Vary them; no line twice.\n%s\n\n"
+        "player (warmer and more teasing when close, shorter and colder when hurt). Warnings are instinctive shouts, "
+        "never directions or numbers. Vary them; no line twice.\n%s\n\n"
         "Answer with one JSON object: {\"moment\": [\"line\", ...], ...}."
         % (name, who_she_is or "(she's only just met the player)", bond_level,
            (" The player's name is %s; use it now and then." % player_name) if player_name else "",

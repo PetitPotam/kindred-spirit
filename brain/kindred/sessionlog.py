@@ -70,12 +70,16 @@ class SessionLog:
         answers = [e for e in ev if e["kind"] == "answer"]
         slow = [e for e in answers if e.get("first_words", 0) > 4]
         her_words = sum(len(e.get("text", "").split()) for e in said)
+        replies = by("reply")
+        cut_replies = [c for c in cuts if c.get("by_player") and c.get("was") == "reply"]
+        per_reply = sum(len(re.findall(r"[.!?…]+(\s|$)", e.get("text", "") + " ")) for e in replies) / max(1, len(replies))
         lines = ["# Session in %s" % (self.world or "?").split(":", 1)[-1],
                  "", "%s · %.0f minutes" % (time.strftime("%Y-%m-%d %H:%M", time.localtime(self.started)), minutes), "",
                  "| | |", "|---|---|",
                  "| you spoke | %d times |" % len(you),
                  "| she spoke | %d lines (%.1f a minute), %d words |" % (len(said), len(said) / minutes, her_words),
-                 "| answering you | %d |" % len(by("reply")),
+                 "| answering you | %d (%.1f sentences each) |" % (len(replies), per_reply),
+                 "| you talked over her answer | %d of %d |" % (len(cut_replies), len(replies)),
                  "| on her own | %d (comments, musings, noticing things) |" % len(by("own")),
                  "| on instinct | %d (ow, warnings...) |" % (len(by("instinct")) + len(by("warning"))),
                  "| held back | %d (not the moment) |" % len(dropped),
@@ -92,6 +96,8 @@ class SessionLog:
             flags.append("She talked on her own more than she answered you.")
         if len(cuts) >= 3:
             flags.append("Her lines were interrupted %d times." % len(cuts))
+        if replies and len(cut_replies) / len(replies) > 0.4:
+            flags.append("You talked over %d of her %d answers: they're too long." % (len(cut_replies), len(replies)))
         if failed:
             flags.append("Failed tools: " + ", ".join(sorted({e.get("name", "?") for e in failed})))
         if errors:

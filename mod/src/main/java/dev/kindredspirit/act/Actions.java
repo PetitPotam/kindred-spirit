@@ -503,10 +503,15 @@ public final class Actions {
         ServerPlayer sp = serverPlayer(server, p);
         ServerLevel level = sp.serverLevel();
         net.minecraft.world.phys.HitResult hit = sp.pick(6, 1f, false);
-        if (!(hit instanceof net.minecraft.world.phys.BlockHitResult bh) || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
-            return error("The player isn't looking at a block or a tree close enough (6 blocks).");
+        BlockPos start = hit instanceof net.minecraft.world.phys.BlockHitResult bh
+                && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK ? bh.getBlockPos() : null;
+        // looking at leaves, or at nothing: they want wood, so the nearest trunk (asked for wood, she
+        // once broke the leaf in front of her and cheered)
+        if (start == null || level.getBlockState(start).is(net.minecraft.tags.BlockTags.LEAVES)) {
+            BlockPos log = nearestLog(level, start != null ? start : sp.blockPosition(), 6);
+            if (log != null) start = log;
+            else if (start == null) return error("The player isn't looking at a block, and there's no tree close enough (6 blocks).");
         }
-        BlockPos start = bh.getBlockPos();
         net.minecraft.world.level.block.state.BlockState first = level.getBlockState(start);
         if (first.getDestroySpeed(level, start) < 0 || level.getBlockEntity(start) != null || first.isAir()) {
             return error("That one won't budge (or it holds things).");
@@ -548,7 +553,27 @@ public final class Actions {
         StringBuilder items = new StringBuilder();
         got.forEach((k, v) -> items.append(items.length() > 0 ? ", " : "").append(v).append(" ").append(k.replace('_', ' ')));
         r.addProperty("gaveThePlayer", items.length() > 0 ? items.toString() : "nothing (it crumbled: the right tool is needed)");
+        if (items.length() == 0) { // (a broken leaf is not a success: say it as it is)
+            r.addProperty("ok", false);
+            r.addProperty("error", "You broke " + r.get("what").getAsString().replace('_', ' ')
+                    + ", but nothing came of it: the player got nothing.");
+        }
         return r;
+    }
+
+    /** The nearest log within r blocks (the trunk of the tree they mean). */
+    static BlockPos nearestLog(ServerLevel level, BlockPos around, int r) {
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (BlockPos b : BlockPos.betweenClosed(around.offset(-r, -r, -r), around.offset(r, r, r))) {
+            if (!level.getBlockState(b).is(net.minecraft.tags.BlockTags.LOGS)) continue;
+            double d = b.distSqr(around);
+            if (d < bestD) {
+                bestD = d;
+                best = b.immutable();
+            }
+        }
+        return best;
     }
 
     static JsonObject ok() {

@@ -31,7 +31,7 @@ def test_low_health_warns_once_until_healed():
     al = alerts()
     low = snap(health=5.0)
     first = al.check(low, now=0)
-    assert first and first.kind == "low_health" and "about 2 hearts" in first.text
+    assert first and first.kind == "low_health" and "hurt" in first.text and not any(c.isdigit() for c in first.text)
     assert al.check(low, now=30) is None                      # still low: no nagging
     assert al.check(snap(health=14.0), now=40) is None        # healed: re-armed
     assert al.check(snap(health=4.0), now=50).kind == "low_health"
@@ -45,7 +45,7 @@ def test_low_health_reminds_after_a_long_time():
 
 def test_low_health_with_monsters_says_run():
     a = alerts().check(snap(health=4.0, hostiles=[zombie(6)]), now=0)
-    assert "monsters" in a.text or "after you" in a.text
+    assert "Run" in a.text or "Get out" in a.text
 
 
 def test_creeper_beats_low_health_and_two_alerts_keep_a_gap():
