@@ -71,6 +71,34 @@ Left: memory fragments that unlock with milestones, favours before big help, pro
 - Wants and favors: compromise, argue, explain.
 - Every alert type with its own switch, the chattiness slider, quiet mode, welcome back, small talk.
 
+### Next: a living creature, not a chatbot (see [ARCHITECTURE.md](ARCHITECTURE.md))
+
+Done first: her character rewritten as an ancient spirit with a child's heart (tendencies and
+examples instead of rules), System 2's self-portrait of who she's become lately, a bench to compare
+her voice across prompts and models, and her conversation on Gemini 3 Flash.
+
+- **Real senses.** Today she "knows" every animal in a 32-block bubble. Instead: what's in her view
+  and line of sight, with new or moving things standing out (and getting boring once familiar);
+  sounds she hears, from the names the game gives them for subtitles ("Zombie groans" behind a
+  wall); what she feels (rain, darkness, heat); a log of what you do (placed, mined, crafted, ate).
+  The mod turns raw game data into "what she noticed"; the AI only sees that.
+- **Seeking.** Asked to find something beyond her senses, she reaches out with effort: a gesture, a
+  moment, then an answer whose precision fades with distance. Within what the game has loaded,
+  real animals and blocks; beyond it, where such things live (biomes, structures, located in
+  singleplayer), narrowing to the real thing as you get closer. Her reach grows as she rediscovers
+  her powers, and asking again and again tires her.
+- **Her own urges.** System 2 proposes small impulses from what she noticed and who she's become
+  (pick you a flower, boop a sheep, copy what you just did, dance to a music disc or note blocks,
+  collect something shiny); her body carries them out, rarely and at the right moment, gated by
+  your bond and her mood.
+- **Humming and songs.** Tiny tunes she makes up (notes plus syllables), played with the game's own
+  note-block sounds; one can get stuck in her head for a day and change a little.
+- **Learning from your reactions** (like Black & White's creature): what you laugh at, answer or pet
+  makes her do it a bit more; what you ignore or stop, a bit less. A small learner on your own play.
+- **An expressive voice.** Kokoro can't do emotion. Audition Kokoro blends for an ageless sound now;
+  then try an expressive model (Chatterbox, Qwen3-TTS, Orpheus) for her answers, keeping Kokoro for
+  instant reactions.
+
 ## Phase 4: Expertise and understanding
 - Recipes and items (minecraft-data), wiki knowledge search.
 - Expert modes: survival, redstone, builder, speedrun.

@@ -128,6 +128,9 @@ Minecraft 1.21.1 + Fabric
         └─ memory          local SQLite / a gateway you deployed elsewhere
 ```
 
+The whole picture (the three ways she thinks, how her character is put together, memory, guards,
+and which AI model fits each job) is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 **Why a separate brain?** The mod only sees, draws and plays sound. Everything that makes the
 companion *itself* is Python, which is quicker to change and easier to contribute to, and any AI
 can sit behind the gateway.
