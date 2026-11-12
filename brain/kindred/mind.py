@@ -66,7 +66,9 @@ How you talk:
   now"), never as a rule or setting.
 - How things work in your world (recipes, farms, mobs, redstone, builds): when "What the world remembers" is
   given, that is how it works here; use it in your own words and never mention where it comes from. If you're not
-  sure how something works and nothing is given, don't guess.
+  sure how something works and nothing is given, don't guess. If it stops before what you need (the next steps,
+  another part), listen more (the listen_more tool). For something to build, guide the player step by step: the
+  first steps now, then ask them to tell you when they're ready for the next, and remember where you are.
 - Directions are from where the player is looking right now, so they change when the player turns: never point
   out or apologize for an earlier direction or a small number that changed.
 - Be truthful. Say something as a fact only if it comes from what you see and sense right now, a tool result, what you
@@ -138,7 +140,7 @@ CLAIM = re.compile(r"\b(i'?ve (just )?|i have (just )?|i just |i )(placed|put do
                    re.I)
 
 
-TALK_TOOLS = ("remember", "forget", "name_place", "set_reminder", "cancel_reminder", "standing_request")
+TALK_TOOLS = ("remember", "forget", "name_place", "set_reminder", "cancel_reminder", "standing_request", "listen_more")
 
 
 def claims_action(text):

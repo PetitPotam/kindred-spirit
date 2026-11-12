@@ -324,6 +324,21 @@ whole wiki with `--all` (~10,000 articles once version pages are skipped) about 
 `KINDRED_KNOWLEDGE` points elsewhere (or `--dir`); `KINDRED_GATEWAY_URL` is the gateway the CLI
 asks for embeddings (default `http://127.0.0.1:11437/v1`).
 
+## Current information first, and whole guides
+
+- **Outdated pages rank lower.** The wiki marks pages about older versions itself (categories like
+  "Outdated tutorials", or text like "as it formerly worked prior to Java Edition 1.14"). They stay
+  searchable but score lower, are flagged `"outdated": true`, and never count as covering a question
+  on their own, so she learns the current page instead.
+- **A build question needs a real guide.** It counts as covered only by a current guide whose title
+  names the thing ("Tutorial:Iron golem farming"), not a paragraph in a general tutorial.
+- **Whole sections.** `POST /v1/knowledge/section {"chunk_id": id}` (or `{"page": title, "name":
+  "tower", "start": n}`) returns all the passages of a section in order, up to `max_chars`, with
+  `more`, `next_start`, `next_section` and the page's `outline`. For a how-to, Pip gets the whole
+  section of the best current guide and guides you step by step; her `listen_more` tool fetches the
+  next part, or a part by name, instead of guessing. The dashboard's Knowledge tab shows the whole
+  section of any result.
+
 ## How Pip uses it
 
 Wired in `brain/kindred/knowledge.py` and `Brain.world_answer` / `listen_to_the_world`

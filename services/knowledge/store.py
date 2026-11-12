@@ -546,16 +546,21 @@ class KnowledgeStore:
                 score = 0.4 * max(0.0, sim) + 0.2 * k_ + 0.15 * title + 0.15 * intent + 0.1 * recipe
             else:
                 score = 0.4 * k_ + 0.25 * title + 0.25 * intent + 0.1 * recipe
+            meta = json.loads(r["meta"] or "{}")
+            # how things worked in an older version: still searchable, but current guides come first,
+            # and an old page alone doesn't count as an answer (then it's worth learning the current one)
+            old = outdated(meta, r["text"])
+            if old:
+                score *= 0.55
             if score < min_score:
                 continue
-            meta = json.loads(r["meta"] or "{}")
             out.append({"id": r["id"], "title": r["title"], "section": r["section"], "text": r["text"],
                         "url": r["url"], "source": r["source"], "license": r["license"],
                         "license_url": r["license_url"], "attribution": r["attribution"],
                         "edition": meta.get("edition", ""), "fetched": r["fetched"], "data": data,
                         "score": round(score, 4), "similarity": round(sim, 4), "keywords": round(k_, 4),
                         "about": about, "covers": round(covers, 3), "title_match": title, "named_like": named_like,
-                        "guide": guide, "page_id": r["page_id"]})
+                        "guide": guide, "page_id": r["page_id"], "outdated": old})
         out.sort(key=lambda d: d["score"], reverse=True)
         per, final = {}, []
         for d in out:
@@ -566,6 +571,45 @@ class KnowledgeStore:
             if len(final) >= k:
                 break
         return final
+
+    # ------------------------------------------------------------------ whole sections (for step-by-step guides)
+
+    def section(self, chunk_id=None, page=None, name=None, start=0, max_chars=4500):
+        """The passages of one section of a page, in order, from passage `start` of that section, up to
+        `max_chars`: {title, section, text, part, parts, more, next_start, outline, url, ...}.
+        Give a chunk id (from a search result), or a page title and a section name (or a part of it,
+        "Step two"; the page's first section if none)."""
+        with self.lock:
+            if chunk_id is not None:
+                row = self.db.execute("select page_id, section from chunks where id = ?", (int(chunk_id),)).fetchone()
+                if not row:
+                    return {"error": "no such passage"}
+                pid, sec = row["page_id"], row["section"]
+            else:
+                p = self.db.execute("select id from pages where lower(title) = lower(?)", (page or "",)).fetchone()
+                if not p:
+                    return {"error": "no page called %r" % page}
+                pid = p["id"]
+                secs = [r["section"] for r in self.db.execute(
+                    "select section from chunks where page_id = ? group by section order by min(ord)", (pid,))]
+                want = (name or "").lower()
+                sec = next((s for s in secs if want and want in (s or "").lower()), secs[0] if secs else "")
+            rows = self.db.execute("select id, ord, text from chunks where page_id = ? and section = ? order by ord",
+                                   (pid, sec)).fetchall()
+            page_row = self.db.execute("select title, url, meta from pages where id = ?", (pid,)).fetchone()
+            outline = [r["section"] for r in self.db.execute(
+                "select section from chunks where page_id = ? group by section order by min(ord)", (pid,))]
+        start = max(0, int(start))
+        texts, used, i = [], 0, start
+        while i < len(rows) and (not texts or used + len(rows[i]["text"]) <= max_chars):
+            texts.append(rows[i]["text"])
+            used += len(rows[i]["text"])
+            i += 1
+        meta = json.loads(page_row["meta"] or "{}")
+        nxt = outline[outline.index(sec) + 1] if sec in outline and outline.index(sec) + 1 < len(outline) else None
+        return {"title": page_row["title"], "section": sec, "text": "\n\n".join(texts), "url": page_row["url"],
+                "part": start + 1, "parts": len(rows), "more": i < len(rows), "next_start": i if i < len(rows) else None,
+                "next_section": nxt, "outline": outline, "outdated": outdated(meta, rows[0]["text"] if rows else "")}
 
     # ------------------------------------------------------------------ numbers
 
@@ -595,6 +639,21 @@ class KnowledgeStore:
 COVERED_SCORE = 0.55
 
 
+OUTDATED_CATEGORIES = re.compile(r"outdated|obsolete|removed|historical|legacy console|unused|joke features|"
+                                 r"april fools|pre-release", re.I)
+OUTDATED_TEXT = re.compile(r"\b(as it formerly worked|formerly worked|prior to (java|bedrock) edition \d|no longer works|"
+                           r"(was|has been) removed in|legacy console edition only|this (tutorial|page|article) is outdated)\b",
+                           re.I)
+
+
+def outdated(meta, text=""):
+    """Is this about an older version of the game? The wiki says so itself: categories like
+    "Outdated tutorials", or text like "as it formerly worked prior to Java Edition 1.14"."""
+    if any(OUTDATED_CATEGORIES.search(c) for c in (meta or {}).get("categories") or []):
+        return True
+    return bool(OUTDATED_TEXT.search((text or "")[:600]))
+
+
 def coverage(query, results, threshold=COVERED_SCORE):
     """Is the question answered by these results? The best one must score >= threshold and be
     about the thing asked: its page *is* that thing (title "Piston" for "make a piston"), or it
@@ -603,10 +662,14 @@ def coverage(query, results, threshold=COVERED_SCORE):
     best = results[0]["score"] if results else 0.0
 
     def answers(r):
-        return r["score"] >= threshold and (r["title_match"] >= 1.0 or (r["covers"] >= 1.0 and not r["named_like"]))
+        return r["score"] >= threshold and not r.get("outdated") and (
+            r["title_match"] >= 1.0 or (r["covers"] >= 1.0 and not r["named_like"]))
     covered = bool(results) and answers(results[0])
     if set(words(query)) & BUILD_WORDS:
-        covered = any(r["guide"] and r["covers"] >= 1.0 and r["score"] >= threshold for r in results[:3])
+        # a guide about that very thing (its title names it: "Tutorial:Iron golem farming"), current, not a
+        # paragraph in a general tutorial ("Flat survival") or how it worked in an older version
+        covered = any(r["guide"] and not r.get("outdated") and r["title_match"] > 0 and r["covers"] >= 1.0
+                      and r["score"] >= threshold for r in results[:3])
     return {"best": best, "covered": covered, "threshold": threshold}
 
 

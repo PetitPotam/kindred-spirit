@@ -64,3 +64,29 @@ def test_she_listens_to_the_world_then_comes_back(stubs):
     back = stubs.ai_requests[-1]["messages"][-1]["content"]
     assert "zombie scares them" in back and "what the stones or the wind told you" in back
     assert any(m.get("look") == "around" for m in sent if m["type"] == "act"), "she looks around, listening"
+
+
+def test_a_build_question_gets_the_whole_guide_and_she_can_listen_for_more(stubs):
+    old = {"id": 7, "title": "Tutorial:Door-based iron golem farming", "section": "Tower", "text": "doors...", "outdated": True}
+    new = {"id": 9, "title": "Tutorial:Iron golem farming", "section": "Simple farm", "text": "beds..."}
+    stubs.kb = [{"covered": True, "best": 0.8, "results": [old, new]},
+                {"title": "Tutorial:Iron golem farming", "section": "Simple farm", "text": "1. Dig a pit. 2. Add beds.",
+                 "part": 1, "parts": 3, "more": True, "next_start": 2, "next_section": "Collection",
+                 "outline": ["Basics", "Simple farm", "Collection"]},
+                {"title": "Tutorial:Iron golem farming", "section": "Simple farm", "text": "3. Add a zombie. 4. Lava.",
+                 "part": 3, "parts": 3, "more": False, "next_start": None, "next_section": "Collection",
+                 "outline": ["Basics", "Simple farm", "Collection"]}]
+    b = _brain(stubs)
+    b.send = lambda msg: asyncio.sleep(0)
+    b.cfg["voice"]["enabled"] = False
+
+    async def run():
+        b.ws, b.in_world, b.snapshot = object(), True, snap()
+        await b.answer("how do I build an iron golem farm?")
+        return await b.run_tool("listen_more", {"what": "next"})
+    more = asyncio.run(run())
+    sent = stubs.ai_requests[0]["messages"][-1]["content"]
+    assert "Dig a pit" in sent and "listen more" in sent and "doors" not in sent, "the current guide, whole, in order"
+    section_calls = [body for op, body in stubs.kb_requests if op == "section"]
+    assert section_calls[0]["chunk_id"] == 9, "the current guide, not the outdated one"
+    assert section_calls[1]["start"] == 2 and "Add a zombie" in more["world_remembers"]

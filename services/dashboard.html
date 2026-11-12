@@ -419,9 +419,16 @@ async function kbSearch() {
   if (!q) return;
   const d = await get(`/api/knowledge/search?q=${encodeURIComponent(q)}`);
   $("kb-results").innerHTML = `<div class="small" style="margin-bottom:6px">${d.covered ? `<b style="color:var(--good)">Known</b>: she'd answer from this` : `<b style="color:var(--warn)">Not known well</b>: she'd say she'll listen to the world, and learn it`} (best match ${(d.best ?? 0).toFixed(2)}, needs ${d.threshold ?? "?"})</div>` +
-    (d.results || []).map((r) => `<div class="mem"><div><span class="badge">${(r.score ?? 0).toFixed(2)}</span></div><div><b>${esc(r.title)}</b>${r.section ? ` <span class="muted">/ ${esc(r.section)}</span>` : ""}
-      <pre>${esc(r.text)}</pre><div class="small muted"><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--muted)">${esc(r.url)}</a> · ${esc(r.license || "")}</div></div></div>`).join("");
+    (d.results || []).map((r) => `<div class="mem"><div><span class="badge">${(r.score ?? 0).toFixed(2)}</span>${r.outdated ? `<br><span class="badge k-problem" title="the wiki marks this as how it worked in an older version: ranked lower">outdated</span>` : ""}</div><div><b>${esc(r.title)}</b>${r.section ? ` <span class="muted">/ ${esc(r.section)}</span>` : ""}
+      <pre id="kb-sec-${r.id}">${esc(r.text)}</pre>${r.id != null ? `<button class="chip" data-sec="${r.id}">Show the whole section</button>` : ""}<div class="small muted"><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--muted)">${esc(r.url)}</a> · ${esc(r.license || "")}</div></div></div>`).join("");
 }
+$("kb-results").onclick = async (ev) => {
+  const id = ev.target.dataset && ev.target.dataset.sec;
+  if (!id) return;
+  const d = await get(`/api/knowledge/section?id=${id}`);
+  $("kb-sec-" + id).textContent = `${d.section} (${d.parts} passages, in order)\n\n${d.text}\n\nThis guide's parts: ${(d.outline || []).join(" · ")}`;
+  ev.target.remove();
+};
 $("kb-learn").onclick = async () => {
   const q = $("kb-q").value.trim();
   if (!q) return;

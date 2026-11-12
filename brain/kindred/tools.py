@@ -71,6 +71,10 @@ MEMORY_TOOLS = [
         {"what": {"type": "string", "enum": ["protect", "notify_ore"]},
          "detail": {"type": "string", "description": "for notify_ore: which ore"},
          "stop": {"type": "boolean", "description": "true to stop doing it"}}, ["what"]),
+    _fn("listen_more", "Listen more closely to what the world remembers about the guide or thing you were just told "
+        "about: the next part (what='next'), or a part by name (what='Step two', 'Collection system'...). Use it when "
+        "what you know stops before what you need, instead of guessing.",
+        {"what": {"type": "string", "description": "'next' or the name of a part"}}, ["what"]),
     _fn("forget", "Forget facts or named places that mention something, when the player asks you to forget.",
         {"about": {"type": "string"}}, ["about"]),
     _fn("name_place", "Remember where the player is standing under a name, when they say things like "
