@@ -76,13 +76,46 @@ public final class KindredConfig {
         if (cfg == null) cfg = new KindredConfig();
         if (cfg.life == null) cfg.life = new Behavior.Settings();
         cfg.save();
+        try { // the defaults, next to it: the dashboard's "reset to default" reads them
+            Files.writeString(p.resolveSibling("kindredspirit.defaults.json"), GSON.toJson(new KindredConfig()),
+                    StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+        }
         return cfg;
+    }
+
+    private long written = -1, seen = -1;
+
+    /** Changed by someone else (the dashboard)? Then take the new values, in place. True if it did. */
+    public boolean reloadIfChanged() {
+        try {
+            long m = Files.getLastModifiedTime(path()).toMillis();
+            if (m == written || m == seen) return false;
+            seen = m;
+            KindredConfig other = GSON.fromJson(Files.readString(path(), StandardCharsets.UTF_8), KindredConfig.class);
+            if (other == null) return false;
+            copy(other, this, KindredConfig.class);
+            if (other.life != null) copy(other.life, life, Behavior.Settings.class);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static <T> void copy(T from, T to, Class<T> type) throws IllegalAccessException {
+        for (java.lang.reflect.Field f : type.getFields()) {
+            int mod = f.getModifiers();
+            if (java.lang.reflect.Modifier.isStatic(mod) || java.lang.reflect.Modifier.isFinal(mod)) continue;
+            if (f.getType() == Behavior.Settings.class) continue; // (copied field by field: others hold it)
+            f.set(to, f.get(from));
+        }
     }
 
     public void save() {
         try {
             Files.createDirectories(path().getParent());
             Files.writeString(path(), GSON.toJson(this), StandardCharsets.UTF_8);
+            written = Files.getLastModifiedTime(path()).toMillis();
         } catch (IOException e) {
             KindredSpiritClient.LOG.warn("Could not save {}: {}", path(), e.toString());
         }

@@ -214,7 +214,7 @@ svg text { fill: var(--muted); font-size: 10px; }
   <section class="tab" id="tab-settings">
     <div class="grid">
       <div class="card wide"><h2>Change settings</h2><div id="set-edit"></div>
-        <div class="small muted" style="margin-top:8px">Brain settings are picked up within a few seconds, no restart (saved in ~/.kindred-spirit/brain-overrides.json, on top of brain.toml). Gateway settings apply to the next call. In-game settings (power, style, skin, chat) stay in game: /kindred.</div></div>
+        <div class="small muted" style="margin-top:8px">Everything applies without a restart: her brain within a few seconds (saved in ~/.kindred-spirit/brain-overrides.json, on top of brain.toml), the gateway on the next call, the game within two seconds, even while you play. ↺ puts one setting back to its default.</div></div>
       <div class="card"><h2>In use</h2><div id="set-use"></div></div>
       <div class="card"><h2>Special instructions</h2><div id="set-instr"></div></div>
       <div class="card wide"><h2>Her heart (brain.toml)</h2><div id="set-heart"></div></div>
@@ -541,30 +541,53 @@ let editing = false;
 async function settingsEditor() {
   if (editing) return;  // (don't redraw under your fingers)
   const d = await get("/api/settings/editable");
-  const groups = {brain: "Her (brain)", gateway: "AI, voice and hearing (gateway)"};
-  $("set-edit").innerHTML = Object.entries(groups).map(([w, title]) => `<h3 class="small" style="margin:10px 0 4px">${title}</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:6px 18px">` +
-    d.settings.filter((x) => x.where === w).map((x, i) => {
-      const id = "st-" + w + "-" + x.path.replace(/\W/g, "_");
-      let input;
-      if (x.type === "bool") input = `<input type="checkbox" id="${id}" ${x.value ? "checked" : ""}>`;
-      else if (x.type === "choice") input = `<select id="${id}">${x.choices.map((c) => `<option value="${esc(c)}" ${c === x.value ? "selected" : ""}>${esc(c || "(same as conversation)")}</option>`).join("")}</select>`;
-      else input = `<input type="search" id="${id}" value="${esc(x.value ?? "")}" style="width:${x.type === "text" ? 180 : 80}px">`;
-      return `<label class="small" style="display:flex;justify-content:space-between;gap:8px;align-items:center">${esc(x.label)} ${input}</label>`;
-    }).join("") + "</div>").join("") +
-    `<div class="row" style="margin-top:10px"><button class="chip" id="st-save">Save changes</button><span class="small muted" id="st-msg"></span></div>`;
   const all = d.settings;
-  $("set-edit").oninput = () => { editing = true; $("st-msg").textContent = "unsaved changes"; };
+  const idOf = (x) => "st-" + x.where + "-" + x.path.replace(/\W/g, "_");
+  const show = (v) => v === "" ? "(empty)" : v === null || v === undefined ? "?" : String(v);
+  const SECTION = {name: "Her", personality: "Her", ai: "Her AI", voice: "Her voice", behaviour: "How she behaves", heart: "Her heart"};
+  const groups = [];
+  all.forEach((x) => {
+    const title = x.where === "brain" ? "Her brain · " + (SECTION[x.path.split(".")[0]] || x.path.split(".")[0])
+      : x.where === "gateway" ? "AI, voice and hearing (gateway)" : "In game (mod)" + (x.path.startsWith("life.") ? " · her liveliness" : "");
+    let g = groups.find((g) => g.title === title); if (!g) groups.push(g = {title, items: []}); g.items.push(x);
+  });
+  const row = (x) => {
+    const id = idOf(x);
+    let input;
+    if (x.type === "bool") input = `<input type="checkbox" id="${id}" ${x.value ? "checked" : ""}>`;
+    else if (x.type === "choice") input = `<select id="${id}">${x.choices.map((c) => `<option value="${esc(c)}" ${c === x.value ? "selected" : ""}>${esc(c === "" ? "(same / default)" : c)}</option>`).join("")}</select>`;
+    else if (x.type === "longtext") input = `<textarea id="${id}" rows="2" style="width:100%;font:inherit">${esc(x.value ?? "")}</textarea>`;
+    else input = `<input type="search" id="${id}" value="${esc(x.value ?? "")}" style="width:${x.type === "text" ? 170 : 70}px">`;
+    const changed = x.default !== null && x.default !== undefined && String(x.value ?? "") !== String(x.default);
+    const reset = x.default === null || x.default === undefined ? "" :
+      `<button class="chip ${changed ? "" : "off"}" data-reset="${esc(id)}" title="back to the default: ${esc(show(x.default))}">↺</button>`;
+    return `<label class="small" style="display:flex;justify-content:space-between;gap:8px;align-items:center;${x.type === "longtext" ? "grid-column:1/-1" : ""}">
+      <span>${esc(x.label)}${changed ? ` <span class="muted">(default ${esc(show(x.default))})</span>` : ""}</span><span style="display:flex;gap:4px;align-items:center">${input}${reset}</span></label>`;
+  };
+  $("set-edit").innerHTML = groups.map((g) => `<h3 class="small" style="margin:12px 0 4px">${esc(g.title)}</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:6px 18px">${g.items.map(row).join("")}</div>`).join("") +
+    `<div class="row" style="margin-top:12px"><button class="chip" id="st-save">Save changes</button>
+      <button class="chip off" id="st-defaults" title="every setting back to its default (then Save)">Reset all to defaults</button>
+      <span class="small muted" id="st-msg"></span></div>`;
+  const setTo = (x, v) => { const el = $(idOf(x)); if (!el) return; if (x.type === "bool") el.checked = !!v; else el.value = v ?? ""; };
+  const dirty = () => { editing = true; $("st-msg").textContent = "unsaved changes"; };
+  $("set-edit").oninput = dirty;
+  $("set-edit").onclick = (ev) => {
+    const b = ev.target.closest("[data-reset]"); if (!b) return;
+    ev.preventDefault(); const x = all.find((x) => idOf(x) === b.dataset.reset); if (x) { setTo(x, x.default); dirty(); }
+  };
+  $("st-defaults").onclick = () => { all.forEach((x) => { if (x.default !== null && x.default !== undefined) setTo(x, x.default); }); dirty();
+    $("st-msg").textContent = "everything set back to its default: Save to keep it"; };
   $("st-save").onclick = async () => {
     const changes = [];
     all.forEach((x) => {
-      const el = $("st-" + x.where + "-" + x.path.replace(/\W/g, "_"));
+      const el = $(idOf(x)); if (!el) return;
       const v = x.type === "bool" ? el.checked : el.value;
       if (String(v) !== String(x.value ?? "")) changes.push({where: x.where, path: x.path, value: v});
     });
-    if (!changes.length) { $("st-msg").textContent = "nothing changed"; return; }
+    if (!changes.length) { $("st-msg").textContent = "nothing changed"; editing = false; return; }
     try { const r = await post("/api/settings", {changes}); editing = false;
-      $("st-msg").textContent = "saved: " + r.changed.map((c) => c.path + " = " + c.value).join(", "); await settingsTab(); }
+      $("st-msg").textContent = "saved " + r.changed.length + " setting" + (r.changed.length > 1 ? "s" : ""); await settingsTab(); }
     catch (e) { $("st-msg").textContent = "not saved: " + e.message; }
   };
 }

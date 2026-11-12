@@ -42,10 +42,16 @@ her brain talks to one game at a time (the simulator, or Minecraft).
 
 ## Changing settings
 
-The **Settings** tab can now change a short list of settings: her name, warnings, greeting, small
-talk, temperament, how she discovers powers, pranks, fibs, play-fights, vanishing, mischief, weather,
-voice on/off and temperature (brain: saved in `~/.kindred-spirit/brain-overrides.json` on top of
-`brain.toml`, which keeps your comments, and picked up within seconds without a restart); and the
-AI for her conversation and for her deeper thinking, the Gemini model for her replies, her Kokoro
-voice, speed and pitch, and speech-to-text (gateway: applies to the next call). Only those listed
-settings, with their types checked, and only from the dashboard's own page.
+The **Settings** tab can change every setting, each shown with its default (↺ puts one back;
+"Reset all to defaults" does them all, then Save):
+- **Her brain**: everything in `brain.toml` (her name and personality wishes, her AI, voice, behaviour
+  and heart), listed from its defaults so new settings show up on their own. Saved in
+  `~/.kindred-spirit/brain-overrides.json` on top of `brain.toml` (which keeps your comments), picked up
+  within seconds, no restart. Only the connection settings (server, gateway address) aren't here.
+- **The game (mod)**: everything in `kindredspirit.json` (skin, power, style, chat mode, subtitles,
+  glow, her liveliness, size and position...), applied within two seconds, even while you play. The
+  mod writes its defaults next to it (`kindredspirit.defaults.json`) when it starts.
+- **The gateway**: the AI for her conversation and for her deeper thinking, the Gemini model and
+  thinking for her replies, her Kokoro voice, speed and pitch, and speech-to-text, for the next call.
+
+Types and choices are checked; changes are accepted only from the dashboard's own page.

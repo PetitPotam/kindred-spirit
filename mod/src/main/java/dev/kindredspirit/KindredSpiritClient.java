@@ -376,6 +376,12 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
         if (mc.player == null || mc.level == null) return;
         if (tune.playing()) tune.tick(mc, companion.life.x, companion.life.y, companion.life.z);
+        if (++configChecks % 40 == 0 && cfg.reloadIfChanged()) { // changed from the dashboard: applied now
+            String skin = cfg.skin;
+            if (skins.has(skin) && !skin.equals(companion.skin.id())) companion.skin = skins.get(skin);
+            sendAbilities(); // power and style
+            LOG.info("settings changed outside the game: applied");
+        }
         Companion.Touch touch = companion.tick(mc);
         if (touch == Companion.Touch.PETTED) event("petted");
         if (touch == Companion.Touch.HIT) event("hit");
@@ -666,6 +672,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     // her senses: what she hears, and what she watched you do (see senses/)
     private final dev.kindredspirit.senses.Hearing hearing = new dev.kindredspirit.senses.Hearing();
     private boolean hearingOn;
+    private int configChecks;
     private final dev.kindredspirit.audio.TunePlayer tune = new dev.kindredspirit.audio.TunePlayer(); // her hums
     private final dev.kindredspirit.senses.Recent youDid = new dev.kindredspirit.senses.Recent(120000, 6);
     private java.util.Map<String, Integer> lastInventory;
