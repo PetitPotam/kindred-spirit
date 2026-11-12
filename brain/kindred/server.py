@@ -33,6 +33,7 @@ from websockets.exceptions import ConnectionClosed
 
 from . import config, intents, tools, voice
 from . import heart as intents_heart
+from .describe import describe
 from .heart import Heart
 from .memory import GatewayMemory, Memory
 from .alerts import Alerts
@@ -318,6 +319,43 @@ class Brain:
         self.last_talk = self.clock()
         log.info("noticed %s (%s): %s", event, detail, text)
         await self.say(text, mood or "curious", emote=gesture)
+
+    # ------------------------------------------------------------------ what she's like right now (dashboard)
+
+    def state(self):
+        """Everything the dashboard shows about her: written to logs/brain-state.json."""
+        h, now = self.heart, self.clock()
+        return {
+            "time": time.time(), "name": self.cfg["name"], "connected": self.ws is not None,
+            "in_world": self.in_world, "world": self.memory.world_id, "per_world": self.memory.per_world,
+            "mood": self.mood, "singleplayer": self.singleplayer, "abilities": self.abilities,
+            "heart": {"bond": round(h.bond, 1), "level": h.level(), "closeness": h.closeness(), "angry": h.angry(),
+                      "valence": round(h.valence, 2), "arousal": round(h.arousal, 2), "novelty": round(h.novelty, 2),
+                      "discovered": h.state.get("discovered", []), "asked": h.state.get("asked", {}),
+                      "requests": h.state.get("requests", []), "pets": len(h.state.get("pets", [])),
+                      "species_met": h.state.get("seen_species", []), "amnesia": h.amnesia()},
+            "awakening": [{"power": k, "plan": v["plan"], "favour": v["favour"], "favour_done": v["done"]}
+                          for k, v in self.awakening.items()],
+            "offer": (h.pending_offer or {}).get("what"), "her_offer": self.her_offer[0] if self.her_offer else None,
+            "offered_to_ai": self.offered,
+            "conversation": {"history": self.mind.history[-16:], "summary": self.mind.summary,
+                             "waiting_to_fold": len(self.mind.to_fold)},
+            "last_sent": {"memories": self.mind.recalled, "feelings": self.mind.heart, "settings": self.mind.powers,
+                          "game": describe(self.snapshot) if self.snapshot else ""},
+            "last_regard": self.mind.last_regard,
+            "seconds_since_talk": round(now - self.last_talk), "seconds_idle": round(now - self.idle_since),
+        }
+
+    async def state_loop(self, every=2.0):
+        path = os.path.join(config.HOME, "logs", "brain-state.json")
+        while True:
+            try:
+                with open(path + ".tmp", "w", encoding="utf-8") as fh:
+                    json.dump(self.state(), fh, ensure_ascii=False, default=str)
+                os.replace(path + ".tmp", path)
+            except Exception as e:  # the dashboard is a bonus: never a reason to stop
+                log.debug("state not written: %s", e)
+            await asyncio.sleep(every)
 
     async def heart_loop(self, every=15.0):
         """Her own rhythm: forgiving with time, standing requests, little pranks."""
@@ -930,4 +968,4 @@ async def run(cfg, token):
                      ping_interval=20, ping_timeout=20):
         log.info("%s's brain is listening on ws://%s:%d (gateway: %s, model %s)", cfg["name"], host, port,
                  cfg["gateway"]["url"], cfg["ai"]["model"] or "the gateway's")
-        await asyncio.gather(brain.small_talk_loop(), brain.reminder_loop(), brain.heart_loop())
+        await asyncio.gather(brain.small_talk_loop(), brain.reminder_loop(), brain.heart_loop(), brain.state_loop())

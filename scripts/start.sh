@@ -12,6 +12,7 @@
 #   :8885 kokoro           the companion's voice                          (services/kokoro_server.py)
 #   :8891 embeddings       what memories mean, for recall                 (services/embed_server.py)
 #   :47811 brain           the mod connects here                          (brain/kindred)
+#   :11440 dashboard       what she's doing, thinking and remembering: open http://127.0.0.1:11440
 #
 # The helpers run at low CPU priority with thread counts picked for this computer
 # (python -m kindred.hardware), so Minecraft keeps the CPU when both want it.
@@ -69,6 +70,9 @@ if up http://127.0.0.1:11437/health; then echo "gateway: already running"
 else start gateway "$BPY" -I "$ROOT/services/kindred_gateway.py" serve; echo "gateway: started"; fi
 
 wait_up http://127.0.0.1:11437/health || echo "gateway did not come up: see $LOGS/gateway.out"
+
+if up http://127.0.0.1:11440/api/settings; then echo "dashboard: already running (http://127.0.0.1:11440)"
+else start dashboard "$BPY" -I "$ROOT/services/dashboard.py"; echo "dashboard: http://127.0.0.1:11440"; fi
 grep -qE '^(GEMINI_API_KEY)=.+' "$KH/secrets.env" 2>/dev/null || [[ -n "${GEMINI_API_KEY:-}" ]] \
   || echo "note: no GEMINI_API_KEY in $KH/secrets.env (fine if you switched the gateway to another AI)"
 

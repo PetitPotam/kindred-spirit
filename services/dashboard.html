@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kindred Dashboard</title>
+<style>
+:root {
+  --bg: #f6f4fa; --panel: #ffffff; --ink: #221f2b; --muted: #6d6880; --line: #e4e0ee;
+  --accent: #7c5cc4; --accent-soft: #ece6fb; --good: #2f8f5b; --warn: #b7791f; --bad: #c2413b;
+  --you: #e9f1ff; --pip: #f3ecff; --code: #f3f1f7; --bar: #d9d2ee;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15131b; --panel: #1e1b27; --ink: #ece9f3; --muted: #a29cb6; --line: #2e2a3b;
+    --accent: #a98cf0; --accent-soft: #2c2540; --good: #5cc48b; --warn: #e0a84a; --bad: #ee6b63;
+    --you: #1f2a3d; --pip: #2a2240; --code: #191622; --bar: #3a3352;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15131b; --panel: #1e1b27; --ink: #ece9f3; --muted: #a29cb6; --line: #2e2a3b;
+  --accent: #a98cf0; --accent-soft: #2c2540; --good: #5cc48b; --warn: #e0a84a; --bad: #ee6b63;
+  --you: #1f2a3d; --pip: #2a2240; --code: #191622; --bar: #3a3352;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 16px; }
+.top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--code); color: var(--muted); white-space: nowrap; }
+.pill b { color: var(--ink); font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; background: var(--muted); }
+.dot.ok { background: var(--good); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+nav { display: flex; gap: 2px; margin-top: 10px; overflow-x: auto; }
+nav button { border: 0; background: none; color: var(--muted); padding: 7px 12px; border-radius: 8px; font: inherit; cursor: pointer; white-space: nowrap; }
+nav button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+main { padding: 16px; max-width: 1280px; margin: 0 auto; }
+.tab { display: none; } .tab.on { display: block; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; }
+.card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+.wide { grid-column: 1 / -1; }
+.big { font-size: 26px; font-weight: 650; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.meter { height: 10px; background: var(--code); border-radius: 6px; overflow: hidden; margin: 8px 0; }
+.meter > i { display: block; height: 100%; background: linear-gradient(90deg, #f3a6c4, var(--accent)); border-radius: 6px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); cursor: default; border: 0; font-family: inherit; }
+button.chip { cursor: pointer; } button.chip.off { background: var(--code); color: var(--muted); }
+pre { background: var(--code); border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 340px; overflow: auto; }
+details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 6px; }
+.bubble { padding: 7px 10px; border-radius: 10px; margin: 6px 0; max-width: 92%; }
+.bubble.you { background: var(--you); margin-left: auto; }
+.bubble.pip { background: var(--pip); }
+.feed { display: flex; flex-direction: column; gap: 4px; }
+.ev { display: grid; grid-template-columns: 64px 92px 1fr; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--line); align-items: baseline; }
+.ev .t { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.badge { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--code); color: var(--muted); justify-self: start; text-transform: lowercase; }
+.k-chat { background: var(--pip); color: var(--accent); } .k-tool { background: #e3f4ea; color: var(--good); }
+.k-problem, .k-check { background: #fbe7e5; color: var(--bad); } .k-awakening, .k-own { background: #fff3dc; color: var(--warn); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .k-tool { background: #18301f; } :root:not([data-theme="light"]) .k-problem, :root:not([data-theme="light"]) .k-check { background: #3a1d1d; } :root:not([data-theme="light"]) .k-awakening, :root:not([data-theme="light"]) .k-own { background: #382a14; } }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--code); }
+.clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.stat { background: var(--code); border-radius: 10px; padding: 10px 12px; }
+.stat .v { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 12px; color: var(--muted); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+input[type=search], select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; }
+input[type=search] { flex: 1 1 220px; }
+.mem { padding: 8px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 54px 1fr; gap: 10px; }
+.imp { height: 6px; background: var(--code); border-radius: 4px; margin-top: 7px; overflow: hidden; } .imp > i { display: block; height: 100%; background: var(--accent); }
+.kv { display: grid; grid-template-columns: minmax(120px, 34%) 1fr; gap: 4px 12px; font-size: 13px; }
+.kv div:nth-child(odd) { color: var(--muted); word-break: break-word; }
+.kv div:nth-child(even) { word-break: break-word; }
+svg text { fill: var(--muted); font-size: 10px; }
+.empty { color: var(--muted); padding: 18px 0; text-align: center; }
+.err { background: #fbe7e5; color: var(--bad); padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; display: none; }
+@media (max-width: 640px) {
+  main { padding: 12px 16px; }
+  .ev { grid-template-columns: 52px 1fr; } .ev .badge { grid-column: 2; } .ev > :last-child { grid-column: 1 / -1; }
+  .hide-sm { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1 id="title">Kindred</h1>
+    <div class="pills" id="pills"></div>
+  </div>
+  <nav id="nav">
+    <button data-tab="live" class="on">Live</button>
+    <button data-tab="talk">Conversation</button>
+    <button data-tab="ai">AI calls</button>
+    <button data-tab="voice">Speech &amp; voice</button>
+    <button data-tab="memory">Memory</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+</header>
+<main>
+  <div class="err" id="err"></div>
+
+  <section class="tab on" id="tab-live">
+    <div class="grid">
+      <div class="card"><h2>Bond</h2><div id="bond"></div></div>
+      <div class="card"><h2>Mood</h2><div id="mood"></div></div>
+      <div class="card"><h2>Powers</h2><div id="powers"></div></div>
+      <div class="card"><h2>Game right now</h2><div id="game"></div></div>
+      <div class="card wide"><h2>Conversation window</h2><div id="window"></div></div>
+      <div class="card wide"><h2>What the AI was given last</h2><div id="sent"></div></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-talk">
+    <div class="card">
+      <div class="row"><input type="search" id="talk-q" placeholder="Search what happened"><span class="chips" id="talk-kinds"></span></div>
+      <div class="feed" id="feed"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-ai">
+    <div class="grid">
+      <div class="card wide"><h2>Totals</h2><div id="ai-stats"></div></div>
+      <div class="card wide"><h2>Tokens and time per call</h2><div id="ai-chart"></div></div>
+      <div class="card wide">
+        <div class="row"><input type="search" id="ai-q" placeholder="Search prompts and replies"><span class="chips" id="ai-kinds"></span></div>
+        <div style="overflow-x:auto"><table id="ai-table"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-voice">
+    <div class="grid">
+      <div class="card wide"><h2>Averages</h2><div id="voice-stats"></div></div>
+      <div class="card wide"><div style="overflow-x:auto"><table id="voice-table"></table></div></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-memory">
+    <div class="grid">
+      <div class="card wide">
+        <div class="row">
+          <select id="mem-world"></select>
+          <input type="search" id="mem-q" placeholder="What would she recall for… (try: sheep, my name, the base)">
+        </div>
+        <div id="mem-search"></div>
+        <div class="chips" id="mem-kinds" style="margin:8px 0 4px"></div>
+        <div id="mem-list"></div>
+      </div>
+      <div class="card wide"><h2>Saved state</h2><div id="mem-docs"></div></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-settings">
+    <div class="grid">
+      <div class="card"><h2>In use</h2><div id="set-use"></div></div>
+      <div class="card"><h2>Special instructions</h2><div id="set-instr"></div></div>
+      <div class="card wide"><h2>Her heart (brain.toml)</h2><div id="set-heart"></div></div>
+      <div class="card"><h2>Brain</h2><div id="set-brain"></div></div>
+      <div class="card"><h2>Mod (kindredspirit.json)</h2><div id="set-mod"></div></div>
+      <div class="card wide"><h2>Gateway (keys hidden)</h2><details><summary>Show everything</summary><pre id="set-gw"></pre></details></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const fmt = (n) => n == null ? "–" : Number(n).toLocaleString();
+const ago = (s) => s == null ? "–" : s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
+const hhmm = (t) => (t || "").slice(11, 19);
+let tab = "live", world = null, memKinds = new Set(), talkOff = new Set(["info"]), aiOff = new Set(), openCall = null, lastAI = [];
+const name = () => (window._brain && window._brain.name) || "Pip";
+
+async function get(path) {
+  const r = await fetch(path, {cache: "no-store"});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+function showErr(e) { const el = $("err"); el.style.display = e ? "block" : "none"; el.textContent = e ? String(e.message || e) : ""; }
+
+// ---------------------------------------------------------------- header + live
+async function live() {
+  const d = await get("/api/live");
+  const b = d.brain, h = d.health, g = h.gateway || {};
+  window._brain = b;
+  const fresh = h.brain_age != null && h.brain_age < 10;
+  $("title").textContent = "Kindred · " + (b ? b.name : "Pip");
+  const pills = [];
+  pills.push(`<span class="pill"><span class="dot ${b && b.connected && fresh ? "ok" : "bad"}"></span>Game <b>${b && b.connected && fresh ? esc((b.world || "").replace(/^sp:/, "")) || "connected" : "not connected"}</b></span>`);
+  pills.push(`<span class="pill"><span class="dot ${fresh ? "ok" : "bad"}"></span>Brain <b>${fresh ? "running" : h.brain_age == null ? "no data" : "stopped " + ago(h.brain_age) + " ago"}</b></span>`);
+  pills.push(`<span class="pill"><span class="dot ${g.status === "ok" ? (g.paused ? "warn" : "ok") : "bad"}"></span>Gateway <b>${g.status === "ok" ? (g.paused ? "paused" : "ok") : "down"}</b></span>`);
+  if (g.status === "ok") pills.push(`<span class="pill hide-sm">AI <b>${esc(g.ai)}</b> · STT <b>${esc(g.stt)}</b> · voice <b>${esc(g.tts)}</b> · memory <b>${esc(g.memory)}</b></span>`);
+  $("pills").innerHTML = pills.join("");
+  if (!b) { $("bond").innerHTML = `<div class="empty">The brain hasn't written its state yet. Is it running (scripts/start.sh)?</div>`; return; }
+  const H = b.heart;
+  $("bond").innerHTML = `<div class="big">${Math.round(H.bond)}<span class="muted small"> / 100</span></div>
+    <div class="meter"><i style="width:${H.bond}%"></i></div>
+    <div><b>${esc(H.level)}</b>${H.angry ? ` · <span style="color:var(--bad)">upset with you</span>` : ""}</div>
+    <div class="small muted">floats ${H.closeness >= .6 ? "close" : H.closeness >= .3 ? "nearby" : "at a distance"} (closeness ${H.closeness}) · ${b.per_world ? "this world's own companion" : "the same companion in every world"}</div>
+    <div class="small muted" style="margin-top:6px">last message from you felt <b>${esc(b.last_regard)}</b> · talked ${ago(b.seconds_since_talk)} ago</div>`;
+  // mood: valence (left/right) and arousal (down/up)
+  const x = 10 + (H.valence + 1) / 2 * 120, y = 130 - H.arousal * 120;
+  $("mood").innerHTML = `<div style="display:flex;gap:14px;align-items:center">
+    <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="mood score">
+      <rect x="10" y="10" width="120" height="120" rx="8" fill="var(--code)"/>
+      <line x1="70" y1="10" x2="70" y2="130" stroke="var(--line)"/><line x1="10" y1="70" x2="130" y2="70" stroke="var(--line)"/>
+      <text x="12" y="24">stirred</text><text x="12" y="126">calm</text><text x="98" y="82">good</text><text x="12" y="82">bad</text>
+      <circle cx="${x}" cy="${y}" r="7" fill="var(--accent)"/></svg>
+    <div><div class="big" style="text-transform:capitalize">${esc(b.mood)}</div>
+      <div class="small muted">feels ${H.valence >= 0 ? "good" : "bad"} ${H.valence} · stirred ${H.arousal}</div>
+      <div class="small muted">something new: ${H.novelty}</div></div></div>`;
+  const aw = (b.awakening || []).map((a) => `<div class="small" style="margin-top:6px">✨ <b>${esc(a.power.replace(/_/g, " "))}</b> is waking up: senses at ${a.plan.sense}s, wakes at ${a.plan.reveal}s${a.favour ? `, favour: ${esc(a.favour)}${a.favour_done ? " (done)" : ""}` : ""}${a.plan.tangent ? ", with a tangent" : ""}</div>`).join("");
+  const req = (H.requests || []).map((r) => `<span class="chip">always: ${esc(r.what)}${r.detail ? " " + esc(r.detail) : ""}</span>`).join("");
+  $("powers").innerHTML = `<div class="small muted">${H.amnesia ? "Discovers her powers as you ask" : "Knows all her allowed powers"}</div>
+    <div class="chips" style="margin-top:8px">${(H.discovered || []).map((p) => `<span class="chip">${esc(p.replace(/_/g, " "))}</span>`).join("") || `<span class="muted small">none discovered yet</span>`}</div>
+    ${aw}${req ? `<div class="chips" style="margin-top:8px">${req}</div>` : ""}
+    ${b.offer || b.her_offer ? `<div class="small" style="margin-top:8px">Waiting for your yes: <b>${esc(b.offer || b.her_offer)}</b></div>` : ""}
+    <div class="small muted" style="margin-top:8px">Allowed by the mod: ${esc((b.abilities || []).join(", ") || "–")}</div>
+    <div class="small muted">Met: ${esc((H.species_met || []).map((s) => s.replace("minecraft:", "")).join(", ") || "no animals yet")} · pets: ${H.pets}</div>`;
+  const snapAge = d.snapshot ? "" : "";
+  $("game").innerHTML = b.last_sent.game ? `<pre>${esc(b.last_sent.game)}</pre>` : `<div class="empty">No game state yet: join a world.</div>`;
+  const hist = (b.conversation.history || []).map((m) => {
+    const you = m.role === "user";
+    return `<div class="bubble ${you ? "you" : "pip"}"><span class="small muted">${you ? "You" : esc(b.name)}</span><br>${esc(m.content)}</div>`;
+  }).join("");
+  $("window").innerHTML = `${b.conversation.summary ? `<div class="small muted">Earlier, summarized:</div><pre>${esc(b.conversation.summary)}</pre>` : ""}
+    <div class="small muted" style="margin-top:8px">Sent word for word with each message (${(b.conversation.history || []).length} lines)${b.conversation.waiting_to_fold ? `, ${b.conversation.waiting_to_fold} waiting to be summarized` : ""}:</div>
+    <div style="max-height:420px;overflow:auto">${hist || `<div class="empty">Nothing said yet in this session.</div>`}</div>`;
+  $("sent").innerHTML = `<details open><summary>Memories she recalled</summary><pre>${esc(b.last_sent.memories || "(nothing yet)")}</pre></details>
+    <details><summary>Her feelings and notes for the AI</summary><pre>${esc(b.last_sent.feelings || "(nothing yet)")}</pre></details>
+    <details><summary>Her settings for the AI</summary><pre>${esc(b.last_sent.settings || "(nothing yet)")}</pre></details>
+    <div class="small muted" style="margin-top:6px">Powers offered to the AI on the last turn: ${esc(b.offered_to_ai == null ? "all allowed" : (b.offered_to_ai.join(", ") || "none"))}</div>`;
+}
+
+// ---------------------------------------------------------------- conversation feed
+const KIND_NAMES = {chat: "talk", tool: "tool", notice: "noticed", own: "on her own", awakening: "awakening", bond: "bond",
+  act: "body", check: "honesty check", learn: "learned", game: "game", protect: "protect", weather: "weather", pet: "petted", problem: "problem", info: "other"};
+function evText(e) {
+  switch (e.kind) {
+    case "chat": return `<div class="bubble you">${esc(e.you)}</div><div class="bubble pip"><span class="small muted">${esc(e.mood)}${e.gesture ? " · " + esc(e.gesture) : ""}</span><br>${esc(e.said)}</div>`;
+    case "tool": return `<b>${esc(e.tool)}</b> <span class="small muted">${esc(e.args)}</span><pre>${esc(e.result)}</pre>`;
+    case "notice": return `<span class="small muted">${esc(e.event)} ${esc(e.detail)}</span><br>${esc(e.said)}`;
+    case "own": case "check": return esc(e.said);
+    case "awakening": return `<b>${esc(e.power)}</b> <span class="small muted">${esc(e.plan)}</span>`;
+    case "bond": return `<b>${esc(e.change)}</b> (${esc(e.why)}) → ${esc(e.value)} ${esc(e.level)}`;
+    case "learn": return `learned ${esc(e.n)} new thing(s)${e.diary ? `<br><span class="muted">diary: ${esc(e.diary)}</span>` : ""}`;
+    default: return esc(e.text);
+  }
+}
+async function talk() {
+  const d = await get("/api/events");
+  const kinds = [...new Set(d.events.map((e) => e.kind))];
+  $("talk-kinds").innerHTML = kinds.map((k) => `<button class="chip ${talkOff.has(k) ? "off" : ""}" data-k="${k}">${esc(KIND_NAMES[k] || k)}</button>`).join("");
+  const q = $("talk-q").value.toLowerCase();
+  const evs = d.events.filter((e) => !talkOff.has(e.kind) && (!q || JSON.stringify(e).toLowerCase().includes(q))).reverse();
+  $("feed").innerHTML = evs.map((e) => `<div class="ev"><span class="t">${hhmm(e.time)}</span><span class="badge k-${e.kind}">${esc(KIND_NAMES[e.kind] || e.kind)}</span><div>${evText(e)}</div></div>`).join("") || `<div class="empty">Nothing yet.</div>`;
+}
+$("talk-kinds").onclick = (ev) => { const k = ev.target.dataset.k; if (!k) return; talkOff.has(k) ? talkOff.delete(k) : talkOff.add(k); talk(); };
+$("talk-q").oninput = () => talk();
+
+// ---------------------------------------------------------------- AI calls
+const AI_KIND = {reply: "reply to you", own: "on her own", reflect: "learning", fold: "summarizing", other: "other"};
+function chart(calls) {
+  const c = calls.slice(-80), W = 900, H = 150, pad = 26, n = c.length;
+  if (!n) return `<div class="empty">No AI calls yet.</div>`;
+  const maxT = Math.max(1, ...c.map((x) => (x.tokens_in || 0) + (x.tokens_out || 0)));
+  const maxS = Math.max(0.5, ...c.map((x) => x.seconds || 0));
+  const bw = (W - pad * 2) / n;
+  const bars = c.map((x, i) => { const t = (x.tokens_in || 0) + (x.tokens_out || 0), h = t / maxT * (H - pad * 2);
+    return `<rect x="${pad + i * bw + 1}" y="${H - pad - h}" width="${Math.max(1, bw - 2)}" height="${h}" rx="2" fill="var(--bar)"><title>${esc(hhmm(x.time))} ${fmt(t)} tokens, ${x.seconds}s</title></rect>`; }).join("");
+  const line = c.map((x, i) => `${pad + i * bw + bw / 2},${H - pad - (x.seconds || 0) / maxS * (H - pad * 2)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="tokens and latency per call">
+    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <text x="${pad}" y="14">bars: tokens per call (max ${fmt(maxT)})   line: seconds (max ${maxS.toFixed(1)}s)</text>
+    <text x="${pad}" y="${H - 8}">${esc(hhmm(c[0].time))}</text><text x="${W - pad - 40}" y="${H - 8}">${esc(hhmm(c[n - 1].time))}</text>${bars}</svg>`;
+}
+function stats(t, label) {
+  const part = t.measured < t.calls ? ` (${t.measured} of ${t.calls} calls counted)` : "";
+  const none = !t.measured;
+  return `<div class="stat"><div class="v">${fmt(t.calls)}</div><div class="l">${label} calls</div></div>
+    <div class="stat"><div class="v">${none ? "–" : fmt(t.tokens_in)}</div><div class="l">tokens sent${none ? " (not counted before the dashboard)" : part}</div></div>
+    <div class="stat"><div class="v">${none ? "–" : fmt(t.tokens_out)}</div><div class="l">tokens back</div></div>
+    <div class="stat"><div class="v">${none ? "–" : "$" + t.cost.toFixed(3)}</div><div class="l">estimated cost${part}</div></div>
+    <div class="stat"><div class="v">${t.avg_seconds}s</div><div class="l">average wait</div></div>`;
+}
+function callDetail(c) {
+  const parts = Object.entries(c.parts || {}).map(([k, v]) => `<details ${k === "Player" ? "open" : ""}><summary>${esc(k)}</summary><pre>${esc(v)}</pre></details>`).join("");
+  const acts = (c.actions || []).map((a) => `<b>${esc(a.name)}</b> ${esc(a.arguments)}`).join("<br>");
+  const ctl = c.controls ? Object.entries(c.controls).map(([k, v]) => `${esc(k)}: ${esc(v === true ? "on" : v)}`).join(", ") : "";
+  return `<div class="small muted">${esc(c.upstream)} · ${esc(c.model)} · ${c.messages ?? "?"} messages · tools offered: ${esc((c.tools || []).join(", ") || "none")}${c.forced ? ` · <b>had to use ${esc(c.forced)}</b>` : ""}${ctl ? ` · special instructions: ${ctl}` : ""}</div>
+    ${parts || (c.prompt ? `<pre>${esc(c.prompt)}</pre>` : "")}
+    ${acts ? `<div style="margin-top:6px">Actions: ${acts}</div>` : ""}
+    <div style="margin-top:6px"><span class="small muted">Answer</span><pre>${esc(c.reply || "(tool call only)")}</pre></div>`;
+}
+async function ai() {
+  const d = await get("/api/ai");
+  lastAI = d.calls;
+  $("ai-stats").innerHTML = `<div class="stats">${stats(d.today, "Today:")}</div><div class="small muted" style="margin-top:8px">Costs are estimated at $${d.totals.price.in} per million tokens sent and $${d.totals.price.out} per million back (Gemini 3.1 Flash-Lite list prices; set KINDRED_PRICE_IN / KINDRED_PRICE_OUT for another model). Calls made before the dashboard existed have no token counts.</div>`;
+  $("ai-chart").innerHTML = chart(d.calls);
+  $("ai-kinds").innerHTML = Object.keys(AI_KIND).filter((k) => d.calls.some((c) => c.kind === k)).map((k) => `<button class="chip ${aiOff.has(k) ? "off" : ""}" data-k="${k}">${AI_KIND[k]}</button>`).join("");
+  renderAI();
+}
+function renderAI() {
+  const q = $("ai-q").value.toLowerCase();
+  const rows = lastAI.map((c, i) => [c, i]).filter(([c]) => !aiOff.has(c.kind) && (!q || JSON.stringify(c).toLowerCase().includes(q))).reverse().slice(0, 200);
+  $("ai-table").innerHTML = `<tr><th>Time</th><th>Kind</th><th>Asked</th><th>Answer / action</th><th class="num">Wait</th><th class="num">Tokens</th></tr>` +
+    rows.map(([c, i]) => `<tr class="click" data-i="${i}"><td class="num">${esc(hhmm(c.time))}</td><td><span class="badge">${esc(AI_KIND[c.kind] || c.kind)}</span>${c.forced ? `<br><span class="small muted">must: ${esc(c.forced)}</span>` : ""}</td>
+      <td><div class="clip">${esc(c.said)}</div></td><td><div class="clip">${esc(c.reply || (c.actions || []).map((a) => a.name).join(", "))}</div></td>
+      <td class="num">${c.seconds}s</td><td class="num">${c.tokens_in ? fmt(c.tokens_in) + " / " + fmt(c.tokens_out) : "–"}</td></tr>
+      ${openCall === i ? `<tr><td colspan="6">${callDetail(c)}</td></tr>` : ""}`).join("");
+}
+$("ai-table").onclick = (ev) => { const tr = ev.target.closest("tr.click"); if (!tr) return; const i = +tr.dataset.i; openCall = openCall === i ? null : i; renderAI(); };
+$("ai-kinds").onclick = (ev) => { const k = ev.target.dataset.k; if (!k) return; aiOff.has(k) ? aiOff.delete(k) : aiOff.add(k); ai(); };
+$("ai-q").oninput = () => renderAI();
+
+// ---------------------------------------------------------------- speech & voice
+async function voice() {
+  const d = await get("/api/services");
+  const pick = (k) => d.services.filter((s) => s.kind === k);
+  const avg = (xs) => xs.length ? (xs.reduce((a, x) => a + parseFloat(x.seconds || 0), 0) / xs.length).toFixed(2) + "s" : "–";
+  const stt = pick("stt"), tts = pick("tts"), aiC = pick("ai");
+  $("voice-stats").innerHTML = `<div class="stats">
+    <div class="stat"><div class="v">${avg(stt)}</div><div class="l">hearing you (${stt.length} times)</div></div>
+    <div class="stat"><div class="v">${avg(tts)}</div><div class="l">making her voice (${tts.length} lines)</div></div>
+    <div class="stat"><div class="v">${avg(aiC)}</div><div class="l">AI answer (${aiC.length} calls)</div></div>
+    <div class="stat"><div class="v">${d.services.filter((s) => s.kind === "problem").length}</div><div class="l">problems</div></div></div>`;
+  const rows = d.services.filter((s) => s.kind !== "ai" && s.kind !== "other").reverse().slice(0, 250);
+  $("voice-table").innerHTML = `<tr><th>Time</th><th>What</th><th>Details</th><th class="num">Took</th></tr>` + rows.map((s) =>
+    `<tr><td class="num">${esc(hhmm(s.time))}</td><td><span class="badge k-${s.kind === "problem" ? "problem" : "tool"}">${s.kind === "stt" ? "heard you" : s.kind === "tts" ? "voice" : s.kind === "start" ? "started" : "problem"}</span></td>
+     <td>${s.kind === "stt" ? esc(s.text) : s.kind === "tts" ? `${esc(s.provider)}, ${esc(s.chars)} characters` : s.kind === "start" ? esc(s.parts) : esc(s.text)}</td>
+     <td class="num">${s.seconds ? esc(s.seconds) + "s" : ""}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">Nothing yet.</td></tr>`;
+}
+
+// ---------------------------------------------------------------- memory
+let memData = null;
+const KINDS = ["player", "self", "habit", "world", "place", "found", "reminder", "diary", "episode"];
+const KIND_LABEL = {player: "about you", self: "about her", habit: "your habits", world: "the world", place: "places", found: "found", reminder: "reminders", diary: "diary", episode: "what happened"};
+async function memoryTab() {
+  memData = await get("/api/memory");
+  const worlds = Object.keys(memData.worlds);
+  if (world === null) world = (window._brain && window._brain.world && worlds.includes(window._brain.world)) ? window._brain.world : (worlds[0] || "all");
+  $("mem-world").innerHTML = `<option value="all">All worlds</option>` + worlds.map((w) => `<option value="${esc(w)}" ${w === world ? "selected" : ""}>${esc(w.replace(/^sp:/, ""))} (${Object.values(memData.worlds[w]).reduce((a, b) => a + b, 0)})</option>`).join("");
+  if (world === "all") $("mem-world").value = "all";
+  renderMemory();
+  const docs = memData.docs || [];
+  $("mem-docs").innerHTML = docs.length ? `<table><tr><th>Saved</th><th class="num">Size</th><th class="num">Updated</th></tr>${docs.map((x) => `<tr class="click" data-key="${esc(x.key)}"><td>${esc(x.key)}</td><td class="num">${fmt(x.size)} B</td><td class="num">${new Date(x.updated * 1000).toLocaleString()}</td></tr>`).join("")}</table><pre id="doc-view" style="display:none"></pre>`
+    : `<div class="empty">No saved state yet (or restart the gateway to list it).</div>`;
+}
+function renderMemory() {
+  const rows = memData.memories.filter((m) => world === "all" || (m.world || "(every world)") === world);
+  const counts = {};
+  rows.forEach((m) => counts[m.kind] = (counts[m.kind] || 0) + 1);
+  $("mem-kinds").innerHTML = KINDS.filter((k) => counts[k]).map((k) => `<button class="chip ${memKinds.has(k) ? "off" : ""}" data-k="${k}">${KIND_LABEL[k]} ${counts[k]}</button>`).join("");
+  const shown = rows.filter((m) => !memKinds.has(m.kind)).sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || b.importance - a.importance);
+  $("mem-list").innerHTML = shown.map((m) => `<div class="mem"><div><span class="badge">${esc(KIND_LABEL[m.kind] || m.kind)}</span><div class="imp" title="importance ${m.importance}/10"><i style="width:${m.importance * 10}%"></i></div></div>
+    <div>${esc(m.text)}<div class="small muted">${new Date(m.updated * 1000).toLocaleString()}${m.uses ? ` · recalled ${m.uses}×` : ""}${m.meta && m.meta.expires ? (m.expired ? " · <b>faded</b> (passing feeling)" : " · passing, fades " + new Date(m.meta.expires * 1000).toLocaleString()) : ""}${m.meta && m.meta.imported_from ? " · imported from " + esc(m.meta.imported_from) : ""}${world === "all" ? " · " + esc(m.world || "every world") : ""}</div></div></div>`).join("") || `<div class="empty">No memories here yet.</div>`;
+}
+$("mem-world").onchange = (ev) => { world = ev.target.value; renderMemory(); };
+$("mem-kinds").onclick = (ev) => { const k = ev.target.dataset.k; if (!k) return; memKinds.has(k) ? memKinds.delete(k) : memKinds.add(k); renderMemory(); };
+let searchTimer = null;
+$("mem-q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(memSearch, 300); };
+async function memSearch() {
+  const q = $("mem-q").value.trim();
+  if (!q) { $("mem-search").innerHTML = ""; return; }
+  try {
+    const d = await get(`/api/memory/search?q=${encodeURIComponent(q)}&world=${encodeURIComponent(world || "")}`);
+    $("mem-search").innerHTML = `<div class="small muted" style="margin-bottom:4px">What would come to her mind (meaning + keywords + recency + importance):</div>` +
+      (d.results.map((m) => `<div class="mem"><div><span class="badge">${(m.score ?? 0).toFixed(2)}</span></div><div>${esc(m.text)} <span class="small muted">${esc(KIND_LABEL[m.kind] || m.kind)}</span></div></div>`).join("") || `<div class="empty">Nothing comes to mind.</div>`);
+  } catch (e) { showErr(e); }
+}
+$("mem-docs").onclick = async (ev) => {
+  const tr = ev.target.closest("tr.click"); if (!tr) return;
+  const d = await get(`/api/memory/doc?key=${encodeURIComponent(tr.dataset.key)}`);
+  const v = $("doc-view"); v.style.display = "block"; v.textContent = tr.dataset.key + "\n\n" + JSON.stringify(d.value, null, 2);
+};
+
+// ---------------------------------------------------------------- settings
+function kv(obj) {
+  return `<div class="kv">${Object.entries(obj || {}).map(([k, v]) => `<div>${esc(k)}</div><div>${esc(typeof v === "object" ? JSON.stringify(v) : v)}</div>`).join("")}</div>`;
+}
+async function settingsTab() {
+  const d = await get("/api/settings");
+  $("set-use").innerHTML = kv({"AI": d.in_use.ai + (d.instructions.model ? " (model " + d.instructions.model + ")" : ""), "Speech to text": d.in_use.stt, "Voice": d.in_use.tts, "Embeddings": d.in_use.embeddings, "Memory": d.in_use.memory, "Keys set": (d.secrets_set || []).join(", ") || "none"});
+  const i = d.instructions;
+  $("set-instr").innerHTML = (i.paused ? `<div style="color:var(--warn)"><b>Paused:</b> passed through without any of these.</div>` : "") +
+    kv({"Persona": i.persona || "(none)", "Facts": (i.facts || []).length ? i.facts.join(" · ") : "(none)", "Next reply only": i.hint_next || "(none)", "Temperature": i.temperature ?? "default"}) +
+    `<div class="small muted" style="margin-top:8px">Set with services/kindred_gateway.py persona / fact / hint "…"</div>`;
+  const brain = d.brain || {};
+  $("set-heart").innerHTML = kv(brain.heart);
+  const top = {}; Object.entries(brain).forEach(([k, v]) => { if (k !== "heart") top[k] = v; });
+  $("set-brain").innerHTML = kv(top);
+  $("set-mod").innerHTML = d.mod ? kv(d.mod) : `<div class="empty">The mod's settings file wasn't found.</div>`;
+  $("set-gw").textContent = JSON.stringify(d.gateway, null, 2);
+}
+
+// ---------------------------------------------------------------- tabs + refresh
+const LOAD = {live, talk, ai, voice, memory: memoryTab, settings: settingsTab};
+const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, settings: 30000};
+$("nav").onclick = (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  tab = b.dataset.tab;
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.id === "tab-" + tab));
+  try { localStorage.setItem("kindred-tab", tab); } catch (e) {}
+  refresh();
+};
+let timer = null;
+async function refresh() {
+  clearTimeout(timer);
+  try {
+    if (tab !== "live") await live().catch(() => {});  // keep the header fresh
+    await LOAD[tab]();
+    showErr(null);
+  } catch (e) { showErr(e); }
+  timer = setTimeout(refresh, document.hidden ? 15000 : EVERY[tab]);
+}
+try { const t = localStorage.getItem("kindred-tab"); if (t && LOAD[t]) document.querySelector(`nav button[data-tab="${t}"]`).click(); else refresh(); } catch (e) { refresh(); }
+</script>
+</body>
+</html>

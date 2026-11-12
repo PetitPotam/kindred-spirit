@@ -187,6 +187,13 @@ this list is for the curious): "stay here", "come here", "look at me", "do a spi
 near me?", "where are the sheep? lead the way", "where's the nearest village? take me there", "push them away", "always protect me",
 "this is my base", "remind me in 10 minutes to check the furnace", "put my block back".
 
+## Watching her think
+
+`scripts/start.sh` also starts a dashboard at **http://127.0.0.1:11440**: her bond and mood live,
+powers waking up, what she says and does, every AI call with its tokens and cost, speech and
+voice timings, her memories per world (with a search that shows what she'd recall), and the
+gateway's settings and special instructions. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
+
 ## Settings
 
 - **Brain:** `~/.kindred-spirit/brain.toml` (name, personality, model, voice, chattiness, alerts).
