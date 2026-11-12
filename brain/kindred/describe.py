@@ -82,6 +82,10 @@ def describe(s):
             for m in mobs[:6]) + ".")
     else:
         lines.append("No hostile mobs nearby.")
+    for h in s.get("hazards") or []:
+        kind = {"lava": "lava", "drop": "a drop of %s blocks" % h.get("depth"), "drop_water": "a drop of %s blocks "
+                "into water" % h.get("depth"), "drop_lava": "a drop of %s blocks into lava" % h.get("depth")}.get(h["kind"])
+        lines.append("Danger ahead: %s, %s blocks %s." % (kind, h.get("distance"), where_words(h.get("direction"))))
     animals = s.get("animals") or []
     if animals:  # grouped: "3 sheep, nearest 14 blocks ahead on your left"
         groups = {}

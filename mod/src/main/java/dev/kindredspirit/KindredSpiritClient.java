@@ -327,6 +327,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
             sendAbilities(); // the hello came from the title screen: now we know if it's singleplayer
             event("join");
         });
+        // the world is closing: take her light away before it's saved
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(
+                dev.kindredspirit.act.Glow::clearNow);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
             inWorld = false;
             voice.stop();
@@ -370,6 +373,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
             event("wrong_way");
         }
         tickGuide(mc);
+        if (mc.level.getGameTime() % 4 == 0) { // her glow follows her (a light block, singleplayer)
+            Behavior life = companion.life;
+            dev.kindredspirit.act.Glow.tick(mc, cfg.glow && !life.hidden() && companion.life.presence > 0.5,
+                    life.x, life.y, life.z);
+        }
 
         // push-to-talk: hold the key, speak, release
         boolean held = talkKey.isDown() && mc.screen == null;
@@ -640,8 +648,12 @@ public final class KindredSpiritClient implements ClientModInitializer {
         Behavior life = companion.life;
         if (life.mode != Behavior.Mode.GUIDE) {
             guideEntity = -1;
+            Snapshot.headingX = Snapshot.headingZ = 0; // (hazards: look where the player looks)
             return;
         }
+        double[] gt = life.guideTarget(); // hazards: look along the way she leads
+        Snapshot.headingX = gt[0] - mc.player.getX();
+        Snapshot.headingZ = gt[2] - mc.player.getZ();
         if (guideEntity >= 0) {
             net.minecraft.world.entity.Entity e = mc.level.getEntity(guideEntity);
             if (e != null && e.isAlive()) life.retarget(e.getX(), e.getY(), e.getZ());
@@ -720,6 +732,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         for (String id : Abilities.allowedIds(p, s)) a.add(id);
         o.add("abilities", a);
         o.addProperty("singleplayer", Minecraft.getInstance().getSingleplayerServer() != null);
+        o.addProperty("glow", cfg.glow);
     }
 
     private void sendAbilities() {

@@ -1,0 +1,23 @@
+# Her glow at night, felling a tree for you, and a lava warning ahead.
+world kindred-features
+wait 220
+cmd gamemode survival
+cmd time set 18000
+cmd weather clear
+cmd kill @e[type=!minecraft:player]
+cmd fill ~-8 ~-1 ~-8 ~12 ~-1 ~8 minecraft:stone
+cmd fill ~-8 ~ ~-8 ~12 ~10 ~8 minecraft:air
+cmd place feature minecraft:oak ~3 ~ ~
+look -90 15
+wait 120
+screenshot feat-01-night-glow
+do harvest
+wait 60
+screenshot feat-02-tree-chopped
+cmd setblock ~2 ~-1 ~ minecraft:lava
+look -90 10
+wait 100
+screenshot feat-03-lava-ahead
+cmd setblock ~2 ~-1 ~ minecraft:stone
+wait 40
+quit

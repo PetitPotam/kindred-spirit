@@ -1,0 +1,5 @@
+world kindred-features
+wait 200
+cmd time set 18000
+wait 80
+quit

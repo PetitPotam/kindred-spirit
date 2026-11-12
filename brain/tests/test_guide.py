@@ -113,3 +113,9 @@ def test_being_attacked_means_protect_me():
                  "theyre attacking us", "protect me"):
         assert intents.action_hint(said, ["protect"]) == "protect", said
     assert intents.action_hint("i shot the zombie", ["protect"]) is None
+
+
+def test_chop_and_mine_requests():
+    for said in ("break the tree for me", "chop this tree please", "mine this block", "can you get me some wood"):
+        assert intents.action_hint(said, ["harvest", "give_item"]) == "harvest", said
+    assert intents.action_hint("give me a sword", ["harvest", "give_item"]) == "give_item"

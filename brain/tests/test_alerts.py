@@ -31,7 +31,7 @@ def test_low_health_warns_once_until_healed():
     al = alerts()
     low = snap(health=5.0)
     first = al.check(low, now=0)
-    assert first and first.kind == "low_health" and "2.5 hearts" in first.text
+    assert first and first.kind == "low_health" and "about 2 hearts" in first.text
     assert al.check(low, now=30) is None                      # still low: no nagging
     assert al.check(snap(health=14.0), now=40) is None        # healed: re-armed
     assert al.check(snap(health=4.0), now=50).kind == "low_health"
@@ -65,3 +65,16 @@ def test_ambient_mood():
     assert ambient_mood(snap()) == "happy"
     assert ambient_mood(snap(hostiles=[zombie(8)])) == "worried"
     assert ambient_mood(snap(time={"day": 1, "timeOfDay": 15000})) == "calm"
+
+
+def test_lava_and_big_drops_ahead():
+    from kindred.alerts import Alerts
+    a = Alerts()
+    s = snap(hazards=[{"kind": "lava", "distance": 3, "direction": "ahead"}])
+    alert = a.check(s, 0)
+    assert alert.kind == "lava" and "ahead" in alert.text and alert.mood == "scared"
+    assert a.check(s, 5) is None, "once, not nagging"
+    deep = snap(hazards=[{"kind": "drop", "distance": 2, "depth": 14, "direction": "ahead"}])
+    assert Alerts().check(deep, 0).kind == "drop"
+    small = snap(hazards=[{"kind": "drop", "distance": 2, "depth": 5, "direction": "ahead"}])
+    assert Alerts().check(small, 0) is None, "a small drop isn't worth a shout"

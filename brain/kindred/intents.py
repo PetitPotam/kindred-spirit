@@ -64,6 +64,8 @@ ACTION_HINTS = [
     (r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b|"
      r"\b(i'?m|i am|we'?re|we are) (being )?(attacked|under attack|getting (shot|hit|attacked))\b|\b(save|defend) me\b|"
      r"\b(is|are|re|theyre|s|they|it)\s?(shooting|attacking|hitting) (me|us)\b", "protect"),
+    (r"\b(chop|cut|fell|harvest|break|mine|dig out|knock down)\b.{0,25}\b(tree|trees|log|logs|wood|this|that|block|it|"
+     r"stone|ore|rock)\b|\bget (me )?(some )?wood\b", "harvest"),
     (r"\b(give|gimme|get) me\b|\bcan i (have|get)\b", "give_item"),
     (r"\b(take|lead|guide|bring|show) (me|us)\b|\blead the way\b|\bshow( me)? the way\b|\b(i'?ll|i will|we'?ll) "
      r"follow you\b|\bgo ahead,? i'?ll follow\b|\bwhich way\b", "guide"),

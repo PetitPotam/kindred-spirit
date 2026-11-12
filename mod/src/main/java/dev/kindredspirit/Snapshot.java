@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -27,6 +28,73 @@ import java.util.Map;
  */
 public final class Snapshot {
     private Snapshot() {}
+
+    /** Where the player is heading, when she leads the way (else: where they look). Set by the client. */
+    public static volatile double headingX, headingZ;
+
+    /**
+     * The first danger in the direction the player is heading, up to 5 blocks: lava, or a drop of 5+
+     * blocks (and whether it ends in water). Walls stop the look-ahead. Empty when all is fine.
+     */
+    static JsonArray hazards(Minecraft mc, LocalPlayer p) {
+        JsonArray out = new JsonArray();
+        net.minecraft.world.level.Level l = mc.level;
+        double hx = headingX, hz = headingZ;
+        if (hx == 0 && hz == 0) {
+            Vec3 v = p.getViewVector(1f);
+            hx = v.x;
+            hz = v.z;
+        }
+        double len = Math.sqrt(hx * hx + hz * hz);
+        if (len < 1e-3) return out;
+        hx /= len;
+        hz /= len;
+        int y = p.getBlockY();
+        BlockPos feet = p.blockPosition();
+        for (BlockPos q : BlockPos.betweenClosed(feet.offset(-1, -1, -1), feet.offset(1, 0, 1))) {
+            if (l.getFluidState(q).is(net.minecraft.tags.FluidTags.LAVA)) {
+                out.add(hazard("lava", 1, 0, p, q));
+                return out;
+            }
+        }
+        for (int d = 2; d <= 5; d++) {
+            int bx = (int) Math.floor(p.getX() + hx * d), bz = (int) Math.floor(p.getZ() + hz * d);
+            BlockPos at = new BlockPos(bx, y, bz);
+            if (!l.getBlockState(at).getCollisionShape(l, at).isEmpty()
+                    && !l.getBlockState(at.above()).getCollisionShape(l, at.above()).isEmpty()) break; // a wall
+            for (int dy = -1; dy <= 0; dy++) {
+                if (l.getFluidState(at.offset(0, dy, 0)).is(net.minecraft.tags.FluidTags.LAVA)) {
+                    out.add(hazard("lava", d, 0, p, at));
+                    return out;
+                }
+            }
+            BlockPos below = at.below();
+            if (l.getBlockState(below).getCollisionShape(l, below).isEmpty() && l.getFluidState(below).isEmpty()) {
+                int depth = 1;
+                BlockPos q = below.below();
+                while (depth < 30 && l.getBlockState(q).getCollisionShape(l, q).isEmpty() && l.getFluidState(q).isEmpty()) {
+                    depth++;
+                    q = q.below();
+                }
+                if (depth >= 5) {
+                    boolean lava = l.getFluidState(q).is(net.minecraft.tags.FluidTags.LAVA);
+                    boolean water = l.getFluidState(q).is(net.minecraft.tags.FluidTags.WATER);
+                    out.add(hazard(lava ? "drop_lava" : water ? "drop_water" : "drop", d, depth, p, at));
+                    return out;
+                }
+            }
+        }
+        return out;
+    }
+
+    private static JsonObject hazard(String kind, int distance, int depth, LocalPlayer p, BlockPos at) {
+        JsonObject h = new JsonObject();
+        h.addProperty("kind", kind);
+        h.addProperty("distance", distance);
+        if (depth > 0) h.addProperty("depth", depth);
+        h.addProperty("direction", Direction8.relative(p.getYRot(), at.getX() + 0.5 - p.getX(), at.getZ() + 0.5 - p.getZ()));
+        return h;
+    }
 
     public static JsonObject build(Minecraft mc, int scanRadius) {
         LocalPlayer p = mc.player;
@@ -142,6 +210,7 @@ public final class Snapshot {
             animals.add(ao);
         }
         o.add("animals", animals);
+        o.add("hazards", hazards(mc, p));
         return o;
     }
 

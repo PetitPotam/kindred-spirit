@@ -19,6 +19,8 @@ class AbilitiesTest {
     void groundedHelperProtectsAndLightsButMakesNothingAppear() {
         assertTrue(Abilities.allowed(Ability.PROTECT, Power.HELPER, Style.GROUNDED));
         assertTrue(Abilities.allowed(Ability.PLACE_TORCH, Power.HELPER, Style.GROUNDED));
+        assertTrue(Abilities.allowed(Ability.HARVEST, Power.HELPER, Style.GROUNDED));
+        assertFalse(Abilities.allowed(Ability.HARVEST, Power.ADVISOR, Style.MAGIC));
         assertFalse(Abilities.allowed(Ability.GIVE_ITEM, Power.HELPER, Style.GROUNDED));
         assertTrue(Abilities.allowed(Ability.GIVE_ITEM, Power.HELPER, Style.MAGIC));
         assertTrue(Abilities.refusal(Ability.GIVE_ITEM, Power.HELPER, Style.GROUNDED).contains("grounded"));

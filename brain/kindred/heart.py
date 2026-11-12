@@ -61,14 +61,16 @@ SULK_PRANKS = ["Hmph. That's what you get.", "Maybe now you'll be nicer.", "Oh n
 BLOCK_PRANK = ["Hmm? Where did your block go? Hehe~", "Oops! Your block is... somewhere. Check your pockets!",
                "A block was here a second ago. Strange, isn't it?"]
 # powers that wake up slowly the first time (the others are instinct: they work at once)
-SLOW_POWERS = ("find_ore", "find_animal", "locate", "give_item", "set_time", "set_weather")
+SLOW_POWERS = ("find_ore", "find_animal", "locate", "give_item", "set_time", "set_weather", "harvest")
 POWER_NAMES = {"find_ore": "sense ores hidden underground", "find_animal": "feel where animals are, even far away",
+               "harvest": "make wood and stone come loose with your magic",
                "locate": "feel where faraway places are",
                "give_item": "make things appear out of nothing", "set_time": "move the sun across the sky",
                "set_weather": "change the weather", "protect": "push monsters away",
                "place_torch": "make light appear", "guide": "lead the way"}
 SENSES = {"find_ore": "a faint humming under the ground, like little stars glittering in the rock",
           "find_animal": "tiny heartbeats all around, far away, like little drums in the grass",
+          "harvest": "the wood and the stone hum, as if they'd come loose if you asked them nicely",
           "locate": "a gentle pull from far away, like a string tied to places you've never been",
           "give_item": "a warm tingle in your middle, as if things want to come out of you",
           "set_time": "the sky feels movable, as if the sun is listening to you",

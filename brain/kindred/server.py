@@ -63,6 +63,8 @@ def did_something(name, result):
         return False
     if name == "protect":
         return bool(result.get("pushedAway"))
+    if name == "harvest":
+        return bool(result.get("broken"))
     if name in ("find_ore", "find_animal", "locate"):
         return result.get("found", True) is not False
     return True
@@ -221,6 +223,8 @@ class Brain:
             " You can only use what really exists (the player's own torches): you can't make things appear out of "
             "nothing." if msg.get("style") == "grounded" else " Your magic can make things appear.",
             known, "" if self.singleplayer else " Here your magic can't change the world itself.")
+        if msg.get("glow") and self.singleplayer:
+            self.mind.powers += " You glow softly: in the dark your light shows the way around you."
         log.info("abilities: %s", ", ".join(self.abilities))
 
     async def request(self, action, args, timeout=25):

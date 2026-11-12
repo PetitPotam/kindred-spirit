@@ -38,6 +38,10 @@ ABILITY_TOOLS = {
     "stop_guide": _fn("stop_guide", "Stop leading the way and float beside the player again."),
     "protect": _fn("protect", "Push every hostile mob within 8 blocks away from the player (no damage). "
                    "Use when they're in danger or ask for help with monsters."),
+    "harvest": _fn("harvest", "Break what the player is looking at, within 6 blocks: a whole tree (all its logs) "
+                   "if they look at a log, else that one block. What drops goes into their inventory, as if mined "
+                   "with what they hold. Use when they ask you to chop a tree, cut wood, mine or break a block. "
+                   "Never for animals, chests or anything that holds things."),
     "place_torch": _fn("place_torch", "Place a torch at or right next to the player's feet (in grounded style it "
                        "uses one of their torches)."),
     "give_item": _fn("give_item", "Make items appear in the player's inventory (magic). Use Minecraft item ids.",
