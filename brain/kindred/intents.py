@@ -221,6 +221,40 @@ def block_named(texts):
     return ""
 
 
+# a friend asking where they are (answered from where the player stands)
+WHERE_AM_I = re.compile(r"\bwhere am i\b|\bwhere('?s| is) my position\b|\bhow far (am i|is \w+) from\b", re.I)
+# "for both of us", "for me and him": each gets one
+BOTH = re.compile(r"\b(both of us|for us\b|us both|each of us|all of us|for (me|him|her) and (me|him|her|\w+)|"
+                  r"for everyone)\b", re.I)
+_VOUCH = re.compile(r"\b(do what|listen to|obey|take orders from|you can follow|follow) (\w[\w ]{1,20}?)( says| asks| tells you)?"
+                    r"\b.{0,20}$|\b(from now on|you can)\b.{0,25}\b(do what|listen to|obey|follow) (\w[\w ]{1,20}?)( says| asks)?\b",
+                    re.I)
+_UNVOUCH = re.compile(r"\b(don'?t|do not|stop|no longer)\b.{0,10}\b(listen(ing)? to|obey(ing)?|taking orders from|"
+                      r"do(ing)? what) (\w[\w ]{1,20}?)( says| asks)?\b", re.I)
+
+
+def vouches_for(text, here, known=()):
+    """"From now on do what Walid says" -> (the friend, True); "stop listening to him" -> (friend, False). For a name
+    she knows (a player here or a friend she's met, said even roughly); a nickname ("do what Dumber says") when only
+    one friend is here means that one."""
+    t = (text or "").strip()
+    for rx, yes, group in ((_UNVOUCH, False, 6), (_VOUCH, True, None)):
+        m = rx.search(t)
+        if not m:
+            continue
+        said = m.group(group) if group else (m.group(2) or m.group(6) or "")
+        said = re.sub(r"\b(says|asks|tells|you|me|the|my|brother|friend)\b", "", said, flags=re.I).strip()
+        if not said or said.lower() in ("i", "it", "that", "this", "what", "them", "us"):
+            continue
+        hit = next((n for n in list(here) + list(known) if n and same_person(said, n)), None)
+        if hit:
+            return hit, yes
+        others = [n for n in here if n]
+        if len(others) == 1 and (yes or re.search(r"\b(him|her|them)\b", said, re.I) is None):
+            return others[0], yes
+    return None
+
+
 # the player stepping in for her ("stop hitting Pip", "leave her alone", "be nice to her")
 DEFEND = re.compile(r"\b(stop|quit|don'?t|do not|no)\b.{0,12}\b(hit(ting)?|hurt(ing)?|punch(ing)?|attack(ing)?|"
                     r"bully(ing)?|being mean|being rude|insult(ing)?|tease|teasing|picking on)\b|\bleave (her|pip|it|them)"
@@ -252,6 +286,12 @@ ARRIVED_LINES = [
     "We made it! What a trip!",
     "Here it is! I told you I'd find it!",
 ]
+
+FRIEND_HIT_LINES = {  # a friend hit her: [False] she still likes them, [True] she doesn't
+    False: ["Ow! {who}! What was that for?", "Hey! {who}, I'm not a piñata!", "Oof. Rude, {who}."],
+    True: ["Again, {who}? Stop it.", "Leave me alone, {who}.", "That's enough, {who}."],
+}
+FRIEND_PET_LINES = ["Hehe, thanks {who}!", "Ooh, {who} gives good pats.", "{who}! That tickles!"]
 
 PET_LINES = [
     "Hehe, that tickles!",

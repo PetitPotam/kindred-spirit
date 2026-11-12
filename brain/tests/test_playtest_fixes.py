@@ -121,3 +121,165 @@ def test_the_block_they_named_stays_for_the_build():  # item 2
     from kindred.tools import ABILITY_TOOLS
     shapes = ABILITY_TOOLS["build"]["function"]["parameters"]["properties"]["shape"]["enum"]
     assert {"place", "house", "portal", "clear", "flatten"} <= set(shapes)
+
+
+# ---------------------------------------------------------------- friends (items 7, 9, 14, 15, 22) and a heart for each
+
+def _friend_brain(stubs, players=("waterwalid",)):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.snapshot = {"playerName": "TamBoudX", "players": [{"name": n, "distance": 5, "seen": True} for n in players]}
+    sent = []
+
+    async def send(msg):
+        sent.append(msg)
+    b.send = send
+    return b, sent
+
+
+def test_trust_a_friend_at_the_players_word():  # item 15
+    assert intents.vouches_for("from now on do what Dumber says", ["waterwalid"]) == ("waterwalid", True)
+    assert intents.vouches_for("you can listen to walid", ["waterwalid", "sam"]) == ("waterwalid", True)
+    assert intents.vouches_for("stop listening to walid", ["waterwalid"]) == ("waterwalid", False)
+    assert intents.vouches_for("do what you want", ["waterwalid", "sam"]) is None
+
+
+def test_a_vouched_friend_can_ask_her_to_follow(stubs):  # item 15
+    stubs.ai_script = [{"role": "assistant", "content": "[happy] Coming, Walid!"}]
+    b, sent = _friend_brain(stubs)
+    asked = []
+
+    async def request(name, args, timeout=25):
+        asked.append((name, args))
+        return {"ok": True}
+    b.request = request
+    b.heart.trust_friend("waterwalid")
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer_guest("waterwalid", "pip follow me", powers=True)
+    asyncio.run(run())
+    assert ("follow_player", {"name": "waterwalid"}) in asked
+    assert "do what waterwalid asks" in str(stubs.ai_requests[-1]["messages"]) or \
+        "told you to do what waterwalid asks" in str(stubs.ai_requests[-1]["messages"])
+
+
+def test_friends_turns_know_the_players_name_and_both_of_us_gives_two(stubs):  # item 7
+    stubs.ai_script = [
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "t1", "type": "function", "function": {"name": "give_item", "arguments": '{"item": "bread"}'}}]},
+        {"role": "assistant", "content": "[happy] Bread for both!"}]
+    b, sent = _friend_brain(stubs)
+    b.abilities = ["give_item"]
+    ran = []
+
+    async def run_tool(name, args):
+        ran.append(args.get("to"))
+        return {"ok": True}
+    b.run_tool = run_tool
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer_guest("waterwalid", "pip give us bread, for both of us", powers=True)
+    asyncio.run(run())
+    assert ran == ["waterwalid", "TamBoudX"]
+    assert "TamBoudX" in str(stubs.ai_requests[0]["messages"])
+
+
+def test_where_am_i_from_a_friend(stubs):  # item 14
+    stubs.ai_script = [
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "t1", "type": "function", "function": {"name": "find_player", "arguments": '{"name": "me"}'}}]},
+        {"role": "assistant", "content": "[happy] Behind Tam, 30 blocks!"}]
+    b, sent = _friend_brain(stubs)
+    b.abilities = ["find_player"]
+    ran = []
+
+    async def run_tool(name, args):
+        ran.append((name, args))
+        return {"ok": True, "self": True}
+    b.run_tool = run_tool
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer_guest("waterwalid", "pip where am I?", powers=True)
+    asyncio.run(run())
+    assert stubs.ai_requests[0].get("tool_choice", {}).get("function", {}).get("name") == "find_player"
+    assert ran == [("find_player", {"name": "waterwalid", "from": "waterwalid"})]
+
+
+def test_what_friends_hold_and_do_is_told_not_guessed():  # item 9
+    from kindred.describe import describe
+    from fixtures import snap
+    s = snap()
+    s["players"] = [{"name": "waterwalid", "distance": 4, "direction": "left", "seen": True, "holding": "diamond_sword",
+                     "doing": "sneaking"},
+                    {"name": "sam", "distance": 30, "direction": "behind", "seen": False}]
+    text = describe(s)
+    assert "holding diamond sword, sneaking" in text and "sam, 30 blocks" in text and "never guess" in text
+
+
+def test_a_lan_world_is_the_same_world_whatever_its_port():  # item 22
+    from kindred.memory import world_key
+    assert world_key("mp:192.168.1.73:63665") == world_key("mp:192.168.1.73:55368") == "mp:192.168.1.73"
+    assert world_key("sp:New World") == "sp:New World"
+
+
+def test_a_friends_words_move_her_heart_for_them_not_for_you():  # a heart for each person
+    from kindred.heart import Heart
+    clock = [1000.0]
+    h = Heart({"heart": {}}, clock=lambda: clock[0])
+    you = dict(h.rel.s)
+    h.friend_regard("waterwalid", "kind", "you're lovely")
+    h.friend_regard("sam", "mean", "you're useless")
+    assert h.friends.bonds("waterwalid").s["a"] > h.friends.bonds("sam").s["a"]
+    assert h.friends.bonds("sam").s["g"] > 0, "she resents the mean one"
+    assert h.rel.s["a"] == you["a"] and h.rel.s["t"] == you["t"], "not you (yet)"
+    assert 'sam said "you\'re useless"' in h.friends.guidance("sam"), "what sam said colours how she is with sam"
+    for _ in range(6):
+        h.friend_regard("sam", "mean", "you're useless")
+    assert any(w in h.friends.guidance("sam") for w in ("resent", "don't like", "hurt")), h.friends.guidance("sam")
+    cards = h.friends.explain()
+    assert {c["name"] for c in cards} == {"waterwalid", "sam"} and "affection" in cards[0]
+
+
+def test_saying_nothing_while_a_friend_hurts_her_costs_a_little_trust():  # witnessing
+    from kindred.heart import Heart
+    clock = [1000.0]
+    h = Heart({"heart": {}}, clock=lambda: clock[0])
+    t0 = h.rel.s["t"]
+    h.friend_touch("sam", "hit")
+    clock[0] += 5
+    assert h.said_nothing() == 0.0, "she's still waiting to see what you do"
+    clock[0] += 20
+    h.said_nothing()
+    assert h.rel.s["t"] < t0
+    assert any(i["kind"] == "let_them" for i in h.rel.s["incidents"]), "logged as an incident, with why"
+    assert "said nothing" in h.rel.s["log"][-1]["line"] if h.rel.s.get("log") and "line" in h.rel.s["log"][-1] else True
+
+
+def test_standing_up_for_her_counts():  # witnessing
+    from kindred.heart import Heart
+    clock = [1000.0]
+    h = Heart({"heart": {}}, clock=lambda: clock[0])
+    t0, a0 = h.rel.s["t"], h.rel.s["a"]
+    h.friend_regard("sam", "mean", "you're useless")
+    clock[0] += 8
+    assert h.stood_up_for_her() != 0 or (h.rel.s["t"] > t0 and h.rel.s["a"] > a0)
+    assert h.rel.s["t"] > t0
+    clock[0] += 30
+    assert h.said_nothing() == 0.0, "settled: nothing left to hold against you"
+
+
+def test_a_friends_touch_reaches_her_heart_for_them(stubs):  # friends' touches
+    b, sent = _friend_brain(stubs)
+    before = dict(b.heart.rel.s)
+    t0 = b.heart.friends.bonds("waterwalid").s["t"]
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.on_event("hit", {"type": "event", "event": "hit", "by": "waterwalid"})
+    asyncio.run(run())
+    assert b.heart.friends.bonds("waterwalid").s["t"] < t0
+    assert b.heart.rel.s["a"] == before["a"], "your heart isn't the one hit"
+    assert any(m["type"] == "say" and "waterwalid" in m["text"] for m in sent)
