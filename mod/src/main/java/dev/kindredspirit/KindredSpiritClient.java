@@ -523,8 +523,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         o.addProperty("type", "chat");
         o.addProperty("text", text);
         link.send(o);
-        logChat(Component.literal("You → " + displayName + ": ").withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
+        logChat(yourLine(text));
         companion.activity = Behavior.Activity.THINKING;
         speakingGrace = System.currentTimeMillis() + 15000;
     }
@@ -552,6 +551,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
     }
 
     // ------------------------------------------------------------------ brain messages (WebSocket thread)
+
+    /** Dev scripts only: as if the brain had sent this message. */
+    public void devBrainMessage(JsonObject msg) {
+        onBrainMessage(msg);
+    }
 
     private void onBrainMessage(JsonObject msg) {
         String type = str(msg, "type");
@@ -583,8 +587,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     speakingGrace = now + (more ? 4000 : 600);
                     caption = text;
                     captionUntil = companion.subtitleUntil;
-                    logChat(Component.literal(displayName + ": ").withStyle(ChatFormatting.AQUA)
-                            .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
+                    logChat(herLine(text));
                 });
             }
             case "say_more" -> {
@@ -598,8 +601,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     captionUntil = companion.subtitleUntil;
                     dev.kindredspirit.record.FrameRecorder.line("pip", more);
                     GuestBridge.say(mc.getSingleplayerServer(), more);
-                    logChat(Component.literal(displayName + ": ").withStyle(ChatFormatting.AQUA)
-                            .append(Component.literal(more).withStyle(ChatFormatting.WHITE)));
+                    logChat(Component.literal("   " + more).withStyle(ChatFormatting.WHITE)); // (continues her line)
                 });
             }
             case "audio" -> {
@@ -617,8 +619,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             case "heard" -> mc.execute(() -> {
                 String text = str(msg, "text");
                 if (!text.isEmpty()) {
-                    logChat(Component.literal("You → " + displayName + ": ").withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
+                    logChat(yourLine(text));
                 }
             });
             case "mood" -> mc.execute(() -> companion.mood = Mood.parse(str(msg, "mood"), companion.mood));
@@ -1035,6 +1036,21 @@ public final class KindredSpiritClient implements ClientModInitializer {
         noticeUntil = System.currentTimeMillis() + ms;
     }
 
+    /** "Pip: ..." with her name in her mood color (a little lighter, so yellow and blue read on the chat). */
+    private Component herLine(String text) {
+        int col = Mood.blend(companion.mood == Mood.OFFLINE ? 0x9FD8E6 : companion.mood.rgb, 0xFFFFFF, 0.25f);
+        return Component.empty() // (an empty root, so her name's bold doesn't spill onto her words)
+                .append(Component.literal(displayName).withStyle(st -> st.withColor(col).withBold(true)))
+                .append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY))
+                .append(Component.literal(text).withStyle(ChatFormatting.WHITE));
+    }
+
+    /** What you said to her: quieter than her lines, so the conversation reads as hers. */
+    private Component yourLine(String text) {
+        return Component.literal("You \u2192 " + displayName + ": ").withStyle(ChatFormatting.DARK_GRAY)
+                .append(Component.literal(text).withStyle(ChatFormatting.GRAY));
+    }
+
     private void logChat(Component c) {
         Minecraft mc = Minecraft.getInstance();
         if (cfg.chatLog && mc.gui != null) mc.gui.getChat().addMessage(c);
@@ -1045,54 +1061,92 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private double bondChange;
     private long bondShownUntil;
 
+    /** A soft dark panel like vanilla's subtitles, with a thin accent on the left in her color. */
+    private static void panel(GuiGraphics g, int x0, int y0, int x1, int y1, int alpha, int accent) {
+        g.fill(x0, y0, x1, y1, (Math.round(alpha * 0.62f) << 24));
+        if (accent != 0) g.fill(x0, y0, x0 + 2, y1, (alpha << 24) | (accent & 0xFFFFFF));
+    }
+
+    private int herColor() {
+        return Mood.blend(companion.mood == Mood.OFFLINE ? 0x9FD8E6 : companion.mood.rgb, 0xFFFFFF, 0.2f);
+    }
+
     private void hud(GuiGraphics g) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui || mc.player == null) return;
         long now = System.currentTimeMillis();
         int w = g.guiWidth(), h = g.guiHeight();
-        if (companion.activity == Behavior.Activity.LISTENING) {
-            String s = "● Listening... release " + talkKey.getTranslatedKeyMessage().getString() + " to send";
-            int x = (w - mc.font.width(s)) / 2;
-            g.fill(x - 4, h - 80, x + mc.font.width(s) + 4, h - 68, 0x80000000);
-            g.drawString(mc.font, s, x, h - 78, 0xFFFF6B8B);
+        var font = mc.font;
+        if (companion.activity == Behavior.Activity.LISTENING) { // a pulsing red dot while the microphone is open
+            String s = "Listening\u2026 release " + talkKey.getTranslatedKeyMessage().getString() + " to send";
+            int tw = font.width(s) + 12, x = (w - tw) / 2, y = h - 80;
+            panel(g, x - 4, y - 3, x + tw + 4, y + 10, 230, 0);
+            int pulse = (int) (150 + 105 * Math.sin(now / 160.0));
+            g.fill(x + 1, y + 1, x + 7, y + 7, (pulse << 24) | 0xFF5C6B);
+            g.drawString(font, s, x + 12, y, 0xFFFFFFFF);
         }
-        if (cfg.hudCaptions && now < captionUntil && !caption.isEmpty()) {
-            var lines = mc.font.split(Component.literal(displayName + ": " + caption), Math.min(320, w - 40));
-            int y = h - 92 - lines.size() * 10;
+        if (cfg.hudCaptions && now < captionUntil && !caption.isEmpty()) { // like film subtitles: her name in her color
+            String name = displayName + "  ";
+            int nameW = font.width(name), max = Math.min(320, w - 40);
+            var lines = font.split(Component.literal(caption), max - nameW);
+            int widest = 0;
+            for (var line : lines) widest = Math.max(widest, font.width(line));
+            int tw = nameW + widest, x = (w - tw) / 2, y = h - 92 - lines.size() * 10;
+            float fade = Math.min(1f, (captionUntil - now) / 400f);
+            int a = Math.max(8, (int) (fade * 255));
+            panel(g, x - 5, y - 3, x + tw + 5, y + lines.size() * 10 + 1, a, herColor());
+            g.drawString(font, displayName, x, y, (a << 24) | herColor());
             for (var line : lines) {
-                int x = (w - mc.font.width(line)) / 2;
-                g.fill(x - 3, y - 1, x + mc.font.width(line) + 3, y + 9, 0x90000000);
-                g.drawString(mc.font, line, x, y, 0xFFFFFFFF);
+                g.drawString(font, line, x + nameW, y, (a << 24) | 0xFFFFFF);
                 y += 10;
             }
         }
         if (!link.connected() && inWorld && now - joinedAt > 3000 && now - joinedAt < 15000) {
             notice("Kindred brain not connected yet: run scripts/start.sh, then /kindred reconnect", 2000);
         }
+        int rightY = 6;
         if (cfg.showBond && bond >= 0 && now < bondShownUntil) { // the little heart meter, top right
-            int x = w - 108, y = 8;
             float fade = Math.min(1f, (bondShownUntil - now) / 600f);
-            int a = (int) (fade * 255) << 24;
-            g.fill(x - 4, y - 3, x + 102, y + 21, ((int) (fade * 0x90)) << 24);
-            int heart = bondChange >= 0 ? 0xFF6B8B : 0x8A7FA8;
-            g.drawString(mc.font, "\u2764 " + displayName + " \u00b7 " + bondLevel, x, y, a | 0xFFFFFF);
-            g.fill(x, y + 12, x + 98, y + 16, a | 0x3A3550);
-            g.fill(x, y + 12, x + Math.max(1, (int) (98 * bond / 100.0)), y + 16, a | heart);
-            String d = (bondChange > 0 ? "+" : "") + Math.round(bondChange);
-            g.drawString(mc.font, d, x + 100 - mc.font.width(d), y, a | heart);
+            int a = Math.max(8, (int) (fade * 255)) << 24;
+            int heart = bondChange >= 0 ? 0xFF6B8B : 0x9A8FB8;
+            String title = "\u2764 " + displayName + " \u00b7 " + bondLevel;
+            double ch = Math.abs(bondChange) < 10 ? Math.round(bondChange * 10) / 10.0 : Math.round(bondChange);
+            String d = (bondChange > 0 ? "+" : bondChange < 0 ? "\u2212" : "") + (ch == Math.rint(ch) ? String.valueOf((long) Math.abs(ch)) : String.valueOf(Math.abs(ch)));
+            int bw = Math.max(98, font.width(title) + font.width(d) + 10);
+            int x = w - bw - 8, y = rightY + 3;
+            panel(g, x - 5, y - 4, x + bw + 5, y + 21, (int) (fade * 255), heart);
+            g.drawString(font, title, x, y, a | 0xFFFFFF);
+            g.drawString(font, d, x + bw - font.width(d), y, a | heart);
+            g.fill(x, y + 12, x + bw, y + 15, a | 0x3A3550);
+            g.fill(x, y + 12, x + Math.max(1, (int) (bw * Math.min(100, bond) / 100.0)), y + 15, a | heart);
+            for (int t : new int[]{15, 35, 65, 85}) g.fill(x + bw * t / 100, y + 12, x + bw * t / 100 + 1, y + 15, a | 0x15121D); // the levels
         }
-        if (now < noticeUntil && !notice.isEmpty()) {
-            g.drawString(mc.font, notice, 6, 6, 0xFFFFD27A);
+        if (now < noticeUntil && !notice.isEmpty()) { // something worth knowing, top left, fading out
+            var lines = font.split(Component.literal(notice), Math.max(120, Math.min(300, w - 140)));
+            int widest = 0;
+            for (var line : lines) widest = Math.max(widest, font.width(line));
+            float fade = Math.min(1f, (noticeUntil - now) / 500f);
+            int a = Math.max(8, (int) (fade * 255));
+            int y = 6;
+            panel(g, 4, y - 3, 4 + widest + 10, y + lines.size() * 10 + 1, a, 0xFFD27A);
+            for (var line : lines) {
+                g.drawString(font, line, 10, y, (a << 24) | 0xFFE9B8);
+                y += 10;
+            }
         }
         Behavior life = companion.life;
         if (cfg.guideArrow && life.mode == Behavior.Mode.GUIDE) { // which way, and how far, at a glance
             double[] t = life.guideTarget();
             double dx = t[0] - mc.player.getX(), dz = t[2] - mc.player.getZ();
-            String s = Direction8.arrow(mc.player.getYRot(), dx, dz) + " " + displayName + " leads you · "
-                    + Math.round(Math.hypot(dx, dz)) + " blocks";
-            int x = (w - mc.font.width(s)) / 2;
-            g.fill(x - 4, 6, x + mc.font.width(s) + 4, 18, 0x80000000);
-            g.drawString(mc.font, s, x, 8, 0xFFFFE9A8);
+            String arrow = Direction8.arrow(mc.player.getYRot(), dx, dz);
+            String rest = "  " + displayName + " leads you \u00b7 " + Math.round(Math.hypot(dx, dz)) + " blocks";
+            double rise = t[1] - mc.player.getY();
+            if (rise > 3) rest += " \u2191" + Math.round(rise);
+            if (rise < -3) rest += " \u2193" + Math.round(-rise);
+            int aw = font.width(arrow), tw = aw + font.width(rest), x = (w - tw) / 2;
+            panel(g, x - 5, 4, x + tw + 5, 18, 230, herColor());
+            g.drawString(font, arrow, x, 7, 0xFF000000 | herColor());
+            g.drawString(font, rest, x + aw, 7, 0xFFFFE9A8);
         }
     }
 

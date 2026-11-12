@@ -388,7 +388,8 @@ public final class Behavior {
         }
         double contact = lookedAtSince < 0 || !settings.lookBack ? 0 : now - lookedAtSince;
         if (settings.eyeContactReactions && contact > 1.3 && !contactReacted && now - lastContactReaction > 10 && emote == null && act == Activity.IDLE) {
-            play(rng.nextDouble() < 0.6 ? Emote.HAPPY : Emote.SHY, now);
+            double roll = rng.nextDouble(); // pleased, bashful, or a wink: she isn't always the one caught staring
+            play(roll < 0.45 ? Emote.HAPPY : roll < 0.75 ? Emote.SHY : Emote.TEASE, now);
             contactReacted = true;
             lastContactReaction = now;
         }

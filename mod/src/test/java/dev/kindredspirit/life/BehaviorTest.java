@@ -220,7 +220,7 @@ public class BehaviorTest {
             lookAtCompanion(s, b);
             run(b, s, TICK, Behavior.Activity.IDLE);
         }
-        assertTrue(b.emote == Emote.HAPPY || b.emote == Emote.SHY, "got happy or shy: " + b.emote);
+        assertTrue(b.emote == Emote.HAPPY || b.emote == Emote.SHY || b.emote == Emote.TEASE, "got happy, shy or a wink: " + b.emote);
     }
 
     @Test
