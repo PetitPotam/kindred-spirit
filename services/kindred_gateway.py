@@ -7,6 +7,7 @@
       /audio/speech            text -> you local Kokoro (default), OpenAI, any OpenAI-compatible (WAV)
       /embeddings              meaning     local small model (default), Gemini, Ollama, OpenAI
       /memory/...              storage     local SQLite file (default), or another gateway deployed elsewhere
+      /knowledge/search        Minecraft   the local knowledge base (services/knowledge, docs/KNOWLEDGE.md)
 
 Every part is chosen in ~/.kindred-spirit/gateway.json (re-read on each request, no restart) or
 with the CLI below; keys live in ~/.kindred-spirit/secrets.env. The full guide is
@@ -517,6 +518,16 @@ def memory_call(store, op, req):
     raise LookupError("unknown memory operation " + op)
 
 
+# ---------------------------------------------------------------- knowledge base (docs/KNOWLEDGE.md)
+
+def knowledge_call(state, op, req):
+    """/v1/knowledge/search|stats|sources: services/knowledge/api.py, with this gateway's embedder."""
+    from knowledge import api as knowledge_api
+    ename, ep = provider(state, "embeddings")
+    model = "" if ename == "none" else "%s:%s" % (ename, ep.get("model", ""))
+    return knowledge_api.call(op, req, embed=lambda texts, query=False: embed_texts(load(), texts, query), model=model)
+
+
 # ---------------------------------------------------------------- HTTP
 
 class Handler(BaseHTTPRequestHandler):
@@ -596,6 +607,8 @@ class Handler(BaseHTTPRequestHandler):
                                                             for i, v in enumerate(vecs)]})
             elif path.startswith("/memory/"):
                 self.memory(state, path[len("/memory/"):], raw)
+            elif path.startswith("/knowledge/"):  # the Minecraft knowledge base (services/knowledge, read-only)
+                self.reply(200, knowledge_call(state, path[len("/knowledge/"):], json.loads(raw or b"{}")))
             elif path == "/control":  # the special instructions, from the game (/kindred persona ...)
                 self.reply(200, control(json.loads(raw or b"{}")))
             else:
