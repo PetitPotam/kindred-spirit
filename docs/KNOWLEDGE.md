@@ -14,9 +14,9 @@ Code: `services/knowledge/` (standard library only; numpy is used if present). T
   sources                      crawler                                knowledge.db
   ─────────                    ───────                                ────────────
   minecraft-wiki  ─┐   robots.txt · 1 request/s · cache    pages ── chunks ── FTS5 (words)
-  web sites       ─┼─▶ discover ▶ queue ▶ fetch ▶ clean ▶ chunk ──▶          └─ vectors (meaning,
-  your .md files  ─┘   (resumes after a stop; refetches only           from the gateway's /v1/embeddings)
-                        what changed)                                       │
+  minecraft-data  ─┤   discover ▶ queue ▶ fetch ▶ clean ▶ chunk ──▶          └─ vectors (meaning,
+  web sites       ─┤   (resumes after a stop; refetches only           from the gateway's /v1/embeddings)
+  your .md files  ─┘    what changed)                                       │
                                                          gateway /v1/knowledge/search ◀── Pip
 ```
 
@@ -27,14 +27,18 @@ you, this is what the world says about the game.
 
 ```bash
 cd ~/Developer/kindred-spirit
-python3 services/knowledge/kb.py crawl minecraft-wiki --category Mobs --limit 50
+python3 services/knowledge/kb.py crawl minecraft-wiki --core --grow 600   # the recommended set (~45 min)
+python3 services/knowledge/kb.py crawl minecraft-data                     # exact 1.21.1 recipes (seconds)
 python3 services/knowledge/kb.py search "where do zombies spawn"
+python3 services/knowledge/kb.py eval                                     # how well it answers
 ```
 
 | Command | What it does |
 |---|---|
 | `kb.py sources` | the sources, their licenses and terms, what is stored from each |
-| `kb.py crawl minecraft-wiki` | a first crawl takes the starter categories (mobs, biomes, tutorials, redstone, food, plants, enchantments, ores, structures, utility blocks, mechanisms, tools, weapons, armor, gameplay); after a stop it just continues |
+| `kb.py crawl minecraft-wiki --core --grow 600` | **the recommended set**: ~340 pages survival players ask about (materials, tools, workstations, enchanting, brewing, farming, redstone, villagers, mobs, structures, the key tutorials; `CORE_PAGES` in `sources.py`), then the 600 pages those link to most ([below](#what-to-crawl)) |
+| `kb.py crawl minecraft-data` | every crafting recipe, food value and mining need of Java 1.21.1, exactly ([below](#minecraft-data-the-games-own-numbers)) |
+| `kb.py crawl minecraft-wiki` | without options, a first crawl takes the starter categories (mobs, biomes, tutorials, ...; only the first 200 members of each, see below); after a stop it just continues |
 | `kb.py crawl minecraft-wiki --category Mobs --limit 50` | one category (and its subcategories, `--depth 1`), at most 50 pages this time |
 | `kb.py crawl minecraft-wiki --page Piston --page "Tutorial:Mob farm"` | given pages |
 | `kb.py crawl minecraft-wiki --all` | every article in the wiki's sitemap (version-history pages skipped): about 10,000 pages, several hours |
@@ -44,7 +48,9 @@ python3 services/knowledge/kb.py search "where do zombies spawn"
 | `kb.py learn "how do I build an iron farm"` | read the few wiki pages that answer one question, now ([below](#learning-on-demand)) |
 | `kb.py learning [on\|off] [--per-hour N] [--pages N] [--max-mb N]` | on-demand learning settings and the last look-ups |
 | `kb.py stats` | pages, chunks, vectors, size on disk, queue, when last fetched |
-| `kb.py reindex` | rebuild every stored page from the download cache, no network (after a parser change) |
+| `kb.py reindex` | rebuild every stored page from the download cache, no network (after a parser change); pages the rules now leave out are removed |
+| `kb.py eval [-v] [--json FILE]` | score it on 54 questions players ask, with the pages that answer them ([below](#measuring-it)) |
+| `kb.py compact` | 16-bit vectors and free space given back (a store from before this change shrinks by ~40%) |
 | `kb.py embed` | give vectors to chunks stored while the gateway was off |
 | `kb.py remove SOURCE [--cache]` | forget a source (and its cached downloads) |
 | `kb.py add NAME --kind web ...` | add a source (below) |
@@ -84,17 +90,45 @@ automatically (`"mode": "auto" | "api" | "html"` in its config).
 Two things follow from that robots.txt:
 
 - A category page shows up to 200 members, and its "next page" links (`?pagefrom=`) are
-  disallowed, so only the first 200 of a big category are taken (the crawler says so). Most big
-  categories have subcategories (crawled with `--depth 1`); `--all` uses the sitemap instead.
+  disallowed, so only the first 200 of a big category are taken (the crawler says so). That is
+  why the first knowledge base had tutorials from A to I only, and almost no items or blocks:
+  `--core --grow` (below) doesn't depend on category pages at all.
 - The same robots.txt blocks named AI crawlers (GPTBot, ClaudeBot, CCBot, …) from everything.
   This tool is not one of those (a player's own slow, local fetcher that is never redistributed),
   and it is held to the rules for every other agent. If the wiki ever names it, it stops.
+
+## What to crawl
+
+The first knowledge base was crawled by category (mobs, biomes, tutorials...): 381 pages, but
+cut by the 200-member limit (tutorials A to I), with April Fools mobs and Education-only entities
+in, and no Diamond, Enchanting Table, Potion, Trading or Nether Portal page. Scored on the
+questions players ask, a right page was stored for only 30 of 52 ([Measuring it](#measuring-it)).
+
+`kb.py crawl minecraft-wiki --core --grow 600` builds it the way a good reference is used instead:
+
+1. **The core**: ~340 pages a survival player asks about, listed by topic in `CORE_PAGES`
+   (`services/knowledge/sources.py`): materials and ores, tools and armor, workstations,
+   enchanting and brewing, food and farming, redstone components, villagers and trading, the
+   common mobs and pets, structures and dimensions, and the tutorials for farms, trading halls,
+   doors, portals, bosses and trial chambers.
+2. **Grow along shared links**: every page keeps the articles it links to (`meta.links`, from its
+   body, not menus or navboxes). `--grow N` fetches the N pages the stored pages link to most
+   (`crawler.linked_titles`, at least `--min-links 4` pages pointing to each): what the core keeps
+   pointing at (Iron Ingot, Redstone Dust, Bone Meal, Smithing Template) is what fills the gaps.
+3. **Leave out what isn't the player's game**: version pages, how to mod, host or script the
+   game (`skip_titles`), April Fools and spin-off pages (dropped once fetched, by their own
+   categories: [below](#one-edition-one-version)), single designs among dozens
+   (`Redstone circuits/Memory/TFF Z3`; the overview pages stay).
+
+`kb.py refresh` asks for all of it again (only what changed is downloaded), and learning while
+playing fills what is still missing.
 
 ## Sources and licenses
 
 | Source | Kind | License | Notes |
 |---|---|---|---|
 | `minecraft-wiki` | mediawiki | [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) ([terms](https://meta.weirdgloop.org/w/Meta:Copyrights)) | built in; includes the wiki's `Tutorial:` pages (farms, redstone builds, mechanisms): the build guides |
+| `minecraft-data` | minecraft-data | [MIT](https://github.com/PrismarineJS/minecraft-data/blob/master/LICENSE) (PrismarineJS); the game data in it is Mojang's | built in, **needs your OK to use** (below); recipes, foods, mining for Java 1.21.1 |
 | `local` | local | yours | built in; `.md`, `.markdown`, `.txt` in `~/.kindred-spirit/knowledge/local/` |
 | anything you add | web / mediawiki / local | what its site says | `kb.py add` or `sources.json` |
 
@@ -104,9 +138,36 @@ where it came from. The wiki's content is for each player's own local use: it is
 your computer by you, never shipped in this repository or shared between players (the tests use
 made-up pages that only imitate the wiki's markup).
 
-The wiki describes the **latest** versions of Java and Bedrock and marks the differences
-("[JE only]", "[BE only]", "[upcoming …]"). Kindred Spirit runs on Java 1.21.1, so newer features
-can appear in the text; the edition note is stored with every page.
+### minecraft-data: the game's own numbers
+
+[PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data) publishes, per game
+version, JSON extracted from the game: every crafting recipe, item, block (hardness, the tool it
+needs, what it drops) and food. Its license is MIT; its README notes that some of the data was
+taken from the game and from wikis, so it is used the same way as the wiki: downloaded by each
+player to their own computer, never shipped. `kb.py crawl minecraft-data` reads five small files
+for Java 1.21.1 (six requests, ~1.3 MB, from raw.githubusercontent.com, whose robots.txt allows it)
+and makes a short page per item, "Piston (Java 1.21.1 data)":
+
+```
+Crafting: [Crafting recipe for 1 Piston: top row: any Planks, any Planks, any Planks; middle row:
+           Cobblestone, Iron Ingot, Cobblestone; bottom row: Cobblestone, Redstone Dust, Cobblestone. ...]
+Mining:   Diamond Ore: hardness 3. It needs at least an Iron Pickaxe to drop anything. Mined, it drops Diamond.
+Food:     Bread restores 5 hunger (2.5 drumsticks) and 6 saturation.
+Used to make: Redstone Dust is used to make: Clock, Compass, Observer, Piston, ...
+```
+
+The wiki explains how and why; this says exactly what, for the player's version (the wiki
+describes the latest one: [below](#one-edition-one-version)). 1,146 pages, ~3,300 short passages.
+Smelting recipes are not in it (the wiki has them).
+
+### Other sources looked at
+
+- **Minecraft's own help articles and minecraft.net** (Mojang): all rights reserved, no license
+  that allows copying them into a knowledge base. Not added.
+- **Third-party guide sites**: not added; each one's terms would have to be read and allow this.
+  The wiki's own `Tutorial:` pages cover farms, trading halls and redstone builds under a known
+  license.
+- Anything you add yourself goes through `kb.py add` with its license recorded.
 
 ### Adding a build-guide site
 
@@ -145,6 +206,43 @@ token) and `fetch()` (a `Document` of titled sections), added to `KINDS`.
 Your own guides need nothing but a file: write `~/.kindred-spirit/knowledge/local/cherry-house.md`
 with `#`/`##` headings, then `kb.py crawl local`.
 
+## One edition, one version
+
+The wiki describes the **latest** Java and Bedrock versions (26.x by now) and marks what differs:
+"70%[JE only], 75%[BE only]", "Frostbite[upcoming: JE 26.4]", "[until: JE 1.21.5]". Kindred Spirit
+runs on **Java 1.21.1** (`"edition_filter": "java"`, `"game_version": "1.21.1"` in the wiki's
+source config), so:
+
+- **Facts for another edition are left out**: "70%[JE only], 75%[BE only]" is stored as "70%";
+  "They are part of the monster family[Bedrock Edition only]." is dropped; a section headed
+  "Bedrock Edition" or "Basic Bedrock Edition farms" too (`textify.edition_filter`).
+- **Upcoming facts are left out** (not even released); "[until: …]" notes are removed and their
+  facts kept (true before that version, so for 1.21.1).
+- **Every page gets a status**, from the wiki's own categories and History section
+  (`textify.wiki_status`), stored with it and returned with every result (`"status"`):
+
+| Status | From | In search |
+|---|---|---|
+| `current` | everything else | normal |
+| `future` | the first Java release in its History is after 1.21.1 (Happy Ghast 1.21.6, Copper Golem 1.21.9, Creaking 1.21.2), or "Java Edition upcoming" | ×0.45; `"since": "1.21.6"` |
+| `outdated` | "Outdated tutorials", or "as it formerly worked" in its first lines | ×0.55 |
+| `removed` | "Removed …", "Unused …", "(old)" pages | ×0.5 |
+| `other-edition` | only in "Bedrock Edition" | ×0.45 |
+| `joke`, `spin-off` | "Joke features", "Minecraft Education mobs", "Minecraft Dungeons items", … | not kept |
+
+Only a `current` page answers a question (`covered`). The others stay searchable so Pip can say
+"that isn't in this world" (`not_in_this_world()` in `brain/kindred/knowledge.py`), and
+`"outdated": true` (anything not current) keeps them out of her answers.
+
+The first version flagged pages "outdated" by category words, which caught the wiki's
+housekeeping categories ("Pages needing historical sounds", "Obsolete information" on one
+section): Creeper, Enderman, Skeleton, Redstone Repeater, Comparator and Hopper all ranked ×0.55
+and could never answer. Only exact category names count now.
+
+What the wiki changed *between* 1.21.1 and its latest version on a current page is only in its
+History tables, which are dropped: a detail can still be newer than the player's game. The
+`minecraft-data` source is exact for 1.21.1 where it applies (recipes, foods, mining).
+
 ## What a wiki page becomes
 
 `textify.wiki_sections()` turns an article into sections named by their headings
@@ -159,8 +257,10 @@ with `#`/`##` headings, then `kb.py crawl local`.
   "shapeless"}]}`. Empty rows and columns are trimmed (the shape is what matters).
 - **tables become rows** (`Bamboo Jungle | 95⁄515 | 18.45% | 4`), with the header row repeated on
   every chunk a long table is cut into.
-- **dropped**: History, Data history, Gallery, Videos, Trivia, Sounds, Achievements, References,
-  Issues, See also, navboxes, edit links, footnote marks, hatnotes, images.
+- **dropped**: History, Data history, Gallery, Videos, Trivia, Sounds, Achievements,
+  Advancements (the list every mob page repeats), Data values, Block states and tags (identifiers),
+  References, Issues, See also, navboxes, edit links, footnote marks, hatnotes, images, and what
+  belongs to another edition. Together about 10% of the text, none of it what players ask.
 
 Sections are cut into chunks of at most ~1,200 characters, between paragraphs, then between lines
 (tables, lists), then between sentences.
@@ -222,32 +322,50 @@ curl -s http://127.0.0.1:11437/v1/knowledge/search \
 
 Every search (CLI `search`, `KnowledgeStore.ask()`, HTTP) says whether the knowledge base really
 answers the question: `"covered": true|false`, with `"best"` (the top score) and `"threshold"`.
-Covered means the best chunk scores at least **0.55** and is about the thing asked: its page *is*
-that thing (title "Piston" for "make a piston"), or it holds every subject word of the question
-without being a different thing with a similar name ("Smiling Creeper" for a creeper question is
-not an answer). A build or farm question also needs a guide (a `Tutorial:` page, or a web/local
-source) about it in the top 3.
+Covered means the best chunk scores at least **0.55**, its page is `current`
+([above](#one-edition-one-version)), and it is about the thing asked:
 
-0.55 was calibrated on the real knowledge base below (local embeddings): the answers to the
-questions tried scored 0.66 to 0.86. Near misses scored from 0.54 (a beacon question with no
-Beacon page) to 0.68 ("Smiling Creeper" for a creeper question); the ones above 0.55 were all
-caught by the "about the thing asked" rule. On words alone (no embeddings), answers score higher
-(0.6 to 1.0), so the same threshold is conservative there. A known soft spot: a general guide
-that mentions the thing can count as covered ("how do I make a diamond pickaxe" is answered by the
-crafting section of an old beginner's guide, 0.65, while there is no Diamond Pickaxe page yet).
+- its page *is* that thing (title "Piston" for "make a piston"), or
+- its page or section is about it ("Tutorial:Combat / Shields"): every subject word in the title
+  or the section name (`"in_heading"`), or
+- it names every subject word and matches very well (score ≥ 0.72);
+- and it isn't a different thing with a similar name ("Smiling Creeper" for a creeper question).
 
-| Question | Best chunk | Score | Covered |
+A build or farm question needs a current guide (a `Tutorial:` page, or a web/local source) whose
+*title* names the thing in the top 3 (`"title_subject"`): "Tutorial:Iron golem farming" for an
+iron farm, not "Tutorial:Building a metropolis" because it says "mob farms" once.
+
+Covered when it isn't is the costly mistake: she answers from a passage that only mentions the
+thing, and never listens for the real answer. With the first rule ("every subject word somewhere
+in the chunk") "how do I craft a bed" was covered by the Bone Meal page ("use it next to a bed");
+on the old knowledge base 10 of 26 "covered" answers were wrong. With these rules and the
+recommended set, 1 of 46 ([Measuring it](#measuring-it)).
+
+What the question is about (`store.parse_question`) is shared by search, coverage and learning:
+its words minus the kind of question ("make", "spawn", "build"), how ("simple", "best", "level")
+and what one does to the thing ("stop", "open", "cure", "defeat": also left out of guide titles,
+so "Tutorial:Defeating trial chambers" is about trial chambers); the thing itself is what comes
+before a preposition ("a creeper farm *for gunpowder*"); "xp" means experience. A page answers to
+the names it gives itself in bold in its first line too ("redstone comparator, or simply
+**comparator**"; not the materials a page lists in bold), and the stemmer meets "endermen" and
+"enderman", "trading" and "trade".
+
+0.55 was calibrated on the first knowledge base (local embeddings): answers scored 0.66 to 0.86,
+near misses 0.54 to 0.68 (those above 0.55 caught by the "about the thing asked" rules). On the
+recommended set, right answers score 0.59 to 0.94. On words alone (no embeddings), answers score
+higher, so the same threshold is conservative there.
+
+| Question (recommended set) | Best chunk | Score | Covered |
 |---|---|---|---|
 | how do I make a piston | Piston / Obtaining > Crafting | 0.86 | yes |
-| where do creepers spawn | Creeper / Spawning | 0.86 | yes |
-| how do I breed cows | Cow / Breeding | 0.80 | yes |
-| how do I build an iron golem farm | Tutorial:Door-based iron golem farming / Tower design | 0.74 | yes |
-| how does a redstone repeater work | Redstone Repeater / Summary | 0.70 | yes |
-| how do I grow wheat faster | Wheat / Obtaining > Farming | 0.74 | yes |
-| how much health does a ravager have | Ravager / Facts | 0.82 | yes |
-| what biome do pandas live in | Panda / Spawning | 0.75 | yes |
-| how do I make a beacon (no Beacon page yet) | Tutorial:Achievement guide / The Beaconator | 0.54 | no |
-| ... after `kb.py learn` (3.3 s) | Beacon / Obtaining > Crafting | 0.84 | yes |
+| how do I craft a bed (was: Bone Meal, "covered") | Bed / Obtaining > Crafting | 0.91 | yes |
+| what does a comparator do | Redstone Comparator (by its name "comparator") | 0.67 | yes |
+| how do I get a librarian with mending | Mending / Obtaining, and Librarian | 0.63 | yes (both) |
+| how do I build a creeper farm for gunpowder | Tutorial:Creeper farming | 0.80 | yes |
+| how do I stop phantoms | Phantom | 0.63 | yes |
+| how do I make a simple wheat farm, step by step | Wheat (no wheat-farm guide on the wiki) | 0.79 | no |
+| can I get a happy ghast | Happy Ghast (future: Java 1.21.6) | 0.56 | no, marked |
+| how do I make a redstone clock | Clock (the item) | 0.86 | yes: the one wrong answer left |
 
 ## Learning on demand
 
@@ -255,16 +373,26 @@ When a question isn't covered, the knowledge base can read the pages that answer
 with the crawler's rules: `kb.py learn "how do I build an iron farm"`, `POST
 /v1/knowledge/learn {"query": "..."}` or `learn.learn(store, source, fetcher, query, kdir)`.
 
-1. **Find the pages.** On a wiki that allows its API, its own search (`list=search`). On
+1. **Find the question** in what was said: "That thing ignored me. How do I tame a parrot?" is
+   about parrots; a chatty message with no question about the world ("...What is the coordinates
+   of my base? Can you tell me please?") is not looked up at all (`learn.focus`).
+2. **Find the pages.** On a wiki that allows its API, its own search (`list=search`). On
    minecraft.wiki, whose robots.txt forbids `api.php` and `Special:Search`, the titles come from its
-   sitemaps instead (all ~14,000 articles and ~630 tutorials, with their last edit: two small
-   files, reused for a day), ranked against the question: the page must be about the question's
-   subject ("iron", "zombie"), the closer its title the better, tutorials first for build/farm
-   questions, subpages and spin-off games last.
-2. **Read the best few** (3 by default) like the crawler does: robots.txt, one request per
+   sitemaps instead (all ~14,800 articles and ~630 tutorials, with their last edit: two small
+   files, reused for a day), ranked against the question (`learn.rank_titles`):
+   - the page must be about the question's subject; words that say *how* ("simple", "step by
+     step", "best", "level") are not the subject: "a simple wheat farm" is about wheat, not the
+     "Simple Block" page it used to learn;
+   - the thing itself counts double: the last subject word ("redstone **door**"), or the one
+     before a preposition ("a **librarian** with mending", "a **potion** of night vision");
+   - a question about two things gets a page for each (Librarian and Mending);
+   - tutorials first for build/farm questions, "X Ore" for where-to-find questions, subpages,
+     other games and April Fools pets ("Pet Parrot") last.
+3. **Read the best few** (3 by default) like the crawler does: robots.txt, one request per
    second, cache, license and URL on every chunk. A page already stored at the same version is
-   not fetched again (`"fresh"`).
-3. **Answer**: the HTTP call returns what was added and the new search for the question:
+   not fetched again (`"fresh"`). A page that turns out to be a joke or from another game is not
+   kept, and the next candidate is read instead (at most 2 extra requests).
+4. **Answer**: the HTTP call returns what was added and the new search for the question:
 
 ```json
 {"status": "learned", "seconds": 2.49, "requests": 3,
@@ -292,24 +420,63 @@ requests each (robots.txt or a sitemap check, then the pages).
 
 Every look-up is logged (`learn_log` in the database, `kb.py learning` lists the last ones).
 
+**Is 20 an hour, 3 pages each, the right shape?** Yes, as bounds. In the first afternoon of play
+there were 9 look-ups in 3 hours; with the recommended set, most questions are covered before
+anyone asks (46 of 52 answered at once, [Measuring it](#measuring-it)), so learning is for the long
+tail. 20 an hour only stops a loop (60 requests at most, under the wiki's 1 per second); 3 pages
+is what one question needs (the thing, its guide, the second thing asked about). What changed is
+*which* 3: the look-ups that went wrong in play ("Simple Block" for a wheat farm, the whole
+"Tutorials" index for a redstone door, a chatty sentence) are fixed above.
+
+**Why whole pages, not sections?** On minecraft.wiki a page is one request whatever part of it is
+needed (sections can only be asked for through `api.php`, which robots.txt forbids), and a stored
+page answers the next question about the same thing at once. The section is what Pip *gets*:
+for a how-to, the brain asks for the whole section of the best current guide
+([below](#current-information-first-and-whole-guides)).
+
+## Measuring it
+
+`kb.py eval` asks the knowledge base 54 questions players ask a companion, by topic (crafting,
+materials, farms, redstone, villagers, enchanting, brewing, mobs, structures, survival, and two
+about things added after 1.21.1), each with the wiki pages that answer it
+(`services/knowledge/eval_questions.json`; `-v` for one line per question, `--json` to keep them):
+is a right page stored, first, in the top 3, and does the store say it's covered, rightly or not.
+
+| | first knowledge base (main) | same store, new code | recommended set | + minecraft-data |
+|---|---|---|---|---|
+| pages / chunks | 381 / 7,991 | 381 / 7,991 | 1,161 / 19,089 | 2,307 / 22,378 |
+| a right page stored | 30 of 52 | 30 | **52** | 52 |
+| right page first | 19 | 23 | **47** | 47 |
+| right page in the top 3 | 21 | 25 | **49** | 49 |
+| covered, rightly | 16 | 19 | **45** | 45 |
+| covered, wrongly | 10 | 4 | **1** | 1 |
+| after 1.21.1: answered as if current | 2 of 2 | 2 | **0** | 0 |
+
+With minecraft-data, crafting questions get the exact 1.21.1 recipe first ("Piston (Java 1.21.1
+data)"), counted as the page it's about. Learning, run for real on a copy of the first knowledge
+base: "a librarian with mending" read Librarian and Mending (2.5 s, 3 requests) and became
+covered; "a simple wheat farm, step by step" no longer reads "Simple Block"; the 14:49 chatty
+message is not looked up.
+
 ## Size and speed
 
-Measured on a MacBook Air (M4), minecraft.wiki, local embeddings (bge-small, 384 numbers per chunk):
-371 pages (154 mobs, ~190 tutorials, ~25 blocks, items and biomes), 7,812 chunks.
+Measured on a MacBook Air (M4), minecraft.wiki, local embeddings (bge-small, 384 numbers per chunk).
 
-| | |
-|---|---|
-| speed | 1.7 s per page at the default 1 request/second (fetch, clean, chunk, embed); 50 pages in 112 s |
-| download | ~42 KB per page (gzip), plus one request per category page |
-| chunks | ~21 per page, ~650 characters each (4.5 MB of text for 366 pages) |
-| database | ~85 KB per page with vectors (31.7 MB for 371 pages) |
-| cache | ~45 KB per page (raw pages, gzip; 16 MB) |
-| search | ~170 ms from the CLI with the question embedded through the gateway; a few ms on words alone |
-| reindex | 366 pages from the cache in 42 s, no network |
+| | first knowledge base | recommended set (`--core --grow 600`) |
+|---|---|---|
+| pages, chunks | 381, 7,991 | 1,161, 19,089 (16 per page, ~580 characters each) |
+| crawl | 1.7 s per page | the core (271 new pages, big ones) in 10.5 min, 2.3 s each; the 600 more in 14 min, 1.4 s each; ~38 MB downloaded |
+| database | 32.5 MB (85 KB per page) | 48.3 MB (42 KB per page: 16-bit vectors, ~10% less text) |
+| download cache | 20 MB | 58 MB (`kb.py remove minecraft-wiki --cache` to drop it; refreshes then download again) |
+| search, inside the gateway (no numpy) | ~170 ms | ~90 ms warm (pages first, then their chunks); 440 ms for the very first |
+| search with numpy | | ~58 ms |
+| reindex from the cache | 42 s | ~2 min |
+| minecraft-data | | 1,146 pages, 3,289 chunks, 6 requests, 38 s (embedding), +5 MB |
 
-So, extrapolating: 1,000 pages take about 30 minutes and ~130 MB (database and cache); the
-whole wiki with `--all` (~10,000 articles once version pages are skipped) about 5 hours and
-~1.3 GB. `kb.py remove minecraft-wiki --cache` gives it all back.
+Without numpy (the gateway's Python has none), a store above 4,000 chunks is searched page by
+page first: each page's mean vector is compared, then only the chunks of the 60 nearest pages and
+the keyword hits (`KnowledgeStore.PURE_FULL_SCAN`, `PURE_PAGES`). On the 54 questions the answers
+are the same as comparing every chunk. With numpy every chunk is compared.
 
 ## Files
 
@@ -322,14 +489,45 @@ whole wiki with `--all` (~10,000 articles once version pages are skipped) about 
 ```
 
 `KINDRED_KNOWLEDGE` points elsewhere (or `--dir`); `KINDRED_GATEWAY_URL` is the gateway the CLI
-asks for embeddings (default `http://127.0.0.1:11437/v1`).
+asks for embeddings (default `http://127.0.0.1:11437/v1`; any OpenAI-style `/embeddings` address
+works, e.g. a second `services/embed_server.py` with `KINDRED_EMBED_PORT=8992`, to build without
+touching the gateway you are playing with).
+
+### Swapping in a rebuilt knowledge base
+
+Build a new one next to the live one, never in it while the game is connected (the gateway keeps
+the database open):
+
+```bash
+K=~/.kindred-spirit/knowledge; N=~/.kindred-spirit/knowledge-new
+mkdir -p $N && cp -R $K/cache $N/ && cp $K/settings.json $N/ 2>/dev/null   # the cache: fewer downloads
+sqlite3 $K/knowledge.db ".backup '$N/knowledge.db'"                         # a safe copy of an open database
+python3 services/knowledge/kb.py --dir ~/.kindred-spirit/knowledge-new reindex
+python3 services/knowledge/kb.py --dir ~/.kindred-spirit/knowledge-new crawl minecraft-wiki --core --grow 600
+python3 services/knowledge/kb.py --dir ~/.kindred-spirit/knowledge-new compact
+python3 services/knowledge/kb.py --dir ~/.kindred-spirit/knowledge-new eval
+```
+
+Then, with the game closed:
+
+```bash
+scripts/stop.sh
+mv ~/.kindred-spirit/knowledge ~/.kindred-spirit/knowledge-before
+mv ~/.kindred-spirit/knowledge-new ~/.kindred-spirit/knowledge
+scripts/start.sh --background
+```
+
+Pages learned while playing after the copy was made are in `knowledge-before` only:
+`kb.py --dir ~/.kindred-spirit/knowledge-before learning` lists the last look-ups, and `kb.py learn
+"..."` brings any of them back. `knowledge-before` can be deleted once you're happy.
 
 ## Current information first, and whole guides
 
-- **Outdated pages rank lower.** The wiki marks pages about older versions itself (categories like
-  "Outdated tutorials", or text like "as it formerly worked prior to Java Edition 1.14"). They stay
-  searchable but score lower, are flagged `"outdated": true`, and never count as covering a question
-  on their own, so she learns the current page instead.
+- **Only current pages answer.** Pages about an older version ("Outdated tutorials", "as it
+  formerly worked prior to Java Edition 1.14"), added after the player's version, removed, or only
+  in Bedrock stay searchable but score lower, are flagged `"outdated": true` with their `"status"`,
+  and never count as covering a question, so she learns the current page instead
+  ([One edition, one version](#one-edition-one-version)).
 - **A build question needs a real guide.** It counts as covered only by a current guide whose title
   names the thing ("Tutorial:Iron golem farming"), not a paragraph in a general tutorial.
 - **Whole sections.** `POST /v1/knowledge/section {"chunk_id": id}` (or `{"page": title, "name":

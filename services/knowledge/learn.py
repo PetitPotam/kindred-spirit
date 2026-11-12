@@ -27,7 +27,8 @@ import re
 import time
 
 from . import crawler
-from .store import BUILD_WORDS, INTENTS, STOP, page_title_stems, stem, words
+from . import store as store_mod
+from .store import BUILD_WORDS, INTENTS, STOP, page_title_stems, parse_question, stem, words
 
 DEFAULTS = {"enabled": True, "max_per_hour": 20, "pages_per_learn": 3, "max_total_mb": 1024,
             "retry_after_hours": 24, "index_max_age_hours": 24, "source": "minecraft-wiki"}
@@ -67,19 +68,48 @@ def save_settings(kdir, **changes):
 
 
 def normalize(query):
-    return " ".join(sorted({stem(w) for w in words(query) if w not in STOP and len(w) >= 3}))
+    return " ".join(sorted({stem(w) for w in words(focus(query)) if w not in STOP and len(w) >= 3}))
 
 
 KIND_WORDS = {stem(w) for trig, _, _ in INTENTS for w in trig} | {stem(w) for w in BUILD_WORDS}
+FILLER = {stem(w) for w in store_mod.FILLER}
+WHERE = {"where", "find", "found", "level", "layer", "height", "deep", "depth", "spawn", "spawns", "locate"}
 GUIDE = ("tutorial:",)
+ABOUT_US = re.compile(r"\b(you|your|yourself|my|mine|our|me)\b", re.I)
+POLITE = re.compile(r"\b((can|could|would|will) you( please)?( (tell|show|teach) me| explain)?|do you know|"
+                    r"(tell|show|teach) me|please)\b", re.I)
+ASKING = re.compile(r"\b(how|what|where|which|why|when|can|could|is there|are there|do|does)\b", re.I)
+
+
+def focus(query):
+    """The question in what was said: "That thing ignored me. How do I tame a parrot? Thanks!"
+    -> "How do I tame a parrot?". A long message with no question about the world -> ""."""
+    q = (query or "").strip()
+    sentences = [x.strip() for x in re.split(r"(?<=[.!?])\s+", q) if x.strip()]
+    if len(sentences) <= 1 and len(words(q)) <= 25:
+        return q
+    def about_us(x):  # "can you tell me how..." is still a question about the world; "can you tell me?" isn't
+        rest = POLITE.sub(" ", x)
+        return ABOUT_US.search(rest) or not [w for w in words(rest) if w not in STOP and len(w) >= 3
+                                              and not ASKING.fullmatch(w)]
+    asks = [x for x in sentences if x.endswith("?") and ASKING.search(x) and not about_us(x)]
+    if asks:
+        return asks[0]
+    asks = [x for x in sentences if ASKING.search(x) and not about_us(x)]
+    return asks[0] if asks and len(words(asks[0])) <= 25 else ""
 
 
 def rank_titles(query, items, n=3):
     """The pages most likely to answer the question, best first. A page must be about the
-    question's subject; tutorials come first for build/farm questions."""
-    q_all = {stem(w) for w in words(query) if w not in STOP and len(w) >= 3}
-    subject = q_all - KIND_WORDS
+    question's subject; the last subject word (the thing itself: "door" in "redstone door") counts
+    double; tutorials come first for build/farm questions, "X Ore" for where-to-find questions."""
+    query = focus(query)
+    pq = parse_question(query)
+    q_all = pq["terms"] - FILLER
+    subject = pq["subject"]
+    head = pq["head"]
     wants_guide = bool(set(words(query)) & BUILD_WORDS)
+    wants_place = bool(set(words(query)) & WHERE)
     scored = []
     for it in items:
         t = page_title_stems(it.title)
@@ -90,21 +120,37 @@ def rank_titles(query, items, n=3):
         if not hit or (subject and not subj):
             continue
         precision = len(hit) / len(t)
-        recall = len(subj) / len(subject) if subject else len(hit) / len(q_all)
+        if subject:
+            recall = (len(subj) + (1 if head in subj else 0)) / (len(subject) + 1)
+        else:
+            recall = len(hit) / len(q_all)
         score = precision + 2 * recall
         guide = it.title.lower().startswith(GUIDE)
         if guide:
             score += 1.0 if wants_guide else -0.5
+        if wants_place and it.title.endswith(" Ore") and subj:
+            score += 0.5
         if "/" in it.title:  # subpages ("Tutorial:X/Design 2") after the page itself
             score -= 0.5
-        if re.search(r"\b(Edition|Story Mode|Dungeons|Earth|Legends)\b", it.title):
-            score -= 1.0
+        if re.search(r"\b(Edition|Story Mode|Dungeons|Earth|Legends)\b", it.title) or \
+                re.match(r"^(\d|Pet |Monsterized )", it.title) or "!" in it.title:
+            score -= 1.0  # other games, April Fools pets, Earth adventures
         scored.append((score, -len(it.title), it))
     scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
     if not scored:
         return []
     best = scored[0][0]
-    return [it for s, _, it in scored[:n] if s >= best - 1.0]
+    picks = [it for s, _, it in scored[:n] if s >= best - 0.5]
+    # a question about two things ("a librarian with mending"): the best page for what is still missing
+    missing = subject - {w for it in picks for w in page_title_stems(it.title)}
+    for s, _, it in scored:
+        if len(picks) >= n or not missing:
+            break
+        got = page_title_stems(it.title) & missing
+        if got and it not in picks and s >= best - 1.5:
+            picks.append(it)
+            missing -= got
+    return picks
 
 
 def _disk_mb(store, kdir):
@@ -135,7 +181,7 @@ def learn(store, src, fetcher, query, kdir, conf=None, log=lambda m: None, now=N
     if not conf.get("enabled"):
         return dict(out, status="off", reason="on-demand learning is off (kb.py learning on)")
     if not norm:
-        return dict(out, status="nothing", reason="no words to look up")
+        return dict(out, status="nothing", reason="no question about the world in it" if query else "no words to look up")
     recent = store.db.execute("select t, status, pages from learn_log where norm = ? and t > ? and status in"
                               " ('learned', 'known', 'nothing') order by t desc limit 1",
                               (norm, now - float(conf["retry_after_hours"]) * 3600)).fetchone()
@@ -155,18 +201,27 @@ def learn(store, src, fetcher, query, kdir, conf=None, log=lambda m: None, now=N
         return dict(out, status="nothing", reason="%s can't be searched for one question" % src.name)
     req0 = fetcher.requests
     store.upsert_source(src)
-    found = src.find_pages(fetcher, query, log, n=10, max_age=float(conf["index_max_age_hours"]) * 3600)
-    picks = rank_titles(query, found, n=int(conf["pages_per_learn"]))
-    added = []
+    found = src.find_pages(fetcher, focus(query), log, n=10, max_age=float(conf["index_max_age_hours"]) * 3600)
+    want = int(conf["pages_per_learn"])
+    picks = rank_titles(query, found, n=want + 3)
+    added, useful, fetched = [], 0, 0
     for it in picks:
+        # enough pages that answer, or enough asked of the wiki for one question
+        if useful >= want or fetched >= want + 2:
+            break
         page = store.page(src.name, it.key)
         if page and it.token and page["token"] == it.token:
             added.append({"title": it.title, "url": it.url, "status": "fresh", "chunks": 0})
+            useful += 1
             continue
         status, title, n, error = crawler.fetch_one(store, src, fetcher, it)
+        fetched += 1
+        if status in ("new", "changed", "same"):
+            useful += 1
         added.append({"title": title, "url": it.url, "status": status, "chunks": n,
                       **({"error": error} if error else {})})
-        log("  %s: %s%s" % (title, status, (" (%d chunks)" % n) if n else ""))
+        log("  %s: %s%s" % (title, ("not kept (%s)" % error) if status == "skipped" else status,
+                            (" (%d chunks)" % n) if n else ""))
     got = [a for a in added if a["status"] in ("new", "changed")]
     status = "learned" if got else ("known" if any(a["status"] in ("fresh", "same") for a in added) else "nothing")
     out.update(status=status, added=added, seconds=round(time.time() - t0, 2), requests=fetcher.requests - req0,

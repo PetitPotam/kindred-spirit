@@ -26,8 +26,23 @@ ABOUT_US = re.compile(r"\b(you|your|yourself|pip|my|mine|our|coordinates?|where 
 
 
 def is_world_question(text):
-    """'How do I build an iron farm?' yes; 'how are you?' or 'what do you like?' no."""
+    """'How do I build an iron farm?' yes; 'how are you?' or 'what do you like?' no. Several
+    sentences are judged one by one: "That thing ignored me. Can you tell me please?" is not one."""
+    sentences = [x for x in re.split(r"(?<=[.!?])\s+", (text or "").strip()) if x.strip()]
+    if len(sentences) > 1:
+        return any(_world_sentence(x) for x in sentences)
+    return _world_sentence(text)
+
+
+# "can you place this block for me?" asks her to do something (her powers), not how the world works
+REQUEST = re.compile(r"^\W*(please )?(can|could|would|will) you (please )?(?!(tell|show|explain|teach|remind)\b)\w+",
+                     re.I)
+
+
+def _world_sentence(text):
     t = text or ""
+    if REQUEST.search(t) and not re.search(r"\b(how|what|where|which|why|when)\b", t, re.I):
+        return False
     if ABOUT_US.search(t) and not re.search(r"\b(can you|could you|do you know)\b", t, re.I):
         return False
     if re.search(r"\bhow (do|does) (i|we|it|this|that) (look|seem|feel|sound)\b", t, re.I):
@@ -94,7 +109,33 @@ def as_guide(sec):
     return "%s:\n%s%s\n(This guide's parts: %s.)" % (head, sec.get("text", ""), tail, outline)
 
 
+def elsewhere(r):
+    """Why a passage isn't about the player's world, for the AI (never her words), or ""."""
+    st = r.get("status") or ("outdated" if r.get("outdated") else "current")
+    if st == "future":
+        return "not in this world: it came later%s, after the player's version" % (
+            " (Java %s)" % r["since"] if r.get("since") else "")
+    return {"outdated": "how it worked in an older version", "removed": "no longer in the world",
+            "other-edition": "only in another edition, not in this world", "joke": "an April Fools joke, not real",
+            "spin-off": "from another game, not this world"}.get(st, "")
+
+
+def not_in_this_world(results):
+    """When the best match is the very thing asked about but it isn't in the player's world (the
+    Happy Ghast for a 1.21.1 player): what to tell the AI, so she says it isn't here rather than
+    listening for it. "" otherwise."""
+    top = results[0] if results else None
+    if not top or top.get("title_match", 0) < 1 or not elsewhere(top) or top.get("status") == "outdated":
+        return ""
+    return "%s: %s." % (re.sub(r"\s*\(.*?\)$", "", top.get("title", "")), elsewhere(top))
+
+
 def remembered(results, n=2):
-    """The passages as the world remembers them: no URLs, no sources (those stay in the data)."""
-    return "\n".join("- %s%s: %s" % (r.get("title", ""), (" / " + r["section"]) if r.get("section") else "",
-                                      re.sub(r"\s+", " ", r.get("text", ""))[:700]) for r in results[:n])
+    """The passages as the world remembers them: no URLs, no sources (those stay in the data). A
+    passage that isn't about this world says so."""
+    out = []
+    for r in results[:n]:
+        why = elsewhere(r)
+        out.append("- %s%s%s: %s" % (r.get("title", ""), (" / " + r["section"]) if r.get("section") else "",
+                                     (" (%s)" % why) if why else "", re.sub(r"\s+", " ", r.get("text", ""))[:700]))
+    return "\n".join(out)

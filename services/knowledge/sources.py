@@ -351,11 +351,28 @@ class MediaWikiSource(Source):
             token = item.token or ("lastmod:" + lm if lm else None)
             if r.headers.get("last-modified"):
                 meta["last_modified"] = r.headers["last-modified"]
-        sections, data = textify.wiki_sections(html, skip=self.skip_sections)
+        edition = self.config.get("edition_filter")
+        sections, data = textify.wiki_sections(html, skip=self.skip_sections, edition=edition)
         url = meta.pop("canonical", None) or self.url_of(title)
         meta["edition"] = self.edition
         meta.pop("page", None)
+        since = textify.wiki_since(html)
+        if since:
+            meta["since_java"] = since
+        meta["links"] = [t for t in textify.wiki_links(html, self.article_path) if self.wanted(t)][:400]
+        aliases = [a for a in textify.wiki_aliases(html) if a != title.lower()]
+        if aliases:
+            meta["aliases"] = aliases
+        lead = sections[0]["text"] if sections and sections[0]["path"] != "Facts" else (
+            sections[1]["text"] if len(sections) > 1 else "")
+        meta["status"] = textify.wiki_status(meta, title, lead, self.config.get("game_version"), edition)
+        if self.config.get("game_version"):
+            meta["game_version"] = self.config["game_version"]
         return Document(title, title, url, sections, data, meta, token)
+
+    def skip_status(self):
+        """Pages not worth keeping at all (April Fools, spin-off games), by their status."""
+        return set(self.config.get("skip_status", ("joke", "spin-off", "meta")))
 
 
 # ---------------------------------------------------------------- any website
@@ -443,7 +460,246 @@ class LocalSource(Source):
                         "mtime:%d:%d" % (st.st_mtime_ns, st.st_size))
 
 
-KINDS = {"mediawiki": MediaWikiSource, "web": WebSource, "local": LocalSource}
+# ---------------------------------------------------------------- minecraft-data (exact game data)
+
+class MinecraftDataSource(Source):
+    """PrismarineJS/minecraft-data: the game's own numbers for one version (Java 1.21.1 by default),
+    as JSON: every crafting recipe, food values, what tool a block needs and what it drops. Six
+    small files (~1.3 MB, six requests); each item becomes a short page, "Piston (Java 1.21.1 data)",
+    whose recipe reads like the wiki's ("[Crafting recipe for 1 Piston: top row: ...]").
+    The wiki says how and why; this says exactly what, for the player's version."""
+    kind = "minecraft-data"
+    FILES = ("items", "recipes", "blocks", "foods")
+    TIERS = ("wooden", "stone", "golden", "iron", "diamond", "netherite")
+
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.base = config.get("base", "https://raw.githubusercontent.com/PrismarineJS/minecraft-data/master/data")
+        self.version = config.get("version", "1.21.1")
+        self._data = None
+
+    def _load(self, fetcher, log, offline=False):
+        if self._data is not None:
+            return self._data
+        r = fetcher.get(self.base + "/dataPaths.json", offline=offline)
+        if r.status != 200:
+            raise RuntimeError("dataPaths.json: HTTP %s" % r.status)
+        paths = r.json()["pc"].get(self.version)
+        if not paths:
+            raise RuntimeError("minecraft-data has no Java %s" % self.version)
+        data, tokens = {}, []
+        for f in self.FILES:
+            url = "%s/%s/%s.json" % (self.base, paths.get(f, "pc/" + self.version), f)
+            r = fetcher.get(url, offline=offline)
+            if r.status != 200:
+                raise RuntimeError("%s: HTTP %s" % (url, r.status))
+            data[f] = r.json()
+            tokens.append(hashlib.sha1(r.body).hexdigest()[:8])
+        data["token"] = "mcdata:%s:%s" % (self.version, "".join(tokens))
+        self._data = data
+        return data
+
+    def _pages(self, d):
+        items = {i["id"]: i for i in d["items"]}
+        name = lambda i: items[i]["displayName"] if i in items else "?"
+        recipes = {int(k): v for k, v in d["recipes"].items()}
+        used_in = {}
+        for out, rs in recipes.items():
+            for rec in rs:
+                for i in set(_ingredient_ids(rec)):
+                    used_in.setdefault(i, set()).add(out)
+        foods = {f["id"]: f for f in d["foods"]}
+        blocks = {b["name"]: b for b in d["blocks"]}
+        pages = {}
+        for iid, it in items.items():
+            sections = []
+            rs = recipes.get(iid) or []
+            texts, recs = [], []
+            for group in _group_recipes(rs):
+                text, rec = _recipe_text(group, name, it["displayName"])
+                if text:
+                    texts.append(text)
+                    recs.append(rec)
+            if texts:
+                sections.append({"path": "Crafting", "text": "\n".join(texts), "data": {"recipes": recs}})
+            f = foods.get(iid)
+            if f:
+                sections.append({"path": "Food", "text": "%s restores %s hunger (%s drumsticks) and %s saturation." % (
+                    it["displayName"], _num(f["foodPoints"]), _num(f["foodPoints"] / 2), _num(f["saturation"]))})
+            b = blocks.get(it["name"])
+            if b and b.get("diggable"):
+                tools = [name(int(t)) for t in (b.get("harvestTools") or {})]
+                line = "%s: hardness %s." % (it["displayName"], _num(b.get("hardness")))
+                if tools:
+                    tier = min((t for t in tools if "Pickaxe" in t), default=None,
+                               key=lambda t: next((n for n, x in enumerate(self.TIERS) if t.lower().startswith(x)), 9))
+                    line += (" It needs at least %s %s to drop anything." % ("an" if tier[0] in "AEIOU" else "a", tier)
+                             ) if tier else \
+                        (" It needs a %s to drop anything." % " or ".join(tools[:3]))
+                drops = [name(x) for x in (b.get("drops") or [])]
+                if drops and drops != [it["displayName"]]:
+                    line += " Mined, it drops %s." % ", ".join(dict.fromkeys(drops))
+                sections.append({"path": "Mining", "text": line})
+            uses = sorted({name(o) for o in used_in.get(iid, ())})
+            if uses:
+                sections.append({"path": "Used to make", "text": "%s is used to make: %s." % (
+                    it["displayName"], ", ".join(uses[:40]) + (", and more" if len(uses) > 40 else ""))})
+            if not sections:
+                continue
+            sections.append({"path": "Facts", "text": "%s stacks up to %d. (Java Edition %s)" % (
+                it["displayName"], it.get("stackSize", 64), self.version)})
+            pages[it["name"]] = (it["displayName"], sections)
+        return pages
+
+    def url_of(self, key):
+        return "https://github.com/PrismarineJS/minecraft-data/tree/master/data/pc/%s#%s" % (self.version, key)
+
+    def discover(self, fetcher, opts, log):
+        d = self._load(fetcher, log, offline=opts.get("offline"))
+        self._built = self._pages(d)
+        for key, (title, _) in sorted(self._built.items()):
+            yield Item(key, "%s (Java %s data)" % (title, self.version), self.url_of(key), d["token"])
+
+    def fetch(self, fetcher, item, offline=False):
+        d = self._load(fetcher, print, offline=offline)
+        built = getattr(self, "_built", None) or self._pages(d)
+        self._built = built
+        if item.key not in built:
+            return GONE
+        title, sections = built[item.key]
+        recipes = [r for s in sections for r in ((s.get("data") or {}).get("recipes") or [])]
+        return Document(item.key, "%s (Java %s data)" % (title, self.version), self.url_of(item.key), sections,
+                        {"recipes": recipes} if recipes else {}, {"status": "current", "game_version": self.version},
+                        d["token"])
+
+
+def _num(x):
+    return ("%.1f" % x).rstrip("0").rstrip(".") if isinstance(x, float) else str(x)
+
+
+def _ingredient_ids(rec):
+    if rec.get("inShape"):
+        return [i for row in rec["inShape"] for i in row if i is not None]
+    return [i for i in rec.get("ingredients") or [] if i is not None]
+
+
+def _group_recipes(rs):
+    """Recipes that differ only by which wood (or wool...) goes where -> one group."""
+    groups = {}
+    for rec in rs:
+        shape = rec.get("inShape")
+        if shape:
+            sig = ("shaped", tuple(tuple(i is None for i in row) for row in shape), rec["result"]["count"])
+        else:
+            sig = ("shapeless", len(rec.get("ingredients") or []), rec["result"]["count"])
+        groups.setdefault(sig, []).append(rec)
+    return list(groups.values())
+
+
+def _any(names):
+    names = list(dict.fromkeys(names))
+    if len(names) == 1:
+        return names[0]
+    words = [n.split() for n in names]
+    tail = []
+    while all(len(w) > len(tail) for w in words) and len({tuple(w[len(w) - len(tail) - 1:]) for w in words}) == 1:
+        tail = words[0][len(words[0]) - len(tail) - 1:]
+    return "any " + " ".join(tail) if tail else "any of " + ", ".join(names[:4]) + (", ..." if len(names) > 4 else "")
+
+
+def _recipe_text(group, name, output):
+    first = group[0]
+    count = first["result"]["count"]
+    makes = "%d %s" % (count, output)
+    if first.get("inShape"):
+        rows = []
+        for r, row in enumerate(first["inShape"]):
+            rows.append([_any([name(g["inShape"][r][c]) for g in group]) if x is not None else ""
+                         for c, x in enumerate(row)])
+        have = {}
+        for row in rows:
+            for n in row:
+                if n:
+                    have[n] = have.get(n, 0) + 1
+        label = {1: ["in one row"], 2: ["top row", "bottom row"], 3: ["top row", "middle row", "bottom row"]}.get(
+            len(rows), ["row %d" % (i + 1) for i in range(len(rows))])
+        grid = "; ".join("%s: %s" % (label[i], ", ".join(x or "empty" for x in r)) for i, r in enumerate(rows))
+        text = "[Crafting recipe for %s: %s. Uses %s.]" % (makes, grid, ", ".join("%d %s" % (n, k) for k, n in have.items()))
+        rec = {"station": "crafting", "grid": rows, "output": output, "count": count, "shapeless": False,
+               "ingredients": have}
+    else:
+        n_ing = len(first.get("ingredients") or [])
+        names = [_any([name(g["ingredients"][i]) for g in group if len(g.get("ingredients") or []) > i])
+                 for i in range(n_ing)]
+        have = {}
+        for n in names:
+            have[n] = have.get(n, 0) + 1
+        text = "[Crafting recipe (shapeless): %s -> %s]" % (", ".join("%d %s" % (n, k) for k, n in have.items()), makes)
+        rec = {"station": "crafting", "grid": [], "output": output, "count": count, "shapeless": True,
+               "ingredients": have}
+    return text, rec
+
+
+KINDS = {"mediawiki": MediaWikiSource, "web": WebSource, "local": LocalSource, "minecraft-data": MinecraftDataSource}
+
+# what a survival player asks about most: the starting set of `kb.py crawl minecraft-wiki --core`, which
+# then grows along the links these pages share (crawler.linked_titles)
+CORE_PAGES = [
+    "Crafting Table", "Crafting", "Furnace", "Blast Furnace", "Smoker", "Smelting", "Chest", "Barrel",
+    "Ender Chest", "Shulker Box", "Bed", "Torch", "Lantern", "Campfire", "Ladder", "Door", "Trapdoor", "Fence",
+    "Fence Gate", "Glass", "Stone", "Cobblestone", "Deepslate", "Dirt", "Sand", "Gravel", "Clay", "Obsidian",
+    "Crying Obsidian", "Wood", "Log", "Planks", "Stick", "Coal", "Charcoal", "Iron Ingot", "Iron Ore", "Raw Iron",
+    "Gold Ingot", "Gold Ore", "Copper Ingot", "Copper Ore", "Diamond", "Diamond Ore", "Emerald", "Emerald Ore",
+    "Lapis Lazuli", "Lapis Lazuli Ore", "Redstone Ore", "Nether Quartz", "Ancient Debris", "Netherite Ingot",
+    "Netherite Scrap", "Amethyst Shard", "Ore", "Altitude", "Pickaxe", "Axe", "Shovel", "Hoe", "Sword", "Bow",
+    "Crossbow", "Arrow", "Trident", "Mace", "Shield", "Armor", "Helmet", "Chestplate", "Leggings", "Boots",
+    "Turtle Shell", "Elytra", "Firework Rocket", "Totem of Undying", "Fishing Rod", "Shears", "Flint and Steel",
+    "Bucket", "Water Bucket", "Lava Bucket", "Milk Bucket", "Lead", "Name Tag", "Saddle", "Compass",
+    "Recovery Compass", "Lodestone", "Clock", "Map", "Spyglass", "Bundle", "Brush", "Smithing Table",
+    "Smithing Template", "Netherite Upgrade", "Smithing", "Anvil", "Grindstone", "Enchanting Table",
+    "Enchanting table mechanics", "Enchantment", "Enchanted Book", "Bookshelf", "Experience", "Mending",
+    "Unbreaking", "Efficiency", "Fortune", "Silk Touch", "Looting", "Sharpness", "Protection", "Feather Falling",
+    "Brewing", "Brewing Stand", "Potion", "Splash Potion", "Blaze Powder", "Nether Wart", "Fermented Spider Eye",
+    "Glowstone Dust", "Potion of Night Vision", "Potion of Fire Resistance", "Potion of Healing",
+    "Potion of Strength", "Potion of Swiftness", "Potion of Water Breathing", "Potion of Invisibility",
+    "Potion of Regeneration", "Potion of Slow Falling", "Food", "Hunger (effect)", "Bread", "Steak",
+    "Golden Carrot", "Golden Apple", "Enchanted Golden Apple", "Wheat", "Wheat Seeds", "Carrot", "Potato",
+    "Beetroot", "Pumpkin", "Melon", "Sugar Cane", "Bamboo", "Cactus", "Cocoa Beans", "Sweet Berries", "Kelp",
+    "Bone Meal", "Composter", "Farmland", "Sapling", "Tree", "Redstone Dust", "Redstone Torch",
+    "Redstone Repeater", "Redstone Comparator", "Redstone circuits", "Redstone circuits/Clock", "Piston",
+    "Sticky Piston", "Observer", "Hopper", "Dropper", "Dispenser", "Lever", "Button", "Pressure Plate",
+    "Tripwire Hook", "Daylight Detector", "Target", "Note Block", "Rail", "Powered Rail", "Minecart", "Crafter",
+    "Copper Bulb", "Trading", "Villager", "Zombie Villager", "Wandering Trader", "Iron Golem", "Village", "Raid",
+    "Bad Omen", "Pillager Outpost", "Mob", "Spawn", "Light", "Zombie", "Skeleton", "Creeper", "Spider", "Enderman",
+    "Witch", "Slime", "Phantom", "Drowned", "Pillager", "Evoker", "Ravager", "Blaze", "Ghast", "Piglin",
+    "Wither Skeleton", "Wither", "Ender Dragon", "Warden", "Breeze", "Wolf", "Cat", "Horse", "Donkey", "Llama",
+    "Parrot", "Axolotl", "Bee", "Fox", "Allay", "Sniffer", "Armadillo", "Camel", "Cow", "Sheep", "Pig", "Chicken",
+    "Breeding", "Taming", "Overworld", "The Nether", "The End", "Nether Portal", "End portal", "Eye of Ender",
+    "Stronghold", "Nether Fortress", "Bastion Remnant", "End City", "Ocean Monument", "Woodland Mansion",
+    "Ancient City", "Trial Chambers", "Trial Spawner", "Vault", "Ominous Vault", "Trial Key", "Ominous Trial Key",
+    "Wind Charge", "Heavy Core", "Mineshaft", "Dungeon", "Desert Pyramid", "Jungle Pyramid", "Shipwreck",
+    "Buried Treasure", "Ruined Portal", "Trail Ruins", "Biome", "Plains", "Forest", "Desert", "Taiga", "Jungle",
+    "Swamp", "Mushroom Fields", "Deep Dark", "Lush Caves", "Health", "Damage", "Death", "Daylight cycle",
+    "Weather", "Difficulty", "Effect", "Beacon", "Conduit", "Respawn Anchor", "Bartering", "Fishing",
+    "Tutorial:Beginner's guide", "Tutorial:Mining", "Tutorial:Mining/Diamonds", "Tutorial:Mining/Ancient debris",
+    "Tutorial:Ore guide", "Tutorial:Crop farming", "Tutorial:Sugar cane farming", "Tutorial:Tree farming",
+    "Tutorial:Pumpkin and melon farming", "Tutorial:Animal farming", "Tutorial:Mob farm", "Tutorial:Mob grinder",
+    "Tutorial:Experience farming", "Tutorial:Iron golem farming", "Tutorial:Creeper farming",
+    "Tutorial:Villager farming", "Tutorial:Villager trading hall", "Tutorial:Trading",
+    "Tutorial:Curing a zombie villager", "Tutorial:Best enchantments guide", "Tutorial:Automatic smelting",
+    "Tutorial:Hopper", "Tutorial:Redstone", "Tutorial:Redstone tips", "Tutorial:Secret door",
+    "Tutorial:Automatic double doors", "Tutorial:Piston uses/2×3 piston door", "Tutorial:Hourly clock",
+    "Tutorial:Nether portals", "Tutorial:Nether survival", "Tutorial:Nether hub",
+    "Tutorial:Exploring a Nether fortress", "Tutorial:Defeating the ender dragon", "Tutorial:Defeating the wither",
+    "Tutorial:Defeating a village raid", "Tutorial:Defeating trial chambers",
+    "Tutorial:Exploring the deep dark and ancient city", "Tutorial:Exploring an End city",
+    "Tutorial:Conquering an ocean monument", "Tutorial:Combat", "Tutorial:Defense", "Tutorial:Hunger management",
+    "Tutorial:Gathering food", "Tutorial:Horses", "Tutorial:Shelters", "Tutorial:Shelter types",
+    "Tutorial:Fish farming", "Tutorial:Wool farming", "Tutorial:Bamboo farming", "Tutorial:Cactus farming",
+    "Tutorial:Honey farming", "Tutorial:Raid farming", "Tutorial:Guardian farming", "Tutorial:Blaze farming",
+    "Tutorial:Enderman farming", "Tutorial:Slime farming", "Tutorial:Potion farming"
+]
+
 
 MINECRAFT_WIKI = {
     "kind": "mediawiki",
@@ -453,19 +709,53 @@ MINECRAFT_WIKI = {
     "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
     "attribution": "Minecraft Wiki contributors (minecraft.wiki)",
     "terms": "https://meta.weirdgloop.org/w/Meta:Copyrights",
-    "edition": "Java and Bedrock, latest versions (the wiki marks what differs between editions and versions)",
+    "edition": "Java Edition (what the wiki marks as Bedrock-only or upcoming is left out)",
+    # the player's game: Kindred Spirit runs on Java 1.21.1. Facts marked for another edition or
+    # as upcoming are left out; pages added in a later version are kept but marked "future"
+    "edition_filter": "java",
+    "game_version": "1.21.1",
     # articles (namespace 0) and tutorials (namespace 10010: farms, redstone builds, mechanisms)
     "sitemaps": ["/images/sitemaps/NS_0-0.xml.gz", "/images/sitemaps/NS_10010-0.xml.gz"],
     "namespaces": ["", "Tutorial"],
     # version-history pages, renders and data pages: lots of text, little use to a companion
     "skip_titles": [r"^(Java|Bedrock|Pocket|Legacy Console|Education|Pi|New Nintendo 3DS|Xbox|PlayStation|Wii U|"
                     r"Switch|Console|Minecraft Education)( Edition)? [0-9]", r"^[0-9]+(\.[0-9]+)+",
-                    r"^[0-9.]+[a-z]?$", r"/(Renders|Structure|DV|BS|ED|Data|Asset history|Gallery)\b",
-                    r"^(Tutorial:)?(Programs and editors|Mods)\b", r"\(disambiguation\)"],
+                    # editions and their versions, betas, patches, previews and file formats
+                    r"^(Java|Bedrock|Pocket|Legacy Console|Education|Pi|New Nintendo 3DS|Xbox( 360| One)?|"
+                    r"PlayStation( 3| 4| Vita)?|Wii U|(Nintendo )?Switch|Console|Minecraft Education|Minecraft: Pi) Edition\b",
+                    r"^(Minecraft Education|Minecraft Earth|Minecraft Dungeons|Minecraft Legends|Minecraft Story Mode|"
+                    r"Minecraft: Story Mode|Lego Minecraft|A Minecraft Movie|Minecraft Live|Minecraft\.net|Minecraft)$",
+                    r"(?i)\b(version history|data values|level format|item format|entity format|chunk format|"
+                    r"(block|item|entity|entity type|fluid|biome|damage type) tags?)\b", r"^Commands(/|$)",
+                    r"^Planned versions$", r"(?i)^lego minecraft$", r"\bDrop \d{4}$",
+                    r"^[0-9.]+[a-z]?$", r"^Tutorials$", r"/(Renders|Structure|DV|BS|ED|Data|Asset history|Gallery)\b",
+                    r"^(Tutorial:)?(Programs and editors|Mods)\b", r"\(disambiguation\)",
+                    # how to run, mod, script or host the game: nothing a companion in the world needs
+                    r"^Tutorial:(Creating (a data pack|a resource pack|Forge mods|a challenge map)|Custom (texture packs|"
+                    r"world generation|Minecraft directory|structures|maps)|Command|Adding (custom|a new dimension|"
+                    r"packs|profiles)|Hamachi|Hide multiplayer|Create a Mac|FreeBSD|Saved data|Importing and exporting|"
+                    r"Downgrading|Changing item default|Bedrock Edition development|Setting up a|Running|Updating|"
+                    r"Installing|Crossplay|Bedwars|Civilization SMP|Beating a (CTM|challenge) map|Craftmine|"
+                    r"Version overviews|Achievement guide/)", r"\b([Ss]tartup|[Ss]erver|[Ll]auncher|daemon|Xbox|PlayStation)\b",
+                    # one circuit design among dozens ("Redstone circuits/Memory/TFF Z3"); the overviews stay
+                    r"^Redstone circuits/[^/]+/"],
     "default_categories": ["Mobs", "Biomes", "Tutorials", "Redstone", "Food", "Plants", "Enchantments", "Ores",
                            "Structures", "Utility blocks", "Mechanisms", "Tools", "Weapons", "Armor",
                            "Gameplay"],
     "depth": 1,
+    "core_pages": CORE_PAGES,
+}
+
+
+MINECRAFT_DATA = {
+    "kind": "minecraft-data",
+    "title": "minecraft-data (Java 1.21.1 recipes, foods, mining)",
+    "version": "1.21.1",
+    "license": "MIT (PrismarineJS/minecraft-data); the game data in it is Mojang's",
+    "license_url": "https://github.com/PrismarineJS/minecraft-data/blob/master/LICENSE",
+    "attribution": "PrismarineJS minecraft-data contributors",
+    "terms": "https://github.com/PrismarineJS/minecraft-data#readme",
+    "edition": "Java Edition 1.21.1",
 }
 
 
@@ -483,6 +773,7 @@ def builtin_sources(kdir=None):
         "minecraft-wiki": MINECRAFT_WIKI,
         "local": {"kind": "local", "title": "Your own notes and build guides", "path": os.path.join(kdir, "local"),
                   "license": "yours (local files, never shared)", "attribution": "your notes"},
+        "minecraft-data": MINECRAFT_DATA,
     }
 
 
