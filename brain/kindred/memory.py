@@ -107,6 +107,22 @@ class GatewayMemory:
         return await asyncio.to_thread(self._call, op, body)
 
 
+# what a person is called, and their pronouns: one at a time (the latest replaces the old ones)
+NAME_FACT = re.compile(r"\b(calls? (me|him|her|them|the player)|called|nick ?names?|my name is|name is|wants to be called|"
+                       r"likes to be called|goes by|prefers to be called)\b", re.I)
+PRONOUN_FACT = re.compile(r"\bpronouns?\b|\b(he/him|she/her|they/them)\b", re.I)
+# a gender the AI guessed ("Is female and still getting to know me"): never kept from reflection
+GUESSED_GENDER = re.compile(r"\b(is|seems|they'?re|he'?s|she'?s) (a |to be )?(female|male|girl|boy|woman|man|lady|guy)\b", re.I)
+
+
+def subject(fact):
+    """Who a fact is about: its first word ("Walid's nickname is Dumber" -> walid), or "player"."""
+    m = re.match(r"\s*(the player|[A-Za-z0-9_]+)", fact or "")
+    w = (m.group(1) if m else "player").lower()
+    return "player" if w in ("the player", "player", "they", "he", "she", "calls", "likes", "prefers", "wants", "goes",
+                             "my", "name", "nickname") else re.sub(r"'s$", "", w)
+
+
 def world_key(world_id):
     """One world, one memory: a LAN world's address without its port (the port changes every time the host opens
     it to LAN: 192.168.1.73:63665, then :55368, and each was a new world with no memories, heart or diary)."""
@@ -157,7 +173,19 @@ class Memory:
         self.session_start = self.clock()
         self.exchanges = 0
         await self._save_stats()
+        await self.forget_guessed_gender()
         return since
+
+    async def forget_guessed_gender(self):
+        """Genders the AI guessed before this was fixed ("Is female and still getting to know me"): gone. What the
+        player said about themselves is kept as their pronouns, which this doesn't touch."""
+        try:
+            rows = (await self.store.call("list", kinds=["player"], world=self.world_id, limit=300))["results"]
+            for r in rows:
+                if GUESSED_GENDER.search(r.get("text", "")) and not PRONOUN_FACT.search(r.get("text", "")):
+                    await self.store.call("delete", id=r["id"], kinds=["player"])
+        except Exception:
+            pass
 
     async def end_session(self):
         if self.session_start is None or self.stats is None:
@@ -179,8 +207,35 @@ class Memory:
 
     async def remember(self, fact, about="player", importance=7):
         kind = about if about in ("player", "self", "habit", "world") else "player"
+        if kind == "player":
+            await self.replace_older(fact)
         r = await self.add(kind, fact, importance, dedupe=0.88)
         return not r.get("merged")
+
+    async def replace_older(self, fact):
+        """A new name, nickname or pronouns for someone replaces the old ones about the same person (they were kept
+        side by side: Dumb, Dumber, Twinkle...). Returns how many went."""
+        rx = PRONOUN_FACT if PRONOUN_FACT.search(fact) else NAME_FACT if NAME_FACT.search(fact) else None
+        if rx is None:
+            return 0
+        who, gone = subject(fact), 0
+        try:
+            rows = (await self.store.call("list", kinds=["player"], world=self.world_id, limit=200))["results"]
+        except Exception:
+            return 0
+        for r in rows:
+            if rx.search(r.get("text", "")) and subject(r["text"]) == who and r["text"].strip() != fact.strip():
+                await self.store.call("delete", id=r["id"], kinds=["player"])
+                gone += 1
+        return gone
+
+    async def diary(self, n=3):
+        """Her real diary, newest first (so she quotes it rather than inventing one)."""
+        try:
+            return [r["text"] for r in (await self.store.call("list", kinds=["diary"], world=self.world_id,
+                                                             limit=n))["results"]]
+        except Exception:
+            return []
 
     async def forget(self, about):
         r = await self.store.call("delete", kinds=["player", "self", "habit", "world", "place", "found", "reminder"],
@@ -424,6 +479,10 @@ class Memory:
                 text = (item.get("text") if isinstance(item, dict) else str(item)).strip()
                 if len(text) < 8:
                     continue
+                if kind == "player" and GUESSED_GENDER.search(text):
+                    continue  # (a gender is never guessed: they say it, and it's kept from their own words)
+                if kind == "player":
+                    await self.replace_older(text)
                 imp = item.get("importance", 6) if isinstance(item, dict) else 6
                 passing = isinstance(item, dict) and bool(item.get("temporary"))
                 if text and len(text) < 300:

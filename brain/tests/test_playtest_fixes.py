@@ -283,3 +283,55 @@ def test_a_friends_touch_reaches_her_heart_for_them(stubs):  # friends' touches
     assert b.heart.friends.bonds("waterwalid").s["t"] < t0
     assert b.heart.rel.s["a"] == before["a"], "your heart isn't the one hit"
     assert any(m["type"] == "say" and "waterwalid" in m["text"] for m in sent)
+
+
+# ---------------------------------------------------------------- memory and pronouns (items 10, 20, 21, 23, 24)
+
+def test_pronouns_said_are_kept_never_guessed():  # items 20 and 24
+    assert intents.pronouns_said("I am a him, not a her. Why are you always saying I am a her?") == "he/him"
+    assert intents.pronouns_said("my pronouns are they/them") == "they/them"
+    assert intents.pronouns_said("I'm not a girl") == ""
+    assert intents.pronouns_said("i love you") == ""
+    from kindred.memory import GUESSED_GENDER
+    assert GUESSED_GENDER.search("Is female and still getting to know me")
+    assert not GUESSED_GENDER.search("Likes cherry trees.")
+
+
+def test_reflection_never_keeps_a_guessed_gender_and_a_new_nickname_replaces_the_old():  # items 21 and 24
+    import asyncio as aio
+    from gateway_stub import memory
+    m = memory()
+
+    async def run():
+        await m.open_world("sp:Test")
+        await m.learn({"player": [{"text": "Is female and still getting to know me.", "importance": 6},
+                                  {"text": "Tam likes to be called Dumb.", "importance": 7}]})
+        await m.remember("Tam likes to be called Dumber.")
+        await m.remember("Walid's nickname is Twinkle.")
+        await m.remember("Tam likes to be called Twinkle Toes.")
+        return [r["text"] for r in (await m.store.call("list", kinds=["player"], world=m.world_id, limit=50))["results"]]
+    facts = aio.run(run())
+    assert not any("female" in f for f in facts)
+    assert "Tam likes to be called Twinkle Toes." in facts and "Walid's nickname is Twinkle." in facts
+    assert not any(f in facts for f in ("Tam likes to be called Dumb.", "Tam likes to be called Dumber.")), facts
+
+
+def test_her_diary_is_quoted_not_invented():  # item 10
+    assert intents.DIARY.search("what did you write in your diary today?")
+    assert intents.DIARY.search("read me your diary")
+    assert not intents.DIARY.search("let's go mining")
+
+
+def test_the_diary_is_written_from_the_whole_session(stubs):  # item 23
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.session.start("sp:Test")
+    b.session.event("you", text="let's build a cherry house")
+    for i in range(200):
+        b.session.event("you", text="chatter %d" % i)
+    b.session.event("guest", who="waterwalid", text="pip you're cute")
+    b.session.event("you", text="good night pip")
+    story = b.session_story(max_chars=3000)
+    assert "cherry house" in story, "the beginning is there"
+    assert "good night" in story or "waterwalid" in story, "and the end"
+    assert len(story) <= 3000

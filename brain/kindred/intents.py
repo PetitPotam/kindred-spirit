@@ -255,6 +255,29 @@ def vouches_for(text, here, known=()):
     return None
 
 
+# their pronouns, said ("I am a him, not a her", "I'm a boy", "my pronouns are they/them")
+PRONOUNS = re.compile(r"\b(?:i'?m|i am)( not)? an? (him|her|he|she|boy|girl|guy|man|woman|dude|lady)\b|\bmy pronouns are "
+                      r"(\w+(?:/\w+)?)|\b(?:call me|use) (he|she|they)(?:/(him|her|them))?\b", re.I)
+_PRON = {"him": "he/him", "he": "he/him", "boy": "he/him", "guy": "he/him", "man": "he/him", "dude": "he/him",
+         "her": "she/her", "she": "she/her", "girl": "she/her", "woman": "she/her", "lady": "she/her",
+         "they": "they/them", "them": "they/them"}
+
+
+def pronouns_said(text):
+    """The pronouns they just told her, or "" ("I am a him, not a her" -> he/him)."""
+    for m in PRONOUNS.finditer(text or ""):
+        if m.group(2) and not m.group(1):
+            return _PRON.get(m.group(2).lower(), "")
+        if m.group(3):
+            w = m.group(3).lower()
+            return w if "/" in w else _PRON.get(w, "")
+        if m.group(4):
+            return _PRON.get(m.group(4).lower(), "")
+    return ""
+
+
+DIARY = re.compile(r"\b(your|ur|her|pip'?s) diary\b|\bdiary\b.{0,20}\b(write|wrote|say|read|tell)\b|\bwhat did you write\b", re.I)
+
 # the player stepping in for her ("stop hitting Pip", "leave her alone", "be nice to her")
 DEFEND = re.compile(r"\b(stop|quit|don'?t|do not|no)\b.{0,12}\b(hit(ting)?|hurt(ing)?|punch(ing)?|attack(ing)?|"
                     r"bully(ing)?|being mean|being rude|insult(ing)?|tease|teasing|picking on)\b|\bleave (her|pip|it|them)"
