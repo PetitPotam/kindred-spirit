@@ -3,6 +3,12 @@
   "minVersion": "0.8",
   "package": "dev.kindredspirit.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["MinecraftMixin"],
-  "injectors": { "defaultRequire": 1 }
+  "client": [
+    "MinecraftMixin",
+    "GameModeMixin",
+    "AdvancementToastMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

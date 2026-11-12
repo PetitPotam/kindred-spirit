@@ -1,0 +1,26 @@
+# Her heart, part 3: diamonds alert, advancement, new item, borrowed block put back.
+world kindred-heart
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd kill @e[type=!minecraft:player]
+cmd clear @s
+look 0 5
+wait 100
+cmd setblock ~3 ~-2 ~4 minecraft:diamond_ore
+wait 500
+cmd advancement grant @s only minecraft:story/smelt_iron
+wait 240
+cmd give @s minecraft:spyglass
+wait 160
+cmd item replace entity @s hotbar.0 with minecraft:oak_planks 4
+look 0 55
+wait 10
+press use
+wait 30
+do steal_block
+wait 40
+chat Hey, put my block back!
+wait 160
+screenshot heart3-01-block-back
+quit

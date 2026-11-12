@@ -302,6 +302,34 @@ public class BehaviorTest {
     }
 
     @Test
+    void sheFloatsCloserWhenSheFeelsCloseAndAwayWhenHurt() {
+        assertEquals(1.0, Behavior.distanceScale(0.5), 1e-9);
+        assertTrue(Behavior.distanceScale(1) < 0.8 && Behavior.distanceScale(0) > 2);
+        Behavior near = companion(), far = companion();
+        near.closeness = 1;
+        far.closeness = 0;
+        Behavior.Senses a = player(), b = player();
+        run(near, a, 8, Behavior.Activity.IDLE);
+        run(far, b, 8, Behavior.Activity.IDLE);
+        double dn = Math.hypot(near.x, near.z), df = Math.hypot(far.x, far.z);
+        assertTrue(df > dn * 1.6, "hurt: further away (" + df + " vs " + dn + ")");
+    }
+
+    @Test
+    void sheVanishesAndComesBack() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 2, Behavior.Activity.IDLE);
+        b.hide(5, s.now);
+        run(b, s, 2, Behavior.Activity.IDLE);
+        assertTrue(b.hidden() && b.presence < 0.05, "gone");
+        run(b, s, 4, Behavior.Activity.IDLE);
+        assertFalse(b.hidden());
+        assertTrue(b.presence > 0.9, "back");
+        assertEquals(Emote.SHY, b.emote, "a little shy when she comes back");
+    }
+
+    @Test
     void gesturesStartAndEndSoftly() {
         for (Emote e : Emote.values()) {
             if (e.seconds <= 0) continue;

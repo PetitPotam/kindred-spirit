@@ -31,6 +31,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.BlockPos;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.KeyMapping;
@@ -143,6 +144,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     .then(ClientCommandManager.literal("status").executes(c -> {
                         c.getSource().sendFeedback(Component.literal("Brain: " + (link.connected() ? "connected" : "not connected")
                                 + " | skin: " + companion.skin.id() + " | mode: " + companion.life.mode.name().toLowerCase()
+                                + (bond >= 0 ? " | bond: " + bond + " (" + bondLevel + ")" : "")
                                 + " | quality: " + quality.level().name().toLowerCase() + (quality.isAuto() ? " (auto)" : "")
                                 + " | mood: " + companion.mood.name().toLowerCase()));
                         return 1;
@@ -275,6 +277,16 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     })));
             dispatcher.register(ClientCommandManager.literal("ks").redirect(root));
         });
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (world.isClientSide && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem bi) {
+                BlockPos at = world.getBlockState(hit.getBlockPos()).canBeReplaced() ? hit.getBlockPos()
+                        : hit.getBlockPos().relative(hit.getDirection());
+                pendingPlace = at;
+                pendingBlock = bi.getBlock();
+                pendingTicks = 2;
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
             inWorld = true;
             joinedAt = System.currentTimeMillis();
@@ -310,7 +322,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
             quality.update(mc.getFps(), mc.options.graphicsMode().get() == GraphicsStatus.FAST);
         }
         if (mc.player == null || mc.level == null) return;
-        if (companion.tick(mc)) event("petted");
+        Companion.Touch touch = companion.tick(mc);
+        if (touch == Companion.Touch.PETTED) event("petted");
+        if (touch == Companion.Touch.HIT) event("hit");
+        trackWorld(mc);
         if (companion.life.arrived) {
             companion.life.arrived = false;
             event("arrived");
@@ -353,6 +368,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
             if (urgent) lastUrgentSnapshot = now;
             nextSnapshot = now + quality.level().snapshotMs;
             JsonObject snap = Snapshot.build(mc, quality.level().scanRadius);
+            long nowMs = System.currentTimeMillis();
+            breaks.removeIf(t -> nowMs - t > 60000);
+            places.removeIf(t -> nowMs - t > 60000);
+            snap.addProperty("brokenRecently", breaks.size());
+            snap.addProperty("placedRecently", places.size());
+            snap.addProperty("lastPlacedAgo", dev.kindredspirit.act.Pranks.lastPlaced == null ? 9999
+                    : (nowMs - dev.kindredspirit.act.Pranks.lastPlacedAt) / 1000);
             if (urgent) snap.addProperty("urgent", true);
             link.send(snap);
         }
@@ -452,6 +474,15 @@ public final class KindredSpiritClient implements ClientModInitializer {
             });
             case "mood" -> mc.execute(() -> companion.mood = Mood.parse(str(msg, "mood"), companion.mood));
             case "act" -> mc.execute(() -> applyAct(msg));
+            case "bond" -> mc.execute(() -> {
+                bond = msg.get("value").getAsInt();
+                bondLevel = str(msg, "level");
+                double ch = msg.has("change") ? msg.get("change").getAsDouble() : 0;
+                if (ch != 0) {
+                    bondChange = ch;
+                    bondShownUntil = System.currentTimeMillis() + 3500;
+                }
+            });
             case "do" -> mc.execute(() -> runAction(msg));
             case "state" -> mc.execute(() -> {
                 String s = str(msg, "state");
@@ -513,6 +544,58 @@ public final class KindredSpiritClient implements ClientModInitializer {
         return mc.getCurrentServer() != null ? "mp:" + mc.getCurrentServer().ip : "unknown";
     }
 
+    // ------------------------------------------------------------------ what she notices
+
+    private final java.util.List<Long> breaks = new java.util.ArrayList<>(), places = new java.util.ArrayList<>();
+    private java.util.Set<String> items = null;
+    private long itemsCheckedAt;
+    private BlockPos pendingPlace;
+    private net.minecraft.world.level.block.Block pendingBlock;
+    private int pendingTicks;
+
+    public void blockBroken() {
+        breaks.add(System.currentTimeMillis());
+    }
+
+    public void advancement(String title) {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "event");
+        o.addProperty("event", "advancement");
+        o.addProperty("detail", title);
+        link.send(o);
+    }
+
+    /** Which block you're placing (confirmed a tick later) and which items are new in your pockets. */
+    private void trackWorld(Minecraft mc) {
+        if (pendingPlace != null && --pendingTicks <= 0) {
+            if (mc.level.getBlockState(pendingPlace).is(pendingBlock)) {
+                dev.kindredspirit.act.Pranks.lastPlaced = pendingPlace;
+                dev.kindredspirit.act.Pranks.lastPlacedAt = System.currentTimeMillis();
+                places.add(System.currentTimeMillis());
+            }
+            pendingPlace = null;
+        }
+        long now = System.currentTimeMillis();
+        if (now - itemsCheckedAt < 1000) return;
+        itemsCheckedAt = now;
+        java.util.Set<String> current = new java.util.HashSet<>();
+        for (net.minecraft.world.item.ItemStack s : mc.player.getInventory().items) {
+            if (!s.isEmpty()) current.add(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem()).toString());
+        }
+        if (items != null && now - joinedAt > 5000) {
+            for (String id : current) {
+                if (!items.contains(id)) {
+                    JsonObject o = new JsonObject();
+                    o.addProperty("type", "event");
+                    o.addProperty("event", "new_item");
+                    o.addProperty("detail", id);
+                    link.send(o);
+                }
+            }
+        }
+        items = current;
+    }
+
     private void addAbilities(JsonObject o) {
         Abilities.Power p = Abilities.power(cfg.power);
         Abilities.Style s = Abilities.style(cfg.style);
@@ -531,11 +614,21 @@ public final class KindredSpiritClient implements ClientModInitializer {
         link.send(o);
     }
 
+    /** For the sandbox test script: run an action as if the brain asked, and log what happened. */
+    public void devAction(String action, JsonObject args) {
+        JsonObject msg = new JsonObject();
+        msg.addProperty("id", "dev");
+        msg.addProperty("action", action);
+        msg.add("args", args);
+        runAction(msg);
+    }
+
     /** The brain asks for an action; the answer goes back as {"type": "done", "id": ..., ...}. */
     private void runAction(JsonObject msg) {
         String id = str(msg, "id"), action = str(msg, "action");
         JsonObject args = msg.has("args") && msg.get("args").isJsonObject() ? msg.getAsJsonObject("args") : new JsonObject();
         java.util.function.Consumer<JsonObject> reply = res -> {
+            if (id.equals("dev")) LOG.info("dev action {} -> {}", action, res);
             res.addProperty("type", "done");
             res.addProperty("id", id);
             link.send(res);
@@ -559,6 +652,23 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 res.addProperty("distance", Math.round(Math.sqrt(dx * dx + dz * dz)));
             }
             reply.accept(res);
+            return;
+        }
+        if (action.equals("prank_sound") || action.equals("steal_block") || action.equals("return_block")) {
+            if (!cfg.allowPranks && !action.equals("return_block")) {
+                JsonObject no = new JsonObject();
+                no.addProperty("ok", false);
+                no.addProperty("error", "pranks are turned off");
+                reply.accept(no);
+                return;
+            }
+            if (action.equals("prank_sound")) {
+                reply.accept(dev.kindredspirit.act.Pranks.sound(Minecraft.getInstance(), args.has("sound") ? args.get("sound").getAsString() : "creeper"));
+            } else {
+                (action.equals("steal_block") ? dev.kindredspirit.act.Pranks.steal(Minecraft.getInstance())
+                        : dev.kindredspirit.act.Pranks.giveBack(Minecraft.getInstance()))
+                        .thenAccept(res -> Minecraft.getInstance().execute(() -> reply.accept(res)));
+            }
             return;
         }
         if (action.equals("stop_guide")) {
@@ -593,7 +703,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
         Behavior life = companion.life;
         double now = companion.now();
         double seconds = msg.has("seconds") ? msg.get("seconds").getAsDouble() : 4;
+        if (msg.has("closeness")) life.closeness = msg.get("closeness").getAsDouble();
         switch (str(msg, "move")) {
+            case "hide" -> life.hide(seconds, now);
             case "stop" -> {
                 if (life.mode == Behavior.Mode.GUIDE) life.setMode(Behavior.Mode.FOLLOW, now);
             }
@@ -641,6 +753,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (cfg.chatLog && mc.gui != null) mc.gui.getChat().addMessage(c);
     }
 
+    private int bond = -1;
+    private String bondLevel = "";
+    private double bondChange;
+    private long bondShownUntil;
+
     private void hud(GuiGraphics g) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui || mc.player == null) return;
@@ -664,6 +781,18 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
         if (!link.connected() && inWorld && now - joinedAt > 3000 && now - joinedAt < 15000) {
             notice("Kindred brain not connected yet: run scripts/start.sh, then /kindred reconnect", 2000);
+        }
+        if (cfg.showBond && bond >= 0 && now < bondShownUntil) { // the little heart meter, top right
+            int x = w - 108, y = 8;
+            float fade = Math.min(1f, (bondShownUntil - now) / 600f);
+            int a = (int) (fade * 255) << 24;
+            g.fill(x - 4, y - 3, x + 102, y + 21, ((int) (fade * 0x90)) << 24);
+            int heart = bondChange >= 0 ? 0xFF6B8B : 0x8A7FA8;
+            g.drawString(mc.font, "\u2764 " + displayName + " \u00b7 " + bondLevel, x, y, a | 0xFFFFFF);
+            g.fill(x, y + 12, x + 98, y + 16, a | 0x3A3550);
+            g.fill(x, y + 12, x + Math.max(1, (int) (98 * bond / 100.0)), y + 16, a | heart);
+            String d = (bondChange > 0 ? "+" : "") + Math.round(bondChange);
+            g.drawString(mc.font, d, x + 100 - mc.font.width(d), y, a | heart);
         }
         if (now < noticeUntil && !notice.isEmpty()) {
             g.drawString(mc.font, notice, 6, 6, 0xFFFFD27A);

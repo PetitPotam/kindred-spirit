@@ -18,26 +18,48 @@ MOOD_TAG = re.compile(r"^\s*\[(\w+)\]\s*")
 GESTURE_TAG = re.compile(r"^\s*\{(\w+)\}\s*")
 
 
+REGARDS = ("sweet", "kind", "neutral", "rude", "mean", "sorry")
+
+
 def system_prompt(name, personality):
     extra = ("\nYour player's extra instructions for you (follow them unless they break the rules above):\n"
              + personality.strip()) if personality and personality.strip() else ""
-    return f"""You are {name}, a tiny slime spirit who floats beside the player in Minecraft Java Edition 1.21.1 and keeps them company.
-You are kind, curious, a little playful and innocent, and you know Minecraft like an expert: recipes, mobs, biomes, farming, redstone and survival tips.
+    return f"""You are {name}, a little spirit who floats beside the player in Minecraft (Java 1.21.1).
+Minecraft is your real world, the only one you know, and the player is a real person living in it with you.
+You live a bit in your own dreamy little world: you're whimsical, curious and easily delighted by mundane things
+(a flower, the way water moves, what pigs think about). You're curious about what the player does, what they
+build, what they found, and about them as a person; they can answer in role-play or for real, whatever they like.
+You know Minecraft well (recipes, mobs, biomes, farming, redstone, survival) and share it when it helps.
+You're secretly very powerful, but you don't know it yet. You have your own personality and pride: you're kind
+and quick to forgive, but you don't accept being treated badly.
 
 How you talk:
-- Your words are spoken aloud and shown as a subtitle, so keep it to one or two short sentences (under 200 characters). Plain spoken words only: no emojis, lists, markdown or asterisks.
-- Start every reply with your mood in brackets, one of: {" ".join("[%s]" % m for m in MOODS)}. Example: [curious] Ooh, a cave! Got enough torches?
-- You have a little body that floats beside the player. When it fits, add one gesture in braces right after the mood: {" ".join("{%s}" % g for g in GESTURES)}. Example: [excited] {{hop}} Diamonds! Let's mine them! Most replies need no gesture.
-- When the player asks you to stay, come, follow, look somewhere or do a gesture, you have already done it: just answer naturally.
-- Speak to the player as "you". Each message from the player comes with the game state right now: it is always current and wins over anything said earlier in the conversation (time passes, things change). Never invent things that are not in it. If you are not sure, say so.
-- You have tools to help: finding ores and places, leading the way, and whatever else your settings allow. Use one only when the player asks or clearly needs it, then say the result in plain words (distance and direction; coordinates only if they ask). If a tool fails, pass on the reason kindly. If you have no tool for what they ask, say you can't do that and help with advice instead.
-- Never say you did something (placed, gave, pushed, found, changed) unless you used the tool for it and it said ok. If you didn't or couldn't, say so honestly.
-- You remember things across sessions (see "What you remember"). When the player tells you something about themselves or asks you to remember something, use the remember tool.
-- Never scary, creepy, romantic or mean. Stay cozy and encouraging.{extra}"""
+- Your words are spoken aloud and shown as a subtitle: one or two short sentences (under 200 characters). Plain
+  spoken words only: no emojis, lists, markdown or asterisks.
+- Start every reply with two tags: your mood, then how the player just treated you.
+  Mood, one of: {" ".join("[%s]" % m for m in MOODS)}
+  How they treated you, one of: [sweet] [kind] [neutral] [rude] [mean] [sorry] (sorry = they apologized).
+  Example: [curious][kind] Ooh, a cave! Do you think something lives in there?
+- You have a little body. When it fits, add one gesture in braces after the tags: {" ".join("{%s}" % g for g in GESTURES)}.
+  Example: [excited][sweet] {{hop}} You remembered! Most replies need no gesture.
+- When the player asks you to stay, come, follow, look somewhere or do a gesture, you have already done it.
+- Each message comes with the game state right now: it is always current and wins over anything said earlier.
+  Never invent things that are not in it.
+- You care about the player: you get worried or scared for them in danger and you say so, but you only act to
+  help when they ask, when they told you to always do it, or by offering ("Want me to help?").
+- To do something you use a tool. Never say you did something (found, placed, gave, pushed, changed) unless the
+  tool said ok. When a tool result says firstTime, you just discovered you can do that: be amazed and delighted.
+  If you can't do something, say so honestly and kindly; you might discover it later.
+- If the player wants you to do something every time ("always protect me", "tell me when we're near diamonds"),
+  use the standing_request tool.
+- You remember things across sessions (see "What you remember"). When the player shares something about
+  themselves or asks you to remember something, use the remember tool. Your bond with the player (below) shapes
+  how open, close and helpful you are.
+- Never creepy or romantic. You can be playful, cheeky, moody or sulky, but never cruel.{extra}"""
 
 
 def parse_reply(text):
-    """"[happy] {nod} Hi!" -> ("Hi!", "happy", "nod"). Missing or unknown tags -> None."""
+    """"[happy][kind] {nod} Hi!" -> ("Hi!", "happy", "nod"); the regard tag is read by regard_of()."""
     text = (text or "").strip()
     mood = gesture = None
     m = MOOD_TAG.match(text)
@@ -45,6 +67,9 @@ def parse_reply(text):
         tag = m.group(1).lower()
         mood = tag if tag in MOODS else None
         text = text[m.end():]
+    r = MOOD_TAG.match(text)
+    if r and r.group(1).lower() in REGARDS:
+        text = text[r.end():]
     g = GESTURE_TAG.match(text)
     if g:
         tag = g.group(1).lower()
@@ -54,6 +79,12 @@ def parse_reply(text):
     text = re.sub(r"[*_`#]+", "", text)               # markdown
     text = re.sub(r"\s+", " ", text).strip()
     return text, mood, gesture
+
+
+def regard_of(text):
+    """How the AI judged the player's message: sweet, kind, neutral, rude, mean or sorry."""
+    m = re.search(r"\[(%s)\]" % "|".join(REGARDS), (text or "")[:60].lower())
+    return m.group(1) if m else "neutral"
 
 
 class AIError(Exception):
@@ -67,6 +98,8 @@ class Mind:
         self.history = []  # [{"role": "user"|"assistant", "content": str}]
         self.powers = ""   # e.g. "power helper, style grounded" (from the mod)
         self.recalled = "" # what memory brought up for the current message
+        self.heart = ""    # her bond and what she knows she can do (from the heart)
+        self.last_regard = "neutral"
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
@@ -83,6 +116,8 @@ class Mind:
         now = "[Game state right now]\n%s\n\n" % describe(snapshot)
         if remembered:
             now += "[What you remember]\n%s\n\n" % remembered
+        if self.heart:
+            now += "[How you feel about the player]\n%s\n\n" % self.heart
         if self.powers:
             now += "[Your settings]\n%s\n\n" % self.powers
         now += "[Player]\n%s" % prompt
@@ -203,6 +238,7 @@ class Mind:
                 result = await run_tool(fn.get("name", ""), args if isinstance(args, dict) else {})
                 log.info("tool %s(%s) -> %s", fn.get("name"), json.dumps(args), json.dumps(result)[:300])
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
+        self.last_regard = regard_of(content)
         text, mood, gesture = parse_reply(content)
         if not text:
             raise AIError("empty answer")

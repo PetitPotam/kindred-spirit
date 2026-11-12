@@ -1,0 +1,34 @@
+# Her heart, part 2: standing requests, noticing things, borrowing a block and putting it back.
+world kindred-heart
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd kill @e[type=!minecraft:player]
+cmd clear @s
+look 0 5
+wait 120
+chat Can you always protect me from monsters?
+wait 180
+cmd summon minecraft:zombie ~2 ~ ~3 {NoAI:1b}
+cmd summon minecraft:zombie ~-2 ~ ~3 {NoAI:1b}
+wait 80
+screenshot heart2-01-auto-protect
+cmd kill @e[type=minecraft:zombie]
+chat Please tell me whenever we're near diamonds.
+wait 180
+cmd setblock ~3 ~-2 ~4 minecraft:diamond_ore
+wait 420
+cmd advancement grant @s only minecraft:story/mine_stone
+wait 220
+cmd item replace entity @s hotbar.0 with minecraft:oak_planks 4
+look 0 55
+wait 10
+press use
+wait 30
+do steal_block
+wait 30
+screenshot heart2-02-block-borrowed
+chat Hey, put my block back!
+wait 160
+screenshot heart2-03-block-back
+quit

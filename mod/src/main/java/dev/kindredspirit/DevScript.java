@@ -40,6 +40,8 @@ import java.util.Deque;
  *   act JSON            as if the brain sent {"move": "stay"} and the like
  *   lookat companion    turn the player to look straight at the companion
  *   sneak on|off        hold or release sneak (sneaking while looking at it pets it)
+ *   press attack|use    press the attack (left click) or use (right click) key for a moment
+ *   do ACTION [JSON]    run one of her actions directly (find_ore, prank_sound, steal_block...)
  *
  * For demo videos:
  *   video               HUD hidden (subtitles stay), chat log off, FOV 75, Fancy, no view bobbing
@@ -62,7 +64,8 @@ public final class DevScript {
     private float fromYaw, fromPitch, toYaw, toPitch;
     private long turnStart, turnNanos;
     private boolean turning;
-    private int walkTicks, voiceTicks;
+    private int walkTicks, voiceTicks, pressTicks;
+    private net.minecraft.client.KeyMapping pressed;
     private long trackUntil, lastTrackFrame;
     private byte[] pendingVoice;
 
@@ -137,6 +140,7 @@ public final class DevScript {
 
     public void tick(Minecraft mc) {
         if (walkTicks > 0 && --walkTicks == 0) mc.options.keyUp.setDown(false);
+        if (pressTicks > 0 && --pressTicks == 0 && pressed != null) pressed.setDown(false);
         if (voiceTicks > 0 && --voiceTicks == 0 && pendingVoice != null) {
             KindredSpiritClient.get().sendVoice(pendingVoice);
             pendingVoice = null;
@@ -192,6 +196,16 @@ public final class DevScript {
                 mc.player.setXRot((float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz))));
             }
             case "sneak" -> mc.options.keyShift.setDown(arg.trim().equals("on"));
+            case "press" -> {
+                pressed = arg.trim().equals("use") ? mc.options.keyUse : mc.options.keyAttack;
+                pressed.setDown(true);
+                net.minecraft.client.KeyMapping.click(pressed.getDefaultKey());
+                pressTicks = 2;
+            }
+            case "do" -> {
+                String[] a = arg.trim().split("\\s+", 2);
+                KindredSpiritClient.get().devAction(a[0], a.length > 1 ? JsonParser.parseString(a[1]).getAsJsonObject() : new com.google.gson.JsonObject());
+            }
             case "video" -> {
                 mc.options.hideGui = true;
                 mc.options.fov().set(75);

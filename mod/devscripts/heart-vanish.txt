@@ -1,0 +1,21 @@
+# The heart meter and vanishing, on screen.
+world kindred-heart
+wait 220
+cmd gamemode survival
+cmd time set 1000
+look 0 5
+wait 80
+track companion 3
+wait 25
+press attack
+wait 6
+screenshot hv-01-hit-meter
+wait 10
+press attack
+wait 15
+press attack
+wait 30
+screenshot hv-02-leaving
+wait 60
+screenshot hv-03-gone
+quit

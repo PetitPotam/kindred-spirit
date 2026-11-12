@@ -69,15 +69,19 @@ public final class Companion {
         return !subtitle.isEmpty() && nowMs < subtitleUntil;
     }
 
+    public enum Touch { NONE, PETTED, HIT }
+
+    private boolean attackWasDown, wasHidden;
+
     /**
      * 20 times a second: tell the companion what is going on. The world scan (mobs, animals, items)
      * runs every 5th tick only and stays within a few blocks, so it costs next to nothing.
-     * @return true when the player just petted it
+     * @return whether the player just petted or hit her
      */
-    public boolean tick(Minecraft mc) {
+    public Touch tick(Minecraft mc) {
         LocalPlayer p = mc.player;
         ClientLevel level = mc.level;
-        if (p == null || level == null) return false;
+        if (p == null || level == null) return Touch.NONE;
         Behavior.Senses s = senses;
         s.now = now();
         Vec3 eye = p.getEyePosition();
@@ -104,15 +108,33 @@ public final class Companion {
             BlockPos pos = BlockPos.containing(x, y, z);
             return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
         });
+        // a puff when she leaves and when she comes back
+        if (life.hidden() != wasHidden) {
+            wasHidden = life.hidden();
+            for (int i = 0; i < 8; i++) {
+                level.addParticle(ParticleTypes.POOF, life.x + (Math.random() - 0.5) * 0.4, life.y + (Math.random() - 0.5) * 0.4,
+                        life.z + (Math.random() - 0.5) * 0.4, 0, 0.03, 0);
+            }
+        }
+        // hitting her: the attack key pressed while looking right at her, within reach
+        boolean attack = mc.options.keyAttack.isDown() && mc.screen == null;
+        boolean struck = attack && !attackWasDown && !life.hidden() && life.playerLooksAtMe(s)
+                && Math.sqrt((life.x - s.ex) * (life.x - s.ex) + (life.y - s.ey) * (life.y - s.ey) + (life.z - s.ez) * (life.z - s.ez)) < 5;
+        attackWasDown = attack;
+        if (struck) {
+            life.play(dev.kindredspirit.life.Emote.STARTLE, s.now);
+            level.addParticle(ParticleTypes.DAMAGE_INDICATOR, life.x, life.y + 0.3, life.z, 0, 0.1, 0);
+            return Touch.HIT;
+        }
         if (life.petted) {
             life.petted = false;
             for (int i = 0; i < 3; i++) { // little hearts, drawn on your screen only
                 level.addParticle(ParticleTypes.HEART, life.x + (Math.random() - 0.5) * 0.3,
                         life.y + 0.25 + Math.random() * 0.2, life.z + (Math.random() - 0.5) * 0.3, 0, 0.02, 0);
             }
-            return true;
+            return Touch.PETTED;
         }
-        return false;
+        return Touch.NONE;
     }
 
     private void scan(LocalPlayer p, ClientLevel level) {
