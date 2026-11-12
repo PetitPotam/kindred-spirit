@@ -35,6 +35,7 @@ from websockets.exceptions import ConnectionClosed
 from . import config, intents, tools, voice
 from . import heart as intents_heart
 from .describe import describe
+from . import knowledge as kb
 from .heart import Heart
 from .memory import GatewayMemory, Memory
 from .alerts import Alerts
@@ -134,6 +135,8 @@ class Brain:
         self.line = 0
         self.last_pet_reply = -1e9
         self.tipped = {}             # power -> when the player last got a settings tip for it
+        self.kb = kb.Knowledge(cfg)  # what the world remembers (services/knowledge)
+        self.listening = set()       # questions she's listening to the world about right now
         self.recent = []             # (when, what) just happened: deaths, respawns, big hits (see happened)
         self.prev_where = None
         self.inbox, self.inbox_task = [], None  # what the player said while she was busy (hear_player)
@@ -388,6 +391,54 @@ class Brain:
         self.last_talk = self.clock()
         log.info("noticed %s (%s): %s", event, detail, text)
         await self.say(text, mood or "curious", emote=gesture)
+
+    # ------------------------------------------------------------------ what the world remembers (knowledge base)
+
+    async def world_answer(self, text):
+        """For a question about how the world works: what the world remembers goes to the AI; if it
+        doesn't remember, she'll listen (the brain learns in the background) and come back."""
+        self.mind.world_knowledge = ""
+        if not kb.is_world_question(text) or intents.action_hint(text, list(tools.ABILITY_TOOLS) + ["standing_request"]):
+            return ""  # (a request to do something, "can you find diamonds?", is for her powers)
+        found = await asyncio.to_thread(self.kb.search, text)
+        if found.get("covered"):
+            self.mind.world_knowledge = kb.remembered(found["results"])
+            log.info("the world remembers (%.2f): %s", found.get("best", 0), found["results"][0].get("title"))
+            return ""
+        if found.get("error") or text.lower() in self.listening:
+            return ""
+        self.listening.add(text.lower())
+        asyncio.create_task(self.listen_to_the_world(text))
+        return ("You don't know how that works yet. Don't guess: tell them, in your world's words, that you'll listen to "
+                "what the world remembers (the old stones remember everything that's been built; the wind has passed "
+                "over every village), just for a moment. ")
+
+    async def listen_to_the_world(self, question):
+        """She drifts, looks around and listens, while the brain learns the answer; then she comes back."""
+        try:
+            await asyncio.sleep(2)
+            await self.send({"type": "act", "look": "around", "seconds": 6, "emote": "think"})
+            learned = await asyncio.to_thread(self.kb.learn, question)
+            found = await asyncio.to_thread(self.kb.search, question)
+            log.info("listened to the world about %r: %s", question, json.dumps(learned)[:200])
+            if not await self.quiet_moment():
+                return
+            if found.get("covered"):
+                self.mind.world_knowledge = kb.remembered(found["results"])
+                await self.speak_up(
+                    "You listened to what your world remembers about what the player asked (\"%s\"), and it told you "
+                    "(see What the world remembers). Come back and tell them, delighted, as what the stones or the wind "
+                    "told you, in your own words and simply; only what it says, the key steps." % question, "excited",
+                    emote="hop")
+            else:
+                await self.speak_up("You listened to your world about \"%s\", but it stayed quiet. Say so in one "
+                                    "short sentence, in your world's words (the stones are quiet about that one), "
+                                    "maybe you'll figure it out together." % question, "curious")
+        except Exception as e:
+            log.warning("listening to the world failed: %s", e)
+        finally:
+            self.mind.world_knowledge = ""
+            self.listening.discard(question.lower())
 
     # ------------------------------------------------------------------ in-game commands
 
@@ -1106,6 +1157,7 @@ class Brain:
                         note += self.heart.first_reply_note(force)
                         self.start_awakening(force, text)
                     force = None
+                note += await self.world_answer(text)  # how the world works: what it remembers, or listen
                 offered = self.heart.offered_tools(self.abilities, force)
                 self.offered = offered
                 fib = "" if force or (self.snapshot.get("hostiles") or []) else self.heart.fib(self.clock())
@@ -1129,6 +1181,7 @@ class Brain:
             await self.safe(self.memory.episode("The player said: %s | I said: %s" % (text, reply), 3))
             if self.memory.since_reflection >= 8:  # learn as we go, not only at the end
                 asyncio.create_task(self.reflect())
+            self.mind.world_knowledge = ""  # (only for the question it answered)
             hint = intents.offered_in(reply, self.abilities)
             self.her_offer = (hint, self.clock()) if hint else None
             await self.say(reply, mood or "happy", emote=gesture,

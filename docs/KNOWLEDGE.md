@@ -324,10 +324,13 @@ whole wiki with `--all` (~10,000 articles once version pages are skipped) about 
 `KINDRED_KNOWLEDGE` points elsewhere (or `--dir`); `KINDRED_GATEWAY_URL` is the gateway the CLI
 asks for embeddings (default `http://127.0.0.1:11437/v1`).
 
-## Integration (next step)
+## How Pip uses it
 
-Not wired into the companion yet (her brain files are being changed in another branch; the brain
-side belongs there). The API above doesn't change; this is how she should use it.
+Wired in `brain/kindred/knowledge.py` and `Brain.world_answer` / `listen_to_the_world`
+(`brain/kindred/server.py`): every question about how the world works (not about her or you, and
+not a request for one of her powers) is searched first. Covered: the top passages go to the AI as
+"What the world remembers". Not covered: she says she'll listen, looks around while the brain calls
+`learn`, and comes back with what the stones told her (about 15 s measured). As planned below:
 
 **She stays in her world.** Minecraft is Pip's real world and she is a spirit of it: she never
 mentions books, the internet, a wiki or "looking something up". What the knowledge base holds is,
