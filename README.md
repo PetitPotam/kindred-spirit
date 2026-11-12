@@ -45,7 +45,7 @@ from scratch for Fabric.
 | It understands your game | health, hunger, armor, effects, inventory, position, biome, time, weather, what you look at, nearby hostile mobs with direction |
 | Danger warnings | creeper within 8 blocks, health at 3 hearts or less: instant subtitle, voice right after, with cooldowns |
 | She has a heart | a whimsical character with a **bond meter**: kindness brings her closer and makes her open up, propose plans and play pranks; hitting her or being mean makes her keep her distance, sulk, or vanish for a while. She forgives quickly ([how](docs/HEART.md)) |
-| She discovers her powers | she doesn't know what she can do until you ask; the first time something works she's amazed, and she remembers |
+| She discovers her powers | she doesn't know what she can do until you ask. She answers at once ("I'll try!"), then the power slowly wakes up in the background: she senses something strange, maybe asks you a small favour, and then "I can sense diamonds now!" She remembers it after that |
 | She helps | finds ores, locates any structure or biome, **leads the way** there, pushes monsters away, places a torch; magic style gives items, all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
 | It remembers and learns | who you are, what you like, your habits, your places, its own little personality, a diary of your sessions; reminders ("in 10 minutes", "at night", "next time we play") ([how](docs/MEMORY.md)) |
 | Personality | greets you, small talk when it's been quiet a while (configurable), moods |
@@ -203,8 +203,9 @@ near me?", "where's the nearest village? take me there", "push them away", "alwa
   ```
   Keys go in `~/.kindred-spirit/secrets.env` (readable only by you).
 - **Memory:** `brain/.venv/bin/python -m kindred.memory` shows what it remembers ([how it works](docs/MEMORY.md)).
-- **Her heart** (discovery, bond, pranks, mischief when angry, vanishing...): `[heart]` in brain.toml ([docs/HEART.md](docs/HEART.md)).
-- Voices: `tts_voice` in brain.toml, e.g. `af_heart`, `af_bella`, `am_puck`, `bf_emma` (54 Kokoro voices).
+- **Her heart** (discovering her powers, bond, pride, play-fights, her mood, animals, pranks, mischief when angry, vanishing...): `[heart]` in brain.toml ([docs/HEART.md](docs/HEART.md)).
+- **Her voice:** set in the gateway: `$G voice af_bella`, or a blend like `af_sky*0.5+af_bella*0.5` (the default,
+  young and bright), with pitch, speed and moods (excited, calm, sad, whisper): [docs/GATEWAY.md](docs/GATEWAY.md#her-voice).
 - Looks: `skin` in kindredspirit.json, or `/kindred skin <name>`. Make your own: [docs/SKINS.md](docs/SKINS.md).
 
 ## Performance

@@ -116,8 +116,13 @@ class Memory:
     async def history(self):
         return (await self.store.call("doc", key="world:%s:history" % self.world_id)).get("value") or []
 
-    async def keep_history(self, history):
+    async def keep_history(self, history, summary=None):
         await self.store.call("doc", key="world:%s:history" % self.world_id, value=history[-24:])
+        if summary is not None:
+            await self.store.call("doc", key="world:%s:summary" % self.world_id, value=summary)
+
+    async def summary(self):
+        return (await self.store.call("doc", key="world:%s:summary" % self.world_id)).get("value") or ""
 
     async def _save_stats(self):
         await self.store.call("doc", key="world:%s:stats" % self.world_id, value=self.stats)

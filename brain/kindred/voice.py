@@ -34,8 +34,10 @@ def _transcribe(url, wav, prompt="", timeout=60, key=""):
         raise VoiceError("speech-to-text not reachable at %s (%s)" % (url, getattr(e, "reason", e)))
 
 
-def _speak(url, text, voice, speed, timeout=30, key=""):
+def _speak(url, text, voice, speed, timeout=30, key="", style=""):
     body = {"input": text, "response_format": "wav"}
+    if style:
+        body["style"] = style
     if voice:
         body["voice"] = voice
     if speed:
@@ -65,7 +67,17 @@ async def transcribe(cfg, wav, prompt=""):
                                    key=cfg["gateway"].get("key", ""))
 
 
-async def speak(cfg, text):
+def style_for(mood, text=""):
+    """How she says a line: fast when excited or scared, slower when calm or sleepy, softer when sad,
+    whispered for secrets ("Psst"). The voice provider maps these (gateway.json "styles")."""
+    t = (text or "").lower()
+    if t.startswith("psst") or t.startswith("shh"):
+        return "whisper"
+    return {"excited": "excited", "scared": "excited", "worried": "excited", "happy": "",
+            "curious": "", "calm": "calm", "sleepy": "calm", "sad": "sad"}.get(mood or "", "")
+
+
+async def speak(cfg, text, style=""):
     v = cfg["voice"]
     return await asyncio.to_thread(_speak, _base(cfg) + "/audio/speech", text, v.get("voice", ""), v.get("speed", 0),
-                                   key=cfg["gateway"].get("key", ""))
+                                   key=cfg["gateway"].get("key", ""), style=style)

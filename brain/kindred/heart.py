@@ -20,7 +20,16 @@ import time
 LEVELS = [(0, "hurt"), (15, "wary"), (35, "friend"), (65, "close"), (85, "best friend")]
 
 # how a message changes the bond (the AI tags each message it answers)
-REGARD = {"sweet": 4, "kind": 2, "neutral": 0, "rude": -5, "mean": -12, "sorry": 6}
+REGARD = {"sweet": 4, "kind": 2, "neutral": 0, "rude": -5, "mean": -12, "sorry": 6, "frustrated": -1}
+
+# what events do to her feelings: (valence = how good she feels, arousal = how stirred up)
+FEELINGS = {
+    "sweet": (0.35, 0.15), "kind": (0.15, 0.05), "rude": (-0.35, 0.2), "mean": (-0.6, 0.35), "sorry": (0.3, 0.0),
+    "frustrated": (-0.15, 0.1), "hit": (-0.45, 0.45), "pet": (0.25, 0.05), "danger": (-0.2, 0.6),
+    "discovery": (0.35, 0.35), "found": (0.25, 0.3), "advancement": (0.3, 0.3), "baby": (0.45, 0.3),
+    "killed_villager": (-0.7, 0.3), "kill_spree": (-0.45, 0.2), "tamed": (0.35, 0.25), "first_meet": (0.2, 0.35),
+    "arrived": (0.3, 0.25),
+}
 
 GUIDANCE = {
     "hurt": "You feel hurt by how the player treated you. Keep your answers short and a bit cold, keep your "
@@ -37,6 +46,12 @@ GUIDANCE = {
 }
 
 HIT_LINES = ["Ow! Hey!", "Ouch! Why would you do that?", "Hey, that hurts!", "Stop it!"]
+OOF_LINES = ["Oof! Hey, watch it!", "Eep! Careful with those arms!", "Ow! Was that on purpose?"]
+BONK_LINES = ["Hey! Take that! Hehe!", "Bonk! Now we're even!", "Ha! Got you back!"]
+PLAY_HIT_LINES = ["Bonk! Hehe, gotcha! Oh no, sorry sorry, let me fix that!", "Boop! Oops, too hard? Here, all better!",
+                  "Tag, you're it! Oh, sorry! Here, let me heal you!"]
+CRY_LINES = ["*sniff* ...", "I just... need a moment.", "Why would you say that..."]
+CLEAR_LINES = ["Okay. The sun's coming back out.", "There, the clouds are going away.", "I feel better now. Look, sunshine!"]
 VANISH_LINES = ["I need a moment alone.", "Fine. I'm going away for a bit.", "I don't want to be near you right now."]
 BACK_LINES = ["...I'm back. Please be nicer.", "Okay. I'm back. Let's start over?", "I came back. Be gentle, okay?"]
 GIGGLES = ["Hehehe! Got you!", "Pfft, your face! It was just me!", "Hehe, gotcha! Sorry, I couldn't resist.",
@@ -44,6 +59,22 @@ GIGGLES = ["Hehehe! Got you!", "Pfft, your face! It was just me!", "Hehe, gotcha
 SULK_PRANKS = ["Hmph. That's what you get.", "Maybe now you'll be nicer.", "Oh no, how did that happen? Hmph."]
 BLOCK_PRANK = ["Hmm? Where did your block go? Hehe~", "Oops! Your block is... somewhere. Check your pockets!",
                "A block was here a second ago. Strange, isn't it?"]
+# powers that wake up slowly the first time (the others are instinct: they work at once)
+SLOW_POWERS = ("find_ore", "locate", "give_item", "set_time", "set_weather")
+POWER_NAMES = {"find_ore": "sense ores hidden underground", "locate": "feel where faraway places are",
+               "give_item": "make things appear out of nothing", "set_time": "move the sun across the sky",
+               "set_weather": "change the weather", "protect": "push monsters away",
+               "place_torch": "make light appear", "guide": "lead the way"}
+SENSES = {"find_ore": "a faint humming under the ground, like little stars glittering in the rock",
+          "locate": "a gentle pull from far away, like a string tied to places you've never been",
+          "give_item": "a warm tingle in your middle, as if things want to come out of you",
+          "set_time": "the sky feels movable, as if the sun is listening to you",
+          "set_weather": "the clouds feel close, as if they'd listen if you asked them nicely"}
+# small favours she may ask so the feeling gets stronger; each one the game can check
+FAVOURS = {"still": "Ask the player, a little mysteriously, to stand completely still for a few seconds so you can "
+                    "listen.",
+           "pet": "Ask the player, a bit shyly, to pet you (touch you gently), so you can focus.",
+           "name": "Ask the player to say your name out loud, so the feeling gets stronger."}
 OFFERS = {"protect": "Want me to push them away?", "find_ore": "Want me to look for %s around here?"}
 
 
@@ -62,7 +93,11 @@ class Heart:
         self.clock = clock
         self.rng = rng or random.Random()
         self.state = {"bond": float(self.p.get("start_bond", 30)), "discovered": [], "asked": {}, "seen_items": [],
-                      "requests": [], "last_prank": 0, "hurt_until": 0}
+                      "requests": [], "last_prank": 0, "hurt_until": 0, "seen_species": [], "sorries": [],
+                      "hits": [], "rained": False}
+        self.valence, self.arousal, self.novelty = 0.25, 0.35, 0.0
+        self.danger_until = 0.0
+        self.feel_at = clock()
         self.hits = []
         self.pending_offer = None
         self.last_offer = {}
@@ -114,23 +149,116 @@ class Heart:
         return self.state["bond"] - old
 
     def on_regard(self, tag):
-        delta = REGARD.get((tag or "neutral").lower(), 0)
-        if delta < 0:
-            self.state["hurt_until"] = self.clock() + (120 if tag == "mean" else 45)
+        tag = (tag or "neutral").lower()
+        delta = REGARD.get(tag, 0)
+        now = self.clock()
+        self.feel(tag)
+        if tag in ("rude", "mean"):
+            self.state["hurt_until"] = now + (120 if tag == "mean" else 45)
         elif tag == "sorry":
-            self.state["hurt_until"] = 0  # quick to forgive
+            # quick to forgive, but not a fool: sorry after sorry for the same thing counts for less
+            recent = [t for t in self.state.get("sorries", []) if now - t < 1800]
+            hurt_lately = [t for t in self.state.get("hits", []) if now - t < 1800]
+            repeats = len(recent) if hurt_lately else 0
+            self.state["sorries"] = recent + [now]
+            delta = REGARD["sorry"] / (1 + 1.5 * repeats)
+            if repeats < 2:
+                self.state["hurt_until"] = 0
+            else:  # she doesn't buy it anymore: still hurt for a while
+                self.state["hurt_until"] = max(self.state.get("hurt_until", 0), now + 60)
         return self.change(delta, tag)
 
+    def insincere(self):
+        """They keep hurting her and saying sorry."""
+        now = self.clock()
+        return len([t for t in self.state.get("sorries", []) if now - t < 1800]) >= 3 and \
+            len([t for t in self.state.get("hits", []) if now - t < 1800]) >= 3
+
+    # ------------------------------------------------------------------ feelings (the mood score)
+
+    def feel(self, event, strength=1.0):
+        dv, da = FEELINGS.get(event, (0.0, 0.0))
+        self.settle()
+        self.valence = max(-1.0, min(1.0, self.valence + dv * strength))
+        self.arousal = max(0.0, min(1.0, self.arousal + da * strength))
+        if event in ("first_meet", "discovery", "found", "advancement", "tamed", "baby"):
+            self.novelty = min(1.0, self.novelty + 0.5)
+        if event == "danger":
+            self.danger_until = self.clock() + 8
+
+    def settle(self):
+        """Feelings fade back to her resting state (a bit happier when she likes you), with a little whimsy."""
+        now = self.clock()
+        dt = max(0.0, now - self.feel_at)
+        self.feel_at = now
+        k = 0.5 ** (dt / 120)  # half-life of two minutes
+        rest_v = 0.05 + 0.4 * self.bond / 100
+        self.valence = rest_v + (self.valence - rest_v) * k + self.rng.uniform(-0.03, 0.03) * min(1, dt / 30)
+        self.arousal = 0.3 + (self.arousal - 0.3) * k + self.rng.uniform(-0.03, 0.03) * min(1, dt / 30)
+        self.novelty *= 0.5 ** (dt / 60)
+
+    def mood(self, night=False, idle_minutes=0.0):
+        """Her mood from the score: how good she feels, how stirred up, how much is new, and danger."""
+        self.settle()
+        v, a = self.valence, self.arousal
+        if self.clock() < self.danger_until:
+            return "scared" if a > 0.6 else "worried"
+        if v < -0.3:
+            return "sad" if a < 0.55 else "worried"
+        if v > 0.35 and a > 0.62:
+            return "excited"
+        if self.novelty > 0.45:
+            return "curious"
+        if a < 0.22 and (night or idle_minutes > 3):
+            return "sleepy"
+        if a < 0.3 and v > 0.1:
+            return "calm"
+        return "happy" if v > 0.05 else "calm"
+
     def on_hit(self):
-        """Returns (bond change, line to say, vanish seconds or 0)."""
+        """Returns (bond change, line to say, vanish seconds or 0, action to do back or None)."""
         now = self.clock()
         self.hits = [t for t in self.hits if now - t < 60] + [now]
+        self.state["hits"] = [t for t in self.state.get("hits", []) if now - t < 1800] + [now]
+        self.feel("hit")
+        first_in_a_while = len(self.state["hits"]) == 1
+        if first_in_a_while and self.bond >= 60:
+            # probably an accident between friends: a little "ow", and maybe a playful bonk back
+            delta = self.change(-2, "hit")
+            if self.p.get("play_fights", True) and self.bond >= 65 and self.rng.random() < 0.6:
+                return delta, self.rng.choice(BONK_LINES), 0, "bonk"
+            return delta, self.rng.choice(OOF_LINES), 0, None
         delta = self.change(-6, "hit")
         self.state["hurt_until"] = now + 90
         if len(self.hits) >= 3 and self.p.get("can_vanish", True):
             self.hits = []
-            return delta, self.rng.choice(VANISH_LINES), 90 + self.rng.randint(0, 60)
-        return delta, self.rng.choice(HIT_LINES), 0
+            return delta, self.rng.choice(VANISH_LINES), 90 + self.rng.randint(0, 60), None
+        return delta, self.rng.choice(HIT_LINES), 0, None
+
+    def play_hit(self, snapshot, now):
+        """Rarely, as close friends: a little hit for fun, then she heals you and says sorry."""
+        if not self.p.get("play_fights", True) or self.bond < 75 or self.angry():
+            return False
+        if not snapshot or snapshot.get("health", 0) < snapshot.get("maxHealth", 20) or snapshot.get("gamemode") != "survival":
+            return False
+        if any(m.get("distance", 99) < 16 for m in snapshot.get("hostiles") or []):
+            return False
+        if now - self.state.get("last_play_hit", 0) < 1800 or self.rng.random() > 0.15:
+            return False
+        self.state["last_play_hit"] = now
+        return True
+
+    def weather(self, sad):
+        """Her tears bring rain (if allowed); a real apology clears it. Returns 'rain', 'clear' or None."""
+        if not self.p.get("weather_follows_mood", True):
+            return None
+        if sad and not self.state.get("rained"):
+            self.state["rained"] = True
+            return "rain"
+        if not sad and self.state.get("rained"):
+            self.state["rained"] = False
+            return "clear"
+        return None
 
     def on_pet(self):
         return self.change(1.5, "pet")
@@ -141,11 +269,16 @@ class Heart:
             return self.change(min(40 - self.bond, 1.0 * minutes), "time")
         return 0
 
-    def guidance(self):
+    def guidance(self, mood=None):
         lvl = self.level()
         g = "Your bond with the player: %s (%d/100). %s" % (lvl, round(self.bond), GUIDANCE[lvl])
         if self.clock() < self.state.get("hurt_until", 0) and lvl not in ("hurt",):
             g += " Right now you're still a bit upset about how they just treated you."
+        if self.insincere():
+            g += (" They keep hurting you and saying sorry. You have your pride: you don't believe their apologies so "
+                  "easily anymore, you forgive slowly, and you may refuse what they ask until they really change.")
+        if mood:
+            g += " Your mood right now: %s." % mood
         return g
 
     # ------------------------------------------------------------------ discovering powers
@@ -172,6 +305,55 @@ class Heart:
         return ("You don't really know what you're capable of. You discover your powers only when the player asks "
                 "you for something: then you simply try. Never list powers or commands. Powers you've discovered so "
                 "far: %s." % (", ".join(k.replace("_", " ") for k in known) or "none yet"))
+
+    # ------------------------------------------------------------------ awakening (think fast, think slow)
+    #
+    # System 1 answers at once ("Ooh, I'll try!"), while System 2 works in the background: after a
+    # while she senses something strange, maybe asks a small favour, then the power wakes up and she
+    # does what you asked. Powers you need *now* (protect, a torch) wake up instantly, on instinct.
+
+    def slow(self, ability):
+        """Should this power awaken slowly (she's never used it, and it isn't an emergency)?"""
+        return (self.amnesia() and str(self.p.get("awakening", "slow")).lower() == "slow"
+                and ability in SLOW_POWERS and ability not in self.state["discovered"])
+
+    def awakening_plan(self):
+        """The beats of System 2, in seconds from the request: when she senses something, whether she
+        asks a favour (and which), and when the power wakes up."""
+        total = float(self.p.get("awakening_seconds", 40)) * self.rng.uniform(0.6, 1.4)
+        favour = None
+        if self.p.get("favours", True) and not self.angry() and self.rng.random() < 0.5:
+            favour = self.rng.choice(list(FAVOURS))
+        return {"sense": round(total * 0.45, 2), "favour": favour, "reveal": round(total, 2),
+                "tangent": self.rng.random() < 0.5}
+
+    def too_upset_to_focus(self):
+        return self.valence < -0.35
+
+    def first_reply_note(self, ability):
+        return ("The player just asked you for something you have never done (%s). You don't know yet whether you "
+                "can. Answer right away, in your mood: you'll try, or you're unsure but curious, or excited to try. "
+                "Don't pretend it worked and don't make up a result: it may come to you later." % POWER_NAMES[ability])
+
+    def sensing_note(self, ability, request, tangent):
+        start = ("Start with a quick little tangent about something around you, then trail off: " if tangent else "")
+        return ("%sYou suddenly feel something strange and mysterious: %s. It has to do with what the player asked "
+                "earlier (\"%s\"), but you don't understand it yet. Say it in one or two short, wondering sentences; "
+                "you may whisper. Don't say you can do it yet." % (start, SENSES[ability], request))
+
+    def favour_note(self, favour):
+        return FAVOURS[favour] + " Explain it's because of the strange feeling. One short sentence."
+
+    def reveal_note(self, ability, request, favour_done):
+        thanks = {True: "Thank them for the favour; it helped. ", False: "They didn't do your favour, but it came "
+                  "anyway; maybe a tiny pout. ", None: ""}[favour_done]
+        return ("%sIt clicks: you just discovered you can %s! A while ago the player asked: \"%s\". Use the tool now to "
+                "do what they asked, then tell them with wonder and delight (\"I can sense diamonds now!\"), in one "
+                "or two short sentences." % (thanks, POWER_NAMES[ability], request))
+
+    def fizzle_note(self, ability):
+        return ("You were trying to %s for the player, but you feel too upset to focus right now and it slips "
+                "away. Say so in one short sentence; you might try again later." % POWER_NAMES[ability])
 
     def discovered(self, ability):
         """True the first time a power works."""
@@ -242,6 +424,25 @@ class Heart:
             return "The player has been mining for a while. Say one little thing about it, or about what you see down here."
         if event == "building":
             return "The player is building something. Be curious: ask what it is, in one short sentence."
+        name = (detail or "").replace("minecraft:", "").replace("_", " ")
+        if event == "killed_villager":
+            return ("The player just killed an innocent %s. You're shocked and sad about it; say so honestly in one "
+                    "short sentence." % name)
+        if event == "kill_spree":
+            return ("The player has killed a lot of %ss in a short time. You feel sad for them; say it gently in one "
+                    "short sentence (you understand people need food, but so many...)." % name)
+        if event == "baby":
+            return "A baby %s was just born right near you! Be delighted in one short sentence." % name
+        if event == "tamed":
+            return ("The player has a new pet %s! Be thrilled: say hello to it and ask the player what its name "
+                    "is, in one short sentence." % name)
+        if event == "first_meet":
+            return ("You're meeting a %s for the very first time. You float up to it and try to talk to it, but it "
+                    "doesn't answer (animals don't talk); find that funny or puzzling, in one short whimsical "
+                    "sentence." % name)
+        if event == "pet_visit":
+            return ("You float over to say hello to the player's %s and try to chat with it. One short whimsical "
+                    "sentence; maybe ask the player what it's been up to." % name)
         return None
 
     def musing(self):

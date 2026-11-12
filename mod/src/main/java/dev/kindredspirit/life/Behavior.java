@@ -31,7 +31,7 @@ import java.util.Random;
 public final class Behavior {
     public enum Activity { IDLE, LISTENING, THINKING, SPEAKING }
 
-    public enum Mode { FOLLOW, STAY, COME, GUIDE, HIDE }
+    public enum Mode { FOLLOW, STAY, COME, GUIDE, HIDE, VISIT }
 
     public enum Side { RIGHT, LEFT, ABOVE }
 
@@ -138,6 +138,7 @@ public final class Behavior {
     public double presence = 1;
     private final double[] presenceState = {1, 0};
     private double hideUntil;
+    private double visitX, visitY, visitZ, visitUntil;
 
     private GazeKind gaze = GazeKind.SHARED, pendingGaze;
     private double gx, gy, gz, pgx, pgy, pgz;  // POINT target, or DIRECTION as a unit vector
@@ -205,6 +206,24 @@ public final class Behavior {
     public void hide(double seconds, double now) {
         mode = Mode.HIDE;
         hideUntil = now + seconds;
+    }
+
+    /** Float over to something (an animal, a pet) for a few seconds and look at it. */
+    public void visit(double x, double y, double z, double seconds, double now) {
+        if (mode == Mode.HIDE) return;
+        mode = Mode.VISIT;
+        visitUntil = now + seconds;
+        updateVisit(x, y, z);
+    }
+
+    /** The thing she's visiting moved. */
+    public void updateVisit(double x, double y, double z) {
+        visitX = x;
+        visitY = y;
+        visitZ = z;
+        gx = x;
+        gy = y + 0.6;
+        gz = z;
     }
 
     public boolean hidden() {
@@ -282,6 +301,7 @@ public final class Behavior {
         }
 
         if (mode == Mode.COME && now > comeUntil) mode = Mode.FOLLOW;
+        if (mode == Mode.VISIT && now > visitUntil) mode = Mode.FOLLOW;
         if (mode == Mode.HIDE && now > hideUntil) {
             mode = Mode.FOLLOW;
             play(Emote.SHY, now); // back, a little shy
@@ -351,6 +371,14 @@ public final class Behavior {
         double wx = 0, wy = 0, wz = 0;
         double delay = 0.12 + rng.nextDouble() * 0.23;
         double[] threat = settings.watchThreats ? nearestThreat(s) : null;
+        if (mode == Mode.VISIT && threat == null) { // looking at what she's visiting
+            gaze = GazeKind.POINT;
+            gx = visitX;
+            gy = visitY + 0.6;
+            gz = visitZ;
+            pendingGaze = null;
+            return;
+        }
         boolean urgent = now < lookOverrideUntil || threat != null || contact > 0.25
                 || act != Activity.IDLE || mode == Mode.COME || mode == Mode.GUIDE;
         if (!urgent && glancing && now < glanceUntil) {
@@ -467,6 +495,11 @@ public final class Behavior {
             ty = stayY + Smooth.noise(now * 0.25, 8) * 0.06;
             tz = stayZ + Smooth.noise(now * 0.2, 9) * 0.08;
             return new double[]{tx, ty, tz};
+        }
+        if (mode == Mode.VISIT) { // just above what she's visiting, on your side of it
+            double dx = ex - visitX, dz = ez - visitZ, d = Math.max(0.01, Math.sqrt(dx * dx + dz * dz));
+            return new double[]{visitX + dx / d * 0.7, visitY + 1.2 + Smooth.noise(now * 0.4, 14) * 0.08,
+                    visitZ + dz / d * 0.7};
         }
         if (mode == Mode.HIDE) { // far behind you and up, while she's gone
             double yaw = Math.toRadians(yawDeg);

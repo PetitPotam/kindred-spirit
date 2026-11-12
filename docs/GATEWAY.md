@@ -52,6 +52,28 @@ $G model gemini-3.1-flash-lite   # override the AI model (--clear to undo)
 Changes apply on the next request. If you switch a part away from a local tool, `scripts/start.sh`
 stops starting that tool, so it costs nothing.
 
+## Her voice
+
+With the local voice (Kokoro), Pip's voice is a blend of two young voices, `af_sky` and `af_bella`,
+slightly faster and higher than normal so she sounds bright and lively. Each line is said in a
+style that follows her mood: **excited** (faster), **calm**, **sad** (slower, softer), and
+**whisper** (quieter, breathier) for secrets, spooky things and what she senses in the dark.
+
+All of it is in `~/.kindred-spirit/gateway.json`, under `tts.providers.local_kokoro`:
+
+```json
+"voice": "af_sky*0.5+af_bella*0.5", "speed": 1.12, "pitch": 1.08,
+"styles": {"excited": {"speed": 1.3}, "calm": {"speed": 1.0}, "sad": {"speed": 0.95, "pitch": 1.04},
+           "whisper": {"voice": "af_sky*0.2+af_bella*0.2+af_nicole*0.6", "speed": 0.95, "gain": 0.45}}
+```
+
+- `voice`: one of Kokoro's 54 voices (`af_heart`, `af_bella`, `bf_emma`, `am_puck`...) or a blend,
+  `name*weight+name*weight`. `$G voice af_heart` switches it.
+- `pitch` (1.0 = natural, 1.08 = a bit younger), `speed`, `gain` (loudness, for the whisper).
+- A style only lists what it changes. Any voice provider can have its own `styles` with the same
+  names (for OpenAI, say, a different `voice` or `speed` per mood); without them, every line uses the
+  provider's normal voice.
+
 ## Keys
 
 Keys go in `~/.kindred-spirit/secrets.env` (readable only by you, never in the repository):

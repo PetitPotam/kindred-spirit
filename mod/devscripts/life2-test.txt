@@ -1,0 +1,31 @@
+# Animals and play: first meeting, a new pet, a baby, a bonk, a play-hit, her rain.
+world kindred-heart
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd kill @e[type=!minecraft:player]
+look 0 5
+wait 100
+cmd summon minecraft:cow ~3 ~ ~4 {NoAI:1b}
+wait 120
+screenshot life2-01-meets-cow
+cmd summon minecraft:cat ~-2 ~ ~3 {NoAI:1b}
+cmd data modify entity @e[type=minecraft:cat,limit=1,sort=nearest] Owner set from entity @p UUID
+wait 160
+screenshot life2-02-new-pet
+cmd summon minecraft:cow ~4 ~ ~5 {NoAI:1b,Age:-24000}
+wait 160
+screenshot life2-03-baby
+do bonk
+wait 30
+do play_hit
+wait 8
+screenshot life2-04-play-hit
+wait 50
+do mood_weather {"weather": "rain"}
+wait 80
+screenshot life2-05-rain
+do mood_weather {"weather": "clear"}
+wait 40
+quit

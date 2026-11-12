@@ -152,7 +152,7 @@ def test_voice_question_is_heard_and_answered_with_game_state(stubs):
     asyncio.run(with_brain(make_cfg(stubs.port), scenario))
     last = stubs.ai_requests[-1]["messages"][-1]["content"]
     assert "Looking at: oak log" in last and "biome plains" in last
-    assert last.endswith("[Player]\nwhat is around me?")
+    assert last.endswith("may have misheard some words) what is around me?")
 
 
 def test_ai_down_gives_a_friendly_line_and_a_notice(stubs):

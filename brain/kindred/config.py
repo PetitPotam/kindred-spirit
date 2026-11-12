@@ -20,7 +20,7 @@ DEFAULTS = {
         "model": "",            # "" = the gateway's choice (gateway.json)
         "temperature": 0.8,
         "max_tokens": 160,
-        "history_turns": 12,
+        "history_turns": 8,     # kept word for word; older turns are folded into a short summary
     },
     "voice": {
         "enabled": True,
@@ -34,6 +34,9 @@ DEFAULTS = {
     },
     "heart": {
         "amnesia": True,               # she discovers her powers with you, one by one
+        "awakening": "slow",           # slow: "I'll try!" now, the power wakes up a bit later | instant
+        "awakening_seconds": 40,       # about how long a power takes to wake up (slow)
+        "favours": True,               # while a power wakes up, she may ask you a small favour
         "start_bond": 30,              # 0-100; 30 = strangers who'd like to be friends
         "auto_protect": False,         # protect you without being asked (she'll offer otherwise)
         "curiosity": True,             # notices advancements, new items, biomes... and talks about them
@@ -41,6 +44,8 @@ DEFAULTS = {
         "block_pranks": True,          # pranks may borrow a block you just placed (it goes to your inventory)
         "mischief_when_angry": "spicy",  # off | mild (sulks, spooky sounds) | spicy (also borrows your blocks)
         "can_vanish": True,            # disappears for a while when mistreated
+        "play_fights": True,           # as close friends she may bonk you back, or play-hit and heal you
+        "weather_follows_mood": True,  # her tears bring rain, a real apology clears it (singleplayer)
     },
 }
 
@@ -76,6 +81,9 @@ small_talk_minutes = 4       # say something on its own after this long without 
 [heart]
 # who she is with you (docs/HEART.md)
 amnesia = true               # she discovers her powers with you, one by one
+awakening = "slow"           # slow: "I'll try!" at once, the power wakes up a little later | instant
+awakening_seconds = 40       # about how long a new power takes to wake up
+favours = true               # while it wakes up, she may ask you a small favour
 start_bond = 30              # 0-100; how close she feels to you at first (30 = strangers)
 auto_protect = false         # protect you without being asked (otherwise she offers, once you've asked before)
 curiosity = true             # notices advancements, new items, biomes... and talks about them
@@ -83,6 +91,8 @@ pranks = true                # playful pranks once you're friends
 block_pranks = true          # pranks may borrow a block you just placed (it goes to your inventory)
 mischief_when_angry = "spicy"  # off | mild (sulks, spooky sounds) | spicy (also borrows your blocks)
 can_vanish = true            # disappears for a while when mistreated
+play_fights = true           # as close friends she may bonk you back, or play-hit you and heal you
+weather_follows_mood = true  # her tears bring rain, a real apology clears it (singleplayer)
 '''
 
 
