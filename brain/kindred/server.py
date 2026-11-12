@@ -39,6 +39,7 @@ from . import knowledge as kb
 from .understand import Understand
 from . import becoming as becoming_mod
 from . import instinct as instinct_mod
+from . import tunes
 from .senses import Novelty
 from .mind import post_json
 from .heart import Heart
@@ -1418,7 +1419,8 @@ class Brain:
             audio = await self._voice(chunk, style)
             if audio is None or line != self.line:
                 return line
-            await self.send({"type": "audio", "line": line, "audio": audio})
+            if audio:
+                await self.send({"type": "audio", "line": line, "audio": audio})
         return line
 
     async def say_more(self, line, text, style=None):
@@ -1438,7 +1440,8 @@ class Brain:
             audio = await self._voice(chunk, style)
             if audio is None or line != self.line:
                 return
-            await self.send({"type": "audio", "line": line, "audio": audio})
+            if audio:
+                await self.send({"type": "audio", "line": line, "audio": audio})
 
     def cut_short(self, now, by_player=False):
         """What she was saying gets interrupted: if it was an answer, remember what she didn't get to say
@@ -1475,8 +1478,13 @@ class Brain:
                        + rest[0].lower() + rest[1:], self.mood, prio="reply")
 
     async def _voice(self, text, style=""):
+        spoken, hums = tunes.split(text)  # a hum isn't spoken: the game plays it as a little tune
+        if hums:
+            await self.send(tunes.tune_message(hums, self.mood))
+        if not spoken:
+            return ""  # (nothing to say aloud in this one: go on to the next sentence)
         try:
-            return base64.b64encode(await voice.speak(self.cfg, text, style)).decode("ascii")
+            return base64.b64encode(await voice.speak(self.cfg, spoken, style)).decode("ascii")
         except voice.VoiceError as e:
             log.warning("%s (subtitle only)", e)
             return None

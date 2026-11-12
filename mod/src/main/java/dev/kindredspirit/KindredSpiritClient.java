@@ -375,6 +375,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             quality.update(mc.getFps(), mc.options.graphicsMode().get() == GraphicsStatus.FAST);
         }
         if (mc.player == null || mc.level == null) return;
+        if (tune.playing()) tune.tick(mc, companion.life.x, companion.life.y, companion.life.z);
         Companion.Touch touch = companion.tick(mc);
         if (touch == Companion.Touch.PETTED) event("petted");
         if (touch == Companion.Touch.HIT) event("hit");
@@ -594,6 +595,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 }
             });
             case "do" -> mc.execute(() -> runAction(msg));
+            case "tune" -> mc.execute(() -> tune.start(msg)); // a hum, played as music where she floats
             case "state" -> mc.execute(() -> {
                 String s = str(msg, "state");
                 if (s.equals("thinking")) {
@@ -664,6 +666,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     // her senses: what she hears, and what she watched you do (see senses/)
     private final dev.kindredspirit.senses.Hearing hearing = new dev.kindredspirit.senses.Hearing();
     private boolean hearingOn;
+    private final dev.kindredspirit.audio.TunePlayer tune = new dev.kindredspirit.audio.TunePlayer(); // her hums
     private final dev.kindredspirit.senses.Recent youDid = new dev.kindredspirit.senses.Recent(120000, 6);
     private java.util.Map<String, Integer> lastInventory;
     private java.util.Set<String> items = null;

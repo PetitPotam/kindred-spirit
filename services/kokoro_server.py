@@ -116,15 +116,6 @@ def speakable(text):
     return re.sub(r"\s{2,}", " ", text).strip() or "Hmm"
 
 
-# Humming and little songs ("la-dee-dum, dum-dee-doo"): read as words they come out flat and
-# robotic. So a hum is sung instead: each syllable on its own note of a small tune, a little longer,
-# with a breath between phrases. The same words always get the same tune (a song stuck in her head
-# stays the same song).
-HUM_SYLLABLE = r"(?:la|lee|li|dee|di|dum|doo|da|dah|lu|loo|ba|bum|bah|na|nah|tra|tum|ti|do|ta|ra|hmm|mm|bzz|buzz)"
-HUM = re.compile(r"(?i)(?<![\w])(%s(?:[-\s,~]+%s){2,})(?![\w])" % (HUM_SYLLABLE, HUM_SYLLABLE))
-SCALE = [-5, -3, 0, 2, 4, 7]  # semitones around her voice: a pentatonic-ish scale (pitch stays 0.8-1.25 at most)
-
-
 def _render(text, style, lang, speed, pitch):
     pitch = min(max(pitch, 0.8), 1.25)
     with _lock:
@@ -135,62 +126,31 @@ def _render(text, style, lang, speed, pitch):
     return audio, rate
 
 
-def _trim(audio, rate, floor=0.02):
-    loud = np.where(np.abs(audio) > floor * max(1e-6, float(np.max(np.abs(audio)))))[0]
-    if not len(loud):
-        return audio
-    pad = int(rate * 0.01)
-    return audio[max(0, loud[0] - pad):loud[-1] + pad]
-
-
-_sung = {}  # (syllable, voice, speed, pitch) -> audio: tunes repeat, so most notes are ready the next time
-
-
-def sing(hum, style, lang, speed, pitch, voice=""):
-    """One hummed phrase as a melody: each syllable sung on a note of a tune chosen from the words."""
-    syllables = re.findall(HUM_SYLLABLE, hum, re.I)
-    rng = __import__("random").Random(sum(ord(c) for c in hum.lower()))
-    step, notes = rng.choice([0, 2]), []
-    for i, _ in enumerate(syllables):  # a walk up and down the scale, landing home at the end
-        step = max(0, min(len(SCALE) - 1, step + rng.choice([-1, 1, 1, 2, -2])))
-        notes.append(SCALE[2] if i == len(syllables) - 1 else SCALE[step])
-    out, rate = [], 24000
-    for i, (syl, semi) in enumerate(zip(syllables, notes)):
-        p = min(1.25, max(0.8, pitch * 2 ** (semi / 12)))
-        key = (syl.lower(), voice, lang, round(speed, 3), round(p, 3))
-        if key in _sung:
-            a, rate = _sung[key]
-            a = a.copy()
-        else:
-            a, rate = _render(syl.lower(), style, lang, speed * 0.72, p)  # sung: slower, held
-            a = _trim(a, rate)
-            if len(_sung) < 400 and voice:
-                _sung[key] = (a.copy(), rate)
-        fade = min(len(a) // 4, int(rate * 0.02))
-        if fade:
-            a[:fade] *= np.linspace(0, 1, fade)
-            a[-fade:] *= np.linspace(1, 0, fade)
-        out.append(a)
-        gap = 0.16 if re.search(re.escape(syl) + r"\s*[,~]", hum[hum.lower().find(syl.lower()):], re.I) else 0.05
-        out.append(np.zeros(int(rate * gap), dtype=np.float32))
-    return (np.concatenate(out) if out else np.zeros(1, dtype=np.float32)), rate
+def prosody(text, speed, pitch):
+    """Kokoro says every sentence the same way; people don't. A question lifts a little, an
+    exclamation is quicker and higher, a trailing "..." slows down, a short reaction is snappier,
+    and a small variation (the same for the same words) keeps two sentences from sounding alike."""
+    t = text.strip()
+    rng = __import__("random").Random(sum((i + 1) * ord(c) for i, c in enumerate(t)))
+    s, p = speed * rng.uniform(0.97, 1.03), pitch * rng.uniform(0.975, 1.025)
+    if t.endswith("?"):
+        p *= 1.03
+    elif t.endswith("!"):
+        s, p = s * 1.06, p * 1.035
+    elif t.endswith(("...", "…")):
+        s *= 0.92
+    if len(t) < 18:
+        s *= 1.04
+    return s, p
 
 
 def synthesize(text, voice, speed, pitch=1.0, gain=1.0):
     text = speakable(text)
     style = voice_style(voice)
     lang = "en-gb" if isinstance(style, str) and style.startswith("b") else "en-us"
-    pieces, rate, last = [], 24000, 0
-    for m in HUM.finditer(text):  # speech, then a sung hum, then speech...
-        if text[last:m.start()].strip(" ,.-"):
-            a, rate = _render(text[last:m.start()], style, lang, speed, pitch)
-            pieces.append(a)
-        a, rate = sing(m.group(1), style, lang, speed, pitch, voice)
-        pieces += [a, np.zeros(int(rate * 0.12), dtype=np.float32)]
-        last = m.end()
-    if text[last:].strip(" ,.-") or not pieces:
-        a, rate = _render(text[last:] if pieces else text, style, lang, speed, pitch)
-        pieces.append(a)
+    speed, pitch = prosody(text, speed, pitch)
+    audio, rate = _render(text, style, lang, speed, pitch)
+    pieces = [audio]
     audio = np.concatenate(pieces).astype(np.float32)
     if gain != 1.0:
         audio = audio * min(max(gain, 0.05), 2.0)
