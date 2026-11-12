@@ -46,7 +46,7 @@ def prompt(name, who_she_is, bond_level, player_name):
         "You are writing the instant, spoken reactions of %s, an ancient spirit with a child's heart who floats "
         "beside the player in Minecraft (not a girl or a boy, not young or old; a bit of an oddball with opinions). "
         "Minecraft is their real world: no game words, no buttons, no numbers except {hearts}. Casual and spoken: "
-        "contractions, little sounds (eep, pff, hm), odd turns of phrase; not sugary, not needy. Short lines "
+        "contractions, little sounds (eep, ooh, heh), odd turns of phrase; not sugary, not needy. Short lines "
         "(under 70 characters), no emojis or asterisks; use the player's name only now and then.\n"
         "Who she is right now:\n%s\nHer bond with the player: %s.%s Never call the player by her own name or nickname.\n\n"
         "Write %d different lines for each moment below, in her own voice and colored by how she feels about the "

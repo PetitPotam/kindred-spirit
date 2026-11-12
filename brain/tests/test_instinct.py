@@ -49,20 +49,22 @@ from kindred import config  # noqa: E402
 from kindred.instinct import MOMENTS, NEEDS  # noqa: E402
 
 
-def test_a_slow_answer_gets_a_thinking_sound_first(stubs):  # noqa: F811
+def test_a_slow_answer_shows_her_thinking_without_a_word(stubs):  # noqa: F811
     stubs.ai_delay = 2.0
 
     async def scenario(url):
         async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
             await ws.send(json.dumps({"type": "chat", "text": "what do you think of my house?"}))
-            first = await recv_until(ws, "say")
-            second = await recv_until(ws, "say", timeout=8)
-            return first, second
-    first, second = asyncio.run(with_brain(make_cfg(stubs.port), scenario))
-    assert first["text"] in ("Hmm...", "Ooh, let me think...", "Hmm, good question...")
-    assert "oak log" in second["text"], "then the real answer"
-    history = json.dumps(stubs.ai_requests[-1]["messages"])
-    assert "let me think" not in history and "Hmm..." not in history, "a thinking sound isn't something she said"
+            got = []
+            while True:
+                msg = json.loads(await asyncio.wait_for(ws.recv(), 8))
+                got.append(msg)
+                if msg["type"] == "say":
+                    return got
+    got = asyncio.run(with_brain(make_cfg(stubs.port), scenario))
+    assert any(m["type"] == "act" and m.get("emote") == "think" for m in got), "she shows she's thinking"
+    says = [m for m in got if m["type"] == "say"]
+    assert len(says) == 1 and "oak log" in says[0]["text"], "and the first thing she says is the answer"
 
 
 def test_a_quick_answer_needs_no_filler(stubs):  # noqa: F811

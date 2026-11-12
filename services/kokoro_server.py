@@ -97,10 +97,9 @@ def keep_phonemizer(engine):
 # Little sounds the voice engine would spell out letter by letter ("Hm" as "aitch-em", "Shh" as
 # "es-aitch-aitch"), rewritten as words it says as sounds. The subtitle keeps what she wrote.
 SOUNDS = [
-    (r"\b[Hh]m+\b|\b[Mm]{2,}\b(?!-)", "Hmm"),
+    # sounds it can't say well at all are left out of her voice (they stay in her subtitle)
+    (r"(?i)\b(?:h+m+|m{2,}|hmph|pf+t*|psh+|tsk|tch)\b[.,!?…~-]*\s*", ""),
     (r"\b(?:[Mm]+-?h+m+|[Mm]hm)\b", "Uh-huh"),
-    (r"\b[Hh]mph\b", "Humph"),
-    (r"\b[Pp]f+t*\b", "Pah"),
     (r"\b[Ss]h{2,}\b|\b[Ss]h\b", "Shush"),
     (r"\b[Tt]ch\b", "Tsk"),
     (r"\b[Bb]rr+\b", "Burr"),
@@ -113,7 +112,7 @@ SOUNDS = [
 def speakable(text):
     for pattern, word in SOUNDS:
         text = re.sub(pattern, word, text)
-    return re.sub(r"\s{2,}", " ", text).strip() or "Hmm"
+    return re.sub(r"\s{2,}", " ", text).strip()
 
 
 def _render(text, style, lang, speed, pitch):
@@ -146,6 +145,10 @@ def prosody(text, speed, pitch):
 
 def synthesize(text, voice, speed, pitch=1.0, gain=1.0):
     text = speakable(text)
+    if not re.search(r"[A-Za-z]", text):  # nothing she can say well: a short silence
+        buf = io.BytesIO()
+        sf.write(buf, np.zeros(2400, dtype=np.float32), 24000, format="WAV", subtype="PCM_16")
+        return buf.getvalue()
     style = voice_style(voice)
     lang = "en-gb" if isinstance(style, str) and style.startswith("b") else "en-us"
     speed, pitch = prosody(text, speed, pitch)
