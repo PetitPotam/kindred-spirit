@@ -18,6 +18,10 @@ Cost estimates use Gemini 3.1 Flash-Lite's list prices ($0.25 per million tokens
 million back). For another model, start the dashboard with `KINDRED_PRICE_IN=... KINDRED_PRICE_OUT=...`.
 Token counts are recorded from the first gateway start with the dashboard; older calls show "–".
 
+The pages are grouped in a side bar (a top bar on a phone), each with its own address
+(`http://127.0.0.1:11440/#settings`), with a light / dark / auto switch. Only pages opened as
+`127.0.0.1` or `localhost` are answered, so another web site can't read her token or memories.
+
 Run it on its own with `brain/.venv/bin/python services/dashboard.py` (standard library only), or on
 another port with `KINDRED_DASHBOARD_PORT`.
 
