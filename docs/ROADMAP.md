@@ -77,11 +77,16 @@ Done first: her character rewritten as an ancient spirit with a child's heart (t
 examples instead of rules), System 2's self-portrait of who she's become lately, a bench to compare
 her voice across prompts and models, and her conversation on Gemini 3 Flash.
 
-- **Real senses.** Today she "knows" every animal in a 32-block bubble. Instead: what's in her view
+- **Real senses** (done: sight from where she floats, hearing by the game's sound names, feeling
+  rain, snow and temperature, watching what you do, new vs familiar). Before, she "knew" every animal
+  in a 32-block bubble. Now: what's in her view
   and line of sight, with new or moving things standing out (and getting boring once familiar);
   sounds she hears, from the names the game gives them for subtitles ("Zombie groans" behind a
   wall); what she feels (rain, darkness, heat); a log of what you do (placed, mined, crafted, ate).
   The mod turns raw game data into "what she noticed"; the AI only sees that.
+- **Building with you.** Ask her to stack blocks to a height, put ten on each corner, wall a little
+  pen: she places blocks from your own inventory, a few per second, in patterns the AI describes
+  and the mod checks (within reach, only what you have, never on you).
 - **Seeking.** Asked to find something beyond her senses, she reaches out with effort: a gesture, a
   moment, then an answer whose precision fades with distance. Within what the game has loaded,
   real animals and blocks; beyond it, where such things live (biomes, structures, located in

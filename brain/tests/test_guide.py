@@ -39,7 +39,7 @@ def test_she_knows_where_animals_are_with_directions():
     text = describe(s)
     assert "2 sheep (1 babies), nearest 21 blocks ahead on your left" in text
     assert "1 cat, nearest 3 blocks behind you (your pet: Mochi)" in text
-    assert "No animals within 32 blocks." in describe(snap(animals=[]))
+    assert "No animals in sight." in describe(snap(animals=[]))
 
 
 def test_lead_me_to_the_sheep_she_can_see(stubs):
