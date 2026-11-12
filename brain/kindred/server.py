@@ -1618,17 +1618,15 @@ class Brain:
             log.warning("couldn't write who she's become: %s", e)
 
     async def fill_silence(self, speech, after=1.4):
-        """System 0 covers System 1: when an answer takes a while, a small thinking sound and gesture
-        (at most every 20 s, never in danger)."""
+        """System 0 covers System 1: when an answer takes a while, she shows she's thinking (a gesture,
+        looking up), without a word: a spoken "hmm" every time was annoying (at most every 20 s)."""
         await asyncio.sleep(after)
         danger = any(m.get("distance", 99) < 10 for m in (self.snapshot or {}).get("hostiles") or [])
         if speech.said or danger or self.clock() - self.last_filler < 20:
             return
         self.last_filler = self.clock()
         await self.send({"type": "act", "emote": "think"})
-        line = self.instinct.pick("thinking")
-        if line:
-            await self.say(line, "curious", prio="reaction")
+        await self.send({"type": "state", "state": "thinking"})
 
     async def warm_up(self):
         """Ready before the first message: System 0's example phrases (a third of a second, once)."""
