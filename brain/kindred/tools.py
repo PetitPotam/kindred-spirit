@@ -46,6 +46,18 @@ ABILITY_TOOLS = {
                    "if they look at a log, else that one block. What drops goes into their inventory, as if mined "
                    "with what they hold. Use when they ask you to chop a tree, cut wood, mine or break a block. "
                    "Never for animals, chests or anything that holds things."),
+    "build": _fn("build", "Build with the player: place blocks in a shape, one by one, a few per second, starting "
+                 "at the spot they're looking at (or just in front of them) and going forward (the way they face) "
+                 "and to their right. In grounded style each block comes from their inventory (you place what they "
+                 "have). Shapes: pillar (a stack, 'height' high), corners (a pillar on each corner of a rectangle "
+                 "'width' x 'length', 'height' high), wall (a row 'width' long, 'height' high), floor ('width' x "
+                 "'length', flat), outline (the border of 'width' x 'length', 'height' high, like a pen or room). "
+                 "'stop' stops a build. If the size they want isn't clear, ask before building. At most 256 blocks.",
+                 {"shape": {"type": "string", "enum": ["pillar", "corners", "wall", "floor", "outline", "stop"]},
+                  "block": {"type": "string", "description": "the block to use, e.g. cobblestone, oak_planks; empty = "
+                            "the block in their hand (or the one they have most of)"},
+                  "height": {"type": "integer"}, "width": {"type": "integer", "description": "to their right"},
+                  "length": {"type": "integer", "description": "forward"}}, ["shape"]),
     "place_torch": _fn("place_torch", "Place a torch at or right next to the player's feet (in grounded style it "
                        "uses one of their torches)."),
     "give_item": _fn("give_item", "Make items appear in the player's inventory (magic). Use Minecraft item ids.",

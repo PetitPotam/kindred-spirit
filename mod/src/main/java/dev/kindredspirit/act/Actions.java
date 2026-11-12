@@ -89,6 +89,7 @@ public final class Actions {
                 case PROTECT -> onServer(mc, s -> protect(s, mc.player));
                 case PLACE_TORCH -> onServer(mc, s -> placeTorch(s, mc.player, style));
                 case HARVEST -> onServer(mc, s -> harvest(s, mc.player));
+                case BUILD -> onServer(mc, s -> Builder.start(s, mc.player, args, style));
                 case GIVE_ITEM -> onServer(mc, s -> give(s, mc.player, str(args, "item", ""), num(args, "count", 1)));
                 case SET_TIME -> onServer(mc, s -> setTime(s, str(args, "time", "day")));
                 case SET_WEATHER -> onServer(mc, s -> setWeather(s, str(args, "weather", "clear")));
@@ -236,7 +237,7 @@ public final class Actions {
         return f;
     }
 
-    private static ServerPlayer serverPlayer(MinecraftServer server, LocalPlayer p) {
+    static ServerPlayer serverPlayer(MinecraftServer server, LocalPlayer p) {
         ServerPlayer sp = server.getPlayerList().getPlayer(p.getUUID());
         if (sp == null) throw new IllegalStateException("player not found on the server");
         return sp;
@@ -485,11 +486,11 @@ public final class Actions {
         return CompletableFuture.completedFuture(o);
     }
 
-    private static String str(JsonObject o, String k, String d) {
+    static String str(JsonObject o, String k, String d) {
         return o != null && o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsString() : d;
     }
 
-    private static int num(JsonObject o, String k, int d) {
+    static int num(JsonObject o, String k, int d) {
         try {
             return o != null && o.has(k) ? o.get(k).getAsInt() : d;
         } catch (RuntimeException e) {

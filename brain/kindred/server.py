@@ -69,7 +69,7 @@ def sentences(text, min_chars=25, first_max=0):
     return out
 
 
-HANDS = ("protect", "place_torch", "harvest", "give_item", "set_time", "set_weather")  # powers that touch the world
+HANDS = ("protect", "place_torch", "harvest", "build", "give_item", "set_time", "set_weather")  # powers that touch the world
 
 
 def player_name(memories):
@@ -120,6 +120,8 @@ def did_something(name, result):
         return bool(result.get("pushedAway"))
     if name == "harvest":
         return bool(result.get("broken"))
+    if name == "build":
+        return bool(result.get("blocks")) and not result.get("stopped")
     if name in ("find_ore", "find_animal", "locate"):
         return result.get("found", True) is not False
     return True

@@ -1,3 +1,4 @@
+from kindred import intents
 from kindred.intents import match
 
 
@@ -48,3 +49,12 @@ def test_clear_requests_require_their_tool():
     assert action_hint("give me 5 bread", allowed) == "give_item"
     assert action_hint("give me 5 bread", ["find_ore"]) is None, "not allowed: the AI explains instead"
     assert action_hint("how do I craft a torch?", allowed) is None
+
+
+def test_asking_her_to_build_but_not_talking_about_your_own_building():
+    allowed = ["build", "harvest", "place_torch"]
+    assert intents.action_hint("can you place 10 blocks on top of each other on each corner", allowed) == "build"
+    assert intents.action_hint("pip, build a pillar 10 blocks high", allowed) == "build"
+    assert intents.action_hint("could you make a floor of planks here", allowed) == "build"
+    assert intents.action_hint("i'm going to build a wall", allowed) is None, "that's them building, not a request"
+    assert intents.action_hint("build a wall here", ["harvest"]) is None, "not when she can't"

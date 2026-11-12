@@ -32,6 +32,9 @@ EXAMPLES = {
                     "light this place up", "it's pitch black down here"],
     "harvest": ["chop this tree", "cut down that tree for me", "mine this block", "break the tree", "can you get me "
                 "some wood", "dig this out for me"],
+    "build": ["stack blocks up to ten high", "build a pillar here", "place ten blocks on each corner",
+              "can you build a little wall", "make a floor of planks here", "put blocks on top of each other",
+              "build a fence around this area with blocks", "raise a tower of cobblestone"],
     "standing_request": ["always protect me", "tell me whenever there are diamonds", "warn me every time monsters "
                          "come", "from now on keep me safe"],
     "set_reminder": ["remind me in ten minutes to check the furnace", "don't let me forget to feed the animals tonight",

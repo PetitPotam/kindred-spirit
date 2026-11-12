@@ -84,9 +84,9 @@ her voice across prompts and models, and her conversation on Gemini 3 Flash.
   sounds she hears, from the names the game gives them for subtitles ("Zombie groans" behind a
   wall); what she feels (rain, darkness, heat); a log of what you do (placed, mined, crafted, ate).
   The mod turns raw game data into "what she noticed"; the AI only sees that.
-- **Building with you.** Ask her to stack blocks to a height, put ten on each corner, wall a little
-  pen: she places blocks from your own inventory, a few per second, in patterns the AI describes
-  and the mod checks (within reach, only what you have, never on you).
+- **Building with you** (done: pillar, corners, wall, floor, outline; from your own blocks in grounded
+  style, a few per second, never inside you or an animal, at most 256 blocks). Next: more shapes
+  (stairs, an arch, a roof) and building from a little sketch she remembers.
 - **Seeking.** Asked to find something beyond her senses, she reaches out with effort: a gesture, a
   moment, then an answer whose precision fades with distance. Within what the game has loaded,
   real animals and blocks; beyond it, where such things live (biomes, structures, located in

@@ -239,6 +239,14 @@ She cares about you and gets scared *for* you, but she acts when:
   "Want me to push them away?". Say yes and she does it. The same goes for anything she offers in
   her own words ("Should I light it up for you?" "Yes please!").
 
+**Building with you.** Ask her to stack blocks ("a pillar 10 high", "10 blocks on each corner of a
+5 by 5", "a little wall", "a floor of planks", "fence this area in"): she places them one by one,
+floating to each spot, starting where you look and going forward and to your right. In grounded
+style the blocks come from your inventory (the one you hold, or the one you name); if you don't
+have enough she places what you have and tells you. Never inside you or an animal, never over
+something solid, at most 256 blocks; "stop building" stops her. Shapes: pillar, corners, wall,
+floor, outline (`mod/.../act/BuildPlan.java`).
+
 When she protects you, she pushes every monster within 10 blocks away and leaves it dazed (slowed)
 for a few seconds, so it doesn't walk straight back. With "always protect me" she checks every couple
 of seconds and keeps them further away when you're low on health. "I can't see", "give me some
