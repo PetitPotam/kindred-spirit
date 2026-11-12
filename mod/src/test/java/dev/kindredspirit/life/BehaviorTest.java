@@ -339,6 +339,20 @@ public class BehaviorTest {
     }
 
     @Test
+    void onlyAHitRightOnHerCounts() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        double dx = b.x - s.ex, dy = b.y - s.ey, dz = b.z - s.ez, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        s.lx = dx / d; s.ly = dy / d; s.lz = dz / d;  // crosshair right on her
+        assertTrue(b.aimedAt(s, Double.MAX_VALUE));
+        assertFalse(b.aimedAt(s, d - 0.5), "a cow (or a block) in front of her takes the hit");
+        double side = Math.atan2(s.lx, s.lz) + 0.35;  // 20 degrees off: the mob next to her
+        s.lx = Math.sin(side); s.ly = 0; s.lz = Math.cos(side);
+        assertFalse(b.aimedAt(s, Double.MAX_VALUE), "near her is not on her");
+    }
+
+    @Test
     void sheFollowsAWalkingAnimal() {
         Behavior b = companion();
         Behavior.Senses s = player();

@@ -55,13 +55,20 @@ A number from 0 to 100, shown as a small heart meter (top right) whenever it cha
 
 What changes it: each message you send is judged by the AI (sweet +4, kind +2, rude −5, mean −12,
 an apology +6 and instant forgiveness), petting her +1.5, doing her a favour +2, hitting her −6
-(attacking while looking at her). She also floats closer when the bond is high and keeps her
+(with your crosshair right on her, and no mob, animal or block in front of her: hitting a cow next to
+her doesn't count). She also floats closer when the bond is high and keeps her
 distance when it's low or when she's just been hurt.
 
 She forgives quickly: below a friendly baseline (40) the bond slowly recovers on its own, but time
 alone never makes her love you. Hit her three times within a minute, or be really cruel when the
 bond is already low, and she **vanishes** for a minute or two ("I need a moment alone."), then
 comes back on her own, a bit shy (`can_vanish = false` to turn this off).
+
+**Spamming her is toxic.** Saying the same thing again and again means less each time (+4, +1.3,
++0.8), and from the fourth time in five minutes it costs: −1, −2, up to −5 each time. She pulls away a
+little and gets short with you; she won't say it back. Flooding her with messages (six or more in 30
+seconds) does the same, and kind words can add at most +8 a minute. Messages you send while she's
+thinking are answered together ("i love you (said 9 times in a row)"), not one by one.
 
 **Accidents and pride.** One hit between friends is probably an accident: just an "Oof! Watch it!"
 and a small dip. But she has her pride: hit her and say sorry, again and again, and the sorries

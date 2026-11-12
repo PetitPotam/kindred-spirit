@@ -507,6 +507,20 @@ public final class Behavior {
         return perp2 < r * r;
     }
 
+    /**
+     * A hit really aimed at her: the crosshair on her body (not the wide cone used for eye contact),
+     * within arm's reach, and nothing nearer in the way (a mob, an animal or a block at distance
+     * {@code inTheWay}; pass Double.MAX_VALUE when nothing is targeted).
+     */
+    public boolean aimedAt(Senses s, double inTheWay) {
+        double dx = x - s.ex, dy = y - s.ey, dz = z - s.ez;
+        double along = dx * s.lx + dy * s.ly + dz * s.lz;
+        if (along <= 0.3 || along > 4.5 || inTheWay < along) return false;
+        double perp2 = dx * dx + dy * dy + dz * dz - along * along;
+        double r = radius * 1.15;
+        return perp2 < r * r;
+    }
+
     /** If its spot is inside a block, float up until it is free (and come back down later). */
     private void avoidWalls(Senses s, Solid solid) {
         if (solid == null || !placed) return;

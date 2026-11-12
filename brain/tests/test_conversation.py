@@ -98,3 +98,19 @@ def test_a_burst_of_messages_while_she_thinks_becomes_one_reply(stubs):
     assert len(says) == 2, "two answers, not ten"
     assert "said 9 times in a row" in stubs.ai_requests[-1]["messages"][-1]["content"]
     assert b.heart.bond < 30, "nine times the same words is spam, not love (%.1f)" % b.heart.bond
+
+
+def test_what_she_says_without_the_ai_is_in_its_memory_with_why(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.send = lambda msg: asyncio.sleep(0)
+    b.cfg["voice"]["enabled"] = False
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.on_event("hit")
+    asyncio.run(run())
+    last = b.mind.history[-1]
+    assert last["role"] == "assistant" and "the player hit you" in last["content"]
+    msgs = b.mind.build_messages(snap(), "sorry, that was an accident")
+    assert any("the player hit you" in m["content"] for m in msgs), "so 'sorry' makes sense to the AI"
