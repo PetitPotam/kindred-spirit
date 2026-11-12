@@ -16,6 +16,26 @@ import time
 DIR = os.environ.get("KINDRED_SESSION_DIR") or os.path.expanduser("~/.kindred-spirit/logs/sessions")
 
 
+def felt_rows(ev, words_per_second=2.6):
+    """What waiting felt like, per person (you, and each friend): from the message to her first word, and to the end
+    of her answer as spoken (estimated from its words). Thinking is rarely the slow part: queues and long lines are."""
+    rows, by = [], {}
+    asks = [e for e in ev if e["kind"] in ("you", "guest")]
+    lines = [e for e in ev if e["kind"] == "pip" and e.get("source") == "reply"]
+    for q in asks:
+        who = "you" if q["kind"] == "you" else q.get("who", "a friend")
+        to = "player" if who == "you" else who
+        a = next((p for p in lines if q["t"] <= p["t"] <= q["t"] + 45 and p.get("to", "player") == to), None)
+        if a:
+            spoken = len((a.get("text") or "").split()) / words_per_second
+            by.setdefault(who, []).append((a["t"] - q["t"], a["t"] - q["t"] + spoken))
+    med = lambda xs: sorted(xs)[len(xs) // 2]  # noqa: E731
+    for who, waits in sorted(by.items(), key=lambda kv: kv[0] != "you"):
+        rows.append("| felt wait (%s) | first word after %.1fs, answer over after %.1fs (median of %d) |" % (
+            who, med([w[0] for w in waits]), med([w[1] for w in waits]), len(waits)))
+    return rows
+
+
 class SessionLog:
     def __init__(self, directory=None, clock=time.time):
         self.dir, self.clock = directory or os.environ.get("KINDRED_SESSION_DIR") or DIR, clock
@@ -88,7 +108,7 @@ class SessionLog:
                  "| tools | %d used, %d failed |" % (len(tools), len(failed)),
                  "| answers | %d, first words after %.1fs on average, %d slower than 4s |" % (
                      len(answers), sum(a.get("first_words", 0) for a in answers) / max(1, len(answers)), len(slow)),
-                 "| errors | %d |" % len(errors), ""]
+                 "| errors | %d |" % len(errors)] + felt_rows(ev) + [""]
         flags = []
         if len(said) / minutes > 3:
             flags.append("She talked a lot: more than 3 lines a minute.")

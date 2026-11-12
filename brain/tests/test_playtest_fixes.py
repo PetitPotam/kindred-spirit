@@ -335,3 +335,13 @@ def test_the_diary_is_written_from_the_whole_session(stubs):  # item 23
     assert "cherry house" in story, "the beginning is there"
     assert "good night" in story or "waterwalid" in story, "and the end"
     assert len(story) <= 3000
+
+
+def test_the_session_summary_says_what_waiting_felt_like():  # item 27
+    from kindred.sessionlog import felt_rows
+    ev = [{"kind": "you", "t": 0}, {"kind": "pip", "source": "reply", "t": 2, "text": "one two three four five six"},
+          {"kind": "guest", "who": "waterwalid", "t": 10},
+          {"kind": "pip", "source": "reply", "t": 14, "to": "waterwalid", "text": "hi there friend"}]
+    rows = felt_rows(ev)
+    assert "felt wait (you) | first word after 2.0s" in rows[0]
+    assert "waterwalid" in rows[1] and "first word after 4.0s" in rows[1]

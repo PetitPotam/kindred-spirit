@@ -383,6 +383,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
         <div class="card c4"><h2>Mood <span class="sub">how good she feels, how stirred up</span></h2><div id="mood"></div></div>
         <div class="card c4"><h2>Powers</h2><div id="powers"></div></div>
         <div class="card c12" id="between-card"><h2>Between you</h2><div id="between"></div></div>
+        <div class="card c12" id="hearts-card" style="display:none"><h2>Her heart for each friend <span class="sub">how she feels about the others she's met</span></h2><div id="hearts" class="grid" style="gap:14px"></div></div>
         <div class="card c5"><h2>The game, as she sees it</h2><div id="game"></div></div>
         <div class="card c7"><h2>Conversation window <span class="sub" id="window-sub"></span></h2><div id="window"></div></div>
         <div class="card c12"><h2>What the AI was given last</h2><div id="sent"></div></div>
@@ -657,7 +658,7 @@ function friendsCard(d, gameOn) {
       <label><input type="checkbox" id="fr-guests" ${fr.lanGuests !== false ? "checked" : ""}> They see her and talk to her</label>
       <label><input type="checkbox" id="fr-powers" ${fr.lanGuestPowers !== false ? "checked" : ""}> They may ask for her powers</label>
     </div>
-    <div class="small muted" style="margin-top:6px">Gifts, effects, finding and leading, within her power and style. Nothing they say changes her bond with you.</div>`;
+    <div class="small muted" style="margin-top:6px">Gifts, effects, finding and leading, within her power and style. What they say and do moves her heart for them, not her bond with you, except this: when one of them hurts her in front of you, she notices whether you stand up for her.</div>`;
   const change = async (path, value, said) => {
     try { await post("/api/settings", {changes: [{where: "mod", path, value}]}); toast(said); }
     catch (e) { toast("Not changed: " + e.message); }
@@ -665,6 +666,25 @@ function friendsCard(d, gameOn) {
   $("fr-follow").onchange = (e) => change("follow", e.target.value, e.target.value ? "She'll stay with " + e.target.value : "She'll come back to you");
   $("fr-guests").onchange = (e) => change("lanGuests", e.target.checked, e.target.checked ? "Friends see her again" : "Friends no longer see her");
   $("fr-powers").onchange = (e) => change("lanGuestPowers", e.target.checked, e.target.checked ? "Friends may ask for her powers" : "Friends can only talk with her");
+}
+
+// her heart for each friend: the same five feelings, one small card each (brain/kindred/friends.py)
+const STANCE_WORDS = {new: "just met", warm: "likes them", easy: "easy with them", guarded: "likes them, a bit wary",
+  reliant: "counts on them", wounded: "hurt by them", cold: "doesn't like them", bitter: "resents them"};
+function heartsCard(list) {
+  $("hearts-card").style.display = list && list.length ? "" : "none";
+  if (!list || !list.length) return;
+  $("hearts").innerHTML = list.map((R) => {
+    const bad = ["cold", "bitter", "wounded"].includes(R.stance), inc = (R.incidents || []).filter((i) => i.state !== "repaired").slice(-2);
+    return `<div class="c4" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><b>${esc(R.name)}</b>
+        <span class="chip ${bad ? "bad" : R.stance === "warm" ? "good" : "plain"}">${esc(STANCE_WORDS[R.stance] || R.stance)}</span>
+        ${R.trusted ? `<span class="chip" title="the player told her to do what they ask">does what they ask</span>` : ""}</div>
+      ${FEELINGS.map(([k]) => `<div class="feel" style="--c:var(--f-${k});grid-template-columns:84px minmax(0,1fr) 26px;margin:4px 0"><span class="name small">${k}</span>
+        <div class="bar"><i style="width:${Math.max(0, Math.min(100, R[k] || 0))}%;background:var(--f-${k})"></i></div><span class="v">${Math.round(R[k] || 0)}</span></div>`).join("")}
+      ${inc.map((i) => `<div class="tiny muted" style="margin-top:4px">💢 ${esc(nice(i.kind))}${i.words ? " “" + esc(i.words) + "”" : ""} · ${esc(i.ago)}</div>`).join("")}
+      <div class="tiny faint" style="margin-top:4px">last seen ${R.last ? new Date(R.last * 1000).toLocaleString() : "–"}</div></div>`;
+  }).join("");
 }
 
 async function live() {
@@ -700,6 +720,7 @@ async function live() {
         ${gameOn ? `<span class="chip good">in ${esc((b.world || "").replace(/^(sp|sim):/, ""))}</span>` : `<span class="chip plain">not in a world</span>`}
       </div></div></div>`;
   friendsCard(d, gameOn);
+  heartsCard(H.friends);
   $("bond").innerHTML = feelings(H.relationship);
   const bt = between(H.relationship);
   $("between-card").style.display = bt ? "" : "none";
@@ -1161,14 +1182,17 @@ async function openSession(id) {
       return `<div class="row-you"><div class="bubble you"><div class="who">${t} You${e.spoken ? " 🎙" : ""}</div>${esc(e.text)}</div>${c ? `<details class="small"><summary>what went to the AI (${esc(c.model || c.kind)}, ${c.seconds}s, ${c.tokens_in || "?"} → ${c.tokens_out || "?"} tokens) and what came back</summary>
         <pre style="max-height:260px">${esc(c.input)}</pre><div style="margin-top:4px"><b>Came back:</b> ${tagsOf(c.reply)}</div>${c.actions ? `<div><b>Tools:</b> <span class="mono">${esc(JSON.stringify(c.actions))}</span></div>` : ""}</details>` : ""}</div>`;
     }
-    if (e.kind === "pip") return `<div class="row-pip"><div class="bubble pip"><div class="who">${t} ${esc(name())} <span class="tags"><span>${esc(SOURCE[e.source] || e.source || "")}</span>${e.mood ? `<span>${esc(e.mood)}</span>` : ""}</span>
+    if (e.kind === "pip") return `<div class="row-pip"><div class="bubble pip"><div class="who">${t} ${esc(name())} <span class="tags"><span>${esc(SOURCE[e.source] || e.source || "")}</span>${e.to && e.to !== "player" ? `<span>to ${esc(e.to)}</span>` : ""}${e.mood ? `<span>${esc(e.mood)}</span>` : ""}</span>
       <button class="play" data-say="${esc(e.text)}" data-mood="${esc(e.mood || "")}" title="hear it again" aria-label="hear it again">▶</button></div>${esc(e.text)}</div>${e.why ? `<div class="tiny muted" style="margin:2px 0 0 8px">why: ${esc(e.why)}</div>` : ""}</div>`;
     if (e.kind === "not_said") return `<div class="sys">${t} held back (${esc(e.reason)}): <i>${esc(e.text)}</i></div>`;
     if (e.kind === "cut") return `<div class="sys warn">${t} interrupted${e.by_player ? " by you" : ""}${e.rest ? ": " + esc(e.rest) : ""}</div>`;
-    if (e.kind === "tool") return `<div class="sys">${t} 🔧 <b>${esc(e.name)}</b> <span class="mono">${esc(e.args || "")}</span> → <span class="${e.ok ? "good" : "bad"}">${esc(e.result || "")}</span></div>`;
+    if (e.kind === "guest") return `<div class="row-you"><div class="bubble you" style="background:var(--code)"><div class="who">${t} ${esc(e.who || "a friend")} (friend, in chat)</div>${esc(e.text)}</div></div>`;
+    if (e.kind === "touch") return `<div class="sys">${t} ${e.what === "hit" ? "💢" : "🤚"} <b>${esc(e.who)}</b> ${e.what === "hit" ? "hit her" : "petted her"}</div>`;
+    if (e.kind === "tool") return `<div class="sys">${t} 🔧 <b>${esc(e.name)}</b>${e.who && e.who !== "player" ? ` <span class="chip plain">for ${esc(e.who)}</span>` : ""} <span class="mono">${esc(e.args || "")}</span> → <span class="${e.ok ? "good" : "bad"}">${esc(e.result || "")}</span></div>`;
     if (e.kind === "answer") return `<div class="sys">${t} first words after <b>${e.first_words}s</b></div>`;
     if (e.kind === "error") return `<div class="sys bad">${t} error: ${esc(e.text)}</div>`;
     if (e.kind === "alert") return `<div class="sys warn">${t} ⚠️ ${esc(e.text)}</div>`;
+    if (e.kind === "heart" && e.who && e.who !== "player") return `<div class="sys">${t} ♥ her feelings for <b>${esc(e.who)}</b> (${esc(e.why)}) → ${esc(STANCE_WORDS[e.stance] || e.stance || "")}</div>`;
     if (e.kind === "heart") return `<div class="sys">${t} ♥ <span class="delta ${e.change > 0 ? "up" : "down"}">${e.change > 0 ? "+" : ""}${e.change}</span>${esc(e.why)} → ${e.bond}${e.stance ? ", " + esc(e.stance) : ""}</div>`;
     return "";
   }).join("");
