@@ -22,14 +22,15 @@ import java.util.Locale;
  *   "glow": false,                   ignores darkness, like a little light
  *   "wings": false,                  fluttering wings on its back (fairies have them by default)
  *   "wingColor": "#F6EEFF",          or "mood": the wings show its mood color
- *   "wingOpacity": 0.9
+ *   "wingOpacity": 0.9,
+ *   "sprout": "none"                 two little leaves on its head, "#RRGGBB", or "mood"
  * }
  * </pre>
  * Pure data: no Minecraft classes, so parsing is unit-tested.
  */
 public record Skin(String id, String name, Shape shape, String texture, Tint tint, int color, boolean shell,
                    float shellOpacity, boolean face, int eyes, int mouth, int cheeks, float size, boolean glow,
-                   boolean wings, int wingColor, float wingOpacity) {
+                   boolean wings, int wingColor, float wingOpacity, int sprout) {
 
     public enum Shape { BALL, CUBE, WISP, FAIRY }
 
@@ -43,6 +44,12 @@ public record Skin(String id, String name, Shape shape, String texture, Tint tin
     public static final int NO_CHEEKS = -1;
     /** wingColor "mood": the wings take a pastel version of its mood color. */
     public static final int MOOD_WINGS = -2;
+    /** sprout: none (the default), or "mood": the leaves take a fresh green-leaning version of its mood color. */
+    public static final int NO_SPROUT = -1, MOOD_SPROUT = -2;
+
+    public boolean hasSprout() {
+        return sprout != NO_SPROUT;
+    }
 
     public static Skin fallback() {
         return parse("slime", new JsonObject());
@@ -72,7 +79,14 @@ public record Skin(String id, String name, Shape shape, String texture, Tint tin
                 bool(o, "glow", wisp || fairy),
                 bool(o, "wings", fairy),
                 str(o, "wingColor", "#F6EEFF").equalsIgnoreCase("mood") ? MOOD_WINGS : color(str(o, "wingColor", "#F6EEFF"), 0xF6EEFF),
-                (float) Math.max(0.05, Math.min(1, num(o, "wingOpacity", 0.9))));
+                (float) Math.max(0.05, Math.min(1, num(o, "wingOpacity", 0.9))),
+                sproutOf(str(o, "sprout", "none")));
+    }
+
+    private static int sproutOf(String s) {
+        if (s.equalsIgnoreCase("none") || s.isEmpty()) return NO_SPROUT;
+        if (s.equalsIgnoreCase("mood")) return MOOD_SPROUT;
+        return color(s, 0x7BD389);
     }
 
     private static String str(JsonObject o, String k, String d) {

@@ -13,7 +13,7 @@ from .describe import describe
 
 log = logging.getLogger("kindred.mind")
 MOODS = ("happy", "excited", "calm", "curious", "worried", "scared", "sad", "sleepy")
-GESTURES = ("nod", "shake", "spin", "hop", "wiggle", "happy", "shy", "think")
+GESTURES = ("nod", "shake", "spin", "hop", "wiggle", "happy", "shy", "think", "tease")  # tease: a wink and a lopsided grin
 MOOD_TAG = re.compile(r"^\s*\[(\w+)\]\s*")
 GESTURE_TAG = re.compile(r"^\s*\{(\w+)\}\s*")
 
