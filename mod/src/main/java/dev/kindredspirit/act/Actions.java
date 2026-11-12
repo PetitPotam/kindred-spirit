@@ -21,6 +21,7 @@ import net.minecraft.tags.StructureTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -84,13 +85,15 @@ public final class Actions {
                 case FIND_ORE -> done(findOre(mc, str(args, "ore", "diamond")));
                 case FIND_ANIMAL -> done(findAnimal(mc, str(args, "animal", "sheep")));
                 case FIND_BLOCK -> done(findBlock(mc, str(args, "block", "flower")));
+                case FIND_PLAYER -> done(findPlayer(mc, str(args, "name", ""), str(args, "from", "")));
                 case LOCATE -> onServer(mc, s -> locate(s, mc.player, str(args, "what", "village")));
-                case GUIDE, STOP_GUIDE -> done(ok()); // handled by the companion itself
-                case PROTECT -> onServer(mc, s -> protect(s, mc.player));
+                case GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> done(ok()); // handled by the companion itself
+                case PROTECT -> onServer(mc, s -> protect(target(s, mc.player, str(args, "to", ""))));
                 case PLACE_TORCH -> onServer(mc, s -> placeTorch(s, mc.player, style));
                 case HARVEST -> onServer(mc, s -> harvest(s, mc.player));
                 case BUILD -> onServer(mc, s -> Builder.start(s, mc.player, args, style));
-                case GIVE_ITEM -> onServer(mc, s -> give(s, mc.player, str(args, "item", ""), num(args, "count", 1)));
+                case GIVE_ITEM -> onServer(mc, s -> give(target(s, mc.player, str(args, "to", "")), str(args, "item", ""), num(args, "count", 1)));
+                case GIVE_EFFECT -> onServer(mc, s -> effect(target(s, mc.player, str(args, "to", "")), str(args, "effect", "")));
                 case SET_TIME -> onServer(mc, s -> setTime(s, str(args, "time", "day")));
                 case SET_WEATHER -> onServer(mc, s -> setWeather(s, str(args, "weather", "clear")));
             };
@@ -282,8 +285,7 @@ public final class Actions {
     }
 
     /** Knocks hostile mobs within 8 blocks away from you (no damage). */
-    static JsonObject protect(MinecraftServer server, LocalPlayer p) {
-        ServerPlayer sp = serverPlayer(server, p);
+    static JsonObject protect(ServerPlayer sp) {
         ServerLevel level = sp.serverLevel();
         int n = 0;
         // monsters within 10 blocks, and any that is after the player from further away (a skeleton or a
@@ -337,8 +339,7 @@ public final class Actions {
     }
 
     /** Magic style only: makes items appear in your inventory (or at your feet if it's full). */
-    static JsonObject give(MinecraftServer server, LocalPlayer p, String item, int count) {
-        ServerPlayer sp = serverPlayer(server, p);
+    static JsonObject give(ServerPlayer sp, String item, int count) {
         String key = item.toLowerCase(Locale.ROOT).trim().replace(' ', '_');
         ResourceLocation id = ResourceLocation.tryParse(key.contains(":") ? key : "minecraft:" + key);
         if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) return error("There's no item called " + item + ".");
@@ -353,7 +354,88 @@ public final class Actions {
         }
         JsonObject r = ok();
         r.addProperty("gave", n + " " + id.getPath());
+        r.addProperty("to", sp.getGameProfile().getName());
         return r;
+    }
+
+    /** Who an action is for: you, or another player on your LAN world named (even roughly) in "to". */
+    static ServerPlayer target(MinecraftServer server, LocalPlayer you, String to) {
+        ServerPlayer me = serverPlayer(server, you);
+        if (to == null || to.isBlank() || to.equalsIgnoreCase("me") || to.equalsIgnoreCase("player")) return me;
+        Player other = Players.match(server.getPlayerList().getPlayers(), to);
+        if (other == null) throw new IllegalArgumentException("nobody called " + to + " is here");
+        return (ServerPlayer) other;
+    }
+
+    /** Magic style: a potion effect for a while (or health and food at once). */
+    static JsonObject effect(ServerPlayer sp, String what) {
+        String key = what.toLowerCase(Locale.ROOT).trim().replace(' ', '_');
+        JsonObject r = ok();
+        r.addProperty("to", sp.getGameProfile().getName());
+        switch (key) {
+            case "health", "heal", "hearts", "healing", "instant_health" -> {
+                sp.setHealth(sp.getMaxHealth());
+                r.addProperty("healed", "back to full health");
+                return r;
+            }
+            case "food", "hunger", "feed", "saturation" -> {
+                sp.getFoodData().eat(20, 20f);
+                r.addProperty("fed", "not hungry any more");
+                return r;
+            }
+            default -> { }
+        }
+        var effect = switch (key) {
+            case "haste", "dig_speed", "mining" -> net.minecraft.world.effect.MobEffects.DIG_SPEED;
+            case "night_vision", "see_in_the_dark" -> net.minecraft.world.effect.MobEffects.NIGHT_VISION;
+            case "speed", "swiftness", "fast" -> net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED;
+            case "regeneration", "regen" -> net.minecraft.world.effect.MobEffects.REGENERATION;
+            case "fire_resistance" -> net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE;
+            case "water_breathing" -> net.minecraft.world.effect.MobEffects.WATER_BREATHING;
+            case "jump_boost", "jump", "leaping" -> net.minecraft.world.effect.MobEffects.JUMP;
+            case "strength" -> net.minecraft.world.effect.MobEffects.DAMAGE_BOOST;
+            case "resistance" -> net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE;
+            case "slow_falling", "feather_falling" -> net.minecraft.world.effect.MobEffects.SLOW_FALLING;
+            case "invisibility" -> net.minecraft.world.effect.MobEffects.INVISIBILITY;
+            case "luck" -> net.minecraft.world.effect.MobEffects.LUCK;
+            case "conduit_power" -> net.minecraft.world.effect.MobEffects.CONDUIT_POWER;
+            case "dolphins_grace" -> net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE;
+            default -> null;
+        };
+        if (effect == null) return error("There's no effect called " + what + " I can give (haste, night vision, speed, "
+                + "regeneration, fire resistance, water breathing, jump boost, strength, resistance, slow falling, "
+                + "invisibility, or health and food).");
+        boolean strong = key.equals("regeneration") || key.equals("regen") || key.equals("strength") || key.equals("resistance");
+        int seconds = strong ? 45 : 180;
+        sp.addEffect(new net.minecraft.world.effect.MobEffectInstance(effect, seconds * 20, 0));
+        r.addProperty("effect", key.replace('_', ' '));
+        r.addProperty("seconds", seconds);
+        return r;
+    }
+
+    /** Another player in your world (LAN), by name (even roughly: "robin" for riverrobin). */
+    static JsonObject findPlayer(Minecraft mc, String name, String from) {
+        LocalPlayer you = mc.player;
+        java.util.List<Player> all = new java.util.ArrayList<>();
+        for (Player o : mc.level.players()) if (o.isAlive()) all.add(o);
+        // who asks (a friend, in chat): the answer is from where they stand
+        Player p = from.isBlank() ? you : java.util.Objects.requireNonNullElse(Players.match(all, from), you);
+        java.util.List<Player> others = new java.util.ArrayList<>();
+        for (Player o : all) if (o != p) others.add(o);
+        if (others.isEmpty()) return error("Nobody else is here: it's just the two of you.");
+        boolean meansYou = p != you && (name.toLowerCase(Locale.ROOT).matches(".*\\b(player|host|you|your|owner)\\b.*")
+                || Players.score(Players.squash(you.getGameProfile().getName()), Players.squash(name)) >= 2);
+        Player who = meansYou ? you : name.isBlank() && others.size() == 1 ? others.get(0) : Players.match(others, name);
+        if (who == null) {
+            JsonObject r = error("Nobody called " + name + " here.");
+            r.addProperty("hereNow", String.join(", ", others.stream().map(o -> o.getGameProfile().getName()).toList()));
+            return r;
+        }
+        JsonObject res = place(p, who.getX(), who.getY(), who.getZ());
+        lastTargetEntity = who.getId();
+        res.addProperty("found", true);
+        res.addProperty("player", who.getGameProfile().getName());
+        return res;
     }
 
     static JsonObject setTime(MinecraftServer server, String time) {
@@ -390,7 +472,7 @@ public final class Actions {
     // ------------------------------------------------------------------ helpers
 
     /** Where something is, in words the AI can say: distance, direction from where you look, height. */
-    static JsonObject place(LocalPlayer p, double x, double y, double z) {
+    static JsonObject place(Player p, double x, double y, double z) {
         lastTarget = new double[]{x, y, z};
         lastTargetEntity = -1;
         JsonObject r = ok();

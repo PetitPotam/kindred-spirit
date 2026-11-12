@@ -74,12 +74,26 @@ when you host LAN), done the way a command would.
 
 ### Friends on your LAN world
 
-Open your world to LAN and friends can join **without the mod**: they only need the same Minecraft
-version (**release 1.21.1** in their launcher). They see her as a stand-in the plain game can draw (an
-Allay named after her that follows where she floats, hidden on your own screen), and they can talk to
-her in chat with "Pip, ...". She answers them in their chat as "[Pip] ..." (her voice stays on your
-computer), knows who said what, and sees them in the world. With them she only talks: her powers
-stay yours, and nothing they say changes her bond with you. Turn it off with `lanGuests: false`.
+One Pip, on your computer: your AI, her voice, her memory and her heart. Open your world to LAN and
+friends join on the same Minecraft version (**release 1.21.1**):
+
+- **With the mod (light mode):** they see her exactly as you do (her skin, face, moods, gestures and
+  subtitles), drawn by their own game from what yours sends. No AI, Python or keys on their side.
+  They talk to her in chat ("Pip, ..."); their talk key opens the chat with her name typed in, or uses
+  their own speech-to-text if they've set up the brain. Her voice plays from your computer.
+  (`sharedPip: "own"` in their settings gives them their own Pip instead.)
+- **Without the mod:** they see a stand-in the plain game can draw (an Allay named after her that
+  follows where she floats, hidden on your screen) and talk to her in chat the same way.
+
+She answers them in chat as "[Pip] ...", knows who said what, and sees them in the world. You decide:
+
+- **Who she stays with:** "Pip, stay with Robin" or `/kindred follow robin`; `/kindred follow me`
+  brings her back.
+- **Whether friends may ask for her powers** (`lanGuestPowers`, on by default): gifts, effects like
+  haste or night vision, healing, finding, leading, protecting, within her power and style. Off: they
+  only talk with her.
+
+Nothing friends say changes her bond with you. `lanGuests: false` turns all of it off.
 
 ### It shouldn't feel like a robot
 

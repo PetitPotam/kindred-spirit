@@ -37,6 +37,12 @@ public final class KindredConfig {
     public boolean showBond = true;
     /** With your world open to LAN, friends without the mod see her (as a stand-in) and can talk to her. */
     public boolean lanGuests = true;
+    /** Friends on your LAN world may ask for her powers too (gifts, effects, finding, leading), within her
+     *  power and style; off = they can only talk with her. */
+    public boolean lanGuestPowers = true;
+    /** Joining a friend's world where their Pip lives: "host" = you see and share their Pip (one Pip, their
+     *  AI and voice; you talk to her in chat), "own" = your own Pip and brain, as at home. */
+    public String sharedPip = "host";
     public String brainHost = "127.0.0.1";
     public int brainPort = 47811;
     /** Empty = ~/.kindred-spirit/token, shared with the brain. */

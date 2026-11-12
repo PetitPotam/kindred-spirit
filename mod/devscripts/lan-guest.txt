@@ -1,0 +1,17 @@
+# Light mode check, guest side (runGuest): join the host's LAN world, see the host's Pip, talk to her.
+wait 1100
+join 127.0.0.1:25599
+wait 200
+lookat
+screenshot lan-guest-1
+type Pip, hi! I'm Robin. Can you give me night vision please?
+wait 70
+lookat
+screenshot lan-guest-2
+wait 200
+type Pip, where is your player? Find him for me!
+wait 80
+lookat
+screenshot lan-guest-3
+wait 300
+quit

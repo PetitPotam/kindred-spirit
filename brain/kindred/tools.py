@@ -40,8 +40,9 @@ ABILITY_TOOLS = {
                  {"to": {"type": "string", "description": "'last' (default) or a remembered place name"},
                   "x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}}),
     "stop_guide": _fn("stop_guide", "Stop leading the way and float beside the player again."),
-    "protect": _fn("protect", "Push every hostile mob within 8 blocks away from the player (no damage). "
-                   "Use when they're in danger or ask for help with monsters."),
+    "protect": _fn("protect", "Push every hostile mob within 8 blocks away from the player (no damage), or from "
+                   "another player here if 'to' names them. Use when they're in danger or ask for help with monsters.",
+                   {"to": {"type": "string", "description": "another player's name; empty = the player"}}),
     "harvest": _fn("harvest", "Break what the player is looking at, within 6 blocks: a whole tree (all its logs) "
                    "if they look at a log, else that one block. What drops goes into their inventory, as if mined "
                    "with what they hold. Use when they ask you to chop a tree, cut wood, mine or break a block. "
@@ -61,10 +62,25 @@ ABILITY_TOOLS = {
                   "length": {"type": "integer", "description": "forward"}}, ["shape"]),
     "place_torch": _fn("place_torch", "Place a torch at or right next to the player's feet (in grounded style it "
                        "uses one of their torches)."),
-    "give_item": _fn("give_item", "Make items appear in the player's inventory (magic). Use Minecraft item ids.",
+    "give_item": _fn("give_item", "Make items appear in someone's inventory (magic): the player's, or another "
+                     "player's here if 'to' names them. Use Minecraft item ids.",
                      {"item": {"type": "string", "description": "e.g. bread, torch, oak_log, diamond_pickaxe"},
-                      "count": {"type": "integer", "description": "how many, up to four stacks"}},
+                      "count": {"type": "integer", "description": "how many, up to four stacks"},
+                      "to": {"type": "string", "description": "another player's name; empty = the player"}},
                      ["item"]),
+    "give_effect": _fn("give_effect", "Give someone a magic effect for a few minutes (haste, night_vision, speed, "
+                       "regeneration, fire_resistance, water_breathing, jump_boost, strength, resistance, "
+                       "slow_falling, invisibility), or 'health' (back to full hearts) or 'food' (not hungry).",
+                       {"effect": {"type": "string"},
+                        "to": {"type": "string", "description": "another player's name; empty = the player"}},
+                       ["effect"]),
+    "find_player": _fn("find_player", "Find another player here in the world (a friend on the player's LAN world) "
+                       "by name, even said roughly. Then guide can lead the way to them as they move.",
+                       {"name": {"type": "string", "description": "their name, or 'player' for the player you live beside"}},
+                       ["name"]),
+    "follow_player": _fn("follow_player", "Float beside someone else for a while (another player here, when the "
+                         "player asks you to stay with them), or 'me' to come back to the player.",
+                         {"name": {"type": "string", "description": "a player's name, or 'me'"}}, ["name"]),
     "set_time": _fn("set_time", "Change the time of day for the whole world.",
                     {"time": {"type": "string", "enum": ["sunrise", "day", "noon", "sunset", "night", "midnight"]}},
                     ["time"]),

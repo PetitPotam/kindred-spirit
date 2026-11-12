@@ -67,7 +67,8 @@ SLOW_POWERS = ("find_ore", "find_animal", "locate", "give_item", "set_time", "se
 POWER_NAMES = {"find_ore": "sense ores hidden underground", "find_animal": "feel where animals are, even far away",
                "harvest": "make wood and stone come loose with your magic",
                "locate": "feel where faraway places are",
-               "give_item": "make things appear out of nothing", "set_time": "move the sun across the sky",
+               "give_item": "make things appear out of nothing", "give_effect": "pour a little magic into someone",
+               "find_player": "feel where someone is", "follow_player": "stay with someone", "set_time": "move the sun across the sky",
                "set_weather": "change the weather", "protect": "push monsters away",
                "place_torch": "make light appear", "guide": "lead the way"}
 SENSES = {"find_ore": "a faint humming under the ground, like little stars glittering in the rock",

@@ -45,6 +45,9 @@ public final class GuestBridge {
     public static Supplier<Boolean> enabled = () -> true;
     public static Supplier<String> name = () -> "Pip";
     public static Supplier<double[]> where = () -> null;
+    /** Her state for friends who have the mod (light mode: they draw her themselves, see SharedPip). */
+    public static Supplier<String> state = () -> null;
+    private static int ticks;
 
     /** Every server tick (your integrated server): keep the stand-in where she is, or remove it. */
     public static void tick(MinecraftServer server) {
@@ -88,6 +91,18 @@ public final class GuestBridge {
         float yaw = (float) Math.toDegrees(Math.atan2(-(host.getX() - at[0]), host.getZ() - at[2]));
         pip.moveTo(at[0], at[1] - 0.3, at[2], yaw, 0); // she looks at you
         pip.setYHeadRot(yaw);
+        if (++ticks % 4 == 0) share(server, host);
+    }
+
+    /** Five times a second, to each friend whose game has the mod: her state, so they see her as you do. */
+    private static void share(MinecraftServer server, ServerPlayer host) {
+        String json = null;
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            if (p == host || !net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(p, PipPayload.TYPE)) continue;
+            if (json == null) json = state.get();
+            if (json == null) return;
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new PipPayload(json));
+        }
     }
 
     private static net.minecraft.world.entity.Entity find(MinecraftServer server, UUID id) {

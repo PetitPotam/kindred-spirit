@@ -113,6 +113,8 @@ def describe(s):
         lines.append("Other players here, friends of the player's (not the player you live beside): " + "; ".join(
             "%s, %d blocks %s%s" % (o.get("name", "someone"), int(o.get("distance", 0)), where_words(o.get("direction")),
                                     "" if o.get("seen", True) else " (out of sight)") for o in others[:6]) + ".")
+    if s.get("following"):
+        lines.append("You're floating beside %s for now (the player asked you to stay with them)." % s["following"])
     sounds = s.get("sounds") or []
     if sounds:  # by the names the world gives them, nearest of each kind
         heard = sorted(sounds, key=lambda h: (not h.get("new"), h.get("distance", 99)))[:6]

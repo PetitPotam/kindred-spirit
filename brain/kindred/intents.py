@@ -71,6 +71,9 @@ ACTION_HINTS = [
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),
     (r"\b(chop|cut|fell|harvest|break|mine|dig out|knock down)\b.{0,25}\b(tree|trees|log|logs|wood|this|that|block|it|"
      r"stone|ore|rock)\b|\bget (me )?(some )?wood\b", "harvest"),
+    (r"\b(give|gimme|get|cast|put)\b.{0,25}\b(haste|night ?vision|speed|swiftness|regen(eration)?|fire resistance|"
+     r"water breathing|jump boost|strength|resistance|slow falling|invisibility|effects?|health|hearts?)\b|"
+     r"\bheal (me|him|her|us|them)\b|\b(fill|refill) (my|his|her) (health|hearts|hunger)\b", "give_effect"),
     (r"\b(give|gimme|get) me\b|\bcan i (have|get)\b", "give_item"),
     (r"\b(find|where|any|nearest|closest|look for|lead me to|take me to|show me|bring me to)\b.{0,40}\b(flowers?|"
      r"pumpkins?|melons?|sugar ?cane|bamboo|cactus|chests?|beds?|water|trees?|mushrooms?|berr(y|ies)|wheat|carrots?|"
@@ -90,6 +93,34 @@ ACTION_HINTS = [
 ]
 _hints = [(re.compile(p), tool) for p, tool in ACTION_HINTS]
 STANDING = re.compile(ACTION_HINTS[0][0], re.I)
+
+
+COMMON = set("water lava fire night light dark home house cave tree trees stone wood iron gold diamond sand dirt "
+             "grass flower flowers sheep cows pigs village farm base please there here where with what that this "
+             "them they your mine craft block blocks door wall roof floor chest food bread apple apples".split())
+
+
+def _close(word, name):
+    """Speech-to-text spelling: "robeen" for "robin" (same consonants)."""
+    strip = lambda x: re.sub(r"[aeiouy]", "", x)  # noqa: E731
+    return len(strip(word)) >= 3 and strip(word) in strip(name)
+
+
+def player_hint(text, names, allowed):
+    """A request about another player here, named even roughly ("find robin", "stay with river robin")."""
+    t = re.sub(r"[^a-z0-9 ]", "", (text or "").lower())
+    flat = t.replace(" ", "")
+    words = [w for w in t.split() if len(w) >= 4 and w not in COMMON]  # ("find water" is not "find riverrobin")
+    named = [n for n in names or [] if len(n) >= 3 and (n.lower() in flat or any(w in n.lower() for w in words)
+                                                        or any(_close(w, n.lower()) for w in words))]
+    if not named:
+        return None, None
+    if "follow_player" in allowed and re.search(r"\b(follow|stay with|go with|be with|keep .{0,10} company|"
+                                                 r"look after|watch over|hang out with)\b", t):
+        return "follow_player", named[0]
+    if "find_player" in allowed and re.search(r"\b(find|where|look for|search|lead|take|bring|guide|show)\b", t):
+        return "find_player", named[0]
+    return None, named[0]
 
 
 def action_hint(text, allowed):

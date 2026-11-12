@@ -107,7 +107,7 @@ def test_she_knows_what_is_beyond_her_right_now(stubs):  # noqa: F811
     b = Brain(make_cfg(stubs.port), TOKEN, alerts=A())
     b.set_abilities({"abilities": ["find_ore", "guide"], "power": "advisor", "style": "grounded", "singleplayer": True})
     assert "place torch" in b.mind.powers and "never invent another reason" in b.mind.powers
-    b.set_abilities({"abilities": ["guide", "protect", "place_torch", "harvest", "build", "give_item", "set_time",
+    b.set_abilities({"abilities": ["guide", "protect", "place_torch", "harvest", "build", "give_item", "give_effect", "set_time",
                                    "set_weather"], "power": "allpowerful", "style": "magic", "singleplayer": True})
     assert "beyond you" not in b.mind.powers
 

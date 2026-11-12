@@ -282,8 +282,14 @@ public final class Behavior {
         wake(now);
     }
 
+    /** The last gesture played, and how many so far (friends' games play the same ones: SharedPip). */
+    public Emote lastPlayed;
+    public int played;
+
     public void play(Emote e, double now) {
         if (emote == Emote.DOZE && e != Emote.DOZE) emote = null;
+        lastPlayed = e;
+        played++;
         emote = e;
         emoteStart = now;
     }

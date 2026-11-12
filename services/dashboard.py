@@ -69,7 +69,7 @@ LABELS = {
     "heart.temperament": "Temperament",
     "skin": "Skin", "power": "What she may do", "style": "How she does it", "allowPranks": "Pranks allowed in game",
     "allowMoodWeather": "Her moods may change the weather", "glow": "Her glow lights the dark", "guideArrow": "Arrow while she leads",
-    "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her",
+    "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her", "lanGuestPowers": "Friends may ask for her powers", "sharedPip": "In a friend's world: their Pip or your own",
     "quality": "Quality", "worldSubtitles": "Subtitles above her", "hudCaptions": "Captions on the screen",
     "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
     "voiceVolume": "Her voice volume", "offsetRight": "Floats to your right (blocks)", "offsetForward": "Floats ahead (blocks)",
@@ -105,7 +105,9 @@ HELP = {
     "by_kind.reflect": "Learning, her story, her portrait: rare calls that can use a stronger model. Empty: the same as above.",
     "tts.providers.local_kokoro.pitch": "Above 1 sounds younger and lighter.",
     "power": "Advisor: talks, finds and guides. Helper: also protects you, places torches, chops, builds. All-powerful: also time and weather.",
-    "style": "Grounded: uses only what really exists, like your own torches. Magic: can make things appear.",
+    "style": "Grounded: uses only what really exists, like your own torches. Magic: can make things appear. Giving items and effects needs Magic (with Helper or All-powerful).",
+    "lanGuestPowers": "On: friends on your LAN world can ask her for gifts, effects, finding and leading (within her power and style). Off: they only talk with her.",
+    "sharedPip": "Host: in a friend's LAN world you see and share their Pip (their AI and voice; talk in chat). Own: your own Pip and brain.",
     "chatMode": "Auto: everything in singleplayer, only lines starting with her name on servers.",
     "quality": "Auto lowers her detail if your frame rate drops.",
     "showBond": "A small heart meter appears for a moment when the bond changes.",
@@ -126,6 +128,7 @@ CHOICES = {
     ("brain", "heart.mischief_when_angry"): ["off", "mild", "spicy"],
     ("brain", "ai.reasoning_effort"): ["", "minimal", "low", "medium", "high"],
     ("mod", "power"): ["advisor", "helper", "allpowerful"], ("mod", "style"): ["grounded", "magic"],
+    ("mod", "sharedPip"): ["host", "own"],
     ("mod", "chatMode"): ["auto", "all", "name", "command"], ("mod", "quality"): ["auto", "low", "medium", "high"],
 }
 BRAIN_SECTIONS = ("name", "personality", "ai", "voice", "behaviour", "heart")

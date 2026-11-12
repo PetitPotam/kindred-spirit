@@ -1,0 +1,13 @@
+# Light mode check, host side: open a world to LAN on port 25599, wait for the guest, look around.
+world LAN Test
+wait 200
+cmd time set day
+cmd publish false survival 25599
+wait 1300
+lookat
+screenshot lan-host-1
+wait 500
+lookat
+screenshot lan-host-2
+wait 600
+quit

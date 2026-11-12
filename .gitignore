@@ -2,6 +2,7 @@
 mod/.gradle/
 mod/build/
 mod/run/
+mod/run-guest/
 mod/out/
 mod/bin/
 mod/.idea/

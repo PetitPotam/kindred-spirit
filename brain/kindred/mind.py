@@ -178,6 +178,18 @@ class AIError(Exception):
     pass
 
 
+def clean_summary(text):
+    """The running summary goes into her instructions, so only plain report sentences get in: a
+    sentence spoken *to* someone ("You are a pathetic waste of space.", once added by the summarizer
+    after a rude stretch) or a tag would read to her as a voice telling her who she is."""
+    keep = []
+    for sentence in re.split(r"(?<=[.!?])\s+", (text or "").strip()):
+        if re.search(r"\b(you|your|you're|yourself|u)\b", sentence, re.I) or re.match(r"\s*[\[{<]", sentence):
+            continue
+        keep.append(sentence)
+    return " ".join(keep).strip()[:900]
+
+
 class Mind:
     def __init__(self, cfg, memory=None):
         self.cfg = cfg
@@ -214,11 +226,13 @@ class Mind:
                                           "companion. Update it with the new turns in at most 90 words: the subjects "
                                           "talked about (only what was really said; no added details), anything "
                                           "decided or promised, and open threads (questions "
-                                          "not answered, subjects left for later). Plain text, no tags."},
+                                          "not answered, subjects left for later). Plain text, no tags. Write about them "
+                                          "in the third person ('the player', the companion's name); never address "
+                                          "anyone, never add words of your own."},
             {"role": "user", "content": "Summary so far: %s\n\nNew turns:\n%s" % (self.summary or "(none)", talk)}]}
         raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, "fold")
         try:
-            self.summary = (raw["choices"][0]["message"].get("content") or self.summary).strip()[:900]
+            self.summary = clean_summary(raw["choices"][0]["message"].get("content") or "") or self.summary
         except (KeyError, IndexError, TypeError):
             pass
         return True
