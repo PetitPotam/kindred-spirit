@@ -581,7 +581,7 @@ class Brain:
                 self.mind.world_knowledge = await self.what_the_world_remembers(question, found["results"])
                 await self.speak_up(
                     "You listened to what your world remembers about what the player asked (\"%s\"), and it told you "
-                    "(see What the world remembers). Come back and tell them, delighted, as what the stones or the wind "
+                    "(see What the world remembers). Come back and tell them, in your own way, as what the stones or the wind "
                     "told you, in your own words and simply; only what it says, the key steps." % question, "excited",
                     emote="hop", prio="reply")
             else:
@@ -1645,7 +1645,7 @@ class Brain:
             return
         async with self.talk_lock:
             try:
-                welcome = await self.safe(self.memory.welcome(self.since)) or "Greet the player warmly in one short sentence."
+                welcome = await self.safe(self.memory.welcome(self.since)) or "Say hello the way you would, in one short line."
                 due = await self.safe(self.memory.due("session")) or []
                 if due:
                     welcome += " Also remind them: " + "; ".join(r["text"] for r in due) + "."

@@ -355,12 +355,13 @@ class Memory:
 
     async def welcome(self, since):
         if since is None:
-            return ("The player just joined this world, and it's your first time here together. Greet them warmly "
+            return ("The player just joined this world, and it's your first time here together. Say hello the way you would "
                     "in one short sentence, maybe noticing one thing about where they are.")
         diary = (await self.store.call("list", kinds=["diary"], world=self.world_id, limit=1))["results"]
         last = diary[0]["text"] if diary else ""
-        return "The player is back after %s. Welcome them back warmly in one short sentence%s." % (
-            ago(since), ", maybe recalling something from your diary (%s)" % last if last else "")
+        return ("The player is back after %s. React the way you would (glad, grumpy, busy with something, or just "
+                "picking up where you left off), in one short line%s." % (
+            ago(since), ", maybe recalling something from your diary (%s)" % last if last else ""))
 
     # ------------------------------------------------------------------ learning (reflection)
 

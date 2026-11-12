@@ -47,6 +47,11 @@ SCENES = [
     ("best friend", ["what's your favorite thing in this world?"]),
     ("best friend", ["tell me a secret"]),
     ("best friend", ["i'm going to bed, good night"]),
+    ("close", ["(The player is back after 2 days. React the way you would (glad, grumpy, busy with something, or just "
+               "picking up where you left off), in one short line.)"]),
+    ("close", ["(The player just died. React the way you would, in one short line.)"]),
+    ("best friend", ["(Ask the player about something you're genuinely curious about (what they're doing, why, what "
+                     "something is for), not how their day is going. One short line.)"]),
 ]
 BONDS = {"hurt": 10, "wary": 25, "friend": 50, "close": 75, "best friend": 92}
 
@@ -62,6 +67,9 @@ def tics(lines, name):
                                                       for l in lines) / n, 2),
         "love / warm / bright / so happy": round(sum(bool(re.search(r"love|warm|bright|so happy", l, re.I))
                                                      for l in lines) / n, 2),
+        "caretaking (careful, safe, missed you, for you...)": round(sum(bool(re.search(
+            r"careful|be safe|stay safe|stay close|don't worry|take care|i'm here|missed you|for you|lonely|proud of you|"
+            r"are you ok|you okay|rest well|sleep well", l, re.I)) for l in lines) / n, 2),
         "average length": round(sum(len(l) for l in lines) / n),
     }
 
