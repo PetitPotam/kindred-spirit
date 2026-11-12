@@ -18,13 +18,14 @@ You set it up once; the brain and the mod never need to know which you chose.
 ## Quick start
 
 ```bash
-scripts/setup.sh            # installs the local tools (Whisper, Kokoro, embeddings)
-open -e ~/.kindred-spirit/secrets.env    # paste the keys you use, e.g. GEMINI_API_KEY=...
-scripts/start.sh --background
-brain/.venv/bin/python services/kindred_gateway.py check
+scripts/setup.sh            # a guide: pick each part from what you have, then it tests everything
 ```
 
-`check` tests every part the way the brain uses it:
+The guide writes the same settings as the commands below, so you can use either. To change one part
+later, run the guide again (`brain/.venv/bin/python scripts/guide.py`) or use `$G use ...`.
+
+At the end it runs `check` (also `brain/.venv/bin/python services/kindred_gateway.py check`), which
+tests every part the way the brain uses it (parts you turned off show as "off, by your choice"):
 
 ```
 ok   AI           Hello there, friend!

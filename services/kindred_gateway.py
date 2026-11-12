@@ -101,6 +101,7 @@ DEFAULT_STATE = {
         "local_whisper": {"url": "http://127.0.0.1:8083/audio/transcriptions", "key": ""},
         "groq": {"url": "https://api.groq.com/openai/v1/audio/transcriptions", "key": "env:GROQ_API_KEY", "model": "whisper-large-v3-turbo"},
         "openai": {"url": "https://api.openai.com/v1/audio/transcriptions", "key": "env:OPENAI_API_KEY", "model": "gpt-4o-mini-transcribe"},
+        "none": {},  # no voice input: you type to her
     }},
     # ---- text to speech ----
     "tts": {"use": "local_kokoro", "providers": {
@@ -110,6 +111,7 @@ DEFAULT_STATE = {
                          "styles": {"excited": {"speed": 1.3}, "calm": {"speed": 1.0}, "sad": {"speed": 0.95, "pitch": 1.04},
                                     "whisper": {"voice": "af_sky*0.2+af_bella*0.2+af_nicole*0.6", "speed": 0.95, "gain": 0.45}}},
         "openai": {"url": "https://api.openai.com/v1/audio/speech", "key": "env:OPENAI_API_KEY", "model": "gpt-4o-mini-tts", "voice": "coral"},
+        "none": {},  # no voice: subtitles only
     }},
     # ---- embeddings (what memories mean) ----
     "embeddings": {"use": "local", "providers": {
@@ -676,6 +678,9 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(200, {"text": "", "silent": True})
             return
         name, p = provider(state, "stt")
+        if name == "none" or not p.get("url"):
+            self.err(503, "speech-to-text is off (none): type to her instead")
+            return
         ctype = self.headers.get("Content-Type", "")
         body = speech_cleaner.with_model(raw, ctype, p.get("model", ""))
         started = time.time()
@@ -695,6 +700,9 @@ class Handler(BaseHTTPRequestHandler):
     def tts(self, state, raw):
         req = json.loads(raw or b"{}")
         name, p = provider(state, "tts")
+        if name == "none" or not p.get("url"):
+            self.err(503, "the voice is off (none): subtitles only")
+            return
         text = re.sub(r"\[[^\]]*\]|\{[a-z_]+\}|[*_`#~]+", " ", req.get("input") or "")  # mood/gesture tags
         text = re.sub(r"\s+", " ", text).strip()[:800]
         if not text:
@@ -789,13 +797,19 @@ def check():
     except Exception as e:
         report("AI", False, str(e))
     wav = None
-    try:
-        s, d, _ = post("/audio/speech", {"input": "Testing, one, two, three."})
-        wav = d if s == 200 else None
-        report("voice", s == 200, "%d KB of WAV" % (len(d) // 1024) if s == 200 else d[:160])
-    except Exception as e:
-        report("voice", False, str(e))
-    if wav:
+    state = load()
+    if state["tts"]["use"] == "none":
+        report("voice", True, "off, by your choice (subtitles only)")
+    else:
+        try:
+            s, d, _ = post("/audio/speech", {"input": "Testing, one, two, three."})
+            wav = d if s == 200 else None
+            report("voice", s == 200, "%d KB of WAV" % (len(d) // 1024) if s == 200 else d[:160])
+        except Exception as e:
+            report("voice", False, str(e))
+    if state["stt"]["use"] == "none":
+        report("speech->text", True, "off, by your choice (you type to her)")
+    elif wav:
         try:
             boundary = "kindred" + uuid.uuid4().hex
             body = (b"--" + boundary.encode() + b'\r\nContent-Disposition: form-data; name="file"; filename="t.wav"\r\n'
@@ -804,13 +818,19 @@ def check():
             report("speech->text", s == 200, ("heard: %r" % json.loads(d).get("text")) if s == 200 else d[:160])
         except Exception as e:
             report("speech->text", False, str(e))
+    elif state["tts"]["use"] == "none":
+        report("speech->text", True, "not tested (it needs her voice to make a test clip); talk to her to try it")
     else:
         report("speech->text", False, "skipped (needs the voice to make a test clip)")
-    try:
-        s, d, _ = post("/embeddings", {"input": ["a test"]})
-        report("embeddings", s == 200, "%d numbers per text" % len(json.loads(d)["data"][0]["embedding"]) if s == 200 else d[:160])
-    except Exception as e:
-        report("embeddings", False, str(e))
+    if state["embeddings"]["use"] == "none":
+        report("embeddings", True, "off, by your choice (memory uses keyword search)")
+    else:
+        try:
+            s, d, _ = post("/embeddings", {"input": ["a test"]})
+            report("embeddings", s == 200,
+                   "%d numbers per text" % len(json.loads(d)["data"][0]["embedding"]) if s == 200 else d[:160])
+        except Exception as e:
+            report("embeddings", False, str(e))
     try:
         s, d, _ = post("/memory/add", {"kind": "test", "text": "gateway check, please ignore"})
         mid = json.loads(d)["id"]
