@@ -104,6 +104,8 @@ class SessionLog:
             k = e["kind"]
             if k == "you":
                 lines.append("- `%s` **you**%s: %s" % (t, " (voice)" if e.get("spoken") else "", e.get("text", "")))
+            elif k == "guest":
+                lines.append("- `%s` **%s** (friend, in chat): %s" % (t, e.get("who", "?"), e.get("text", "")))
             elif k == "pip":
                 lines.append("- `%s` **Pip** (%s%s): %s" % (t, e.get("source", ""), (", " + e["why"]) if e.get("why") else "",
                                                             e.get("text", "")))

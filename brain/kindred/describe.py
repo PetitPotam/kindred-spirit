@@ -108,6 +108,11 @@ def describe(s):
         lines.append("You see: " + "; ".join(parts) + ".")
     else:
         lines.append("No animals in sight.")
+    others = s.get("players") or []
+    if others:  # friends in your world (LAN): they see her too and can talk to her in chat
+        lines.append("Other players here, friends of the player's (not the player you live beside): " + "; ".join(
+            "%s, %d blocks %s%s" % (o.get("name", "someone"), int(o.get("distance", 0)), where_words(o.get("direction")),
+                                    "" if o.get("seen", True) else " (out of sight)") for o in others[:6]) + ".")
     sounds = s.get("sounds") or []
     if sounds:  # by the names the world gives them, nearest of each kind
         heard = sorted(sounds, key=lambda h: (not h.get("new"), h.get("distance", 99)))[:6]

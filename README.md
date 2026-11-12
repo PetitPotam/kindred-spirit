@@ -72,6 +72,15 @@ You decide how much it can do (`/kindred power`, `/kindred style`); the mod enfo
 Finding and guiding work everywhere; anything that changes the world works in singleplayer (and
 when you host LAN), done the way a command would.
 
+### Friends on your LAN world
+
+Open your world to LAN and friends can join **without the mod**: they only need the same Minecraft
+version (**release 1.21.1** in their launcher). They see her as a stand-in the plain game can draw (an
+Allay named after her that follows where she floats, hidden on your own screen), and they can talk to
+her in chat with "Pip, ...". She answers them in their chat as "[Pip] ..." (her voice stays on your
+computer), knows who said what, and sees them in the world. With them she only talks: her powers
+stay yours, and nothing they say changes her bond with you. Turn it off with `lanGuests: false`.
+
 ### It shouldn't feel like a robot
 
 Its movement is designed to feel like a small living thing, not a camera attachment:

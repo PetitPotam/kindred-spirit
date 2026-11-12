@@ -9,6 +9,7 @@ import dev.kindredspirit.act.Actions;
 import dev.kindredspirit.util.Direction8;
 import dev.kindredspirit.audio.VoicePlayer;
 import dev.kindredspirit.audio.VoiceRecorder;
+import dev.kindredspirit.guest.GuestBridge;
 import dev.kindredspirit.life.Behavior;
 import dev.kindredspirit.life.Emote;
 import dev.kindredspirit.render.CompanionRenderer;
@@ -129,6 +130,17 @@ public final class KindredSpiritClient implements ClientModInitializer {
         // her building works block by block on the (integrated) server
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
                 dev.kindredspirit.act.Builder::tick);
+        // friends on your LAN world without the mod: they see a stand-in for her and can talk to her
+        GuestBridge.enabled = () -> cfg.lanGuests && inWorld;
+        GuestBridge.name = () -> displayName;
+        GuestBridge.where = () -> {
+            Behavior life = companion.life;
+            return inWorld ? new double[]{life.x, life.y, life.z} : null;
+        };
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(GuestBridge::tick);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(GuestBridge::stopping);
+        net.fabricmc.fabric.api.message.v1.ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) ->
+                GuestBridge.chat(sender.server, sender, message.signedContent()));
         WorldRenderEvents.START.register(ctx -> {
             if (devScript != null) devScript.frame(Minecraft.getInstance());
         });
@@ -375,6 +387,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         link.tick();
         if (devScript != null) devScript.tick(mc);
         long now = System.currentTimeMillis();
+        for (GuestBridge.Heard h; (h = GuestBridge.next()) != null; ) fromGuest(h);
 
         if (now >= nextQualityCheck) {
             nextQualityCheck = now + 1000;
@@ -489,6 +502,18 @@ public final class KindredSpiritClient implements ClientModInitializer {
         return 1;
     }
 
+    /** A friend on your LAN world called her in chat (see GuestBridge): she hears who it was. */
+    private void fromGuest(GuestBridge.Heard h) {
+        if (!link.connected()) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "chat");
+        o.addProperty("text", h.text());
+        o.addProperty("from", h.who());
+        link.send(o);
+        companion.activity = Behavior.Activity.THINKING;
+        speakingGrace = System.currentTimeMillis() + 15000;
+    }
+
     public void talk(String text) {
         if (!link.connected()) {
             notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
@@ -549,6 +574,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     companion.mood = mood;
                     companion.say(text, secs, now);
                     dev.kindredspirit.record.FrameRecorder.line("pip", text);
+                    GuestBridge.say(mc.getSingleplayerServer(), text);
                     Emote gesture = Emote.parse(str(msg, "emote"));
                     if (gesture != null && cfg.life.aiGestures) companion.life.play(gesture, companion.now());
                     boolean talking = secs > 0 || more;
@@ -571,6 +597,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     caption = companion.subtitle;
                     captionUntil = companion.subtitleUntil;
                     dev.kindredspirit.record.FrameRecorder.line("pip", more);
+                    GuestBridge.say(mc.getSingleplayerServer(), more);
                     logChat(Component.literal(displayName + ": ").withStyle(ChatFormatting.AQUA)
                             .append(Component.literal(more).withStyle(ChatFormatting.WHITE)));
                 });

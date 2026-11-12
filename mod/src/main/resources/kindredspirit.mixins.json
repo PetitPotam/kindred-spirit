@@ -6,7 +6,8 @@
   "client": [
     "MinecraftMixin",
     "GameModeMixin",
-    "AdvancementToastMixin"
+    "AdvancementToastMixin",
+    "EntityRenderDispatcherMixin"
   ],
   "injectors": {
     "defaultRequire": 1
