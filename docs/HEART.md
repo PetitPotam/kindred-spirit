@@ -354,6 +354,17 @@ Pranks never happen when you're in real danger or low on health, never destroy a
 block she borrows can be put back. `pranks = false` turns off the friendly ones; `allowPranks:
 false` in `kindredspirit.json` turns off all of them at the game's side.
 
+## Friends
+
+On a LAN world, friends talk to her too ([README](../README.md#friends-on-your-lan-world)). Today her heart
+is only yours: nothing a friend says or does changes your bond, and she answers them as a friend of
+yours. She's honest with them about what she can do for them (`lanGuestPowers`), and only the player she
+lives with decides whom she stays with (unless you tell her to do what a friend says).
+
+In progress (2026-11-12 LAN playtest): a heart for each friend, with the same five feelings, saved
+across sessions; she treats each by how they treat her. If a friend mistreats her and you don't step
+in, she trusts you a little less ("you let them"); if you defend her, a little more.
+
 ## All the settings
 
 ```toml

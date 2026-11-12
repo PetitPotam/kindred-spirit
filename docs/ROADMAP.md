@@ -61,11 +61,14 @@ Done: her personality (whimsical, curious, her own little world), the bond meter
 and lowers it, earning trust from a starting bond, discovering her powers (amnesia), standing
 requests and offers, curiosity about advancements, items, biomes, mining and building, proposing
 little goals when close, pranks, mischief when angry, vanishing when mistreated ([HEART.md](HEART.md)).
-Left: memory fragments that unlock with milestones, favours before big help, profiles.
+Also done: a heart of five feelings (affection, trust, respect, familiarity, resentment) with stances and
+incidents, real senses, building simple shapes, hums as note-block tunes, session logs, the dashboard's
+settings editor with defaults and profiles, and the Try Pip simulator.
+Left: memory fragments that unlock with milestones, favours before big help.
 
 - A companion screen with a rotating 3D preview: skin, size, name, personality.
 - A radial command wheel on one key (optional): stay, come, follow, look, gestures, skins.
-- Personality presets, custom instructions, profiles.
+- Personality presets, custom instructions, profiles (profiles done: save, use, compare on the dashboard).
 - Bond meter, earning trust from zero.
 - Grow-together mode with amnesia and memory fragments.
 - Wants and favors: compromise, argue, explain.
@@ -113,10 +116,10 @@ her voice across prompts and models, and her conversation on Gemini 3 Flash.
   - Pre-rendering her written-ahead instinct lines with an expressive model in the background, so
     they play instantly with real emotion while live answers stay on Kokoro.
 
-### Next, from the 2026-11-12 review
+### Done, from the 2026-11-12 review
 
 A review of the whole project after the design pass (dashboard, her face, her words on screen),
-measured on a 17-minute playtest and 1,000 logged AI calls. Small fixes first, each an hour or less:
+measured on a 17-minute playtest and 1,000 logged AI calls. The small fixes are done (2026-11-12):
 
 - **Shorter answers.** 35 of 39 replies were cut off by the player talking, after about 6 s, and 16
   ended in a question nobody heard. One sentence by default, a question only first, and the session
@@ -133,12 +136,13 @@ measured on a 17-minute playtest and 1,000 logged AI calls. Small fixes first, e
   invented gestures mapped (sigh, wave, tilt, smile).
 - **The gateway refuses other web pages** (Origin and Host checks), so no site can rewrite her
   persona or her memories.
-- **Memory never records the player's gender or age** unless the player said it.
-- Logs that rotate, a `scripts/test.sh` that works from any checkout, a sign in game when the
-  brain is offline, her mouth moving with subtitles when her voice is off, a test for every
-  dashboard route.
 
-Bigger, for System 0, 1 and 2 working together:
+Still open from that review: memory never recording the player's gender or age unless they said it
+(it still guessed in the 2026-11-12 LAN playtest), logs that rotate, a `scripts/test.sh` that works from
+any checkout, a sign in game when the brain is offline, her mouth moving with subtitles when her voice is
+off, a test for every dashboard route.
+
+Bigger, for System 0, 1 and 2 working together (open):
 
 - **Speak before the tool**: an instinct line as guide, protect or come starts, the AI's words only
   if there's more (1.5 to 2 s sooner).
@@ -154,7 +158,33 @@ Bigger, for System 0, 1 and 2 working together:
 
 Decision pending: `sprout` as her default skin (today `slime`).
 
+### In progress, from the 2026-11-12 LAN playtest (two players, 70 minutes)
+
+Being built on the `claude/playtest-fixes` branch (33 items, from the session logs):
+- **Must-fix:** "follow me" read as "lead the way"; finding and leading to a friend anywhere in the world;
+  "stand still"; no claims after a failed power; placing beds, campfires and doors properly; trusting a
+  friend at the player's word; gifts "for both of us".
+- **Minecraft's own commands as her powers** (/fill, /setblock, /effect, /enchant, /summon...): instant
+  building, flattening land, a whole house, every effect; curated per power and style, with safety rules.
+- **A heart for each person:** five feelings for each friend, saved across sessions; she loses a little
+  trust in you if a friend mistreats her and you don't step in, and gains it when you defend her; who
+  asked what, logged.
+- **A memory of places with coordinates**, filled on her own: where you build, firsts (first cow, first
+  village), your bed, chests, portals, where you died, where friends were last seen; recall by
+  description and lead there; a Places map on the dashboard.
+- **Watching friends for real** (what they hold and do), a playful poke, no inventing; her attention
+  follows whoever she's with.
+- **Session logs complete enough to analyse a playtest from**, a stable name for a friend's LAN world
+  (one memory and one diary), the diary written from the whole session.
+- **Speech-to-text** primed with names and Minecraft words; measuring and cutting the delay before she
+  reacts; her glow in friends' worlds and on request.
+
 ## Phase 4: Expertise and understanding
+
+Being researched and started on the `blueprints` branch: blueprints and schematics (vanilla `.nbt`,
+Sponge `.schem`, Litematica; ghost previews, material lists, building from a blueprint, saving what
+you built as hers), then the items below.
+
 - Recipes and items (minecraft-data), wiki knowledge search.
 - Expert modes: survival, redstone, builder, speedrun.
 - Activity understanding (building, redstone, farming, mining) and a session journal.
@@ -172,17 +202,19 @@ Decision pending: `sprout` as her default skin (today `slime`).
 - Auto-pick a local model for your hardware. Code mode with saved skills.
 
 ## Phase 7: Agents and creators
-- MCP server for outside agents, live dashboard.
+- MCP server for outside agents. (Live dashboard: done.)
 - Creator mode: flag moments, automatic screenshots; maybe OBS clips and an episode recap.
 
 ## Phase 8: Sharing
-- Installer and setup guide, including for your friends.
+- Installer and setup guide, including for your friends. (A Windows guide for friends joining in light
+  mode and a one-command update, `scripts/update-pip-windows.ps1`: done.)
 - More skins and shapes (little star, cube robot) and skin packs. (Ball, cube, wisp, fairy and custom PNG skins shipped in 0.1.)
 - LAN friends (shipped): one Pip on the host's computer. Friends with the mod see her as the host does
   (light mode, no AI of their own), friends without it see an Allay stand-in; everyone talks to her in
   chat; she finds, leads, protects, gives items and effects to them (when the host allows), and stays
-  with whoever the host asks. Later: her own relationship with each friend, the stand-in wearing her
-  skin, friends hearing her voice on their own computer.
+  with whoever the host asks. When a friend hosts, your Pip comes along (visiting: their game shows her
+  and carries out her powers). Later: the stand-in wearing her skin, friends hearing her voice on their
+  own computer. (Her own relationship with each friend: in progress, above.)
 - Port to the current Minecraft release (26.x): renderer, mixins and mappings need porting; friends then join on the latest version.
 - Servers: allowlist, server-safe behaviour, seed finder (cubiomes).
 - Publish on GitHub and Modrinth as **Kindred Spirit** (slug `kindred-spirit` is free as of 2026-11-11).

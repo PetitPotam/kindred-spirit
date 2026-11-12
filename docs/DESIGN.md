@@ -4,7 +4,7 @@ A cute, configurable AI companion for Minecraft Java. It talks with you by voice
 
 Inspiration: [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je). Not its horror or story, only the idea of a companion that is present with you while you play. No Verity code or assets are used.
 
-Status: November 2026. A first preview (0.1) covers parts of Phase 0 and 1 of the [roadmap](ROADMAP.md): the slime companion, voice chat, and danger warnings.
+Status: November 2026. The 0.1 preview and what followed cover Phases 0 to 3 of the [roadmap](ROADMAP.md) for the most part: the companion and her skins, voice chat, danger warnings, her heart and memory, real senses, simple building, the dashboard, and playing with friends on LAN. Phase 4 (blueprints, expertise) is being researched; how it's built is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 

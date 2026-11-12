@@ -46,6 +46,17 @@ memories, bond and discovered powers. Coming back to a world, you find the Pip w
 3. **You can tell it directly.** "Remember that..." uses the `remember` tool; "this is my base"
    names a place; "remind me in 10 minutes to..." sets a reminder; "forget that..." forgets.
 
+Who writes what: the brain's rules (System 0) store the episodes, the places she found and her heart;
+her conversation (System 1) writes live with her tools (remember, forget, name a place, reminders); her
+deeper thinking (System 2) keeps the lasting knowledge and the diary after each reflection. See the
+[architecture](ARCHITECTURE.md#how-the-three-systems-talk-to-each-other).
+
+**Known gaps, being fixed** (2026-11-12 LAN playtest): a friend's LAN world is named with its port,
+which changes each time it's opened, so each LAN session was a fresh "world" (memories, heart and diary
+split); the diary is written from the last few minutes only; places keep coordinates only when named or
+found on request. A memory of places with coordinates, filled on her own, a stable LAN world name and a
+diary from the whole session are in progress (see the roadmap).
+
 ## How it remembers (recall)
 
 For every message, the prompt gets a short "What you remember" section:
