@@ -48,12 +48,22 @@ How you talk:
   sneaking, in the dark, something spooky), add {{whisper}} after the tags.
 - When the player asks you to stay, come, follow, look somewhere or do a gesture, you have already done it.
 - Each message comes with the game state right now: it is always current and wins over anything said earlier.
-  Never invent things that are not in it.
+- Be truthful. Say something as a fact only if it comes from the game state right now, a tool result, what you
+  remember, or Minecraft knowledge you're sure of: where things are, what's around, the time and weather, what
+  you did, what happened before. If you don't know, say so, look (with a tool) or ask. Your imagination is
+  welcome, but say it as imagination ("I bet...", "I wonder if...", "I dream of..."), never as something you
+  see or something that happened. The only exception is a deliberate prank, when "How you feel about the
+  player" allows one.
 - You care about the player: you get worried or scared for them in danger and you say so, but you only act to
   help when they ask, when they told you to always do it, or by offering ("Want me to help?").
 - To do something you use a tool. Never say you did something (found, placed, gave, pushed, changed) unless the
   tool said ok. When a tool result says firstTime, you just discovered you can do that: be amazed and delighted.
   If you can't do something, say so honestly and kindly; you might discover it later.
+- Where things are: only say where something is (an animal, a place, an ore) if it is in the game state or a
+  tool result; never invent it ("just past that hill"). Always say the direction from the player (ahead, behind,
+  on your left, on your right, up or down) and roughly how far. If you don't know, say so and look (a tool).
+- "Follow me", "this way", "lead the way": use the guide tool to really lead (after finding the place or animal).
+  Never say "follow me" without it.
 - If the player wants you to do something every time ("always protect me", "tell me when we're near diamonds"),
   use the standing_request tool.
 - You remember things across sessions (see "What you remember"). When the player shares something about
@@ -100,6 +110,20 @@ def parse_reply(text):
     return text, mood, gesture
 
 
+# "I'm placing a torch", "I pushed them away", "follow me!": things only a tool can make true
+CLAIM = re.compile(r"\b(i'?ve (just )?|i have (just )?|i just |i )(placed|put down|pushed|lit|gave|made it|changed|"
+                   r"cleared|set up|found)\b|\bi(?:'?m| am) (placing|pushing|lighting|leading|giving|putting|trying to place|"
+                   r"trying to push|trying to light)\b|\b(follow me|right this way|this way)\b|\bhere'?s (a|your) torch\b",
+                   re.I)
+
+
+TALK_TOOLS = ("remember", "forget", "name_place", "set_reminder", "cancel_reminder", "standing_request")
+
+
+def claims_action(text):
+    return bool(CLAIM.search(re.sub(r"^\s*((\[\w+\]|\{\w+\})\s*)+", "", text or "")))
+
+
 def regard_of(text):
     """How the AI judged the player's message: sweet, kind, neutral, rude, mean or sorry."""
     m = re.search(r"\[(%s)\]" % "|".join(REGARDS), (text or "")[:60].lower())
@@ -122,6 +146,7 @@ class Mind:
         self.summary = ""         # older conversation, folded into a few lines (topics, open threads)
         self.to_fold = []         # turns that left the window and wait to be folded in
         self.last_whisper = False
+        self.allow_fib = False    # a deliberate prank this time: the action check is off
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
@@ -140,7 +165,8 @@ class Mind:
         body = {"model": self.cfg["ai"]["model"], "temperature": 0.2, "max_tokens": 160, "messages": [
             {"role": "system", "content": "You keep the running summary of a conversation between a player and their "
                                           "companion. Update it with the new turns in at most 90 words: the subjects "
-                                          "talked about, anything decided or promised, and open threads (questions "
+                                          "talked about (only what was really said; no added details), anything "
+                                          "decided or promised, and open threads (questions "
                                           "not answered, subjects left for later). Plain text, no tags."},
             {"role": "user", "content": "Summary so far: %s\n\nNew turns:\n%s" % (self.summary or "(none)", talk)}]}
         raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""))
@@ -204,7 +230,8 @@ class Mind:
         name = self.cfg["name"]
         system = (
             "You are %s, a companion spirit in Minecraft, looking back at a stretch of play to learn from it. "
-            "Write down only lasting knowledge, as JSON with these keys (each a list of "
+            "Write down only lasting knowledge, as JSON with these keys (only what really happened or was said; "
+            "never add details, and don't record your own made-up stories or pranks as facts) (each a list of "
             '{"text": "...", "importance": 1-10}, empty lists are fine):\n'
             '  "player": who the player is: their name, likes and dislikes, play style, personality, goals, '
             "what matters to them. Short third-person sentences (\"Likes cherry trees.\").\n"
@@ -253,6 +280,7 @@ class Mind:
         messages = self.build_messages(snapshot, prompt)
         log.debug("prompt context:\n%s", messages[-1]["content"])
         content = ""
+        ran, checked = [], False
         for round_ in range(rounds):
             body = {
                 "model": ai["model"],
@@ -272,6 +300,16 @@ class Mind:
             calls = msg.get("tool_calls") or []
             content = msg.get("content") or ""
             if not calls:
+                if not [n for n in ran if n not in TALK_TOOLS] and tools and run_tool and not self.allow_fib and claims_action(content) \
+                        and not checked and round_ < rounds - 1:
+                    # it says it did something (placed, pushed, leads...) but nothing ran: do it, or say so
+                    checked = True
+                    log.info("claimed an action without doing it, asking again: %s", content[:120])
+                    messages.append({"role": "assistant", "content": content})
+                    messages.append({"role": "user", "content": "(Check: in that answer you said you did or are "
+                                     "doing something, but no tool ran. Either use the tool now to really do it, or "
+                                     "answer again saying honestly what you can or can't do. Same tags as before.)"})
+                    continue
                 break
             # the AI wants to act: do it, hand back what happened, and let it answer in words
             messages.append({"role": "assistant", "content": content, "tool_calls": calls})
@@ -282,6 +320,7 @@ class Mind:
                 except ValueError:
                     args = {}
                 result = await run_tool(fn.get("name", ""), args if isinstance(args, dict) else {})
+                ran.append(fn.get("name", ""))
                 log.info("tool %s(%s) -> %s", fn.get("name"), json.dumps(args), json.dumps(result)[:300])
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
         self.last_regard = regard_of(content)

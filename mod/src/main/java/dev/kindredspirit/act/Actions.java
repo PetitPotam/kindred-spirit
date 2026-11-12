@@ -50,6 +50,8 @@ public final class Actions {
 
     /** Where the last find/locate pointed, so "take me there" works right after. */
     public static volatile double[] lastTarget;
+    /** When the last thing found was an animal: its id, so a guided trip follows it as it walks. */
+    public static volatile int lastTargetEntity = -1;
 
     private static final Map<String, Object> STRUCTURES = Map.ofEntries(
             Map.entry("village", StructureTags.VILLAGE), Map.entry("mineshaft", StructureTags.MINESHAFT),
@@ -80,6 +82,7 @@ public final class Actions {
         try {
             return switch (a) {
                 case FIND_ORE -> done(findOre(mc, str(args, "ore", "diamond")));
+                case FIND_ANIMAL -> done(findAnimal(mc, str(args, "animal", "sheep")));
                 case LOCATE -> onServer(mc, s -> locate(s, mc.player, str(args, "what", "village")));
                 case GUIDE, STOP_GUIDE -> done(ok()); // handled by the companion itself
                 case PROTECT -> onServer(mc, s -> protect(s, mc.player));
@@ -133,6 +136,35 @@ public final class Actions {
         res.addProperty("blocksOfIt", count);
         return res;
     }
+
+    /** Nearest animal (or villager, or any creature) of a kind, among those your game has loaded. */
+    static JsonObject findAnimal(Minecraft mc, String what) {
+        String want = Places.creatureKind(what);
+        LocalPlayer p = mc.player;
+        java.util.List<net.minecraft.world.entity.LivingEntity> all = mc.level.getEntitiesOfClass(
+                net.minecraft.world.entity.LivingEntity.class, p.getBoundingBox().inflate(ANIMAL_RANGE),
+                e -> e.isAlive() && e != p && !(e instanceof net.minecraft.world.entity.player.Player)
+                        && Places.isCreature(BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).getPath(), want));
+        if (all.isEmpty()) {
+            JsonObject r0 = ok();
+            r0.addProperty("found", false);
+            r0.addProperty("searched", "about " + (int) ANIMAL_RANGE + " blocks around the player (what the game has loaded)");
+            return r0;
+        }
+        all.sort(java.util.Comparator.comparingDouble(e -> e.distanceToSqr(p)));
+        net.minecraft.world.entity.LivingEntity best = all.get(0);
+        int group = 0;
+        for (var e : all) if (e.distanceToSqr(best) < 16 * 16) group++;
+        JsonObject res = place(p, best.getX(), best.getY(), best.getZ());
+        lastTargetEntity = best.getId();
+        res.addProperty("found", true);
+        res.addProperty("animal", BuiltInRegistries.ENTITY_TYPE.getKey(best.getType()).getPath());
+        res.addProperty("howManyThere", group);
+        res.addProperty("totalAround", all.size());
+        return res;
+    }
+
+    static final double ANIMAL_RANGE = 96;
 
     // ------------------------------------------------------------------ the server side (singleplayer / LAN host)
 
@@ -199,8 +231,11 @@ public final class Actions {
         ServerPlayer sp = serverPlayer(server, p);
         ServerLevel level = sp.serverLevel();
         int n = 0;
-        for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(sp.blockPosition()).inflate(8), e -> e instanceof Enemy && e.isAlive())) {
-            m.knockback(1.6, sp.getX() - m.getX(), sp.getZ() - m.getZ());
+        for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(sp.blockPosition()).inflate(10), e -> e instanceof Enemy && e.isAlive())) {
+            m.knockback(2.2, sp.getX() - m.getX(), sp.getZ() - m.getZ());
+            // dazed for a few seconds, so it doesn't walk straight back (no damage)
+            m.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 80, 2, false, false));
             m.hurtMarked = true; // send the new velocity to the client right away
             level.sendParticles(ParticleTypes.POOF, m.getX(), m.getY() + 0.5, m.getZ(), 8, 0.3, 0.3, 0.3, 0.02);
             n++;
@@ -297,6 +332,7 @@ public final class Actions {
     /** Where something is, in words the AI can say: distance, direction from where you look, height. */
     static JsonObject place(LocalPlayer p, double x, double y, double z) {
         lastTarget = new double[]{x, y, z};
+        lastTargetEntity = -1;
         JsonObject r = ok();
         r.addProperty("x", Math.round(x - 0.5));
         r.addProperty("y", Math.round(y - 0.5));

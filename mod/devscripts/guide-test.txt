@@ -1,0 +1,54 @@
+# "I need sheep" -> "I'll try" (amnesia: the power wakes up a bit later) -> "lead the way": she leads
+# well ahead with an arrow on screen and a sparkle trail, follows the walking sheep, and calls you
+# back if you turn away. A flat cleared stretch, so the walking part is about her, not the terrain.
+world kindred-guide
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd kill @e[type=!minecraft:player]
+cmd fill ~-48 ~-1 ~-8 ~6 ~-1 ~8 minecraft:grass_block
+cmd fill ~-48 ~ ~-8 ~6 ~8 ~8 minecraft:air
+cmd summon minecraft:sheep ~-36 ~ ~2
+cmd summon minecraft:sheep ~-38 ~ ~-2
+look 0 5
+wait 100
+chat i need to find sheeps
+wait 1700
+screenshot guide-01-found
+chat lead the way, i will follow you
+wait 80
+screenshot guide-02-leading
+turn -90 0 1
+wait 25
+walk 3
+wait 70
+screenshot guide-03-wrong-way
+turnto companion 1
+wait 25
+walk 3
+wait 65
+screenshot guide-04-following
+turnto companion 0.5
+wait 12
+walk 3
+wait 62
+turnto companion 0.5
+wait 12
+walk 3
+wait 62
+turnto companion 0.5
+wait 12
+walk 3
+wait 62
+turnto companion 0.5
+wait 12
+walk 3
+wait 62
+turnto companion 0.5
+wait 12
+walk 3
+wait 62
+screenshot guide-05-arrived
+wait 100
+quit

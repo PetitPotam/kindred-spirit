@@ -434,3 +434,12 @@ def test_a_baby_waits_for_a_pause_but_a_new_item_is_skipped(stubs):
         await brain.notice("baby", "minecraft:cow")
         assert said and "baby" in said[0], "a baby is worth waiting a moment for"
     asyncio.run(run())
+
+
+def test_a_long_scare_is_one_scare_not_one_per_snapshot():
+    h, c = heart()
+    for _ in range(30):  # a zombie near you for 30 seconds
+        h.feel("danger", 0.3)
+        c.t += 1
+    assert h.valence > -0.2, h.valence
+    assert not h.too_upset_to_focus(), "startled, not upset with you"

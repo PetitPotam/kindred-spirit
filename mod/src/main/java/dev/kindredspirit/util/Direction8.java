@@ -21,4 +21,18 @@ public final class Direction8 {
         int idx = (int) Math.floorMod(Math.round(angle / 45.0), 8);
         return names[idx];
     }
+
+    /** The same direction as an arrow on screen: ↑ ahead, → right, ↓ behind... */
+    public static String arrow(float yawDeg, double dx, double dz) {
+        return switch (relative(yawDeg, dx, dz)) {
+            case "ahead-right" -> "\u2197";
+            case "right" -> "\u2192";
+            case "behind-right" -> "\u2198";
+            case "behind" -> "\u2193";
+            case "behind-left" -> "\u2199";
+            case "left" -> "\u2190";
+            case "ahead-left" -> "\u2196";
+            default -> "\u2191";
+        };
+    }
 }

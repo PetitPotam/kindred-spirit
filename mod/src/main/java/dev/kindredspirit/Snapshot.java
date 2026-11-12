@@ -124,16 +124,17 @@ public final class Snapshot {
 
         // animals and villagers nearby: babies, your pets, species she hasn't met yet
         java.util.List<net.minecraft.world.entity.LivingEntity> near = mc.level.getEntitiesOfClass(
-                net.minecraft.world.entity.LivingEntity.class, p.getBoundingBox().inflate(16),
+                net.minecraft.world.entity.LivingEntity.class, p.getBoundingBox().inflate(32),
                 e -> e.isAlive() && (e instanceof net.minecraft.world.entity.animal.Animal
                         || e instanceof net.minecraft.world.entity.npc.AbstractVillager));
         near.sort(Comparator.comparingDouble(e -> e.distanceToSqr(p)));
         JsonArray animals = new JsonArray();
-        for (net.minecraft.world.entity.LivingEntity e : near.subList(0, Math.min(15, near.size()))) {
+        for (net.minecraft.world.entity.LivingEntity e : near.subList(0, Math.min(20, near.size()))) {
             JsonObject ao = new JsonObject();
             ao.addProperty("id", e.getId());
             ao.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
             ao.addProperty("distance", round1(e.distanceTo(p)));
+            ao.addProperty("direction", Direction8.relative(p.getYRot(), e.getX() - p.getX(), e.getZ() - p.getZ()));
             ao.addProperty("baby", e.isBaby());
             ao.addProperty("tamed", e instanceof net.minecraft.world.entity.OwnableEntity own
                     && p.getUUID().equals(own.getOwnerUUID()));

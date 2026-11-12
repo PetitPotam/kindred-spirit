@@ -128,9 +128,17 @@ public final class Behavior {
     private double guideX, guideY, guideZ;
     /** While guiding: how far the target still is (horizontal) and how much higher (blocks). */
     public double guideDistance, guideRise;
+    /** Set when you walk away from where she's leading; the game clears it after telling the brain. */
+    public boolean wrongWay;
+    private double wrongFor, nextWrongWay, closest = Double.MAX_VALUE;
+    /** Your walking speed, measured from your eyes (blocks per second): she leads ahead of it. */
+    private double pvx, pvz, lastEx = Double.NaN, lastEz;
     /** Set when a guided trip ends at the target; the game clears it after telling the brain. */
     public boolean arrived;
     static final double ARRIVE = 5;
+    static final double GUIDE_AHEAD = 5.5;   // blocks ahead of you while leading
+    static final double GUIDE_SMOOTH = 0.3;  // her spring while leading (snappier than following)
+    static final double DT_GUESS = 1 / 20.0; // the guide check runs once per game tick
     /** How close she feels to you (0 = keeps far away, 1 = snuggles up); set from her bond. */
     public double closeness = 0.5;
     private final double[] distScale = {1, 0};
@@ -236,8 +244,20 @@ public final class Behavior {
         guideY = y;
         guideZ = z;
         guideDistance = Double.MAX_VALUE;
+        closest = Double.MAX_VALUE;
         mode = Mode.GUIDE;
         wake(now);
+    }
+
+    public double[] guideTarget() {
+        return new double[]{guideX, guideY, guideZ};
+    }
+
+    /** The place she leads to moved (an animal walking): follow it without restarting the trip. */
+    public void retarget(double x, double y, double z) {
+        guideX = x;
+        guideY = y;
+        guideZ = z;
     }
 
     public void setSide(Side s) {
@@ -313,7 +333,21 @@ public final class Behavior {
             if (guideDistance < ARRIVE) {
                 mode = Mode.FOLLOW;
                 arrived = true;
+                wrongFor = 0;
                 play(Emote.HAPPY, now);
+            } else {
+                // walking away from where she leads, for a couple of seconds: "this way!"
+                double sp = Math.hypot(pvx, pvz);
+                double along = sp > 1e-3 ? (pvx * dx + pvz * dz) / (sp * guideDistance) : 1;
+                wrongFor = sp > 1.5 && along < -0.2 ? wrongFor + DT_GUESS : 0;
+                closest = Math.min(closest, guideDistance);
+                // walking away for a moment, or simply ended up well off the way (a wall stopped you)
+                if ((wrongFor > 1.2 || guideDistance > closest + 5) && now > nextWrongWay) {
+                    wrongWay = true;
+                    nextWrongWay = now + 12;
+                    closest = guideDistance;
+                    play(Emote.HOP, now);
+                }
             }
         }
         if (mode == Mode.STAY && dist2(stayX, stayY, stayZ, s.ex, s.ey, s.ez) > 64 * 64) mode = Mode.FOLLOW;
@@ -505,13 +539,17 @@ public final class Behavior {
             double yaw = Math.toRadians(yawDeg);
             return new double[]{ex + Math.sin(yaw) * 14, ey + 4, ez - Math.cos(yaw) * 14};
         }
-        if (mode == Mode.GUIDE) { // a few blocks ahead, on the way to the target, a bit above eye level
+        if (mode == Mode.GUIDE) {
+            // well ahead on the way to the target, above head height so you see her over the grass,
+            // and ahead of where you'll be: if you sprint, she goes faster, she never falls behind
             double dx = guideX - ex, dz = guideZ - ez, d = Math.sqrt(dx * dx + dz * dz);
-            double ahead = Math.min(2.8, Math.max(0.8, d - 1));
+            double ahead = Math.min(GUIDE_AHEAD, Math.max(0.8, d - 1));
             double ux = d > 1e-3 ? dx / d : 0, uz = d > 1e-3 ? dz / d : 1;
-            return new double[]{ex + ux * ahead + Smooth.noise(now * 0.3, 11) * 0.12,
-                    ey + 0.25 + Smooth.noise(now * 0.35, 12) * 0.08,
-                    ez + uz * ahead + Smooth.noise(now * 0.3, 13) * 0.12};
+            double toward = Math.max(0, pvx * ux + pvz * uz); // your speed toward the target
+            double lead = toward * GUIDE_SMOOTH * 1.3;
+            return new double[]{ex + ux * (ahead + lead) + Smooth.noise(now * 0.3, 11) * 0.12,
+                    ey + 0.7 + Smooth.noise(now * 0.35, 12) * 0.08,
+                    ez + uz * (ahead + lead) + Smooth.noise(now * 0.3, 13) * 0.12};
         }
         double r, u, f;
         if (mode == Mode.COME) {
@@ -567,6 +605,16 @@ public final class Behavior {
     public void frame(double ex, double ey, double ez, double yawDeg, double lx, double ly, double lz,
                       double now, double dt, Activity act, Mood mood, double voiceLevel, boolean floaty) {
         clock = now;
+        if (dt > 0 && !Double.isNaN(lastEx)) { // your speed, smoothed (a teleport doesn't count)
+            double ivx = (ex - lastEx) / dt, ivz = (ez - lastEz) / dt;
+            if (ivx * ivx + ivz * ivz < 30 * 30) {
+                double k = Math.min(1, dt / 0.25);
+                pvx += (ivx - pvx) * k;
+                pvz += (ivz - pvz) * k;
+            }
+        }
+        lastEx = ex;
+        lastEz = ez;
         // wander wider while you stand still, come close again when you move
         Smooth.damp(wanderAmp, exploring ? 1.6 : 0.22, exploring ? 3.0 : 0.8, dt, 2);
         Smooth.damp(distScale, distanceScale(closeness), 1.5, dt, 1);
@@ -579,7 +627,8 @@ public final class Behavior {
             px[1] = py[1] = pz[1] = 0;
             placed = true;
         }
-        double smooth = mode == Mode.COME ? 0.35 : (emote == Emote.DOZE || mood == Mood.SLEEPY) ? 0.9 : 0.5;
+        double smooth = mode == Mode.GUIDE ? GUIDE_SMOOTH : mode == Mode.COME ? 0.35
+                : (emote == Emote.DOZE || mood == Mood.SLEEPY) ? 0.9 : 0.5;
         x = Smooth.damp(px, t[0], smooth, dt, 14);
         y = Smooth.damp(py, t[1], smooth * 0.8, dt, 14);
         z = Smooth.damp(pz, t[2], smooth, dt, 14);

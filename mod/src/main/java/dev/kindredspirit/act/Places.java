@@ -22,6 +22,33 @@ public final class Places {
         return path.equals(kind + "_ore") || path.equals("deepslate_" + kind + "_ore");
     }
 
+    /** "Sheeps", "a cow", "minecraft:wolves" -> "sheep", "cow", "wolf". */
+    public static String creatureKind(String what) {
+        String w = what.toLowerCase(Locale.ROOT).replace("minecraft:", "").trim();
+        w = w.replaceFirst("^(an?|the|some) ", "").replace(' ', '_');
+        return switch (w) {
+            case "wolves" -> "wolf";
+            case "sheeps" -> "sheep";
+            case "foxes" -> "fox";
+            case "mice", "animals", "animal", "creatures" -> "animal";
+            case "villagers", "people", "villager" -> "villager";
+            default -> w.endsWith("ies") ? w.substring(0, w.length() - 3) + "y"
+                    : w.endsWith("s") && !w.endsWith("ss") ? w.substring(0, w.length() - 1) : w;
+        };
+    }
+
+    /** Is this entity (its id without "minecraft:") the kind asked for? "animal" means any animal. */
+    public static boolean isCreature(String path, String kind) {
+        if (kind.equals("animal")) return ANIMALS.contains(path);
+        if (kind.equals("villager")) return path.equals("villager") || path.equals("wandering_trader");
+        if (kind.equals("horse")) return path.equals("horse") || path.equals("donkey") || path.equals("mule");
+        return path.equals(kind);
+    }
+
+    static final java.util.Set<String> ANIMALS = java.util.Set.of("sheep", "cow", "pig", "chicken", "horse", "donkey",
+            "mule", "rabbit", "goat", "llama", "fox", "wolf", "cat", "ocelot", "parrot", "panda", "bee", "turtle",
+            "frog", "axolotl", "camel", "sniffer", "armadillo", "mooshroom", "polar_bear", "strider");
+
     /** Compass word for a direction on the map (north is -Z in Minecraft). */
     public static String compass(double dx, double dz) {
         String[] n = {"south", "south-west", "west", "north-west", "north", "north-east", "east", "south-east"};
