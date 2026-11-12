@@ -509,6 +509,22 @@ class Mind:
                     ran.append(fn.get("name", ""))  # (a tool that said no proves nothing: "follow me" after a failed guide is a claim)
                 log.info("tool %s(%s) -> %s", fn.get("name"), json.dumps(args), json.dumps(result)[:300])
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
+        if not parse_reply(content)[0] and not (speaker and speaker.said):
+            # her tries ran out on tools with nothing said (a power that kept failing): one more go, in words
+            messages.append({"role": "assistant", "content": content or "(no words yet)"})
+            messages.append({"role": "user", "content": "(Now answer them in words, without tools: one short "
+                             "sentence, honest about what you did or couldn't do. Same tags as before.)"})
+            body = {"model": ai["model"], "messages": messages, "temperature": ai.get("temperature", 0.8),
+                    "max_tokens": ai.get("max_tokens", 160)}
+            if ai.get("reasoning_effort"):
+                body["reasoning_effort"] = ai["reasoning_effort"]
+            raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, kind)
+            try:
+                content = raw["choices"][0]["message"].get("content") or ""
+            except (KeyError, IndexError, TypeError):
+                content = ""
+            if speaker:
+                speaker.new_round()
         if speaker:
             speaker.finish(content)
             self.streamed = " ".join(speaker.said)
