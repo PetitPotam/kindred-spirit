@@ -604,6 +604,54 @@ class Heart:
         self.state["requests"] = [r for r in self.state["requests"] if r["what"] != what]
         return before - len(self.state["requests"])
 
+    # ------------------------------------------------------------------ the others: a heart for each friend
+
+    @property
+    def friends(self):
+        from . import friends as F
+        return F.Friends(self.state.setdefault("friends", {}), self.clock, self.rng)
+
+    def friend_names(self):
+        return self.friends.names()
+
+    def trusts_friend(self, name):
+        return self.friends.trusted(name)
+
+    def trust_friend(self, name, yes=True):
+        self.friends.trust(name, yes)
+
+    def friend_regard(self, name, tag, words=""):
+        """A friend's chat line, felt by her heart for them; mean ones in front of you, she watches what you do."""
+        change = self.friends.regard(name, tag, words)
+        if (tag or "").lower() in ("rude", "mean", "threat"):
+            self.friends.witness(name, words)
+        return change
+
+    def friend_touch(self, name, what):
+        change = self.friends.touched(name, what)
+        if what == "hit":
+            self.friends.witness(name, "hit you")
+        return change
+
+    def stood_up_for_her(self):
+        """You said "leave her alone" (or the like) while she was watching: it counts, a little. Returns the delta."""
+        settled = self.friends.defended()
+        if not settled:
+            return 0.0
+        who = ", ".join(sorted({w["friend"] for w in settled}))
+        return self._moved(lambda: self.rel.impress("defended", self.clock(), why="you stood up for her (%s)" % who))
+
+    def said_nothing(self):
+        """Hurts by friends you didn't step in for, after the wait: a small dip in trust each. Returns the delta."""
+        late = self.friends.let_them()
+        total = 0.0
+        for w in late:
+            total += self._moved(lambda w=w: self.rel.impress(
+                "let_them", self.clock(), scale=0.7,
+                why="you said nothing when %s %s" % (w["friend"], w["what"] if w["what"].startswith("hit") else
+                                                    "said \"%s\"" % w["what"])))
+        return total
+
     def wants(self, what):
         """A standing request for the player (protect: theirs, or "everyone" which includes them)."""
         if what == "protect" and self.p.get("auto_protect", False):

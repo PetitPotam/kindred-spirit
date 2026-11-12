@@ -210,6 +210,7 @@ class Brain:
         self.prev_biome = None
         self.prev_health = None
         self.last_protect = self.last_guard = -1e9
+        self.speaking_to = None      # a friend she's answering (session log: who each line was for)
         self.recent_gifts = {}       # (tool, what, to) -> when: never the same gift again unasked
         self.notified = []
         self.idle_since = clock()
@@ -370,11 +371,11 @@ class Brain:
             self.pending.pop(rid, None)
             return {"ok": False, "error": "the game didn't answer in time"}
 
-    async def run_tool(self, name, args):
-        """What happens when the AI uses a tool (and the session log notes it)."""
+    async def run_tool(self, name, args, who=None):
+        """What happens when the AI uses a tool (and the session log notes it, with who asked)."""
         result = await self._run_tool(name, args)
         ok = not (isinstance(result, dict) and result.get("ok") is False)
-        self.session.event("tool", name=name, args=json.dumps(args)[:120], ok=ok,
+        self.session.event("tool", name=name, args=json.dumps(args)[:120], ok=ok, who=who or self.speaking_to or "player",
                            result=json.dumps(result)[:160] if isinstance(result, dict) else str(result)[:160])
         return result
 
@@ -486,12 +487,12 @@ class Brain:
         if need:
             await self.send({"type": "notice", "text": "Tip: %s lets %s do this" % (need, self.cfg["name"])})
 
-    async def bond_update(self, delta, why=""):
+    async def bond_update(self, delta, why="", who=None):
         if abs(delta) < 0.5:
             return
         log.info("bond %+.1f (%s) -> %.0f %s | %s", delta, why, self.heart.bond, self.heart.level(),
                  getattr(self.heart.rel, "last_line", ""))
-        self.session.event("heart", change=round(delta, 1), why=why, bond=round(self.heart.bond),
+        self.session.event("heart", change=round(delta, 1), why=why, who=who or "player", bond=round(self.heart.bond),
                            stance=self.heart.stance(), detail=getattr(self.heart.rel, "last_line", "")[:160])
         level = self.heart.level()
         feel = "%s, %s" % (level, self.heart.stance())
@@ -870,7 +871,7 @@ class Brain:
                       "discovered": h.state.get("discovered", []), "asked": h.state.get("asked", {}),
                       "requests": h.state.get("requests", []), "pets": len(h.state.get("pets", [])),
                       "species_met": h.state.get("seen_species", []), "amnesia": h.amnesia(),
-                      "relationship": h.rel.explain(now)},
+                      "relationship": h.rel.explain(now), "friends": h.friends.explain()},
             "awakening": [{"power": k, "plan": v["plan"], "favour": v["favour"], "favour_done": v["done"]}
                           for k, v in self.awakening.items()],
             "offer": (h.pending_offer or {}).get("what"), "her_offer": self.her_offer[0] if self.her_offer else None,
@@ -1003,6 +1004,11 @@ class Brain:
             for f in (found or {}).get("results", []):
                 if to in f["meta"].get("what", "").lower():
                     return {k: f["meta"][k] for k in ("x", "y", "z")}
+            if "find_player" in self.abilities and to not in ("home", "base", "back"):
+                # a friend's name: the world's game finds them (even far away) and she follows them as they walk
+                r = await self.request("find_player", {"name": to})
+                if r.get("ok") and r.get("found", True) and not r.get("self"):
+                    return {}  # (the mod leads to the player it just found, and keeps up with them)
         # the animal named in the request, else the one you were just talking about ("where are the
         # cows?" ... "lead the way"): your last messages, then her last answer
         said = [to + " " + getattr(self, "last_player_text", "")] + self.recent_player[::-1][:3] + \
@@ -1124,6 +1130,23 @@ class Brain:
             asyncio.create_task(self.say(random.choice(intents.ARRIVED_LINES), "excited", instant=True,
                                          why="you arrived where you were leading the player"))
             await self.safe(self.memory.episode("We arrived where I was leading the player.", 4))
+        elif name in ("hit", "petted") and (msg or {}).get("by"):
+            # a friend touched her (their game told the world's game, which told hers): her heart for THEM
+            who = re.sub(r"[^\w .-]", "", str(msg["by"]))[:24] or "a friend"
+            change = self.heart.friend_touch(who, name)
+            self.session.event("touch", who=who, what=name)
+            self.session.event("heart", who=who, why=name, change=round(sum(v for k, v in change.items() if k in ("a", "t")), 1),
+                               stance=self.heart.friends.bonds(who).stance(self.clock()),
+                               detail="feelings for %s: %s" % (who, json.dumps(change)))
+            await self.heart.save()
+            if name == "hit":
+                bitter = self.heart.friends.bonds(who).stance(self.clock()) in ("cold", "bitter", "wounded")
+                await self.say(random.choice(intents.FRIEND_HIT_LINES[bitter]).format(who=who), "sad" if bitter else "worried",
+                               instant=True, why="%s hit you" % who)
+            elif self.clock() - self.last_pet_reply > 60:
+                self.last_pet_reply = self.clock()
+                await self.say(random.choice(intents.FRIEND_PET_LINES).format(who=who), "happy", instant=True,
+                               why="%s petted you" % who)
         elif name == "hit":
             s = self.snapshot or {}
             fight = any(m.get("distance", 99) < 6 for m in s.get("hostiles") or []) or any(
@@ -1337,6 +1360,10 @@ class Brain:
         close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= reach
                  or (m.get("distance", 99) <= 16 and m.get("type", "").replace("minecraft:", "") in archers)]
         self.guard_friends(now)
+        if self.heart.friends.s.get("watch"):  # someone hurt her in front of you, a while ago: did you say anything?
+            dip = self.heart.said_nothing()
+            if dip:
+                asyncio.create_task(self.bond_update(dip, "you said nothing when a friend hurt her"))
         if close and "protect" in self.abilities and s.get("gamemode") not in ("creative", "spectator"):
             # (in the background: the game's answer arrives through this same message loop)
             self.heart.feel("danger", 0.3)
@@ -1511,7 +1538,8 @@ class Brain:
             self.mind.note_said(text, mood, why)
         self.line += 1
         line = self.line
-        self.session.event("pip", line=line, text=text, mood=mood, prio=prio, why=why, source=source or (
+        self.session.event("pip", line=line, text=text, mood=mood, prio=prio, why=why, to=self.speaking_to or "player",
+                           source=source or (
             "warning" if why.startswith("a warning") else "instinct" if why else "reply"))
         self.mood = mood or self.mood
         # a warning's fright passes quickly; a feeling from conversation lasts a bit longer
@@ -1727,6 +1755,13 @@ class Brain:
                 continue
             await self.send(dict(act, type="act"))
         moving = next((a["move"] for a in acts if a.get("move") in ("follow", "stay", "come")), None)
+        vouched = intents.vouches_for(text, [p.get("name", "") for p in (self.snapshot or {}).get("players") or []],
+                                      self.heart.friend_names())
+        if vouched:  # "from now on do what Dumber says": she takes their requests too
+            name, yes = vouched
+            self.heart.trust_friend(name, yes)
+            done.append(("from now on, do what %s asks of you too" if yes else "stop taking orders from %s") % name)
+            await self.heart.save()
         if acts:
             log.info("acting on: %s", "; ".join(done))
         if intents.PUT_BACK.search(text):  # "put my block back": undo a prank
@@ -1774,8 +1809,12 @@ class Brain:
                 self.heart.known_self = getattr(self.memory, "self_known", 0)
                 for said in heard or [text]:  # (repeating the same words: less effect, then annoyance)
                     self.heart.hear(said)
-                someone = ("They mean %s, another player here (for gifts, effects or protection, set 'to' to %s)."
-                           % (about, about)) if about else ""
+                someone = ("They mean %s, another player here (for gifts, effects or protection, set 'to' to %s). %s"
+                           % (about, about, self.heart.friends.guidance(about))) if about else ""
+                if intents.DEFEND.search(text) and self.heart.friends.watching():
+                    stood = self.heart.stood_up_for_her()  # they stood up for her: it counts (and she noticed)
+                    await self.bond_update(stood, "you stood up for her")
+                    someone += " The player just stood up for you against a friend who was mean to you: you noticed, it warms you."
                 note = " ".join(x.strip() for x in (self.favour_heard(text), note_cross, self.power_news, someone)
                                 if x.strip())
                 note += " " if note else ""
@@ -1864,15 +1903,29 @@ class Brain:
         if not text:
             return
         self.session.event("guest", who=who, text=text)
+        host = (self.snapshot or {}).get("playerName", "")
+        trusted = self.heart.trusts_friend(who)
+        acts = intents.match(text)[0] if trusted else []
+        for act in acts:  # a friend the player vouched for: "follow me", "stay here" work for them too
+            if act.get("move") == "follow":
+                res = await self.request("follow_player", {"name": who})
+                self.session.event("tool", name="follow_player", args=json.dumps({"name": who}), ok=bool(res.get("ok")),
+                                   result=json.dumps(res)[:160], who=who)
+            elif act.get("move") in ("stay", "come") or act.get("emote"):
+                await self.send(dict(act, type="act"))
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
+            self.speaking_to = who
             try:
-                self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood), (
+                self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood), self.heart.friends.guidance(who), (
                     "%s is a friend of the player's, here in the world with you. They can't hear your voice: they "
-                    "read your words in chat. Be yourself with them; your bond is with the player, not with %s. You "
-                    "float beside the player you live with: if %s asks you to stay with them or follow them, that's the "
-                    "player's call (they can ask you); say so kindly, and don't go looking for %s."
-                    % (who, who, who, who))) if x)
+                    "read your words in chat. Be yourself with them; your bond is with the player%s, not with %s. %s"
+                    % (who, (" (%s)" % host) if host else "", who, (
+                        "The player told you to do what %s asks: if %s asks you to follow them or stay, do it." % (who, who)
+                        if trusted else
+                        "You float beside the player you live with: if %s asks you to stay with them or follow them, "
+                        "that's the player's call (they can ask you); say so kindly, and don't go looking for %s."
+                        % (who, who))))) if x)
                 offered = [a for a in self.abilities if a in self.GUEST_TOOLS] if powers else []
                 if not offered:
                     self.mind.heart += ("\nWith %s you only talk: your powers are for the player alone right now. If "
@@ -1881,14 +1934,23 @@ class Brain:
                 if not force:
                     force = intents.player_hint(text, [p.get("name", "") for p in self.snapshot.get("players") or []],
                                                 offered)[0]
+                if not force and "find_player" in offered and intents.WHERE_AM_I.search(text):
+                    force = "find_player"  # (where they are, seen from the player: the world's game knows)
+                both = bool(intents.BOTH.search(text)) and host
 
                 self.offered = offered  # (what she may do for them: not the list from your last answer)
 
                 async def for_them(name, args):  # (gifts, effects and protection go to them, not to the player)
                     if name in ("give_item", "give_effect", "protect") and not (args or {}).get("to"):
+                        if both:  # "for both of us": one for them, one for the player
+                            first = await self.run_tool(name, dict(args or {}, to=who))
+                            second = await self.run_tool(name, dict(args or {}, to=host))
+                            return {"ok": bool(first.get("ok") or second.get("ok")), who: first, host: second}
                         args = dict(args or {}, to=who)
                     if name == "find_player":  # (where someone is, from where they stand)
                         args = dict(args or {}, **{"from": who})
+                        if str(args.get("name", "")).lower() in ("", "me", "myself", "i"):
+                            args["name"] = who
                     return await self.run_tool(name, args)
                 speech = SpokenStream(self)
                 reply, mood, gesture = await self.mind.reply(
@@ -1900,11 +1962,19 @@ class Brain:
                 log.error("AI error answering %s: %s", who, e)
                 self.session.event("error", text=str(e)[:200])
                 await self.send({"type": "state", "state": "idle"})
+                self.speaking_to = None
                 return
             log.info("%s: %s | %s: [%s] %s", who, text, self.cfg["name"], mood, reply)
+            change = self.heart.friend_regard(who, self.mind.last_regard, text)  # her heart for THEM, not for you
+            if change:
+                self.session.event("heart", who=who, why=self.mind.last_regard, change=round(
+                    sum(v for k, v in change.items() if k in ("a", "t")), 1), stance=self.heart.friends.bonds(who).stance(
+                    self.clock()), detail="feelings for %s: %s" % (who, json.dumps(change)))
+                await self.heart.save()
             await self.safe(self.memory.episode("%s (a friend of the player's) said: %s | I said: %s" % (who, text, reply), 2))
             if not speech.said:
                 await self.say(reply, mood or "happy", emote=gesture)
+            self.speaking_to = None
             self.last_talk = self.clock()
 
     async def on_voice(self, msg):

@@ -107,6 +107,13 @@ class GatewayMemory:
         return await asyncio.to_thread(self._call, op, body)
 
 
+def world_key(world_id):
+    """One world, one memory: a LAN world's address without its port (the port changes every time the host opens
+    it to LAN: 192.168.1.73:63665, then :55368, and each was a new world with no memories, heart or diary)."""
+    w = world_id or "unknown"
+    return re.sub(r"^(mp:[^:]+):\d+$", r"\1", w)
+
+
 class Memory:
     def __init__(self, store, clock=time.time):
         self.store = store
@@ -122,7 +129,7 @@ class Memory:
     # ------------------------------------------------------------------ sessions
 
     async def open_world(self, world_id):
-        self.world_id = world_id or "unknown"
+        self.world_id = world_key(world_id)
         self.stats = (await self.store.call("doc", key="world:%s:stats" % self.world_id)).get("value") or {
             "first_met": None, "last_seen": None, "sessions": 0, "minutes": 0}
 
