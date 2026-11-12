@@ -35,6 +35,8 @@ public final class KindredConfig {
     public String chatMode = "auto";
     /** Show the little heart meter when your bond with her changes. */
     public boolean showBond = true;
+    /** With your world open to LAN, friends without the mod see her (as a stand-in) and can talk to her. */
+    public boolean lanGuests = true;
     public String brainHost = "127.0.0.1";
     public int brainPort = 47811;
     /** Empty = ~/.kindred-spirit/token, shared with the brain. */

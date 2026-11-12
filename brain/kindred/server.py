@@ -317,6 +317,8 @@ class Brain:
             await self.on_snapshot(msg)
         elif kind == "event":
             await self.on_event(msg.get("event"), msg)
+        elif kind == "chat" and msg.get("from"):  # a friend on your LAN world called her in chat
+            asyncio.create_task(self.answer_guest(msg["from"], msg.get("text", "")))
         elif kind == "chat":
             self.hear_player(msg.get("text", ""))
         elif kind == "voice":
@@ -1768,6 +1770,37 @@ class Brain:
             await self.mood_weather(sad=False)
         if regard == "mean" and self.heart.bond < 12 and self.heart.p.get("can_vanish", True):
             await self.vanish(120, random.choice(intents_heart.VANISH_LINES))
+
+    async def answer_guest(self, who, text):
+        """A friend on your LAN world (without the mod) called her in chat: she answers them, in chat for
+        them (the mod sends her lines there) and aloud for you. Talk only: she doesn't use her powers for
+        them, and nothing they say moves her heart: the bond is between her and you."""
+        text, who = (text or "").strip(), re.sub(r"[^\w .-]", "", who or "")[:24] or "a friend"
+        if not text:
+            return
+        self.session.event("guest", who=who, text=text)
+        await self.send({"type": "state", "state": "thinking"})
+        async with self.talk_lock:
+            try:
+                self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood), (
+                    "%s is a friend of the player's, here in the world with you. They can't hear your voice: they "
+                    "read your words in chat. Be yourself with them; your bond is with the player, not with %s."
+                    % (who, who))) if x)
+                speech = SpokenStream(self)
+                reply, mood, gesture = await self.mind.reply(
+                    self.snapshot, "(%s, another player here, not the player you live beside, says to you in chat:) %s"
+                    % (who, text), (), [], self.run_tool, None, False, on_sentence=speech.add)
+                await speech.close()
+            except AIError as e:
+                log.error("AI error answering %s: %s", who, e)
+                self.session.event("error", text=str(e)[:200])
+                await self.send({"type": "state", "state": "idle"})
+                return
+            log.info("%s: %s | %s: [%s] %s", who, text, self.cfg["name"], mood, reply)
+            await self.safe(self.memory.episode("%s (a friend of the player's) said: %s | I said: %s" % (who, text, reply), 2))
+            if not speech.said:
+                await self.say(reply, mood or "happy", emote=gesture)
+            self.last_talk = self.clock()
 
     async def on_voice(self, msg):
         self.player_listening = False

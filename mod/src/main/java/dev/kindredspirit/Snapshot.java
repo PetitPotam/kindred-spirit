@@ -235,6 +235,19 @@ public final class Snapshot {
             animals.add(ao);
         }
         o.add("animals", animals);
+
+        // other players here (friends on your LAN world): who, where, and whether she can see them
+        JsonArray players = new JsonArray();
+        for (net.minecraft.world.entity.player.Player other : mc.level.players()) {
+            if (other == p || !other.isAlive() || other.isSpectator() || other.distanceTo(p) > 48) continue;
+            JsonObject po = new JsonObject();
+            po.addProperty("name", other.getGameProfile().getName());
+            po.addProperty("distance", round1(other.distanceTo(p)));
+            po.addProperty("direction", Direction8.relative(p.getYRot(), other.getX() - p.getX(), other.getZ() - p.getZ()));
+            po.addProperty("seen", sees(mc, her, other));
+            players.add(po);
+        }
+        if (!players.isEmpty()) o.add("players", players);
         o.add("hazards", hazards(mc, p));
 
         // what she feels where she floats: rain or snow on her, the cold or the heat, the light

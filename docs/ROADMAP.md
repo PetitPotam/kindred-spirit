@@ -137,5 +137,8 @@ her voice across prompts and models, and her conversation on Gemini 3 Flash.
 ## Phase 8: Sharing
 - Installer and setup guide, including for your friends.
 - More skins and shapes (little star, cube robot) and skin packs. (Ball, cube, wisp, fairy and custom PNG skins shipped in 0.1.)
+- LAN guests without the mod (shipped): an Allay stand-in, "Pip, ..." chat both ways, other players in her senses.
+  Later: her own relationship with each guest, voice for guests (a resource pack sound), the stand-in wearing her skin.
+- Port to the current Minecraft release (26.x): renderer, mixins and mappings need porting; friends then join on the latest version.
 - Servers: allowlist, server-safe behaviour, seed finder (cubiomes).
 - Publish on GitHub and Modrinth as **Kindred Spirit** (slug `kindred-spirit` is free as of 2026-11-11).
