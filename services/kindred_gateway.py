@@ -566,7 +566,20 @@ class Handler(BaseHTTPRequestHandler):
     def err(self, status, message):
         self.reply(status, {"error": {"message": message}})
 
+    def foreign(self):
+        """A request from a web page on another site (it could rewrite her persona, delete her memories or
+        spend your AI credits; a browser sends such a POST without asking), or with a Host that isn't this
+        computer (DNS rebinding). Local pages (the dashboard) and scripts without an Origin are fine."""
+        local = r"^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$"
+        origin = self.headers.get("Origin")
+        if origin and not re.match(r"^https?://" + local[1:], origin):
+            return True
+        host = self.headers.get("Host", "")
+        return LISTEN_HOST in ("127.0.0.1", "localhost") and bool(host) and not re.match(local, host)
+
     def allowed(self, state):
+        if self.foreign():
+            return False
         need = key_of(state.get("access_key", ""))
         if not need:
             return True

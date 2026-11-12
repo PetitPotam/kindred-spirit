@@ -42,17 +42,18 @@ CREEPER_LINES = [
     "Creeper! Run!",
     "Creeper! Get away from it!",
 ]
+# a shout, not a readout: no numbers (he asked for instinct, not a health bar)
 LOW_HEALTH_HUNGRY = [
-    "Only {hearts} hearts left! Eat something and get somewhere safe.",
-    "You're hurt! {hearts} hearts. Let's eat and back off for a bit.",
+    "You're hurt! Eat something!",
+    "Ouch, you're hurt! Eat, quick!",
 ]
 LOW_HEALTH_FED = [
-    "Careful, only {hearts} hearts left! Back off and let them grow back.",
-    "You're really hurt, {hearts} hearts! Let's hide until you heal.",
+    "You're really hurt! Back off!",
+    "Careful, you're hurt! Hide a bit!",
 ]
 LOW_HEALTH_DANGER = [
-    "Only {hearts} hearts and monsters nearby! Run, I'll keep watch!",
-    "{hearts} hearts left and they're still after you! Get out of there!",
+    "You're hurt! Run!",
+    "Get out of there, you're hurt!",
 ]
 
 
