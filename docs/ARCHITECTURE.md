@@ -296,6 +296,8 @@ flowchart LR
 
 ## Where it's going
 
+How this design compares with research and other agents, with measurements: [research/architecture-review.md](research/architecture-review.md).
+
 Planned next (details in [ROADMAP.md](ROADMAP.md)):
 
 - **In progress:** Minecraft's own commands as her powers (instant building, flattening, a whole house),
