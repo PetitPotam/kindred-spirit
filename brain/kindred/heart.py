@@ -319,10 +319,10 @@ class Heart:
         if tag in ("sorry", "sorry_real"):
             self.state["sorries"] = [t for t in self.state.get("sorries", []) if now - t < 1800] + [now]
             return self._moved(lambda: rel.apologize(now, real=tag == "sorry_real", words=words))
-        if tag == "teasing":  # banter: kind between old friends, a brush-off between strangers
+        if tag == "teasing":  # banter: she's a teasing spirit herself; a joke never costs the bond (mean jokes are tagged rude)
             friends = rel.s["t"] >= 50 and rel.s["f"] >= 30
-            return self._moved(lambda: rel.impress("banter" if friends else "dismissive", now, words,
-                                                   why="teasing" + (" between friends" if friends else " from a stranger")))
+            return self._moved(lambda: rel.impress("banter", now, words, scale=1.0 if friends else 0.5,
+                                                   why="teasing" + (" between friends" if friends else ", playful")))
         event = REGARD_EVENTS.get(tag)
         if not event:
             return 0.0
@@ -605,9 +605,21 @@ class Heart:
         return before - len(self.state["requests"])
 
     def wants(self, what):
+        """A standing request for the player (protect: theirs, or "everyone" which includes them)."""
         if what == "protect" and self.p.get("auto_protect", False):
             return {"what": "protect"}
-        return next((r for r in self.state["requests"] if r["what"] == what), None)
+        return next((r for r in self.state["requests"] if r["what"] == what
+                     and (what != "protect" or r.get("detail", "") in ("", "everyone"))), None)
+
+    def guarded_friends(self, here):
+        """The friends here she keeps safe on her own (by name; "everyone" = all of them)."""
+        want = [r.get("detail", "") for r in self.state["requests"] if r["what"] == "protect" and r.get("detail")]
+        if not want:
+            return []
+        if "everyone" in want:
+            return [n for n in here if n]
+        from . import intents
+        return [n for n in here if n and any(intents.same_person(w, n) for w in want if w != "everyone")]
 
     def offer(self, what, now, detail=""):
         """Offer help she gave before, at most every 2 minutes per kind, never when she's upset."""

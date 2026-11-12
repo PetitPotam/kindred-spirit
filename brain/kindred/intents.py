@@ -5,15 +5,21 @@ it already happened so its answer fits ("Okay, I'll wait right here!").
 Each rule is a regular expression on what you said (lowercase) and the act it sends to the mod:
   move:  stay | follow | come | stop (stop leading the way)        side: left | right | above | auto
   look:  me | there | ahead | up | down | around
-  emote: nod | shake | spin | hop | wiggle | happy | shy | think | doze
+  emote: nod | shake | spin | hop | wiggle | happy | shy | think | doze | tease
+  perform: a little show of several gestures (the brain plays them one after the other)
 Add new ones at the bottom of RULES (and a test in tests/test_intents.py).
 """
 import re
 
 RULES = [
     # moving
-    (r"\b(stay|wait)( right)?( here| there| put)?\b(?! away)", {"move": "stay"}, "stay where you are"),
-    (r"\b(follow me|come with me|let'?s go|come along)\b", {"move": "follow"}, "follow the player again"),
+    # (stand still / don't move / freeze: she said "Frozen!" and kept following)
+    (r"\b(stand|hold|stay|keep|be) (still|put)\b|\bdon'?t (move|follow( me)?)\b|\bstop (moving|following( me)?)\b|"
+     r"\bfreeze\b|\bstop right there\b|\b(stay|wait)( right)?( here| there| put)?\b(?! away| with| close| by| near| beside)",
+     {"move": "stay"}, "stay where you are"),
+    # (never a reason to lead anywhere: "follow me" twice sent her 488 blocks to the old plains)
+    (r"\b(follow (me|us)|keep following|come with (me|us)|stay (with|close to|by|near) (me|us)|let'?s go|come along)\b",
+     {"move": "follow"}, "follow the player again (beside them: not leading anywhere)"),
     (r"\b(come (here|back|closer)|over here|get over here)\b", {"move": "come"}, "come close to the player"),
     (r"\b(go|float|move|fly|stay)( over)?( to)?( on)?( my| the)? left\b", {"side": "left"}, "float on the player's left"),
     (r"\b(go|float|move|fly|stay)( over)?( to)?( on)?( my| the)? right\b", {"side": "right"}, "float on the player's right"),
@@ -28,6 +34,9 @@ RULES = [
     # gestures
     (r"\b(spin|twirl|do a (spin|flip|twirl)|turn around)\b", {"emote": "spin"}, "do a spin"),
     (r"\b(jump|hop|bounce)\b", {"emote": "hop"}, "hop"),
+    # a little show: several gestures in a row (asked for "fancy emotes", she gave enchanted apples)
+    (r"\b(do|show( me)?|perform|make)\b.{0,25}\b(emotes?|tricks?|moves|a dance|a show|gestures|dance moves)\b|"
+     r"\bshow off\b", {"perform": True}, "a little show of your gestures (spins, hops, a wink)"),
     (r"\b(dance|wiggle)\b", {"emote": "wiggle"}, "wiggle"),
     (r"\bnod\b", {"emote": "nod"}, "nod"),
     (r"\bwink\b", {"emote": "tease"}, "wink"),
@@ -57,8 +66,16 @@ def match(text):
 # Clear requests for an action: the AI is then required to use that tool (when allowed), so it
 # can't just *say* it placed a torch without doing it.
 ACTION_HINTS = [
-    (r"\b(always|every time|whenever)\b.{0,40}\b(protect|defend|help|tell|warn|notify|let me know)\b|"
-     r"\b(protect|defend|tell|warn|notify) me (always|every time|whenever)\b|\blet me know when\b", "standing_request"),
+    (r"\b(always|every time|whenever|from now on|all the time|keep)\b.{0,40}\b(protect|defend|help|tell|warn|notify|let me "
+     r"know|protecting|defending|guarding)\b|\b(protect|defend|tell|warn|notify|guard) (me|us|him|her|them|\w+) (always|every "
+     r"time|whenever|from now on|all the time)\b|\blet me know when\b|\b(protect|defend|guard|keep) (me|us)( safe)? from\b.{0,80}"
+     r"\b(and )?(everything|everyone|all of them|anything|all the monsters|all monsters|mobs)\b|"
+     r"\b(follow|stay with|go with) and (protect|defend|guard)\b|\b(protect|defend|guard) and (follow|stay with)\b|"
+     r"\b(look after|watch over|guard) (him|her|them|\w+) for (me|us)\b", "standing_request"),
+    (r"\b(place|put|set|drop)\b.{0,30}\b(campfire|bed|chest|barrel|door|crafting table|furnace|lantern|anvil|"
+     r"enchanting table|bookshel(f|ves)|cauldron|bell|smoker|blast furnace|loom|composter|beacon|jukebox|"
+     r"flower ?pot|ladder|sign|banner|trapdoor|fence gate)\b|\b(campfire|bed|chest|door)\b.{0,15}\b(here|there)\b",
+     "build"),
     (r"\b(place|put|light|drop)\b.{0,30}\btorch|\btorch\b.{0,20}\b(here|down|please)|\b(give|make|need|want|some)"
      r"( me| us)?( some| a)? light\b|\blight (it|this|that|the way|us|things|everything|our way) up\b|"
      r"\blight (it|this|the way|our way)\b|\bcan'?t see\b|\bhelp (me|us) see\b|\btoo dark\b", "place_torch"),
@@ -71,6 +88,11 @@ ACTION_HINTS = [
     (r"\b(place|put|set( up)?|stack|lay)\b.{0,30}\b(\d+|some|a few|more)\b.{0,20}\b(blocks?|logs?|planks?|wood|"
      r"stones?|cobble\w*|bricks?|dirt|glass)\b|\b(place|put|stack|set)\b.{0,40}\b(vertical(ly)?|on top( of)?|above (it|"
      r"that|this|them)|upwards?|on the ground|in a (row|line|column))\b", "build"),
+    (r"\b(flatten|level( out)?|clear( out| away)?|remove|dig away|get rid of|squash)\b.{0,40}\b(ground|land|area|hill|"
+     r"terrain|space|blocks?|everything|this|it|above|trees?|dirt|grass)\b|\bmake (it|this|the (ground|area|land)) "
+     r"(flat|level)\b", "build"),
+    (r"\b(make|build|create|open|light)\b.{0,25}\b(nether )?portal\b", "build"),
+    (r"\b(build|make|create)\b.{0,25}\b(a |an |our |my )?(house|home|hut|cabin|shelter|cottage)\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\bbuild\b.{0,15}\b(house|hut|"
      r"shelter|walls?|tower|room|pen|fence|floor|platform|pillar)\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(stack|pile|place|put|build|make|"
@@ -111,6 +133,20 @@ def _close(word, name):
     """Speech-to-text spelling: "waleed" for "walid" (same consonants)."""
     strip = lambda x: re.sub(r"[aeiouy]", "", x)  # noqa: E731
     return len(strip(word)) >= 3 and strip(word) in strip(name)
+
+
+def same_person(said, name):
+    """Is this (said roughly, maybe misheard) this player's name? "walid", "water walid" -> waterwalid."""
+    a = re.sub(r"[^a-z0-9]", "", (said or "").lower())
+    b = re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    if len(a) < 3 or not b:
+        return False
+    return a == b or a in b or b in a or _close(a, b)
+
+
+# words that do ask for a trip ("follow me to the village", "lead us home")
+LEADING = re.compile(r"\b(lead|guide|take|bring|show)\b.{0,20}\b(me|us|the way|there|home|back)\b|\bto the\b|\bwhere is\b",
+                     re.I)
 
 
 def player_hint(text, names, allowed):
@@ -159,6 +195,12 @@ def hint_in_context(text, earlier, allowed):
             return tool
     return None
 
+
+# the player stepping in for her ("stop hitting Pip", "leave her alone", "be nice to her")
+DEFEND = re.compile(r"\b(stop|quit|don'?t|do not|no)\b.{0,12}\b(hit(ting)?|hurt(ing)?|punch(ing)?|attack(ing)?|"
+                    r"bully(ing)?|being mean|being rude|insult(ing)?|tease|teasing|picking on)\b|\bleave (her|pip|it|them)"
+                    r" alone\b|\bbe (nice|kind|gentle) (to|with) (her|pip)\b|\b(apologi[sz]e|say sorry) to (her|pip)\b|"
+                    r"\bdon'?t (talk|speak) to (her|pip) like that\b|\bthat'?s (not nice|mean|rude)\b|\bback off\b", re.I)
 
 WRONG_WAY_LINES = ["Hey, this way! Follow me!", "Wrong way, silly! Over here!", "No no, it's this way!",
                    "Psst! I'm over here! Follow the sparkles!"]

@@ -100,9 +100,12 @@ MEMORY_TOOLS = [
         ["text", "when"]),
     _fn("cancel_reminder", "Cancel reminders that mention something.", {"about": {"type": "string"}}, ["about"]),
     _fn("standing_request", "The player wants you to do something every time, on your own: 'always protect me' "
-        "(what=protect) or 'tell me when we're near diamonds' (what=notify_ore, detail=the ore). Or stop one.",
+        "(what=protect) or 'tell me when we're near diamonds' (what=notify_ore, detail=the ore). Protection can be for "
+        "a friend here ('follow and defend Walid': for=Walid) or for everyone ('protect us from everything': "
+        "for=everyone). Or stop one.",
         {"what": {"type": "string", "enum": ["protect", "notify_ore"]},
          "detail": {"type": "string", "description": "for notify_ore: which ore"},
+         "for": {"type": "string", "description": "protect: a friend's name, or 'everyone'; empty = the player"},
          "stop": {"type": "boolean", "description": "true to stop doing it"}}, ["what"]),
     _fn("listen_more", "Listen more closely to what the world remembers about the guide or thing you were just told "
         "about: the next part (what='next'), or a part by name (what='Step two', 'Collection system'...). Use it when "

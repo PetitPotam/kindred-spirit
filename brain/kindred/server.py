@@ -209,7 +209,8 @@ class Brain:
         self.noticed = {}
         self.prev_biome = None
         self.prev_health = None
-        self.last_protect = -1e9
+        self.last_protect = self.last_guard = -1e9
+        self.recent_gifts = {}       # (tool, what, to) -> when: never the same gift again unasked
         self.notified = []
         self.idle_since = clock()
         self.last_pos = None
@@ -416,9 +417,12 @@ class Brain:
                     return {"ok": True, "stopped": n}
                 if what == "protect" and "protect" not in self.abilities:
                     return {"ok": False, "error": "You can't protect them with your current power."}
-                self.heart.add_request(what, args.get("detail", ""))
+                who = str(args.get("for") or "").strip()
+                if what == "protect" and who.lower() in ("me", "player", "us", "both", "everyone", "all"):
+                    who = "" if who.lower() in ("me", "player") else "everyone"
+                self.heart.add_request(what, args.get("detail", "") if what != "protect" else who)
                 await self.heart.save()
-                return {"ok": True, "willDoItEveryTime": what}
+                return {"ok": True, "willDoItEveryTime": what, **({"for": who} if who else {})}
         except MemoryError as e:
             return {"ok": False, "error": str(e)}
         if name not in self.abilities:
@@ -427,6 +431,18 @@ class Brain:
         if self.offered is not None and name not in self.offered:
             # (amnesia) a power she hasn't discovered: the AI knows the name, she doesn't
             return {"ok": False, "error": "You don't know how to do that yet."}
+        if name in ("give_item", "give_effect"):
+            # the same gift again, unasked (asked for "fancy emotes", she gave enchanted apples again and again):
+            # only when their words ask for it (the item, "again", "another", "more")
+            what = str(args.get("item") or args.get("effect") or "").lower().replace("minecraft:", "")
+            key = (name, what, str(args.get("to") or "").lower())
+            said = (getattr(self, "last_player_text", "") or "").lower()
+            asked_again = re.search(r"\b(again|another|more|also|too|one more|extra)\b", said) or any(
+                w and w in said for w in re.split(r"[_ ]", what) if len(w) > 2)
+            if self.clock() - self.recent_gifts.get(key, -1e9) < 180 and not asked_again:
+                return {"ok": False, "error": "You already gave that a moment ago, and they didn't ask for it again: "
+                                              "don't give it again."}
+            self.recent_gifts[key] = self.clock()
         if name == "guide":
             args = await self.guide_target(args)
             if args.get("refuse"):
@@ -489,6 +505,14 @@ class Brain:
                          "stance": self.heart.stance()})
         await self.send({"type": "act", "closeness": self.heart.closeness()})
         await self.heart.save()
+
+    async def perform(self):
+        """A little show when asked for one: four or five of her gestures, one after the other."""
+        moves = ["spin", "hop", "wiggle", "tease", "nod", "happy"]
+        random.shuffle(moves)
+        for m in moves[:random.randint(4, 5)]:
+            await self.send({"type": "act", "emote": m})
+            await asyncio.sleep(1.5)
 
     async def after_gesture(self):
         await self.bond_update(0.6, "made up for it")
@@ -1308,6 +1332,7 @@ class Brain:
         archers = ("skeleton", "stray", "bogged", "pillager", "witch", "blaze", "breeze", "ghast")
         close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= reach
                  or (m.get("distance", 99) <= 16 and m.get("type", "").replace("minecraft:", "") in archers)]
+        self.guard_friends(now)
         if close and "protect" in self.abilities and s.get("gamemode") not in ("creative", "spectator"):
             # (in the background: the game's answer arrives through this same message loop)
             self.heart.feel("danger", 0.3)
@@ -1320,6 +1345,18 @@ class Brain:
                 if text:
                     asyncio.create_task(self.say(text, "worried", instant=True,
                                                  why="monsters came close and you offered to help"))
+
+    def guard_friends(self, now):
+        """Standing protection for friends ("follow and defend Walid", "protect us from everything"): every few
+        seconds the world's game pushes away monsters near them (it knows where everyone is; nothing happens if
+        none are near)."""
+        if "protect" not in self.abilities or now - self.last_guard < 3:
+            return
+        names = self.heart.guarded_friends([p.get("name", "") for p in self.snapshot.get("players") or []])
+        if names:
+            self.last_guard = now
+            for n in names:
+                asyncio.create_task(self.request("protect", {"to": n}))
 
     async def auto_protect(self):
         res = await self.request("protect", {})
@@ -1681,7 +1718,11 @@ class Brain:
         self.last_talk = self.clock()
         acts, done = intents.match(text)
         for act in acts:  # the body reacts at once; the words follow
+            if act.get("perform"):
+                asyncio.create_task(self.perform())
+                continue
             await self.send(dict(act, type="act"))
+        moving = next((a["move"] for a in acts if a.get("move") in ("follow", "stay", "come")), None)
         if acts:
             log.info("acting on: %s", "; ".join(done))
         if intents.PUT_BACK.search(text):  # "put my block back": undo a prank
@@ -1710,6 +1751,9 @@ class Brain:
                     force = await asyncio.to_thread(self.understand.hint, text, self.abilities + talk_tools)
                     if force:
                         log.info("understood as %s: %s", force, text)
+                if moving and force in ("guide", "find_player", "follow_player") and not about \
+                        and not intents.LEADING.search(text):
+                    force = None  # "follow me" / "stand still" is her body's job, done already: never a trip
                 wanted = intents.action_hint(text, list(tools.ABILITY_TOOLS))
                 if wanted and wanted not in self.abilities and self.clock() - self.tipped.get(wanted, -1e9) > 600:
                     self.tipped[wanted] = self.clock()  # her power or style doesn't allow it: a hint for you
@@ -1745,6 +1789,8 @@ class Brain:
                     force = None
                 note += await self.world_answer(text)  # how the world works: what it remembers, or listen
                 offered = self.heart.offered_tools(self.abilities, force or (asked if note_cross else None))
+                if moving and not intents.LEADING.search(text):  # (the AI can't turn "follow me" into leading either)
+                    offered = [a for a in offered if a not in ("guide", "follow_player")]
                 self.offered = offered
                 fib = "" if force or (self.snapshot.get("hostiles") or []) else self.heart.fib(self.clock())
                 self.mind.allow_fib = bool(fib)
