@@ -169,7 +169,7 @@ class Mind:
                                           "decided or promised, and open threads (questions "
                                           "not answered, subjects left for later). Plain text, no tags."},
             {"role": "user", "content": "Summary so far: %s\n\nNew turns:\n%s" % (self.summary or "(none)", talk)}]}
-        raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""))
+        raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, "fold")
         try:
             self.summary = (raw["choices"][0]["message"].get("content") or self.summary).strip()[:900]
         except (KeyError, IndexError, TypeError):
@@ -216,7 +216,7 @@ class Mind:
     async def initiative(self, snapshot, instruction, tools=None, run_tool=None, force=None):
         """Say something on its own (greeting, small talk, a power waking up). The instruction is not
         kept in memory; tools/force let it act at the same time."""
-        text, mood, gesture = await self._ask(snapshot, "(" + instruction + ")", tools, run_tool, force=force)
+        text, mood, gesture = await self._ask(snapshot, "(" + instruction + ")", tools, run_tool, force=force, kind="own")
         self.remember("assistant", "[%s] %s" % (mood or "happy", text))
         return text, mood, gesture
 
@@ -256,7 +256,7 @@ class Mind:
         body = {"model": ai["model"], "temperature": 0.3, "max_tokens": 500,
                 "response_format": {"type": "json_object"},
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-        raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""))
+        raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 90, "reflect")
         try:
             content = raw["choices"][0]["message"].get("content") or "{}"
         except (KeyError, IndexError, TypeError):
@@ -279,7 +279,7 @@ class Mind:
             except Exception as e:  # memory is a bonus, never a reason not to answer
                 log.warning("memory recall failed: %s", e)
 
-    async def _ask(self, snapshot, prompt, tools=None, run_tool=None, rounds=4, force=None):
+    async def _ask(self, snapshot, prompt, tools=None, run_tool=None, rounds=4, force=None, kind="reply"):
         ai = self.cfg["ai"]
         await self.recall(snapshot, prompt)
         messages = self.build_messages(snapshot, prompt)
@@ -297,7 +297,7 @@ class Mind:
                 body["tools"] = tools
                 if force and round_ == 0:  # a clear request: it must actually do it
                     body["tool_choice"] = {"type": "function", "function": {"name": force}}
-            raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""))
+            raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, kind)
             try:
                 msg = raw["choices"][0]["message"]
             except (KeyError, IndexError, TypeError):
@@ -336,9 +336,11 @@ class Mind:
         return text, mood, gesture
 
 
-def post_json(url, body, key="", timeout=40):
+def post_json(url, body, key="", timeout=60, kind=""):
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
                                  headers={"Content-Type": "application/json"})
+    if kind:  # reply, own, reflect, fold: the gateway may use another model or effort for each
+        req.add_header("X-Kindred-Kind", kind)
     if key:
         req.add_header("Authorization", "Bearer " + key)
     try:

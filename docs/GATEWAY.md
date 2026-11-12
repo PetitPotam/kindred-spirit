@@ -7,7 +7,7 @@ without restarting the game.
 
 | Part | What it does | Default (free, on your computer) | Other choices |
 |---|---|---|---|
-| **AI** | thinks and talks | Gemini (needs a key, has a free tier) | Ollama (local), Groq, OpenAI, OpenRouter, Mistral, any OpenAI-compatible server |
+| **AI** | thinks and talks | Gemini (needs a key, has a free tier) | Claude (with your own Claude subscription through the Claude CLI, or an API key), Ollama (local), Groq, OpenAI, OpenRouter, Mistral, any OpenAI-compatible server |
 | **Speech-to-text** | hears you | Whisper (whisper.cpp, on your GPU) | Groq, OpenAI, any OpenAI-compatible server |
 | **Voice** | speaks | Kokoro | OpenAI, any OpenAI-compatible server that returns WAV |
 | **Embeddings** | understands what memories mean | a small local model (bge-small, 65 MB) | Gemini, Ollama, OpenAI, or none (keyword search only) |
@@ -40,7 +40,7 @@ ok   memory       stored, found and removed a test memory
 
 ```bash
 G="brain/.venv/bin/python services/kindred_gateway.py"
-$G use ai ollama              # AI: gemini, groq, ollama, openai, openrouter, mistral
+$G use ai ollama              # AI: gemini, claude, anthropic, groq, ollama, openai, openrouter, mistral
 $G use stt groq               # speech-to-text: local_whisper, groq, openai
 $G use tts openai             # voice: local_kokoro, openai
 $G use embeddings gemini      # embeddings: local, gemini, ollama, openai, none
@@ -51,6 +51,60 @@ $G model gemini-3.1-flash-lite   # override the AI model (--clear to undo)
 
 Changes apply on the next request. If you switch a part away from a local tool, `scripts/start.sh`
 stops starting that tool, so it costs nothing.
+
+## Claude
+
+Two ways, each with your own account:
+
+**`claude`: your Claude subscription, through the Claude CLI on your computer.** If you have
+Claude Code installed and logged in (run `claude` once and `/login`), `$G use ai claude` makes Pip
+think with Claude, counted in your own plan's usage limits like your other Claude Code use. It's
+for your own play on your own computer: the gateway runs the `claude` command you're logged in
+with; nothing is shared.
+
+- Each kind of call can use its own model and effort. The default is Haiku at low effort for
+  everything she says (the fastest), and Sonnet at medium effort for learning from what happened
+  (not time-critical; quality matters more). Change them in `gateway.json`:
+  ```json
+  "upstreams": {"claude": {"model": "haiku", "effort": "low",
+                           "by_kind": {"reflect": {"model": "sonnet", "effort": "medium"},
+                                       "fold": {"model": "haiku"}, "own": {"model": "haiku"}}}}
+  ```
+  Kinds: `reply` (answering you), `own` (things she says on her own), `reflect` (learning),
+  `fold` (summarizing older conversation). Efforts: low, medium, high.
+- It starts the CLI for each answer (about a second) in an empty folder, with its own tools, MCP
+  servers and saved sessions turned off; her tools (find, guide, protect...) come back as structured
+  answers. Expect about 2 to 3 seconds per reply, a bit slower than Gemini.
+- If the login expires, the game shows "AI gateway problem: ... run claude in a terminal and /login".
+
+**`anthropic`: the Claude API with a key** (pay per use): put `ANTHROPIC_API_KEY=...` in
+`secrets.env`, then `$G use ai anthropic`. It uses Anthropic's OpenAI-compatible endpoint, Haiku by
+default (`$G model claude-sonnet-5-5` for another). Not tested with Kindred's tools yet; reports welcome.
+
+### Any AI you already pay for, through its command-line tool
+
+You don't need to buy API credits if you already have an AI subscription with a command-line tool
+on your computer: the `cli` provider type runs any of them, from a template in `gateway.json`. For
+example (these flags are from each tool's documentation and haven't been tried with Kindred yet:
+check them against `--help` for your version):
+
+```json
+"upstreams": {
+  "codex":  {"type": "cli", "command": "codex", "args": ["exec", "--model", "{model}", "{prompt}"]},
+  "gemini_cli": {"type": "cli", "command": "gemini", "args": ["--model", "{model}", "-p", "{prompt}"]},
+  "cursor": {"type": "cli", "command": "cursor-agent", "args": ["-p", "--model", "{model}", "{prompt}"]}
+}
+```
+
+then `$G use ai codex` (or the name you chose). Placeholders: `{model}` and `{effort}` (left out with
+their flag when empty), `{system}` (her personality and rules; without it they go at the start of
+the prompt) and `{prompt}` (without it, the prompt goes to the tool's standard input). Add
+`"output": "json", "result_field": "result"` for tools that answer in JSON. Her tools (find,
+guide, protect...) are asked for as a JSON answer and read back from it. Each call starts the tool,
+so expect a few seconds per reply, and it counts against that subscription's own usage limits.
+
+`by_kind` works for every AI provider, for example a stronger Gemini model only for learning:
+`"gemini": {"by_kind": {"reflect": {"model": "gemini-3.1-flash"}}}`.
 
 ## Special instructions
 

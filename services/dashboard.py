@@ -159,7 +159,7 @@ def ai_calls(limit=300):
             continue
         player = r.get("player") or ""
         parts = split_prompt(player)
-        r["kind"] = kind_of(player, parts)
+        r["kind"] = r.get("kind") or kind_of(player, parts)  # recorded by the gateway since it knows
         r["parts"] = parts
         r["said"] = parts.get("Player") or player[:400]
         if not parts:
@@ -174,7 +174,10 @@ def totals(calls):
     tout = sum(c.get("tokens_out") or 0 for c in calls)
     measured = [c for c in calls if c.get("tokens_in")]
     return {"calls": len(calls), "tokens_in": tin, "tokens_out": tout, "measured": len(measured),
-            "cost": round(tin / 1e6 * PRICE_IN + tout / 1e6 * PRICE_OUT, 4),
+            # the provider's own figure when it gives one (the Claude CLI does), else list prices
+            "cost": round(sum(c["cost_usd"] if c.get("cost_usd") is not None else
+                              (c.get("tokens_in") or 0) / 1e6 * PRICE_IN + (c.get("tokens_out") or 0) / 1e6 * PRICE_OUT
+                              for c in calls), 4),
             "price": {"in": PRICE_IN, "out": PRICE_OUT},
             "avg_seconds": round(sum(c.get("seconds") or 0 for c in calls) / len(calls), 2) if calls else 0}
 

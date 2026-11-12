@@ -40,6 +40,8 @@ import json
 import logging
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -87,6 +89,12 @@ DEFAULT_STATE = {
         "openai": {"base": "https://api.openai.com/v1", "key": "env:OPENAI_API_KEY", "model": "gpt-5-mini"},
         "openrouter": {"base": "https://openrouter.ai/api/v1", "key": "env:OPENROUTER_API_KEY", "model": ""},
         "mistral": {"base": "https://api.mistral.ai/v1", "key": "env:MISTRAL_API_KEY", "model": "mistral-small-latest"},
+        # Claude through the Claude CLI on this computer and your Claude subscription (its usage limits):
+        # a fast model at low effort for talking, a stronger one for learning (by kind of call)
+        "claude": {"type": "claude_cli", "command": "claude", "model": "haiku", "effort": "low",
+                   "by_kind": {"reflect": {"model": "sonnet", "effort": "medium"}}},
+        # Claude through the API with a key (pay per use): Anthropic's OpenAI-compatible endpoint
+        "anthropic": {"base": "https://api.anthropic.com/v1", "key": "env:ANTHROPIC_API_KEY", "model": "claude-haiku-5-5"},
     },
     # ---- speech to text ----
     "stt": {"use": "local_whisper", "providers": {
@@ -286,6 +294,168 @@ def shape(req, state, upstream_name, hint):
     return req
 
 
+# ---------------------------------------------------------------- Claude through the Claude CLI
+
+CLAUDE_DIR = os.path.join(DIR, "claude")  # an empty folder to run it in: no project files, no CLAUDE.md
+
+
+def claude_command(spec):
+    """The claude executable: as configured, on PATH, or where its installer puts it."""
+    for c in (os.path.expanduser(spec or "claude"), shutil.which(spec or "claude") or "",
+              os.path.expanduser("~/.local/bin/claude"), os.path.expanduser("~/.claude/local/claude"),
+              "/opt/homebrew/bin/claude", "/usr/local/bin/claude"):
+        if c and os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+    raise RuntimeError("the Claude CLI wasn't found: install Claude Code, or set \"command\" for the claude provider")
+
+
+def claude_prompt(req):
+    """An OpenAI-style chat request as a system prompt, one prompt and (with tools) a JSON schema."""
+    msgs = req.get("messages") or []
+    system = "\n\n".join(text_of(m.get("content")) for m in msgs if m.get("role") == "system")
+    lines = []
+    for m in msgs:
+        role, content = m.get("role"), text_of(m.get("content"))
+        if role == "user":
+            lines.append("PLAYER (with the game state):\n" + content)
+        elif role == "assistant":
+            calls = ["(you used the tool %s with %s)" % ((tc.get("function") or {}).get("name"),
+                                                        (tc.get("function") or {}).get("arguments"))
+                     for tc in m.get("tool_calls") or []]
+            lines.append("YOU:\n" + "\n".join(x for x in [content] + calls if x))
+        elif role == "tool":
+            lines.append("WHAT THE TOOL ANSWERED:\n" + content)
+    tools = [t.get("function") or {} for t in req.get("tools") or []]
+    forced = ((req.get("tool_choice") or {}).get("function") or {}).get("name") \
+        if isinstance(req.get("tool_choice"), dict) else None
+    schema = None
+    if tools:
+        names = [t.get("name") for t in tools]
+        system += ("\n\nTools you can use. To use one, answer with \"tool\" set to its name, \"arguments\" "
+                   "as an object, and \"reply\" empty: you'll get the result and then answer in words. To just "
+                   "talk, set \"tool\" to null and write your answer in \"reply\" (with your usual tags).\n"
+                   + "\n".join("- %s: %s Arguments: %s" % (t.get("name"), t.get("description", ""),
+                                                          json.dumps(t.get("parameters") or {})) for t in tools))
+        if forced and not any(m.get("role") == "tool" for m in msgs):
+            system += "\nThis time you must use the tool %s." % forced
+            names = [forced]
+        schema = {"type": "object", "required": ["reply", "tool"], "properties": {
+            "reply": {"type": "string"}, "tool": {"type": ["string", "null"], "enum": names + [None]},
+            "arguments": {"type": "object"}}}
+    elif (req.get("response_format") or {}).get("type") == "json_object":
+        system += "\n\nAnswer with one JSON object and nothing else."
+    prompt = "\n\n".join(lines) + "\n\nNow write your next answer."
+    return system, prompt, schema
+
+
+def any_cli_chat(up, req, kind):
+    """Any command-line AI the player already has (Codex, Gemini CLI, Cursor's agent...), from a
+    template: {"type": "cli", "command": "codex", "args": ["exec", "--model", "{model}", "{prompt}"],
+    "output": "text" | "json", "result_field": "result"}. Placeholders: {model} {effort} {system}
+    {prompt}; without {prompt} the prompt goes to standard input, without {system} it goes first in
+    the prompt. Her tools are asked for as JSON in the answer and read back from it."""
+    choice = dict(up, **((up.get("by_kind") or {}).get(kind) or {}))
+    system, prompt, schema = claude_prompt(req)
+    if schema:
+        system += ("\n\nAnswer with ONE JSON object and nothing else: {\"reply\": \"...\", \"tool\": null or a "
+                   "tool name, \"arguments\": {...}}")
+    args = up.get("args") or ["{prompt}"]
+    if "{system}" not in " ".join(args):
+        prompt = system + "\n\n" + prompt
+    values = {"model": choice.get("model") or "", "effort": choice.get("effort") or "", "system": system,
+              "prompt": prompt}
+    cmd = [claude_command(up.get("command")) if up.get("command") == "claude" else
+           (shutil.which(up.get("command") or "") or os.path.expanduser(up.get("command") or ""))]
+    for a in args:
+        if a in ("{model}", "{effort}") and not values[a[1:-1]] and cmd and cmd[-1].startswith("-"):
+            cmd.pop()  # "--model {model}" with no model: leave both out
+            continue
+        cmd.append(re.sub(r"\{(model|effort|system|prompt)\}", lambda m: values[m.group(1)], a))
+    os.makedirs(CLAUDE_DIR, exist_ok=True)
+    try:
+        out = subprocess.run(cmd, input=None if "{prompt}" in " ".join(args) else prompt, capture_output=True,
+                             text=True, timeout=int(up.get("timeout", 120)), cwd=CLAUDE_DIR)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise RuntimeError("%s: %s" % (up.get("command"), e))
+    text = out.stdout.strip()
+    if out.returncode != 0 and not text:
+        raise RuntimeError("%s failed: %s" % (up.get("command"), out.stderr.strip()[:300]))
+    if up.get("output") == "json":
+        try:
+            text = str(json.loads(text).get(up.get("result_field", "result")) or "")
+        except (ValueError, AttributeError):
+            pass
+    message = {"role": "assistant", "content": text}
+    if schema:
+        m = re.search(r"\{.*\}", text, re.S)
+        try:
+            answer = json.loads(m.group(0)) if m else {}
+        except ValueError:
+            answer = {}
+        if answer.get("tool"):
+            message = {"role": "assistant", "content": answer.get("reply") or "", "tool_calls": [
+                {"id": "call_" + uuid.uuid4().hex[:12], "type": "function",
+                 "function": {"name": answer["tool"], "arguments": json.dumps(answer.get("arguments") or {})}}]}
+        elif answer:
+            message["content"] = answer.get("reply") or ""
+    return {"id": "cli-" + uuid.uuid4().hex[:12], "object": "chat.completion", "model": choice.get("model") or
+            up.get("command"), "choices": [{"index": 0, "message": message,
+                                            "finish_reason": "tool_calls" if message.get("tool_calls") else "stop"}],
+            "usage": {"effort": choice.get("effort")}}
+
+
+def claude_cli_chat(up, req, kind):
+    """Answers one chat request with the Claude CLI and returns it in OpenAI's format."""
+    choice = dict(up, **((up.get("by_kind") or {}).get(kind) or {}))
+    system, prompt, schema = claude_prompt(req)
+    cmd = [claude_command(up.get("command")), "-p", "--output-format", "json", "--no-session-persistence",
+           "--tools", "", "--strict-mcp-config", "--setting-sources", "user",
+           "--model", choice.get("model") or "haiku", "--system-prompt", system]
+    if choice.get("effort"):
+        cmd += ["--effort", choice["effort"]]
+    if schema:
+        cmd += ["--json-schema", json.dumps(schema)]
+    os.makedirs(CLAUDE_DIR, exist_ok=True)
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+    try:
+        out = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=int(up.get("timeout", 90)),
+                             cwd=CLAUDE_DIR, env=env)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("the Claude CLI took too long")
+    try:
+        r = json.loads(out.stdout)
+    except ValueError:
+        raise RuntimeError("the Claude CLI failed: %s" % (out.stderr or out.stdout)[:300])
+    if r.get("is_error"):
+        why = str(r.get("result") or r.get("subtype"))
+        if "auth" in why.lower() or "login" in why.lower():
+            why += " (run claude in a terminal and /login)"
+        raise RuntimeError("Claude CLI: " + why[:300])
+    message = {"role": "assistant", "content": r.get("result") or ""}
+    if schema:
+        answer = r.get("structured_output")
+        if not isinstance(answer, dict):
+            m = re.search(r"\{.*\}", r.get("result") or "", re.S)
+            try:
+                answer = json.loads(m.group(0)) if m else {}
+            except ValueError:
+                answer = {}
+        if answer.get("tool"):
+            message = {"role": "assistant", "content": answer.get("reply") or "", "tool_calls": [
+                {"id": "call_" + uuid.uuid4().hex[:12], "type": "function",
+                 "function": {"name": answer["tool"], "arguments": json.dumps(answer.get("arguments") or {})}}]}
+        else:
+            message["content"] = answer.get("reply") or r.get("result") or ""
+    u = r.get("usage") or {}
+    tokens_in = sum(u.get(k) or 0 for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+    return {"id": "claude-" + uuid.uuid4().hex[:12], "object": "chat.completion", "model": choice.get("model"),
+            "choices": [{"index": 0, "message": message,
+                         "finish_reason": "tool_calls" if message.get("tool_calls") else "stop"}],
+            "usage": {"prompt_tokens": tokens_in, "completion_tokens": u.get("output_tokens") or 0,
+                      "total_tokens": tokens_in + (u.get("output_tokens") or 0),
+                      "cost_usd": r.get("total_cost_usd"), "effort": choice.get("effort")}}
+
+
 # ---------------------------------------------------------------- embeddings and memory
 
 def embed_texts(state, texts, query=False):
@@ -448,10 +618,20 @@ class Handler(BaseHTTPRequestHandler):
         paused = state.get("paused")
         hint = "" if paused else state.get("hint_next", "")
         req = shape(req, dict(DEFAULT_STATE, upstreams=state["upstreams"]) if paused else state, name, hint)
+        kind = self.headers.get("X-Kindred-Kind") or "reply"  # reply, own, reflect, fold (from the brain)
+        by_kind = (up.get("by_kind") or {}).get(kind) or {}
+        if by_kind.get("model") and not state.get("model") and up.get("type") not in ("claude_cli", "cli"):
+            req["model"] = by_kind["model"]
         started = time.time()
-        status, data, _ = http_call("POST", up["base"].rstrip("/") + "/chat/completions",
-                                    json.dumps(req, ensure_ascii=False).encode("utf-8"),
-                                    {"Content-Type": "application/json"}, key_of(up.get("key"), self.headers.get("Authorization", "")))
+        if up.get("type") in ("claude_cli", "cli"):  # an AI command-line tool the player already has
+            resp = (claude_cli_chat if up["type"] == "claude_cli" else any_cli_chat)(up, req, kind)
+            req["model"] = resp["model"]
+            status, data = 200, json.dumps(resp).encode()
+        else:
+            status, data, _ = http_call("POST", up["base"].rstrip("/") + "/chat/completions",
+                                        json.dumps(req, ensure_ascii=False).encode("utf-8"),
+                                        {"Content-Type": "application/json"},
+                                        key_of(up.get("key"), self.headers.get("Authorization", "")))
         if status != 200:
             log.error("%s HTTP %s: %s", name, status, data[:400])
             self.reply(status, data)
@@ -480,6 +660,7 @@ class Handler(BaseHTTPRequestHandler):
                     "actions": [tc["function"] for tc in msg.get("tool_calls") or []],
                     # for the dashboard: what it cost, what it could do, and how it was steered
                     "tokens_in": usage.get("prompt_tokens"), "tokens_out": usage.get("completion_tokens"),
+                    "kind": kind, "cost_usd": usage.get("cost_usd"), "effort": usage.get("effort"),
                     "messages": len(req.get("messages") or []),
                     "tools": [(t.get("function") or {}).get("name") for t in req.get("tools") or []],
                     "forced": ((req.get("tool_choice") or {}).get("function") or {}).get("name")
