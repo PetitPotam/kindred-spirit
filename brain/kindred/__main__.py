@@ -21,6 +21,7 @@ def main():
                         handlers=[logging.FileHandler(os.path.join(log_dir, "brain.log")), logging.StreamHandler(sys.stderr)])
     logging.getLogger("websockets").setLevel(logging.INFO)  # frame-level logs would include audio
     cfg = config.load(args.config)
+    cfg["_live_settings"] = args.config == config.PATH  # (changes from the dashboard are picked up live)
     token = config.read_or_create_token()
     hw = hardware.detect()
     logging.getLogger("kindred").info("settings: %s | this computer: %.0f GB, %d cores", args.config, hw["ram_gb"], hw["cores"])

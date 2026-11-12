@@ -93,3 +93,17 @@ def test_reading_while_another_thread_writes():
     for t in threads:
         t.join()
     assert errors == []
+
+
+def test_dashboard_settings_go_on_top_and_reach_the_same_dicts(tmp_path, monkeypatch):
+    import json
+    from kindred import config
+    monkeypatch.setattr(config, "OVERRIDES", str(tmp_path / "o.json"))
+    toml = tmp_path / "brain.toml"
+    toml.write_text('name = "Pip"\n[heart]\npranks = true\n')
+    monkeypatch.setattr(config, "PATH", str(toml))
+    cfg = config.load(str(toml))
+    heart = cfg["heart"]
+    (tmp_path / "o.json").write_text(json.dumps({"heart": {"pranks": False}, "behaviour": {"alerts": False}}))
+    config.refresh(cfg, config.load(str(toml)))
+    assert heart["pranks"] is False and cfg["behaviour"]["alerts"] is False, "the same dict her heart holds"
