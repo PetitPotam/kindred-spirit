@@ -506,7 +506,17 @@ public final class Behavior {
     /** You're swinging (at a mob, a block, the air): she gets out of your way for a few seconds. */
     public void playerSwings(double now) {
         fightingUntil = Math.max(fightingUntil, now + 4);
+        // she doesn't trust you: a swing near her makes her flinch and dart back (you see the distrust)
+        if (trust < 40 && placed && now - lastFlinch > 2 && dist2(x, y, z, lastEx, y, lastEz) < 9) {
+            lastFlinch = now;
+            play(Emote.STARTLE, now);
+            fightingUntil = Math.max(fightingUntil, now + 6);
+        }
     }
+
+    /** How much she trusts you (0-100, from her heart): low trust, she flinches when you swing near her. */
+    public int trust = 50;
+    private double lastFlinch = -100;
 
     /** True while she keeps out of your way because you're fighting or monsters are near. */
     public boolean keepingClear() {

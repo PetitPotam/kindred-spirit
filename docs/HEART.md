@@ -77,6 +77,64 @@ always carries. A painful one "still hurts", until kindness and time help her ma
 All of it is learned as you play (her learning, `reflect`), per world, shown in the dashboard's
 Memory tab ("her tastes", "moments that shaped her").
 
+## A deeper heart: five feelings, a sting, and what's between you
+
+One bond number used to do everything. Now her heart (`brain/kindred/bonds.py`) keeps five slow
+feelings that can disagree, so she can like you and not trust you, or trust you and resent you:
+
+| Feeling | What it is | Moves |
+|---|---|---|
+| affection | how much she likes being with you | kind words, petting, time together; a grudge slowly poisons it |
+| trust | she feels safe with you, your word means something | drops fast when hurt; grows **only** from time together without hurts, kept promises, favours (never from words) |
+| respect | how you act with the world and with her | big feats raise it; killing villagers lowers it; drifts back over a day |
+| familiarity | time and shared firsts | grows as you play; never drops below 70% of its peak |
+| resentment | unresolved hurt, separate from liking | hurts add to it; fades with calm play and with days apart, down to a floor while a scar is painful |
+
+On top: a **sting** (the hurt of right now, half-life 3 minutes) and her mood.
+
+**Every hurt is appraised first.** Was it an accident (a fight around you, or a first slip from someone
+she trusts), careless, or deliberate (hits in a row, a pattern, insults)? Bad weighs about twice as
+much as good; a **pattern** of deliberate hurts (counted over the last days) multiplies new ones,
+while a single slip from someone she trusts gets the **benefit of the doubt**. It stings more
+from someone she loves.
+
+**The ledger.** Each hurt opens an incident: open → (sorry) → probation → repaired, or a scar.
+- Sorry for an accident or a careless act: forgiven, trust restored.
+- Sorry for something deliberate: the grudge softens, and **probation** starts (a few minutes of play
+  without hurts, longer for worse things). Trust comes back when it ends, 70% of it; the rest only
+  with time. Hurting her again during probation is a **betrayal**: bigger impact, and every apology
+  after that is worth half as much (`[sorry_real]`, an apology that names what you did with no
+  excuses, is worth more than a plain sorry).
+- For a serious hurt she may ask once for a small thing to make up (plant a flower, a little tree, light
+  up a dark spot); doing it repairs at once.
+- A pattern (or a bad betrayal) leaves a **scar**: a painful core memory that keeps some resentment
+  until three calm sessions after a real apology or a gesture heal it.
+
+**Stances.** Her behaviour follows a stance read from the feelings: *new*, *warm*, *easy*,
+*guarded* (likes you, doesn't feel safe: keeps out of reach, flinches when you swing near her),
+*wounded* (cares, and you hurt her), *reliant* (trusts you, not fond of you: helps but doesn't offer),
+*cold*, *bitter*. She's told her stance in words, never numbers, with one sentence of why ("They
+said "you're useless" earlier today. It's not the first time..."). Friendly pranks need affection,
+familiarity and no grudge; spiteful ones need resentment.
+
+**System 2** looks at the ledger when it reflects: it may form a few beliefs about you from real
+patterns ("They always come back for me"; good ones count as trust), and soften or harden its
+judgement of a recent hurt by one notch (banter after all, or really on purpose).
+
+**Temperament.** Each world's Pip has slightly different sensitivity, forgiveness, warmth and pride
+(±15%); a long kind history makes her thicker-skinned and warmer, a cruel one more sensitive (±20%
+at most). `[heart] temperament = "thick-skinned" | "sensitive" | "forgiving"`.
+
+**Seeing it.** The dashboard shows the five feelings, her stance, the open hurts (with probation
+progress), her beliefs, temperament, and a line of *why* for every change. In game:
+`/kindred heart` says how she feels about you; `/kindred heart fresh` starts her feelings over (the
+old ones are kept in her history). The heart meter still shows the old bond, now derived from the
+five. The research behind it, with sources: [research/heart-research.md](research/heart-research.md).
+Defaults for its open questions: a grudge from words fades in about an hour of play, a pattern
+needs about three good sessions; time apart softens resentment but doesn't bring trust back; she
+asks for a gesture at most once per hurt and repair is always possible without it; the five feelings
+are shown in the dashboard, not as in-game icons.
+
 ## The bond
 
 A number from 0 to 100, shown as a small heart meter (top right) whenever it changes, and in

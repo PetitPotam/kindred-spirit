@@ -293,6 +293,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
                             .then(ClientCommandManager.literal("forget")
                                     .then(ClientCommandManager.argument("what", StringArgumentType.greedyString())
                                             .executes(c -> admin("forget", StringArgumentType.getString(c, "what"))))))
+                    // how she feels about you (five feelings, open hurts), or a fresh start for her heart here
+                    .then(ClientCommandManager.literal("heart").executes(c -> admin("heart", ""))
+                            .then(ClientCommandManager.literal("fresh").executes(c -> admin("heart", "fresh"))))
                     .then(ClientCommandManager.literal("reset").executes(c -> admin("reset", ""))
                             .then(ClientCommandManager.literal("confirm").executes(c -> admin("reset", "confirm"))))
                     // the gateway's special instructions ("clear" removes them)
@@ -583,6 +586,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             case "bond" -> mc.execute(() -> {
                 bond = msg.get("value").getAsInt();
                 bondLevel = str(msg, "level");
+                if (msg.has("trust")) companion.life.trust = msg.get("trust").getAsInt(); // she flinches when it's low
                 double ch = msg.has("change") ? msg.get("change").getAsDouble() : 0;
                 if (ch != 0) {
                     bondChange = ch;

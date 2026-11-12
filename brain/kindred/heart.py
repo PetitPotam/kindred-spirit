@@ -101,6 +101,15 @@ def level_of(bond):
     return name
 
 
+from . import bonds as B  # noqa: E402
+
+# how the AI's judgement of a message becomes an event for her heart (bonds.py)
+REGARD_EVENTS = {"sweet": "sweet", "kind": "kind", "thanks": "thanks", "rude": "rude", "mean": "mean", "cruel": "mean",
+                 "threat": "threat", "dismissive": "dismissive", "frustrated": "frustrated"}
+FEEL_AS = {"thanks": "kind", "teasing": "kind", "dismissive": "frustrated", "threat": "mean", "cruel": "mean",
+           "sorry_real": "sorry"}
+
+
 class Heart:
     def __init__(self, cfg, memory=None, clock=time.time, rng=None):
         self.p = cfg.get("heart", {})
@@ -121,13 +130,27 @@ class Heart:
         self.pending_offer = None
         self.last_offer = {}
         self.last_change = 0.0
+        self._rel, self._bond_seen = None, None
 
     # ------------------------------------------------------------------ persistence (a memory document)
 
     def fresh(self):
-        return {"bond": float(self.p.get("start_bond", 30)), "discovered": [], "asked": {}, "seen_items": [],
+        start = float(self.p.get("start_bond", 30))
+        return {"bond": start, "discovered": [], "asked": {}, "seen_items": [],
                 "requests": [], "last_prank": 0, "hurt_until": 0, "seen_species": [], "sorries": [],
-                "hits": [], "rained": False}
+                "hits": [], "rained": False,
+                "rel": B.fresh(start, str(self.p.get("temperament", "default")), self.rng, self.clock())}
+
+    @property
+    def rel(self):
+        """Her relationship with you (bonds.py): five feelings, the sting, the incident ledger."""
+        if "rel" not in self.state:  # an old save: one bond number becomes the five feelings
+            self.state["rel"] = B.fresh(self.state.get("bond", 30), str(self.p.get("temperament", "default")),
+                                        self.rng, self.clock())
+            B.Bonds(self.state["rel"]).set_bond(self.state.get("bond", 30))
+        if self._rel is None or self._rel.s is not self.state["rel"]:
+            self._rel, self._bond_seen = B.Bonds(self.state["rel"]), None
+        return self._rel
 
     def key(self):
         """Where her heart is saved: one per world, or one for all worlds."""
@@ -146,6 +169,29 @@ class Heart:
             saved = None
         if saved:
             self.state.update(saved)
+            if "rel" not in saved:  # migrate: what she knows of you, and old wounds, carry over
+                rel = B.fresh(saved.get("bond", 30), str(self.p.get("temperament", "default")), self.rng, self.clock())
+                rel["f"] = rel["f_peak"] = await self._familiarity_from_memories()
+                rel["g"] = await self._old_wounds()
+                self.state["rel"] = rel
+                B.Bonds(rel).set_bond(saved.get("bond", 30))
+        self.rel.session_start(self.clock())
+
+    async def _familiarity_from_memories(self):
+        try:
+            rows = (await self.memory.store.call("list", kinds=["player", "episode", "diary"],
+                                                 world=self.memory.world_id, limit=200))["results"]
+            return float(min(60, len(rows) / 2))
+        except Exception:
+            return 0.0
+
+    async def _old_wounds(self):
+        try:
+            rows = (await self.memory.store.call("list", kinds=["core"], world=self.memory.world_id, limit=50))["results"]
+            return float(min(60, 15 * sum(1 for r in rows if (r.get("meta") or {}).get("pain")
+                                           and not (r.get("meta") or {}).get("healed"))))
+        except Exception:
+            return 0.0
 
     async def save(self):
         if self.memory is None:
@@ -159,24 +205,34 @@ class Heart:
 
     @property
     def bond(self):
-        return self.state["bond"]
+        """The heart meter: derived from her five feelings (set from outside = an old save or a test)."""
+        r = self.rel
+        if self._bond_seen is not None and abs(self.state.get("bond", self._bond_seen) - self._bond_seen) > 1e-6:
+            r.set_bond(self.state["bond"])
+        b = r.bond()
+        self.state["bond"] = self._bond_seen = b
+        return b
+
+    def stance(self):
+        return self.rel.stance(self.clock())
 
     def level(self):
         return level_of(self.bond)
 
     def closeness(self):
-        """0 = keeps far away, 1 = snuggles up. Hurt also pushes her away for a while."""
-        c = min(1.0, max(0.0, self.bond / 100))
-        if self.clock() < self.state.get("hurt_until", 0):
-            c = min(c, 0.1)
-        return round(c, 2)
+        """0 = keeps far away, 1 = snuggles up: someone she likes AND feels safe with; a sting pushes her away."""
+        self.bond  # (picks up a bond set from outside)
+        return self.rel.closeness(self.clock())
 
     def angry(self):
-        return self.bond < 15 or self.clock() < self.state.get("hurt_until", 0)
+        now = self.clock()
+        return self.bond < 15 or self.rel.sting(now) > 0.35 or self.rel.s["g"] >= 40
 
     def change(self, delta, why=""):
+        """Moves the old single bond (old code paths, tests): affection and trust together."""
         old = self.bond
-        self.state["bond"] = max(0.0, min(100.0, old + delta))
+        self.rel.set_bond(max(0.0, min(100.0, old + delta)))
+        self.state["bond"] = self._bond_seen = self.rel.bond()
         self.last_change = self.clock()
         return self.state["bond"] - old
 
@@ -236,44 +292,57 @@ class Heart:
             self.feel("annoyed")
         return self.repeats
 
-    def on_regard(self, tag):
+    def _moved(self, fn):
+        """Runs a change to her feelings; returns how much the heart meter moved."""
+        before = self.bond
+        fn()
+        self.state["bond"] = self._bond_seen = self.rel.bond()
+        self.last_change = self.clock()
+        return self.state["bond"] - before
+
+    def on_regard(self, tag, words=""):
+        """How they just treated her (the AI's tag for their message), appraised by her heart."""
         tag = (tag or "neutral").lower()
-        delta = REGARD.get(tag, 0)
         now = self.clock()
+        rel = self.rel
         repeats, self.repeats = self.repeats, 0
-        if (repeats >= 3 or self.flooding) and tag not in ("rude", "mean"):
-            # spamming her is toxic: it costs more each time (-1, -2, ... up to -5) and she pulls away a bit
-            self.state["hurt_until"] = max(self.state.get("hurt_until", 0), now + 30)
-            return self.change(-min(5, 1 + max(0, repeats - 3)) if repeats >= 3 else -2, "spamming")
-        if tag in ("sweet", "kind") and self.doubt > 0.4:
+        if (repeats >= 3 or self.flooding) and tag not in ("rude", "mean", "cruel", "threat"):
+            # spamming her is toxic: it costs more each time (1, 2, ... up to 5) and she pulls away a bit
+            n = min(5, 1 + max(0, repeats - 3)) if repeats >= 3 else 2
+            self.feel("annoyed")
+            return self._moved(lambda: rel.impress("spam", now, words, scale=n, why="the same words again" if repeats
+                                                   >= 3 else "a flood of messages"))
+        if tag in ("sweet", "kind", "thanks") and self.doubt > 0.4:
             self.shaken(-0.12)  # being comforted settles her a little
-        if delta > 0:
-            delta = delta / (1 + 2 * repeats)
-            # and kind words can't fill her heart in a minute: at most +8 a minute from words
+        self.feel(FEEL_AS.get(tag, tag))
+        if tag in ("sorry", "sorry_real"):
+            self.state["sorries"] = [t for t in self.state.get("sorries", []) if now - t < 1800] + [now]
+            return self._moved(lambda: rel.apologize(now, real=tag == "sorry_real", words=words))
+        if tag == "teasing":  # banter: kind between old friends, a brush-off between strangers
+            friends = rel.s["t"] >= 50 and rel.s["f"] >= 30
+            return self._moved(lambda: rel.impress("banter" if friends else "dismissive", now, words,
+                                                   why="teasing" + (" between friends" if friends else " from a stranger")))
+        event = REGARD_EVENTS.get(tag)
+        if not event:
+            return 0.0
+        scale = 1.0
+        if B.EVENTS[event][0] > 0:
+            # kind words can't fill her heart in a minute: less each time, and at most +8 affection a minute
+            scale = 1 / (1 + 2 * repeats)
             recent = sum(d for t, d in self.word_gains if now - t < 60)
-            delta = max(0.0, min(delta, 8 - recent))
-            self.word_gains = [(t, d) for t, d in self.word_gains if now - t < 60] + [(now, delta)]
-        self.feel(tag)
-        if tag in ("rude", "mean"):
-            self.state["hurt_until"] = now + (120 if tag == "mean" else 45)
-        elif tag == "sorry":
-            # quick to forgive, but not a fool: sorry after sorry for the same thing counts for less
-            recent = [t for t in self.state.get("sorries", []) if now - t < 1800]
-            hurt_lately = [t for t in self.state.get("hits", []) if now - t < 1800]
-            repeats = len(recent) if hurt_lately else 0
-            self.state["sorries"] = recent + [now]
-            delta = REGARD["sorry"] / (1 + 1.5 * repeats)
-            if repeats < 2:
-                self.state["hurt_until"] = 0
-            else:  # she doesn't buy it anymore: still hurt for a while
-                self.state["hurt_until"] = max(self.state.get("hurt_until", 0), now + 60)
-        return self.change(delta, tag)
+            gain = B.EVENTS[event][0] * scale
+            if recent + gain > 8:
+                scale *= max(0.0, 8 - recent) / gain
+            self.word_gains = [(t, d) for t, d in self.word_gains if now - t < 60] + [(now, gain * scale / max(scale, 1e-9)
+                                                                                         if scale else 0.0)]
+            if scale <= 0:
+                return 0.0
+        return self._moved(lambda: rel.impress(event, now, words, scale=scale))
 
     def insincere(self):
-        """They keep hurting her and saying sorry."""
-        now = self.clock()
-        return len([t for t in self.state.get("sorries", []) if now - t < 1800]) >= 3 and \
-            len([t for t in self.state.get("hits", []) if now - t < 1800]) >= 3
+        """They keep hurting her and saying sorry: their apologies are worth less and less."""
+        return self.rel.credit(self.clock()) < 0.3 or (
+            self.rel.credit(self.clock()) < 0.6 and any(i["intent"] == "deliberate" for i in self.rel.open_incidents()))
 
     # ------------------------------------------------------------------ feelings (the mood score)
 
@@ -319,29 +388,39 @@ class Heart:
             return "calm"
         return "happy" if v > 0.05 else "calm"
 
-    def on_hit(self):
-        """Returns (bond change, line to say, vanish seconds or 0, action to do back or None)."""
+    def on_hit(self, fight=False):
+        """Returns (bond change, line to say, vanish seconds or 0, action to do back or None).
+        Was it an accident (a fight around, or a first slip from someone she trusts), careless, or on
+        purpose (hits in a row, a pattern, or a hit with no fight while she's already hurt)?"""
         now = self.clock()
+        rel = self.rel
         self.hits = [t for t in self.hits if now - t < 60] + [now]
         self.state["hits"] = [t for t in self.state.get("hits", []) if now - t < 1800] + [now]
         self.feel("hit")
-        first_in_a_while = len(self.state["hits"]) == 1
-        if first_in_a_while and self.bond >= 60:
-            # probably an accident between friends: a little "ow", and maybe a playful bonk back
-            delta = self.change(-2, "hit")
-            if self.p.get("play_fights", True) and self.bond >= 65 and self.rng.random() < 0.6:
+        quick = sum(1 for t in self.hits if now - t < 10)
+        lately = len(self.state["hits"])
+        hurt_open = any(i["intent"] == "deliberate" for i in rel.open_incidents())
+        if quick >= 2 or lately >= 3 or (hurt_open and not fight):
+            intent = "deliberate"
+        elif fight or (lately == 1 and rel.s["t"] >= 60):
+            intent = "accident"
+        else:
+            intent = "careless"
+        delta = self._moved(lambda: rel.impress("hit_" + intent, now, why="a fight around" if fight else ""))
+        if intent == "accident":
+            if self.p.get("play_fights", True) and rel.s["a"] >= 65 and rel.s["t"] >= 60 and self.rng.random() < 0.6:
                 return delta, self.rng.choice(BONK_LINES), 0, "bonk"
             return delta, self.rng.choice(OOF_LINES), 0, None
-        delta = self.change(-6, "hit")
-        self.state["hurt_until"] = now + 90
-        if len(self.hits) >= 3 and self.p.get("can_vanish", True):
+        if intent == "deliberate" and self.p.get("can_vanish", True) and (
+                len(self.hits) >= 3 or rel.avoidance(now) >= 0.75):
             self.hits = []
             return delta, self.rng.choice(VANISH_LINES), 90 + self.rng.randint(0, 60), None
-        return delta, self.rng.choice(HIT_LINES), 0, None
+        return delta, self.rng.choice(HIT_LINES if intent == "deliberate" else OOF_LINES), 0, None
 
     def play_hit(self, snapshot, now):
         """Rarely, as close friends: a little hit for fun, then she heals you and says sorry."""
-        if not self.p.get("play_fights", True) or self.bond < 75 or self.angry():
+        r = self.rel.s
+        if not self.p.get("play_fights", True) or r["a"] < 70 or r["t"] < 65 or self.angry():
             return False
         if not snapshot or snapshot.get("health", 0) < snapshot.get("maxHealth", 20) or snapshot.get("gamemode") != "survival":
             return False
@@ -365,19 +444,21 @@ class Heart:
         return None
 
     def on_pet(self):
-        return self.change(1.5, "pet")
+        """Petting: nice, but it counts for less (and she startles) when she doesn't feel safe with you."""
+        rel = self.rel
+        return self._moved(lambda: rel.impress("pet", self.clock(), scale=0.5 if rel.s["t"] < 30 else 1.0))
 
     def drift(self, minutes):
-        """Time heals: below a friendly baseline the bond slowly comes back (she forgets quickly)."""
-        if self.bond < 40 and self.clock() > self.state.get("hurt_until", 0):
-            return self.change(min(40 - self.bond, 1.0 * minutes), "time")
-        return 0
+        """Time together: the sting fades, grudges soften, trust grows from evidence, you get familiar."""
+        return self._moved(lambda: self.rel.advance(self.clock()))
+
+    def thing_happened(self, event, scale=1.0, words=""):
+        """Something in the world that changes how she sees you (a villager killed, a boss beaten, a favour)."""
+        return self._moved(lambda: self.rel.impress(event, self.clock(), words, scale=scale))
 
     def guidance(self, mood=None):
         lvl = self.level()
-        g = "Your bond with the player: %s (%d/100). %s" % (lvl, round(self.bond), GUIDANCE[lvl])
-        if self.clock() < self.state.get("hurt_until", 0) and lvl not in ("hurt",):
-            g += " Right now you're still a bit upset about how they just treated you."
+        g = "How you feel about the player: " + self.rel.guidance(self.clock(), GUIDANCE[lvl])
         if self.insincere():
             g += (" They keep hurting you and saying sorry. You have your pride: you don't believe their apologies so "
                   "easily anymore, you forgive slowly, and you may refuse what they ask until they really change.")
@@ -625,8 +706,11 @@ class Heart:
         admitted once they apologize. Never about danger, health or anything that could hurt them."""
         if not self.p.get("fibs", True) or now - self.state.get("last_fib", 0) < 600:
             return ""
-        angry = self.angry() and self.mischief() == "spicy"
-        friendly = self.p.get("pranks", True) and self.bond >= 55 and not self.angry()
+        self.bond  # (picks up a bond set from outside)
+        r = self.rel.s
+        angry = self.angry() and self.mischief() == "spicy" and self.rel.revenge() >= 0.2
+        friendly = (self.p.get("pranks", True) and r["a"] >= 55 and r["f"] >= 30 and r["g"] < 20
+                    and not self.angry())
         if not (angry or friendly) or self.rng.random() > (0.25 if angry else 0.08):
             return ""
         self.state["last_fib"] = now
@@ -647,8 +731,10 @@ class Heart:
             return None
         if any(m.get("distance", 99) < 16 for m in snapshot.get("hostiles") or []):
             return None  # never while there's real danger
-        angry = self.angry() and self.mischief() != "off"
-        friendly = self.p.get("pranks", True) and self.bond >= 55
+        self.bond
+        r = self.rel.s
+        angry = self.angry() and self.mischief() != "off" and self.rel.revenge() >= 0.2
+        friendly = self.p.get("pranks", True) and r["a"] >= 55 and r["f"] >= 30 and r["g"] < 20
         if not (angry or friendly):
             return None
         cooldown = 240 if angry else 900
