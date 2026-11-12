@@ -74,6 +74,51 @@ LABELS = {
     "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
     "voiceVolume": "Her voice volume", "offsetRight": "Floats to your right (blocks)", "offsetForward": "Floats ahead (blocks)",
     "offsetUp": "Floats up (blocks)", "size": "Size", "maxRecordSeconds": "Longest push-to-talk (seconds)",
+    "life.wander": "Wanders when you stand still", "life.drift": "Drifts beside you", "life.switchSides": "Switches shoulders",
+    "life.glances": "Glances around", "life.lookBack": "Looks back at you", "life.eyeContactReactions": "Reacts to eye contact",
+    "life.petting": "Can be petted", "life.watchThreats": "Watches monsters", "life.moodGestures": "Gestures with her mood",
+    "life.aiGestures": "Plays the AI's gestures", "life.dozeAfterSeconds": "Dozes off after (seconds)",
+    "life.turnSlack": "Turn before she follows (degrees)", "life.keepOutOfView": "Keeps out of the middle of your view",
+}
+# a sentence under the label, for settings whose name doesn't say it all
+HELP = {
+    "personality": "Added to her character for the AI, in your words. She stays herself: this nudges, it doesn't replace.",
+    "ai.model": "Empty: the gateway picks. Set one to try another model for her replies only.",
+    "ai.temperature": "Low: steady and predictable. High: surprising, sometimes odd.",
+    "ai.max_tokens": "She speaks in short bursts; a higher limit lets the odd answer run longer.",
+    "ai.history_turns": "How many recent exchanges go to the AI word for word; older ones are summarized.",
+    "voice.voice": "A Kokoro voice name, or a blend like bf_lily*0.7+bf_emma*0.3.",
+    "behaviour.fill_silence_after": "If the AI is slow, she shows she's thinking (a look, a hum) after this long.",
+    "behaviour.instinct_lines_after": "Her instant reactions (ow!, eep!) rewritten in her own voice, once she knows you a bit.",
+    "heart.same_companion_in_every_world": "Off: each world has its own Pip, who meets you fresh.",
+    "heart.amnesia": "She wakes up not knowing what she can do, and finds out as you ask.",
+    "heart.awakening": "Slow: she senses a power coming before it wakes. Instant: it's just there.",
+    "heart.favours": "While a power wakes up, she may ask for something small in return.",
+    "heart.start_bond": "15-35 wary, 35-65 friend, 65-85 close, 85+ best friend.",
+    "heart.fibs": "Little tall tales she always owns up to.",
+    "heart.block_pranks": "A prank may take a block you placed, and always gives it back.",
+    "heart.mischief_when_angry": "What she gets up to when you've upset her.",
+    "heart.can_vanish": "If you're cruel, she may leave for a while, and come back.",
+    "heart.weather_follows_mood": "In singleplayer, a sad Pip can bring rain.",
+    "heart.temperament": "How easily she's hurt and how quickly she forgives.",
+    "upstream": "Which AI writes her words. Each one is set up in gateway.json.",
+    "by_kind.reflect": "Learning, her story, her portrait: rare calls that can use a stronger model. Empty: the same as above.",
+    "tts.providers.local_kokoro.pitch": "Above 1 sounds younger and lighter.",
+    "power": "Advisor: talks, finds and guides. Helper: also protects you, places torches, chops, builds. All-powerful: also time and weather.",
+    "style": "Grounded: uses only what really exists, like your own torches. Magic: can make things appear.",
+    "chatMode": "Auto: everything in singleplayer, only lines starting with her name on servers.",
+    "quality": "Auto lowers her detail if your frame rate drops.",
+    "showBond": "A small heart meter appears for a moment when the bond changes.",
+    "hudCaptions": "Her lines at the bottom of the screen too, like subtitles in a film.",
+    "offsetRight": "Negative: your left.", "size": "1 is about a slime's head.",
+    "life.wander": "Drifts around you when you stand still.", "life.drift": "0 still, 1 normal, 2 lively.",
+    "life.switchSides": "Moves to your other shoulder now and then.", "life.glances": "Looks at animals, items and around.",
+    "life.lookBack": "Looks at you when you look at her.", "life.eyeContactReactions": "Gets happy or shy when you hold her gaze.",
+    "life.petting": "Sneak while looking at her to pet her.", "life.watchThreats": "Turns to watch nearby monsters.",
+    "life.moodGestures": "Hops when excited, looks up while thinking.",
+    "life.aiGestures": "The little moves the AI adds to her replies (spin, nod, wiggle...).",
+    "life.dozeAfterSeconds": "0 = never.", "life.turnSlack": "0 = always right at your side.",
+    "life.keepOutOfView": "She never parks in the middle of your view.",
 }
 CHOICES = {
     ("brain", "heart.temperament"): ["default", "thick-skinned", "sensitive", "forgiving"],
@@ -207,6 +252,7 @@ def editable():
     skins, voices = skin_ids(), kokoro_voices()
     for e in out:
         key = (e["where"], e["path"])
+        e["help"] = HELP.get(e["path"])
         if key in RANGES and e["type"] in ("int", "float"):
             e["range"] = RANGES[key]
         if key == ("mod", "skin") and skins:
@@ -395,9 +441,12 @@ def session_one(sid):
         except ValueError:
             continue
         if at and at - 5 <= t <= end:
-            msgs = c.get("messages") or []
-            last_user = next((m for m in reversed(msgs) if m.get("role") == "user"), {})
-            content = last_user.get("content")
+            msgs = c.get("messages")
+            if isinstance(msgs, list):  # (older logs kept the messages; the gateway now keeps how many, and the last one as "player")
+                last_user = next((m for m in reversed(msgs) if isinstance(m, dict) and m.get("role") == "user"), {})
+                content = last_user.get("content")
+            else:
+                content = c.get("player")
             if isinstance(content, list):
                 content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
             calls.append({"t": round(t - at, 1), "kind": c.get("kind"), "model": c.get("model"),
@@ -712,7 +761,17 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def host_ok(self):
+        """Only pages addressed to this computer by name: a web page that points its own domain at 127.0.0.1
+        (DNS rebinding) must not read her token or her memories."""
+        if (self.headers.get("Host") or "").lower() in ("%s:%d" % (HOST, PORT), "localhost:%d" % PORT):
+            return True
+        self.send(403, {"error": "open the dashboard as http://%s:%d" % (HOST, PORT)})
+        return False
+
     def do_GET(self):
+        if not self.host_ok():
+            return
         url = urlparse(self.path)
         q = {k: v[-1] for k, v in parse_qs(url.query).items()}
         try:
@@ -772,6 +831,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def _post(handler):
     """What the dashboard can change: the listed settings, and asking the knowledge base to learn."""
+    if not handler.host_ok():
+        return
     url = urlparse(handler.path)
     if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles"):
         return handler.send(404, {"error": "not found"})
