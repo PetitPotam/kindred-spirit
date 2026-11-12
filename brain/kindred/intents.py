@@ -64,6 +64,7 @@ ACTION_HINTS = [
     (r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b|"
      r"\b(i'?m|i am|we'?re|we are) (being )?(attacked|under attack|getting (shot|hit|attacked))\b|\b(save|defend) me\b|"
      r"\b(is|are|re|theyre|s|they|it)\s?(shooting|attacking|hitting) (me|us)\b", "protect"),
+    (r"\b(place|put)\b.{0,12}\b(this|that|the|a|my|one) block\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(stack|pile|place|put|build|make|"
      r"raise)\b.{0,40}\b(pillars?|columns?|towers?|corners?|walls?|floors?|platforms?|outlines?|borders?|pens?|"
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),

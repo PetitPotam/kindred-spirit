@@ -52,7 +52,8 @@ ABILITY_TOOLS = {
                  "have). Shapes: pillar (a stack, 'height' high), corners (a pillar on each corner of a rectangle "
                  "'width' x 'length', 'height' high), wall (a row 'width' long, 'height' high), floor ('width' x "
                  "'length', flat), outline (the border of 'width' x 'length', 'height' high, like a pen or room). "
-                 "'stop' stops a build. If the size they want isn't clear, ask before building. At most 256 blocks.",
+                 "'stop' stops a build. One block where they look: a pillar of height 1. If the size they want isn't "
+                 "clear, ask before building. At most 256 blocks.",
                  {"shape": {"type": "string", "enum": ["pillar", "corners", "wall", "floor", "outline", "stop"]},
                   "block": {"type": "string", "description": "the block to use, e.g. cobblestone, oak_planks; empty = "
                             "the block in their hand (or the one they have most of)"},

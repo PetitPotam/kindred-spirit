@@ -147,7 +147,7 @@ def parse_reply(text):
 
 
 # "I'm placing a torch", "I pushed them away", "follow me!": things only a tool can make true
-CLAIM = re.compile(r"\b(i'?ve (just )?|i have (just )?|i just |i )(placed|put down|pushed|lit|gave|made it|changed|"
+CLAIM = re.compile(r"\bi did it\b|\b(i'?ve (just )?|i have (just )?|i just |i )(placed|put down|pushed|lit|gave|made it|changed|"
                    r"cleared|set up|found)\b|\bi(?:'?m| am) (placing|pushing|lighting|leading|giving|putting|trying to place|"
                    r"trying to push|trying to light)\b|\b(follow me|right this way|this way)\b|\bhere'?s (a|your) torch\b|"
                    r"\b(let me|i'?ll|i will) (place|put|push|light|chop|cut|mine|dig|break|give|make|lead|take you|"
@@ -450,7 +450,8 @@ class Mind:
                 except ValueError:
                     args = {}
                 result = await run_tool(fn.get("name", ""), args if isinstance(args, dict) else {})
-                ran.append(fn.get("name", ""))
+                if not (isinstance(result, dict) and result.get("ok") is False):
+                    ran.append(fn.get("name", ""))  # (a tool that said no proves nothing: "follow me" after a failed guide is a claim)
                 log.info("tool %s(%s) -> %s", fn.get("name"), json.dumps(args), json.dumps(result)[:300])
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
         if speaker:
