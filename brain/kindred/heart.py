@@ -651,8 +651,9 @@ class Heart:
         if event == "death":
             return "The player just died. React the way you would, in one short line."
         if event == "heard":
-            return ("You just heard %s, something you can't see, and it's new to you. React the way you would, in "
-                    "one short line: curious, spooked, or just pointing it out." % detail)
+            return ("You just heard %s, something you can't see, and it's new to you. You only heard it: don't "
+                    "describe how it looks. React the way you would, in one short line: curious, spooked, or just "
+                    "pointing it out." % detail)
         if event == "mining":
             return "The player has been mining for a while. Say one little thing about it, or about what you see down here."
         if event == "building":

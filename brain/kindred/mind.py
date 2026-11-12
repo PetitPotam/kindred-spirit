@@ -289,12 +289,18 @@ class Mind:
                     if not calls:
                         speaker.feed(content)
                 for tc in d.get("tool_calls") or []:
-                    c = calls.setdefault(tc.get("index", 0), {"id": "", "type": "function",
-                                                               "function": {"name": "", "arguments": ""}})
+                    # parallel calls: Gemini may number them all 0, each with its own id: keep them apart
+                    idx = tc.get("index", 0)
+                    if tc.get("id") and idx in calls and calls[idx]["id"] and calls[idx]["id"] != tc["id"]:
+                        idx = next((k for k, c in calls.items() if c["id"] == tc["id"]), None)
+                        if idx is None:
+                            idx = max(calls) + 1
+                    c = calls.setdefault(idx, {"id": "", "type": "function",
+                                               "function": {"name": "", "arguments": ""}})
                     c["id"] = tc.get("id") or c["id"]
                     f = tc.get("function") or {}
-                    c["function"]["name"] += f.get("name") or ""
-                    c["function"]["arguments"] += f.get("arguments") or ""
+                    c["function"]["name"] = join_part(c["function"]["name"], f.get("name") or "")
+                    c["function"]["arguments"] = join_part(c["function"]["arguments"], f.get("arguments") or "")
         await job  # (raises the AIError of a failed request)
         msg = {"role": "assistant", "content": content}
         if calls:
@@ -419,7 +425,9 @@ class Mind:
                     msg = raw["choices"][0]["message"]
                 except (KeyError, IndexError, TypeError):
                     raise AIError("unexpected answer: %s" % json.dumps(raw)[:200])
-            calls = msg.get("tool_calls") or []
+            calls = fix_calls(msg.get("tool_calls") or [], body.get("tools"))
+            if msg.get("tool_calls") and not calls:
+                msg.pop("tool_calls", None)
             content = msg.get("content") or ""
             if not calls:
                 if not [n for n in ran if n not in TALK_TOOLS] and tools and run_tool and not self.allow_fib and claims_action(content) \
@@ -456,6 +464,38 @@ class Mind:
         return text, mood, gesture
 
 
+def join_part(have, part):
+    """Pieces of a streamed tool call. OpenAI sends a name once and the arguments in pieces; Gemini
+    may send the whole name (or the whole arguments) again in a later piece ("rememberremember"
+    broke a call). A piece that repeats what we have, or already contains it, isn't appended."""
+    if not part:
+        return have
+    if not have or part.startswith(have):
+        return part if have and part.startswith(have) and len(part) >= len(have) else have + part
+    if have.endswith(part) and (part.startswith("{") or part.isidentifier()):
+        return have
+    return have + part
+
+
+def fix_calls(calls, tools):
+    """Tool calls whose names aren't offered: a doubled name is mended, anything else is dropped (a
+    broken call sent back to the AI makes the next request fail)."""
+    from . import tools as tools_mod  # every tool there is: one not offered right now is refused, not dropped
+    names = {t["function"]["name"] for t in tools or []} | set(tools_mod.ABILITY_TOOLS) | {
+        t["function"]["name"] for t in getattr(tools_mod, "MEMORY_TOOLS", [])}
+    out = []
+    for c in calls:
+        n = c.get("function", {}).get("name", "")
+        if n not in names:
+            fixed = next((k for k in names if n and len(n) % len(k) == 0 and k * (len(n) // len(k)) == n), None)
+            if not fixed:
+                log.warning("dropped a broken tool call: %r", n)
+                continue
+            c["function"]["name"] = fixed
+        out.append(c)
+    return out
+
+
 class Streamer:
     """Turns a growing answer into sentences for her voice: the tags first ([mood][regard] {gesture}),
     then each sentence as soon as it ends. hold: don't speak a sentence that claims an action (the
@@ -481,6 +521,17 @@ class Streamer:
         while True:
             tail = content[self.pos:]
             m = self.END.search(tail)
+            # a sentence that's very short ("Hm.", "Sorry.", "It's very...") waits for the next one, so
+            # she doesn't speak (and the chat doesn't show) one word at a time; "..." before a small
+            # letter isn't the end of a sentence
+            while m and (len(parse_reply(tail[:m.end()])[0]) < 14 or (
+                    tail[m.start():m.end()].startswith(("…", ".")) and tail[max(0, m.start() - 2):m.start()] == ".."
+                    and tail[m.end():].lstrip()[:1].islower())):
+                nxt = self.END.search(tail, m.end())
+                if not nxt:
+                    m = None
+                    break
+                m = nxt
             if not m and not final:
                 return
             piece = tail[:m.end()] if m else tail

@@ -518,12 +518,16 @@ class Brain:
         Small things (a new item, a biome) are skipped when she spoke recently; moments that matter
         (a baby, a new pet, a first meeting, a death) wait their turn for up to a minute instead."""
         waits = 30 if event in WORTH_WAITING else 0
-        gap = 12 if event in WORTH_WAITING else 30
-        while (self.talk_lock.locked() or self.clock() - self.last_notice < gap) and waits > 0:
+        gap = 25 if event in WORTH_WAITING else 60  # (her own comments leave room: she isn't a radio)
+
+        def busy():  # she owes you an answer, or you're talking: her own comments wait (or are dropped)
+            return (self.talk_lock.locked() or bool(self.inbox) or (self.inbox_task is not None
+                    and not self.inbox_task.done()) or self.clock() - self.player_talked < 15)
+        while (busy() or self.clock() - self.last_notice < gap) and waits > 0:
             waits -= 1
             await asyncio.sleep(2)
         now = self.clock()
-        if not self.in_world or self.ws is None or self.talk_lock.locked() or now - self.last_notice < gap:
+        if not self.in_world or self.ws is None or busy() or now - self.last_notice < gap:
             return
         if now - self.noticed.get(event, -1e9) < {"mining": 600, "building": 600, "heard": 240}.get(event, 0):
             return
@@ -1665,8 +1669,11 @@ class Brain:
             except AIError as e:
                 log.error("AI error: %s", e)
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
-                await self.say("Hmm, my thoughts are fuzzy right now. Can you check my AI connection?", "sad",
-                               why="you couldn't think: the AI connection failed")
+                await self.say(random.choice(["Hm... my thoughts went all foggy. Say that again?",
+                                              "Wait, I lost it. What did you say?",
+                                              "Ugh, my head's all cloudy. One more time?"]), "calm",
+                               why="your thoughts went foggy for a moment (the thinking failed); the player sees a "
+                                   "notice about it")
                 return
             log.info("you: %s | %s: [%s]%s %s", text, self.cfg["name"], mood, " {%s}" % gesture if gesture else "", reply)
             self.memory.exchanges += 1

@@ -176,7 +176,7 @@ def test_ai_down_gives_a_friendly_line_and_a_notice(stubs):
             notice = await recv_until(ws, "notice")
             assert "AI gateway problem" in notice["text"]
             say = await recv_until(ws, "say")
-            assert say["mood"] == "sad"
+            assert say["mood"] in ("sad", "calm") and "AI" not in say["text"], "a friendly line, in her world"
     asyncio.run(with_brain(cfg, scenario))
 
 
