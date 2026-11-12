@@ -116,10 +116,13 @@ public final class Companion {
                         life.z + (Math.random() - 0.5) * 0.4, 0, 0.03, 0);
             }
         }
-        // hitting her: the attack key pressed while looking right at her, within reach
+        // hitting her: the attack key pressed with the crosshair right on her, and no mob, animal or
+        // block in front of her (hitting a cow next to her is not hitting her)
         boolean attack = mc.options.keyAttack.isDown() && mc.screen == null;
-        boolean struck = attack && !attackWasDown && !life.hidden() && life.playerLooksAtMe(s)
-                && Math.sqrt((life.x - s.ex) * (life.x - s.ex) + (life.y - s.ey) * (life.y - s.ey) + (life.z - s.ez) * (life.z - s.ez)) < 5;
+        double inTheWay = Double.MAX_VALUE;
+        if (target != null) inTheWay = target.distanceTo(p) - 0.3;
+        else if (hit != null && hit.getType() == HitResult.Type.BLOCK) inTheWay = hit.getLocation().distanceTo(eye);
+        boolean struck = attack && !attackWasDown && !life.hidden() && life.aimedAt(s, inTheWay);
         attackWasDown = attack;
         if (struck) {
             life.play(dev.kindredspirit.life.Emote.STARTLE, s.now);

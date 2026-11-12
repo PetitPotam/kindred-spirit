@@ -231,7 +231,12 @@ public final class Actions {
         ServerPlayer sp = serverPlayer(server, p);
         ServerLevel level = sp.serverLevel();
         int n = 0;
-        for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(sp.blockPosition()).inflate(10), e -> e instanceof Enemy && e.isAlive())) {
+        // monsters within 10 blocks, and any that is after the player from further away (a skeleton or a
+        // pillager shoots from 15 blocks; a witch throws from 10+)
+        for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(sp.blockPosition()).inflate(24), e -> e instanceof Enemy
+                && e.isAlive() && (e.distanceTo(sp) <= 10 || e.getTarget() == sp
+                || (e instanceof net.minecraft.world.entity.monster.RangedAttackMob && e.distanceTo(sp) <= 18)))) {
+            m.setTarget(null); // dazed: it forgets about the player for a moment
             m.knockback(2.2, sp.getX() - m.getX(), sp.getZ() - m.getZ());
             // dazed for a few seconds, so it doesn't walk straight back (no damage)
             m.addEffect(new net.minecraft.world.effect.MobEffectInstance(

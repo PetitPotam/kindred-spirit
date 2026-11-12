@@ -232,9 +232,10 @@ class Mind:
         self.remember("assistant", "[%s] %s" % (mood or "happy", text))
         return text, mood, gesture
 
-    def note_said(self, text, mood):
-        """Remember lines that did not come from the AI (danger warnings)."""
-        self.remember("assistant", "[%s] %s" % (mood, text))
+    def note_said(self, text, mood, why=""):
+        """Remember lines that did not come from the AI (warnings, "Ow!", "We're here!"...) and why, so a
+        reply to them makes sense."""
+        self.remember("assistant", "[%s] %s%s" % (mood, text, " (you said this on your own: %s)" % why if why else ""))
 
     async def reflect(self, transcript, known, diary=False):
         """Learning: what in this stretch of play is worth knowing for good? Returns

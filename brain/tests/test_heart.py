@@ -483,3 +483,12 @@ def test_flooding_her_with_messages_annoys_her_too():
     assert max(bonds) <= 58, "kind words: at most +8 a minute"
     assert bonds[-1] < bonds[4] and bonds[-1] < bonds[-2], "from the 6th message in 30 s it costs: %s" % bonds
     assert "spam" in h.guidance("happy")
+
+
+def test_a_power_is_discovered_only_when_it_does_something():
+    from kindred.server import did_something
+    assert not did_something("stop_guide", {"ok": True})
+    assert not did_something("protect", {"ok": True, "pushedAway": 0})
+    assert did_something("protect", {"ok": True, "pushedAway": 2})
+    assert not did_something("find_ore", {"ok": True, "found": False})
+    assert did_something("find_animal", {"ok": True, "found": True}) and did_something("guide", {"ok": True})

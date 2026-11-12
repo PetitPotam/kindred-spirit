@@ -94,3 +94,22 @@ def test_she_knows_you_just_died_and_came_back(stubs):
     asyncio.run(run())
     text = describe(b.snapshot)
     assert "Just happened: The player died" in text and "came back to life" in text
+
+
+def test_lead_the_way_to_the_animal_we_just_talked_about(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.snapshot = snap(animals=[{"id": 4, "type": "minecraft:cow", "distance": 24, "direction": "ahead-right"}])
+    b.recent_player = ["where are the cows?", "lead the way"]
+    b.last_player_text = "lead the way"
+    assert asyncio.run(b.guide_target({})) == {"entity": 4}
+    b.recent_player, b.last_player_text = ["lead the way"], "lead the way"
+    b.mind.history = [{"role": "assistant", "content": "[happy] There's a cow 24 blocks ahead on your right!"}]
+    assert asyncio.run(b.guide_target({})) == {"entity": 4}, "or the animal she just told you about"
+
+
+def test_being_attacked_means_protect_me():
+    for said in ("i am being attacked", "im getting shot", "save me", "the skeleton is shooting me",
+                 "theyre attacking us", "protect me"):
+        assert intents.action_hint(said, ["protect"]) == "protect", said
+    assert intents.action_hint("i shot the zombie", ["protect"]) is None
