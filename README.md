@@ -141,18 +141,37 @@ outside agents), where we may interoperate or borrow MIT code with credit.
 
 ## Setup (macOS, about 10 minutes)
 
-You need: Minecraft Java Edition, [Homebrew](https://brew.sh), and a
-[Gemini API key](https://aistudio.google.com/apikey) (there is a free tier). Fully local with
-[Ollama](https://ollama.com) should work through the gateway but hasn't been tested yet.
+You need Minecraft Java Edition and [Homebrew](https://brew.sh). For the AI, use what you already
+have: a free [Gemini key](https://aistudio.google.com/apikey), your Claude subscription (Claude
+Code), another AI's command-line tool you pay for (Codex, Gemini CLI, Cursor), an API key (OpenAI,
+Claude API, Groq, OpenRouter, Mistral), or nothing at all with [Ollama](https://ollama.com) on your
+computer.
 
 ```bash
 brew install openjdk@25 python@3.12 whisper-cpp
 git clone https://github.com/PetitPotam/kindred-spirit.git && cd kindred-spirit
-scripts/setup.sh                 # brain, local voice and speech-to-text (~700 MB download)
-open -e ~/.kindred-spirit/secrets.env   # paste your key after GEMINI_API_KEY=
+scripts/setup.sh                 # the guide (below)
 (cd mod && ./gradlew build)      # builds the mod
 python3 scripts/install_profile.py      # quit the Minecraft Launcher first
 ```
+
+`setup.sh` prepares the brain, then a short guide asks what you have for each of the four parts:
+**the AI** (how she thinks), **speech-to-text** (how she hears you), **the voice** (how she
+speaks; or subtitles only) and **memory** (on your computer or your own deployed gateway). It
+saves your choices (keys go in `~/.kindred-spirit/secrets.env`, readable only by you), installs
+only the local tools you picked, starts everything and tests each part the way she uses it:
+
+```
+  ok   AI           Hello, friend, there!
+  ok   voice        65 KB of WAV
+  ok   speech->text heard: 'Testing 1 2 3.'
+  ok   embeddings   384 numbers per text
+  ok   memory       stored, found and removed a test memory
+```
+
+Anything that fails comes with how to fix it. Run the guide again any time to change your choices
+(`brain/.venv/bin/python scripts/guide.py`), or just the test (`... scripts/guide.py --check`).
+Without questions: `scripts/setup.sh --defaults` (Gemini, everything else local).
 
 `install_profile.py` adds a **Kindred Spirit (Fabric 1.21.1)** profile with its **own game folder**
 (`minecraft-kindred`), installs Fabric Loader and Fabric API, and backs up your launcher profiles.
@@ -171,7 +190,7 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 | | |
 |---|---|
 | **V** (hold) | talk; release to send (change it in Controls → Kindred Spirit) |
-| `/kindred <text>` or `/ks <text>` | type to it |
+| just type in chat | talk to her (on a server, start with her name); or `/kindred <text>`, `/ks <text>` |
 | `/kindred status` | brain connection, skin, mode, quality level, mood |
 | `/kindred reconnect` | after restarting the brain |
 | `/kindred skin <name>` · `/kindred skins` · `/kindred skins reload` | change its look, list skins, reload your skins folder |
