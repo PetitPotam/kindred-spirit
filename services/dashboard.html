@@ -1109,7 +1109,10 @@ function toast(t) {
 async function profilesBar() {
   const d = await get("/api/profiles");
   const opts = (sel, extra) => extra.concat(d.profiles.map((p) => p.name)).map((n) => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("");
-  $("prof").innerHTML = `<select id="pf-pick" aria-label="Profile">${opts("", []) || "<option value=''>(none saved yet)</option>"}</select>
+  const inUse = (d.profiles.find((p) => p.active) || {}).name;
+  const pick = d.profiles.map((p) => `<option value="${esc(p.name)}" ${p.name === inUse ? "selected" : ""}>${esc(p.name)}${p.active ? "  ✓ in use" : ""}</option>`).join("");
+  $("prof").innerHTML = `<span class="chip ${inUse ? "good" : "plain"}" title="the saved profile your settings match right now">${inUse ? "In use: " + esc(inUse) : d.profiles.length ? "In use: your own mix (no saved profile)" : "No profiles yet"}</span>
+    <select id="pf-pick" aria-label="Profile">${pick || "<option value=''>(none saved yet)</option>"}</select>
     <button class="btn primary" id="pf-apply" title="use these settings now">Use</button><button class="btn ghost danger" id="pf-del">Delete</button>
     <span class="sep"></span><input type="text" id="pf-name" placeholder="name, e.g. calm Pip" style="width:160px" aria-label="New profile name"><button class="btn" id="pf-save">Save current as</button>
     <span class="sep"></span><span class="small muted">Compare</span> <select id="pf-a" aria-label="First">${opts("current", ["current", "defaults"])}</select> <span class="small muted">with</span> <select id="pf-b" aria-label="Second">${opts("defaults", ["current", "defaults"])}</select>
@@ -1118,7 +1121,7 @@ async function profilesBar() {
   $("pf-save").onclick = async () => { const n = $("pf-name").value.trim(); if (!n) { $("pf-name").focus(); return msg("give it a name"); }
     try { await post("/api/profiles", {action: "save", name: n}); await profilesBar(); toast("Saved the profile " + n); } catch (e) { msg(e.message); } };
   $("pf-apply").onclick = async () => { const n = $("pf-pick").value; if (!n) return;
-    try { const r = await post("/api/profiles", {action: "apply", name: n}); editing = false; await settingsTab(); toast(`Using ${n} (${r.changed.length} changed)`); } catch (e) { msg(e.message); } };
+    try { const r = await post("/api/profiles", {action: "apply", name: n}); editing = false; await settingsTab(); toast(r.changed.length ? `Now using ${n}: ${r.changed.length} setting${r.changed.length > 1 ? "s" : ""} changed` : `Already using ${n}: nothing to change`); } catch (e) { msg(e.message); } };
   $("pf-del").onclick = async () => { const n = $("pf-pick").value; if (!n || !confirm("Delete the profile " + n + "?")) return;
     try { await post("/api/profiles", {action: "delete", name: n}); await profilesBar(); msg("deleted " + n); } catch (e) { msg(e.message); } };
   $("pf-cmp").onclick = async () => {
