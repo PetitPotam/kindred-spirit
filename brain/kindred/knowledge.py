@@ -43,7 +43,8 @@ def _world_sentence(text):
     t = text or ""
     if REQUEST.search(t) and not re.search(r"\b(how|what|where|which|why|when)\b", t, re.I):
         return False
-    if ABOUT_US.search(t) and not re.search(r"\b(can you|could you|do you know)\b", t, re.I):
+    if ABOUT_US.search(t) and not re.search(r"\b(can|could) you (tell|show|explain|teach|remind|help)\b|"
+                                            r"\bdo you know (how|what|where|which|why)\b", t, re.I):
         return False
     if re.search(r"\bhow (do|does) (i|we|it|this|that) (look|seem|feel|sound)\b", t, re.I):
         return False  # "how do I look?" is about you, not about the world

@@ -41,6 +41,7 @@ from . import becoming as becoming_mod
 from . import instinct as instinct_mod
 from . import tunes
 from .senses import Novelty
+from .sessionlog import SessionLog
 from .mind import post_json
 from .heart import Heart
 from .memory import GatewayMemory, Memory
@@ -86,9 +87,12 @@ class SpokenStream:
 
     def __init__(self, brain):
         self.brain, self.q, self.line, self.said = brain, asyncio.Queue(), None, []
+        self.started, self.first_at = brain.clock(), None
         self.task = asyncio.create_task(self.run())
 
     def add(self, text, mood, gesture, whisper):
+        if self.first_at is None:
+            self.first_at = self.brain.clock()
         self.said.append(text)
         self.q.put_nowait((text, mood, gesture, whisper))
 
@@ -172,6 +176,9 @@ def estimate_seconds(text):
 IMPORTED_KINDS = ("player", "self", "habit", "origin", "taste", "core")  # what an import brings: who you are, who she is, your habits
 
 # moments worth waiting for a pause in the conversation, rather than skipping
+DANGER_SOUND = re.compile(r"creeper|zombie|skeleton|spider|witch|phantom|drowned|husk|stray|pillager|vindicator|"
+                          r"ravager|blaze|ghast|hoglin|piglin|warden|enderman|slime|silverfish|guardian|evoker", re.I)
+
 # sounds worth turning her head for (by the names the world gives them): creatures, caves, water, fire...
 INTERESTING = re.compile(r"groan|hiss|growl|rattl|ambien|cave|roar|scream|shriek|crackl|pops|bubbl|howl|creak|chime|"
                          r"music|sing|moo|bleat|baa|oink|cluck|neigh|purr|meow|bark|buzz|drip|flow|thunder|bell|"
@@ -227,7 +234,8 @@ class Brain:
         self.understand = Understand(cfg)  # System 0's understanding (local embeddings)
         self.instinct = instinct_mod.Instinct()  # System 0's own words, written by System 2 (per world)
         self.lines_written_at, self.last_filler, self.becoming_at = -1e9, -1e9, -1e9
-        self.novelty = Novelty()  # what's new to her and what she's used to (senses.py)  # what the world remembers (services/knowledge)
+        self.novelty = Novelty()  # what's new to her and what she's used to (senses.py)
+        self.session = SessionLog()  # a record of each play session, read afterwards (sessionlog.py)  # what the world remembers (services/knowledge)
         self.listening = set()       # questions she's listening to the world about right now
         self.reading = None          # the guide she was last told about (listen_more goes on from there)
         # one voice, coordinated (see say): what she's saying now, and what an interruption left unsaid
@@ -351,6 +359,14 @@ class Brain:
             return {"ok": False, "error": "the game didn't answer in time"}
 
     async def run_tool(self, name, args):
+        """What happens when the AI uses a tool (and the session log notes it)."""
+        result = await self._run_tool(name, args)
+        ok = not (isinstance(result, dict) and result.get("ok") is False)
+        self.session.event("tool", name=name, args=json.dumps(args)[:120], ok=ok,
+                           result=json.dumps(result)[:160] if isinstance(result, dict) else str(result)[:160])
+        return result
+
+    async def _run_tool(self, name, args):
         """What happens when the AI uses a tool: memory here, everything else in the game."""
         try:
             if name == "remember":
@@ -440,6 +456,8 @@ class Brain:
             return
         log.info("bond %+.1f (%s) -> %.0f %s | %s", delta, why, self.heart.bond, self.heart.level(),
                  getattr(self.heart.rel, "last_line", ""))
+        self.session.event("heart", change=round(delta, 1), why=why, bond=round(self.heart.bond),
+                           stance=self.heart.stance(), detail=getattr(self.heart.rel, "last_line", "")[:160])
         level = self.heart.level()
         feel = "%s, %s" % (level, self.heart.stance())
         if self.instinct.level and feel != self.instinct.level and self.clock() - self.lines_written_at > 600:
@@ -519,7 +537,7 @@ class Brain:
         Small things (a new item, a biome) are skipped when she spoke recently; moments that matter
         (a baby, a new pet, a first meeting, a death) wait their turn for up to a minute instead."""
         waits = 30 if event in WORTH_WAITING else 0
-        gap = 25 if event in WORTH_WAITING else 60  # (her own comments leave room: she isn't a radio)
+        gap = 45 if event in WORTH_WAITING else 150  # (her own comments leave room: she isn't a radio)
 
         def busy():  # she owes you an answer, or you're talking: her own comments wait (or are dropped)
             return (self.talk_lock.locked() or bool(self.inbox) or (self.inbox_task is not None
@@ -530,7 +548,7 @@ class Brain:
         now = self.clock()
         if not self.in_world or self.ws is None or busy() or now - self.last_notice < gap:
             return
-        if now - self.noticed.get(event, -1e9) < {"mining": 600, "building": 600, "heard": 240}.get(event, 0):
+        if now - self.noticed.get(event, -1e9) < {"mining": 600, "building": 600, "heard": 600, "biome": 300}.get(event, 0):
             return
         instruction = self.heart.notice(event, detail, self.snapshot)
         if not instruction:
@@ -546,7 +564,8 @@ class Brain:
                 return
         self.last_talk = self.clock()
         log.info("noticed %s (%s): %s", event, detail, text)
-        await self.say(text, mood or "curious", emote=gesture, prio="reaction" if event in WORTH_WAITING else "aside")
+        await self.say(text, mood or "curious", emote=gesture, prio="reaction" if event in WORTH_WAITING else "aside",
+                       source="own")
 
     # ------------------------------------------------------------------ what the world remembers (knowledge base)
 
@@ -991,10 +1010,14 @@ class Brain:
             return
         await self.reflect(session_end=True)
         await self.safe(self.memory.end_session())
+        written = self.session.finish()
+        if written:
+            log.info("session log: %s", written)
 
     async def on_event(self, name, msg=None):
         msg = msg or {}
         if name == "join":
+            self.session.start(msg.get("world") or "unknown")
             self.in_world = True
             self.last_talk = self.clock()
             try:
@@ -1116,6 +1139,7 @@ class Brain:
             alert = self.alerts.check(s, now)
             if alert:
                 log.info("alert %s: %s", alert.kind, alert.text)
+                self.session.event("alert", what=alert.kind, text=alert.text)
                 asyncio.create_task(self.say(alert.text, alert.mood, instant=True,
                                              why="a warning: %s" % alert.kind.replace("_", " ")))
                 return
@@ -1159,6 +1183,7 @@ class Brain:
         for h in s.get("sounds") or []:
             what = h.get("what", "")
             if (h.get("new") and h.get("distance", 0) >= 5 and INTERESTING.search(what)
+                    and not DANGER_SOUND.search(what)  # (monsters: her warnings take care of those)
                     and not any(k and k in what.lower() for k in seen)):
                 where = "%d blocks %s%s" % (h.get("distance", 0), where_words(h.get("direction")),
                                             ", below" if h.get("above", 0) < -3 else ", above" if h.get("above", 0) > 3 else "")
@@ -1363,12 +1388,12 @@ class Brain:
         self.last_talk = self.clock()
         log.info("on her own: %s", text)
         await self.say(text, m or mood, emote=gesture or emote,
-                       style="whisper" if self.mind.last_whisper else None, prio=prio)
+                       style="whisper" if self.mind.last_whisper else None, prio=prio, source="own")
         self.last_talk = self.clock()
 
     # ------------------------------------------------------------------ talking
 
-    async def say(self, text, mood, instant=False, emote=None, style=None, why="", prio=None):
+    async def say(self, text, mood, instant=False, emote=None, style=None, why="", prio=None, source=None):
         """Speak a line: subtitle at once, voice streamed sentence by sentence after it.
 
         One voice, coordinated (prio): "urgent" (danger) may interrupt anything; a higher priority cuts
@@ -1384,6 +1409,7 @@ class Brain:
         if rank == 0 and (self.inbox or self.talk_lock.locked() or self.player_listening
                           or now - self.player_talked < 6):
             log.info("not now (%s): %s", prio, text[:70])
+            self.session.event("not_said", text=text, reason="you were talking or waiting for an answer", prio=prio)
             return None
         if left > 0.3:
             current = PRIORITY[self.speaking_prio]
@@ -1395,12 +1421,15 @@ class Brain:
                 await asyncio.sleep(left)  # a reaction waits for her to finish the line
             else:
                 log.info("not now (%s while saying %s): %s", prio, self.speaking_prio, text[:70])
+                self.session.event("not_said", text=text, reason="she was already saying something", prio=prio)
                 return None
         if why:  # a line said on instinct: in her own words (if written), and the AI hears it, with why
             text = self.instinct.personal(text)
             self.mind.note_said(text, mood, why)
         self.line += 1
         line = self.line
+        self.session.event("pip", text=text, mood=mood, prio=prio, why=why, source=source or (
+            "warning" if why.startswith("a warning") else "instinct" if why else "reply"))
         self.mood = mood or self.mood
         # a warning's fright passes quickly; a feeling from conversation lasts a bit longer
         self.mood_until = self.clock() + (8 if instant else 20)
@@ -1446,6 +1475,8 @@ class Brain:
     def cut_short(self, now, by_player=False):
         """What she was saying gets interrupted: if it was an answer, remember what she didn't get to say
         (finished after the interruption, or, if you speak, told to the AI so she can come back to it)."""
+        self.session.event("cut", by_player=by_player, was=self.speaking_prio,
+                           rest=" ".join(self.speaking_chunks)[:160])
         if self.speaking_prio != "reply" or not self.speaking_chunks:
             return
         elapsed, done, i = now - self.speaking_started, 0.0, 0
@@ -1585,6 +1616,7 @@ class Brain:
             log.info("understanding not warmed up: %s", e)
 
     def hear_player(self, text, spoken=False):
+        self.session.event("you", text=(text or "").strip(), spoken=spoken)
         """Messages wait in an inbox while she's thinking; when she's free she answers all of them at once
         (so ten messages in a row get one answer, not ten answers trickling in for a minute)."""
         text = (text or "").strip()
@@ -1675,8 +1707,11 @@ class Brain:
                     if filler:
                         filler.cancel()
                 await speech.close()
+                self.session.event("answer", first_words=round((speech.first_at or self.clock()) - speech.started, 2),
+                                   total=round(self.clock() - speech.started, 2))
             except AIError as e:
                 log.error("AI error: %s", e)
+                self.session.event("error", text=str(e)[:200])
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
                 await self.say(random.choice(["Hm... my thoughts went all foggy. Say that again?",
                                               "Wait, I lost it. What did you say?",
@@ -1761,7 +1796,7 @@ class Brain:
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
                 return
         self.last_talk = self.clock()
-        await self.say(text, mood or "happy", emote=gesture)
+        await self.say(text, mood or "happy", emote=gesture, source="own")
 
     async def small_talk_loop(self, every=20.0):
         while True:
@@ -1784,7 +1819,7 @@ class Brain:
                 except AIError as e:
                     log.error("AI error during small talk: %s", e)
                     continue
-            await self.say(text, mood or "happy", emote=gesture, prio="aside")
+            await self.say(text, mood or "happy", emote=gesture, prio="aside", source="own")
 
 
 async def run(cfg, token):
