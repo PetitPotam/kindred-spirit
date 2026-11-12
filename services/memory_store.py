@@ -274,6 +274,11 @@ class Store:
             self.db.commit()
         return value
 
+    def docs(self, prefix=""):
+        rows = self.db.execute("select key, length(value), updated from docs where key like ? order by updated desc",
+                               (prefix + "%",)).fetchall()
+        return [{"key": r[0], "size": r[1], "updated": r[2]} for r in rows]
+
     def clear_docs(self):
         """Forget the saved state: the bond, discovered powers, conversations and summaries."""
         with self.lock:

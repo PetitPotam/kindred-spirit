@@ -334,6 +334,8 @@ def memory_call(store, op, req):
                                         strict=bool(req.get("strict")))}
     if op == "doc":
         return {"value": store.doc(req["key"], req.get("value"))}
+    if op == "docs":  # the saved documents (keys, sizes, when), for the dashboard
+        return {"docs": store.docs(req.get("prefix", ""))}
     if op == "clear_docs":
         return {"cleared": store.clear_docs()}
     if op == "stats":
@@ -470,9 +472,19 @@ class Handler(BaseHTTPRequestHandler):
                 signatures.pop(k, None)
         log.info("ai %s %s %.1fs | %s -> %s", name, req.get("model"), time.time() - started,
                  player[-100:].replace("\n", " "), (msg.get("content") or "")[:160].replace("\n", " "))
+        usage = resp.get("usage") or {}
         transcript({"upstream": name, "model": req.get("model"), "seconds": round(time.time() - started, 2),
                     "player": player, "reply": msg.get("content"),
-                    "actions": [tc["function"] for tc in msg.get("tool_calls") or []]})
+                    "actions": [tc["function"] for tc in msg.get("tool_calls") or []],
+                    # for the dashboard: what it cost, what it could do, and how it was steered
+                    "tokens_in": usage.get("prompt_tokens"), "tokens_out": usage.get("completion_tokens"),
+                    "messages": len(req.get("messages") or []),
+                    "tools": [(t.get("function") or {}).get("name") for t in req.get("tools") or []],
+                    "forced": ((req.get("tool_choice") or {}).get("function") or {}).get("name")
+                    if isinstance(req.get("tool_choice"), dict) else None,
+                    "controls": {k: v for k, v in (("persona", bool(state.get("persona")) and not paused),
+                                                   ("facts", len(state.get("facts") or []) if not paused else 0),
+                                                   ("hint", hint)) if v}})
         self.reply(200, resp)
 
     # -------------------------------------------------------------- speech to text
