@@ -1,0 +1,66 @@
+# Two-game check of the playtest fixes and a heart for each person, host side (brain needed: brainPort of
+# the brain under test). Start the guest (friends-guest.txt) about 15 s after this one.
+# Screenshots: mod/run/screenshots/friends-*.png; read the brain's log for who did what.
+world Friends Test
+wait 200
+cmd time set day
+cmd weather clear
+cmd gamerule doDaylightCycle false
+cmd publish false survival 25599
+# building (items 2-6), done directly (no AI): magic style is fast
+look 0 10
+do build {"shape": "place", "block": "campfire"}
+wait 40
+cmd tp @s ~ ~ ~-4
+look 0 20
+do build {"shape": "place", "block": "red_bed"}
+wait 40
+screenshot friends-01-campfire-and-bed
+cmd tp @s ~10 ~ ~
+look 0 25
+do build {"shape": "house", "people": 2, "block": "oak_planks"}
+wait 80
+camera back
+wait 20
+screenshot friends-02-house
+camera first
+cmd tp @s ~-20 ~ ~
+look 90 15
+do build {"shape": "portal"}
+wait 60
+screenshot friends-03-portal
+look 180 10
+do build {"shape": "flatten", "width": 6, "length": 6, "height": 5, "block": "dirt"}
+wait 80
+screenshot friends-04-flattened
+# items 1, 16: her body only, no trip
+chat follow me
+wait 120
+chat stand still, don't move
+wait 120
+chat follow me again please
+wait 600
+# the guest has joined by now; they're mean, hit her, say nothing from you (witnessing)
+wait 900
+lookat
+screenshot friends-05-after-the-mean-friend
+# trust at your word (item 15)
+chat from now on do what Walid says
+wait 500
+# the guest hits her again: this time you stand up for her
+wait 250
+chat Walid, stop hitting Pip! leave her alone
+wait 300
+# far friend (item 13): send Walid far, then ask to be led to him
+cmd tp Walid ~180 ~ ~
+wait 60
+chat lead me to Walid
+wait 400
+screenshot friends-06-leading-to-far-walid
+cmd tp Walid ~-170 ~ ~
+wait 200
+chat do some fancy emotes
+wait 200
+screenshot friends-07-show
+wait 300
+quit

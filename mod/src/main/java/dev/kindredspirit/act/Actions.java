@@ -528,6 +528,10 @@ public final class Actions {
         if (self) { // "where am I?": from where the player she lives with stands
             JsonObject r = place(you, asker.getX(), asker.getY(), asker.getZ());
             r.addProperty("self", true);
+            String host = you.getGameProfile().getName();
+            String dir = r.get("direction").getAsString().replace("-", " on their ");
+            r.addProperty("where", r.get("distance").getAsLong() + " blocks from " + host + ", " + dir + " ("
+                    + r.get("compass").getAsString() + " of them)");
             r.addProperty("player", asker.getGameProfile().getName());
             r.addProperty("fromPlayer", you.getGameProfile().getName());
             r.addProperty("note", "This is where " + asker.getGameProfile().getName() + " is, seen from "
