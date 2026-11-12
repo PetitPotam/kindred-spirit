@@ -44,20 +44,25 @@ from scratch for Fabric.
 | Typed chat | just type in the game's chat: in singleplayer everything goes to her; on a server, start with her name ("Pip, where are the cows?"). Or `/kindred <message>` (`/ks`). Set `chatMode` to `all`, `name` or `command` |
 | In-game commands | `/kindred memory` (what she knows here), `memory worlds`, `memory import <world>` (bring what she knew about you from another world), `memory forget <words>`, `reset` (a brand-new companion for this world), and the gateway's special instructions: `persona`, `fact`, `hint`, `model` (`clear` removes), `instructions`, `pause`, `resume` |
 | It understands your game | health, hunger, armor, effects, inventory, position, biome, time, weather, what you look at, nearby hostile mobs with direction |
+| Real senses | she sees only what's in her line of sight from where she floats, hears by the game's own sound names ("zombie groans" behind a wall), feels rain, snow and the cold, watches what you do (placed, mined, crafted, ate), and finds the new more interesting than the familiar |
 | Danger warnings | creeper within 8 blocks, lava or a big drop in the direction you're heading (also on the way she leads), health at 3 hearts or less: instant subtitle, voice right after, with cooldowns |
 | Her glow | in the dark (night, caves) her soft light lights the way around her, in singleplayer: an invisible light that moves with her and is never left behind (`glow` in the mod's settings) |
 | She has a heart | a whimsical character with a **bond meter**: kindness brings her closer and makes her open up, propose plans and play pranks; hitting her or being mean makes her keep her distance, sulk, or vanish for a while. She forgives quickly ([how](docs/HEART.md)) |
 | She discovers her powers | she doesn't know what she can do until you ask. She answers at once ("I'll try!"), then the power slowly wakes up in the background: she senses something strange, maybe asks you a small favour, and then "I can sense diamonds now!" She remembers it after that |
-| She helps | finds ores, animals ("where are the sheep?") and any structure or biome, and tells you which way; **leads the way** there, floating well ahead of you with an arrow and the distance at the top of the screen and a sparkle trail (she keeps ahead even when you sprint, follows a walking animal, and calls you back if you go the wrong way); pushes monsters away, places a torch, **chops a whole tree or mines a block** you look at (what drops goes in your inventory); magic style gives items, all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
+| She helps | finds ores, animals ("where are the sheep?"), blocks, players and any structure or biome, and tells you which way; **leads the way** there, floating well ahead of you with an arrow and the distance at the top of the screen and a sparkle trail (she keeps ahead even when you sprint, follows a walking animal, and calls you back if you go the wrong way); pushes monsters away, places a torch, **chops a whole tree or mines a block** you look at (what drops goes in your inventory), **builds** simple shapes with you (a pillar, corners, a wall, a floor, an outline); magic style gives items and effects (haste, night vision, speed, healing, food...), all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
 | It remembers and learns | who you are, what you like, your habits, your places, its own little personality, a diary of your sessions; reminders ("in 10 minutes", "at night", "next time we play") ([how](docs/MEMORY.md)) |
+| It knows Minecraft | asked how something works, she answers from a local knowledge base of the Minecraft Wiki (current for your version) and learns pages she doesn't have yet in the background ([how](docs/KNOWLEDGE.md)) |
+| Friends on LAN | one Pip, on the computer that runs her: friends with the mod see her exactly as you do, friends without it see a stand-in; everyone talks to her in chat; she finds, helps and stays with whoever you choose, and comes along when a friend hosts the world ([below](#friends-on-your-lan-world)) |
 | Personality | greets you, small talk when it's been quiet a while (configurable), moods |
 | Subtitles | above the slime, optional captions and a log in your chat (only on your screen) |
-| It feels alive | looks where you look, looks back when you look at it, wanders around you when you stand still, dozes after a long quiet time, leans as it floats, blinks, its eyes move before its head |
+| It feels alive | looks where you look, looks back when you look at it, wanders around you when you stand still, dozes after a long quiet time, leans as it floats, blinks, its eyes move before its head, its face shows its mood (and it winks); hums little tunes with the game's note-block sounds; finds its way around walls and through doors instead of over the roof |
 | You can direct it | say or type "stay here", "come here", "follow me", "look at me", "do a spin"; pet it by sneaking while looking at it |
-| Skins | a slime, a soft cube, a fairy and a pixie with fluttering wings, a glowing wisp, a strawberry, a starry orb, or your own PNG ([how](docs/SKINS.md)) |
+| Skins | a slime, a soft cube, a fairy and a pixie with fluttering wings, a glowing wisp, a strawberry, a starry orb, Sprout with its leaves, or your own PNG ([how](docs/SKINS.md)) |
+| Session logs | every play session gets a timeline and a summary in `~/.kindred-spirit/logs/sessions/`, shown on the dashboard, to see what went wrong |
 
-Not yet: building, mining and crafting jobs, the settings screen, star and robot shapes. That's the
-[roadmap](docs/ROADMAP.md).
+In progress: Minecraft's own commands as her powers (instant building, flattening, a whole house), a
+memory of places with coordinates, a heart for each friend, blueprints. Not yet: mining and crafting
+jobs, the in-game settings screen. That's the [roadmap](docs/ROADMAP.md).
 
 ### What it may do: power and style
 
@@ -66,11 +71,12 @@ You decide how much it can do (`/kindred power`, `/kindred style`); the mod enfo
 | | grounded (only what really exists) | magic (things can appear) |
 |---|---|---|
 | **advisor** | talks, finds ores and animals, locates places, leads the way | same |
-| **helper** (default) | + pushes monsters away, places one of *your* torches | + gives items, torches from thin air |
+| **helper** (default) | + pushes monsters away, places one of *your* torches, chops, builds with your blocks | + gives items and effects, torches and blocks from thin air |
 | **allpowerful** | + time and weather | + all of it |
 
-Finding and guiding work everywhere; anything that changes the world works in singleplayer (and
-when you host LAN), done the way a command would.
+Finding and guiding work everywhere; anything that changes the world works in singleplayer, when you
+host LAN, and in a friend's LAN world whose game has Kindred (their game does it for her), done the
+way a command would.
 
 ### Friends on your LAN world
 
@@ -231,9 +237,11 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 | `/kindred reconnect` | after restarting the brain |
 | `/kindred skin <name>` · `/kindred skins` · `/kindred skins reload` | change its look, list skins, reload your skins folder |
 | `/kindred mode follow\|stay\|come` | follow you (default), wait here, come close for a moment |
+| `/kindred follow <player>` · `/kindred follow me` | on LAN: float beside a friend, or come back to you |
+| `/kindred heart` · `/kindred heart fresh` | how she feels about you (five feelings, open hurts), or a fresh start for her heart here |
 | `/kindred side left\|right\|above\|auto` | which side it floats on |
 | `/kindred look me\|there\|ahead\|up\|down\|around` | where to look for a few seconds |
-| `/kindred emote <name>` | nod, shake, spin, hop, wiggle, happy, shy, think, doze |
+| `/kindred emote <name>` | nod, shake, spin, hop, wiggle, happy, shy, think, tease (a wink), doze |
 | `/kindred life` · `/kindred life <name> <value>` · `/kindred life reset` | its liveliness switches (see above) |
 | `/kindred power advisor\|helper\|allpowerful` · `/kindred style grounded\|magic` | what it may do (see above) |
 | sneak while looking at it | pet it |
@@ -245,16 +253,20 @@ near me?", "where are the sheep? lead the way", "where's the nearest village? ta
 
 ## Watching her think
 
-`scripts/start.sh` also starts a dashboard at **http://127.0.0.1:11440**: her bond and mood live,
-powers waking up, what she says and does, every AI call with its tokens and cost, speech and
-voice timings, her memories per world (with a search that shows what she'd recall), and the
-gateway's settings and special instructions. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
+`scripts/start.sh` also starts a dashboard at **http://127.0.0.1:11440**: her heart and mood live,
+friends in your world (whom she stays with, what they may ask), powers waking up, what she says and
+does, every AI call with its tokens and cost, speech and voice timings, her memories per world (with a
+search that shows what she'd recall), past play sessions (replay what she said), **Try Pip** (talk to
+her without the game), and **every setting** with its default, profiles to save and compare, and the
+gateway's special instructions. Changes apply live. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
 
 ## Settings
 
 - **Brain:** `~/.kindred-spirit/brain.toml` (name, personality, model, voice, chattiness, alerts).
 - **Mod:** `minecraft-kindred/config/kindredspirit.json` (skin, quality, subtitles, captions, position, size,
-  volume, the guide arrow and sparkle trail (`guideArrow`, `guideTrail`), and the liveliness switches under `"life"`).
+  volume, the guide arrow and sparkle trail (`guideArrow`, `guideTrail`), friends on LAN (`lanGuests`,
+  `lanGuestPowers`, `lanVisitors`, `sharedPip`, `follow`), and the liveliness switches under `"life"`).
+- **Everything above** is also editable on the dashboard's Settings page, live, with each default and profiles.
 - **AI, speech-to-text, voice, embeddings, memory storage:** all chosen in the gateway, live, no
   restart. The guide: **[docs/GATEWAY.md](docs/GATEWAY.md)**.
   ```bash
@@ -266,10 +278,11 @@ gateway's settings and special instructions. See [docs/DASHBOARD.md](docs/DASHBO
   ```
   Keys go in `~/.kindred-spirit/secrets.env` (readable only by you).
 - **Memory:** each world has its own companion by default; `scripts/memory.sh` shows what she remembers, `worlds` and `import` bring memories from one world to another, `reset` starts over ([how it works](docs/MEMORY.md)).
-- **What she knows about Minecraft:** a local knowledge base (recipes, mobs, biomes, redstone, farming, build guides) you fill yourself from the Minecraft Wiki and your own notes: `python3 services/knowledge/kb.py crawl minecraft-wiki --category Mobs --limit 50` ([docs/KNOWLEDGE.md](docs/KNOWLEDGE.md)). Not yet used by her in conversation.
+- **What she knows about Minecraft:** a local knowledge base (recipes, mobs, biomes, redstone, farming, build guides) you fill yourself from the Minecraft Wiki and your own notes: `python3 services/knowledge/kb.py crawl minecraft-wiki --category Mobs --limit 50` ([docs/KNOWLEDGE.md](docs/KNOWLEDGE.md)). She uses it when you ask how something works, and learns missing pages in the background.
 - **Her heart** (discovering her powers, bond, pride, play-fights, her mood, animals, pranks, mischief when angry, vanishing...): `[heart]` in brain.toml ([docs/HEART.md](docs/HEART.md)).
-- **Her voice:** set in the gateway: `$G voice af_bella`, or a blend like `af_sky*0.5+af_bella*0.5` (the default,
-  young and bright), with pitch, speed and moods (excited, calm, sad, whisper): [docs/GATEWAY.md](docs/GATEWAY.md#her-voice).
+- **Her voice:** set in the gateway: Kokoro's British `bf_lily` by default (a little faster and higher, each
+  sentence said a bit differently), with moods (excited, calm, sad, whisper); `$G voice bf_emma` or a blend
+  like `bf_lily*0.7+bf_emma*0.3` to change it: [docs/GATEWAY.md](docs/GATEWAY.md#her-voice).
 - Looks: `skin` in kindredspirit.json, or `/kindred skin <name>`. Make your own: [docs/SKINS.md](docs/SKINS.md).
 
 ## Performance

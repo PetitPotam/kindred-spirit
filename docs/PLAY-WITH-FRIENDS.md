@@ -49,6 +49,11 @@ Both go in your mods folder: press `Win + R`, type `%APPDATA%\.minecraft\mods` a
 3. You'll see a message: you see their Pip. She floats beside the host (or beside you, if the host
    asks her to stay with you).
 
+**You can host too.** Open your world to LAN and let them join: their Pip comes along with them (her
+brain stays on their computer). Your game shows her to everyone and carries out her powers in your world
+for them. To stop her changing things in your world, set `"lanVisitors": false` (below). Without them,
+your game shows no Pip at all: she only appears when someone's Pip is there.
+
 Talking to her:
 
 - In chat: **`Pip, can you give me night vision?`** Start with her name. She answers in your chat
@@ -64,6 +69,7 @@ Talking to her:
 - `"sharedPip": "host"` (default): in a friend's world you see and share their Pip.
 - `"sharedPip": "own"`: your own Pip instead. That needs the whole setup (the brain, an AI key...):
   see the README. Her brain's start scripts are written for macOS for now.
+- `"lanVisitors": true` (default): when you host, a friend's Pip may use her powers in your world.
 
 ## If something's wrong
 

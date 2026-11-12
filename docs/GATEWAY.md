@@ -148,17 +148,20 @@ The dashboard ([DASHBOARD.md](DASHBOARD.md)) shows them, and which AI calls they
 
 ## Her voice
 
-With the local voice (Kokoro), Pip's voice is a blend of two young voices, `af_sky` and `af_bella`,
-slightly faster and higher than normal so she sounds bright and lively. Each line is said in a
+With the local voice (Kokoro), Pip's voice is `bf_lily`, a British voice, slightly faster and higher
+than normal so she sounds bright and lively (chosen from an audition of the local and cloud voices;
+see the roadmap for the expressive voices tried and postponed). Each sentence is said a little
+differently (speed and pitch vary), and the sounds that don't speak well ("hm", "pff", "tsk") are left
+to her gestures instead of her voice. Each line is said in a
 style that follows her mood: **excited** (faster), **calm**, **sad** (slower, softer), and
 **whisper** (quieter, breathier) for secrets, spooky things and what she senses in the dark.
 
 All of it is in `~/.kindred-spirit/gateway.json`, under `tts.providers.local_kokoro`:
 
 ```json
-"voice": "af_sky*0.5+af_bella*0.5", "speed": 1.12, "pitch": 1.08,
-"styles": {"excited": {"speed": 1.3}, "calm": {"speed": 1.0}, "sad": {"speed": 0.95, "pitch": 1.04},
-           "whisper": {"voice": "af_sky*0.2+af_bella*0.2+af_nicole*0.6", "speed": 0.95, "gain": 0.45}}
+"voice": "bf_lily", "speed": 1.12, "pitch": 1.1,
+"styles": {"excited": {"speed": 1.28, "pitch": 1.16}, "calm": {"speed": 1.08}, "sad": {"speed": 1.0, "pitch": 1.06},
+           "whisper": {"voice": "bf_lily", "speed": 1.0, "gain": 0.5}}
 ```
 
 - `voice`: one of Kokoro's 54 voices (`af_heart`, `af_bella`, `bf_emma`, `am_puck`...) or a blend,
@@ -233,6 +236,11 @@ KINDRED_GATEWAY_HOST=0.0.0.0 python3 services/kindred_gateway.py serve
 
 Put it behind HTTPS (a reverse proxy like Caddy) if it's reachable from the internet. It refuses
 requests without the key, and warns if you open it to the network without one.
+
+On your own computer (the default, listening on 127.0.0.1) it also refuses requests sent by a web page
+on another site (an `Origin` that isn't 127.0.0.1 or localhost) and requests whose `Host` isn't this
+computer: a page you visit can't rewrite her persona, delete her memories or spend your AI credits.
+Scripts and the brain (no `Origin`) and the dashboard (a local page) are fine.
 
 Then on your gaming computer, either:
 

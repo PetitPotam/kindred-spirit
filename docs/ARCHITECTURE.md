@@ -258,9 +258,48 @@ pays off most for little cost, because it's called rarely.
    your bond changes level, refreshes her portrait at most every 20 minutes, and wakes up powers.
 4. **Leave**: a last reflection, a diary entry, the time played saved.
 
+## Playing with friends (LAN)
+
+Pip lives in one game: the one whose computer runs her brain. Other players share her.
+
+```mermaid
+flowchart LR
+  subgraph owner["Her player's computer"]
+    brain["Brain, gateway, voice"]
+    ogame["Game (mod)"]
+  end
+  subgraph world["The game running the world<br/>(her player's, or a friend's)"]
+    server["Integrated server<br/>(GuestBridge)"]
+  end
+  friend["A friend's game<br/>with the mod"]
+  vanilla["A friend's game<br/>without the mod"]
+  brain <--> ogame
+  ogame -- "her state 10×/s, her lines,<br/>her powers to run (when visiting)" --> server
+  server -- "her state (light mode)" --> friend
+  server -- "an Allay stand-in,<br/>her lines as [Pip] in chat" --> vanilla
+  friend -- "'Pip, ...' in chat" --> server
+  vanilla -- "'Pip, ...' in chat" --> server
+  server -- "who said it, what they said;<br/>results of her powers" --> ogame
+```
+
+- **You host:** your game's own server is the world. Friends with the mod receive her state ten times a
+  second and draw her where she really is (light mode, `guest/SharedPip.java`); friends without it see an
+  Allay stand-in that follows her (`guest/GuestBridge.java`). Their "Pip, ..." chat goes to her brain with
+  who said it; she answers in their chat and aloud on your computer.
+- **A friend hosts** (and their game has the mod): your Pip visits. Your game sends her state and her lines
+  to their world (`guest/VisitPayload.java`), their game shows her to everyone and carries out her powers
+  for you (`Actions.serverSide`), unless they turn `lanVisitors` off. Without the mod on their side she's
+  only with you: she talks, sees, finds and leads, but can't change their world.
+- **Her heart stays yours:** friends' words don't move your bond (a heart for each friend is in progress).
+  Her powers for friends follow `lanGuestPowers`; whom she floats beside follows you (`/kindred follow`,
+  "Pip, stay with Walid", the dashboard).
+
 ## Where it's going
 
 Planned next (details in [ROADMAP.md](ROADMAP.md)):
+
+- **In progress:** Minecraft's own commands as her powers (instant building, flattening, a whole house),
+  a memory of places with coordinates, a heart for each friend, complete session logs, and blueprints.
 
 - **Seeking**: when you ask her to find something far away, she reaches out with effort and magic;
   precise when close, fuzzy when far, and beyond what's loaded she senses where such things *live*

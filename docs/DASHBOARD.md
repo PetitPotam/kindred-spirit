@@ -6,7 +6,7 @@ isn't already on your computer or behind your gateway.
 
 | Tab | What you see | Where it comes from |
 |---|---|---|
-| **Live** | her bond and level, her mood score (how good she feels and how stirred up), powers she has discovered and the ones waking up right now (with their favour), standing requests, offers waiting for your yes, the game state she sees, the conversation window and its summary, and exactly what was sent to the AI last: the memories she recalled, her feelings, her settings | the brain writes `logs/brain-state.json` every 2 seconds |
+| **Live** | her bond and level, her mood score (how good she feels and how stirred up), **friends here** when someone else is in your world (who, how far, whether she sees them; whom she stays with; whether they see her and may ask for her powers, changed right there), powers she has discovered and the ones waking up right now (with their favour), standing requests, offers waiting for your yes, the game state she sees, the conversation window and its summary, and exactly what was sent to the AI last: the memories she recalled, her feelings, her settings | the brain writes `logs/brain-state.json` every 2 seconds |
 | **Conversation** | everything that happened, newest first: what you said and her answer (mood, gesture), tools she used and what the game answered, things she noticed, lines she said on her own, powers waking up, bond changes, honesty checks, what she learned. Filter by kind or search | `logs/brain.log` |
 | **AI calls** | every call to the AI: why (a reply to you, on her own, learning, summarizing), how long it took, tokens sent and back, an estimated cost (today and per call, with a chart), the tools offered, a tool it had to use, special instructions applied. Click a call to see each part of the prompt and the answer | `logs/gateway.jsonl` |
 | **Speech & voice** | each time speech-to-text heard you (and what it heard), each voice line, average times, problems | `logs/gateway.log` |
@@ -65,5 +65,9 @@ dashboard's own page.
 
 **Profiles** keep whole sets of settings to switch between and compare: "Save current as" (e.g.
 "calm Pip", "chaotic Pip"), "Use" applies one (only what differs changes), and "Compare" shows a
-table of the differences between two profiles, your current settings, or the defaults. They're
-kept in `~/.kindred-spirit/profiles/`.
+table of the differences between two profiles, your current settings, or the defaults. The bar shows
+which profile is in use ("In use: ...", or "your own mix" once you change something), and "Use" says
+"Already using ..." when there's nothing to change. They're kept in `~/.kindred-spirit/profiles/`.
+
+Settings new in a version of the mod (the friends' ones, for example) show up before the game has saved
+them once.
