@@ -132,7 +132,7 @@ CHOICES = {
     ("mod", "chatMode"): ["auto", "all", "name", "command"], ("mod", "quality"): ["auto", "low", "medium", "high"],
 }
 BRAIN_SECTIONS = ("name", "personality", "ai", "voice", "behaviour", "heart")
-MOD_HIDDEN = ("brainHost", "brainPort", "tokenFile")
+MOD_HIDDEN = ("brainHost", "brainPort", "tokenFile", "written", "seen")
 GATEWAY_EDITABLE = [
     ("upstream", "AI for her conversation", "upstream"),
     ("by_kind.reflect", "AI for her deeper thinking (learning, her story)", "upstream"),
