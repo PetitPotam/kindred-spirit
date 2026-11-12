@@ -33,6 +33,7 @@ DEFAULTS = {
         "small_talk_minutes": 4,
     },
     "heart": {
+        "same_companion_in_every_world": False,  # False: each world has its own companion, who starts fresh
         "amnesia": True,               # she discovers her powers with you, one by one
         "awakening": "slow",           # slow: "I'll try!" now, the power wakes up a bit later | instant
         "awakening_seconds": 40,       # about how long a power takes to wake up (slow)
@@ -81,6 +82,8 @@ small_talk_minutes = 4       # say something on its own after this long without 
 
 [heart]
 # who she is with you (docs/HEART.md)
+same_companion_in_every_world = false  # false: each world has its own companion (her own memories,
+                                       # bond and powers); true: one companion who follows you everywhere
 amnesia = true               # she discovers her powers with you, one by one
 awakening = "slow"           # slow: "I'll try!" at once, the power wakes up a little later | instant
 awakening_seconds = 40       # about how long a new power takes to wake up

@@ -168,3 +168,72 @@ def test_diary_as_list_and_merging_duplicates():
     rows, diary = run(go())
     assert len(rows) == 1 and "builds" in rows[0]["text"]
     assert diary[0]["text"].endswith("A lovely day.")
+
+
+def test_each_world_has_its_own_companion():
+    from kindred import config
+    from kindred.heart import Heart
+
+    async def run():
+        m = memory()
+        m.store.strict = m.per_world = True
+        h = Heart(config.merge(config.DEFAULTS, {}), m)
+        await m.open_world("sp:A")
+        await h.load()
+        await m.remember("The player's name is Tam.")
+        h.change(40)
+        h.state["discovered"].append("find_ore")
+        await h.save()
+        await m.open_world("sp:B")
+        await h.load()
+        assert "Tam" not in await m.context({}, "what's my name?"), "a new world: a new companion"
+        assert h.bond == 30 and h.state["discovered"] == []
+        await m.open_world("sp:A")
+        await h.load()
+        assert "Tam" in await m.context({}, "what's my name?")
+        assert h.bond == 70 and h.state["discovered"] == ["find_ore"], "back in A: she's herself again"
+    asyncio.run(run())
+
+
+def test_import_what_she_knew_from_another_world(capsys, monkeypatch):
+    from kindred.memory import worlds_cli
+
+    async def setup():
+        m = memory()
+        m.store.strict = m.per_world = True
+        await m.open_world("sp:Old World")
+        await m.remember("The player's name is Tam.")
+        await m.name_place("base", snap())  # places stay in their world
+        await m.store.call("doc", key="world:sp:Old World:heart", value={"bond": 72, "discovered": ["guide"]})
+        await m.open_world("sp:New World")
+        await m.episode("We just arrived.")
+        return m
+    m = asyncio.run(setup())
+    monkeypatch.delenv("KINDRED_GAME_CONNECTED", raising=False)
+    assert worlds_cli(m.store, ["import", "old"]) == 0
+    out = capsys.readouterr().out
+    assert "Copied 1 memories" in out and "bond (72)" in out
+    assert "Tam" in asyncio.run(m.context({}, "what's my name?"))
+    heart = asyncio.run(m.store.call("doc", key="world:sp:New World:heart"))["value"]
+    assert heart["bond"] == 72 and heart["discovered"] == ["guide"]
+    assert not asyncio.run(m.places()), "her old base isn't in this world"
+    monkeypatch.setenv("KINDRED_GAME_CONNECTED", "1")
+    worlds_cli(m.store, ["import", "old", "new"])
+    assert "not copied: the game is connected" in capsys.readouterr().out
+
+
+def test_passing_feelings_fade_lasting_facts_stay():
+    t = [1_000_000.0]
+    m = memory(clock=lambda: t[0])
+
+    async def run():
+        await m.open_world("sp:A")
+        await m.learn({"player": [{"text": "Tam is sad about losing all their items.", "importance": 9,
+                                   "temporary": True},
+                                  {"text": "Tam loves building with spruce.", "importance": 7}]})
+        now = await m.context({}, "how are you")
+        assert "sad about losing" in now and "spruce" in now
+        t[0] += 2 * 24 * 3600  # two days later
+        later = await m.context({}, "how are you")
+        assert "sad about losing" not in later and "spruce" in later
+    asyncio.run(run())

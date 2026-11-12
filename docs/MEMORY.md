@@ -19,13 +19,26 @@ laptop. Code: `brain/kindred/memory.py` (what to keep, learning, recall) and
 | **diary** | one entry per play session | per world |
 | **reminder** | "check the furnace", in 10 minutes / at night / next time / every night | every world |
 
+## Each world has its own companion
+
+By default every world gets its own companion: a new world means meeting a new Pip, with her own
+memories, bond and discovered powers. Coming back to a world, you find the Pip who lives there.
+
+- `scripts/memory.sh worlds` lists your worlds and what she knows in each.
+- `scripts/memory.sh import "Old World"` brings what she knew about you, about herself and your
+  habits into the world you played last (or name it: `import "Old World" "New World"`). Places and
+  events stay in their own world. With the game closed, her bond and discovered powers come too.
+- `same_companion_in_every_world = true` in `brain.toml` `[heart]` gives you one companion who
+  follows you from world to world instead (then the "every world" rows above are shared).
+
 ## How it learns
 
 1. **Everything is an episode.** Each exchange and each action is stored with its time and world.
 2. **It reflects.** Every 8 exchanges, and when you leave the world, the AI reads what just
    happened and the related things it already knows, and writes down only *lasting* knowledge:
    who you are, its own feelings, your habits, facts about the world, each with an importance from
-   1 to 10. Very similar memories are merged (the newer wording and the higher importance win), and
+   1 to 10. Passing states ("Tam is sad about losing their items", "I feel guilty about tonight")
+   are marked temporary: they fade after a day and a half and never outrank what lasts. Very similar memories are merged (the newer wording and the higher importance win), and
    the AI can point out duplicates to merge. When you leave, it also writes a diary entry.
 3. **You can tell it directly.** "Remember that..." uses the `remember` tool; "this is my base"
    names a place; "remind me in 10 minutes to..." sets a reminder; "forget that..." forgets.

@@ -21,7 +21,16 @@ class LocalStore:
     def __init__(self, embed=None, model=""):
         self.store = memory_store.Store(os.path.join(tempfile.mkdtemp(), "m.db"), embed=embed, model_name=model)
 
+    strict = False  # like GatewayMemory: each world has its own companion
+
+    def _call(self, op, body):
+        if self.strict and body.get("world") and op in ("list", "search", "delete"):
+            body = dict(body, strict=True)
+        return memory_call(self.store, op, body)
+
     async def call(self, op, **body):
+        if self.strict and body.get("world") and op in ("list", "search", "delete"):
+            body = dict(body, strict=True)
         return memory_call(self.store, op, body)
 
 

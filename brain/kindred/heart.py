@@ -94,9 +94,7 @@ class Heart:
         self.memory = memory
         self.clock = clock
         self.rng = rng or random.Random()
-        self.state = {"bond": float(self.p.get("start_bond", 30)), "discovered": [], "asked": {}, "seen_items": [],
-                      "requests": [], "last_prank": 0, "hurt_until": 0, "seen_species": [], "sorries": [],
-                      "hits": [], "rained": False}
+        self.state = self.fresh()
         self.valence, self.arousal, self.novelty = 0.25, 0.35, 0.0
         self.danger_until = 0.0
         self.feel_at = clock()
@@ -107,11 +105,24 @@ class Heart:
 
     # ------------------------------------------------------------------ persistence (a memory document)
 
+    def fresh(self):
+        return {"bond": float(self.p.get("start_bond", 30)), "discovered": [], "asked": {}, "seen_items": [],
+                "requests": [], "last_prank": 0, "hurt_until": 0, "seen_species": [], "sorries": [],
+                "hits": [], "rained": False}
+
+    def key(self):
+        """Where her heart is saved: one per world, or one for all worlds."""
+        m = self.memory
+        return "world:%s:heart" % m.world_id if m is not None and getattr(m, "per_world", False) else "heart"
+
     async def load(self):
+        """Her heart for the world we're in (a new world with its own companion: a new heart)."""
+        self.state = self.fresh()
+        self.hits, self.pending_offer, self.last_offer = [], None, {}
         if self.memory is None:
             return
         try:
-            saved = (await self.memory.store.call("doc", key="heart")).get("value")
+            saved = (await self.memory.store.call("doc", key=self.key())).get("value")
         except Exception:
             saved = None
         if saved:
@@ -121,7 +132,7 @@ class Heart:
         if self.memory is None:
             return
         try:
-            await self.memory.store.call("doc", key="heart", value=self.state)
+            await self.memory.store.call("doc", key=self.key(), value=self.state)
         except Exception:
             pass
 

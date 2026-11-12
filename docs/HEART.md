@@ -177,6 +177,7 @@ false` in `kindredspirit.json` turns off all of them at the game's side.
 
 ```toml
 [heart]
+same_companion_in_every_world = false  # false: each world has its own companion (docs/MEMORY.md)
 amnesia = true               # she discovers her powers with you
 awakening = "slow"           # slow: "I'll try!" at once, the power wakes up a little later | instant
 awakening_seconds = 40       # about how long a new power takes to wake up
