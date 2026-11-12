@@ -245,15 +245,17 @@ def editable():
     mp = mod_path()
     mod = read_json(mp) if mp else None
     mod_defaults = read_json(os.path.join(os.path.dirname(mp), "kindredspirit.defaults.json")) if mp else None
-    known = dict(mod_defaults or {})
-    known.update(mod or {})  # (a setting new in this version of the mod is changeable before the game saves it)
+    # (settings new in this version of the mod are shown and changeable before the game has saved them once)
+    mod_defaults = dict(MOD_NEW, **(mod_defaults or {}))
+    known = dict(mod_defaults)
+    known.update(mod or {})
     for path, value in _leaves(known):
         if path in MOD_HIDDEN:
             continue
         choices = CHOICES.get(("mod", path))
         out.append({"where": "mod", "path": path, "label": LABELS.get(path, path.split(".")[-1]),
                     "type": "choice" if choices else _kind(value), "choices": choices, "value": value,
-                    "default": _get(mod_defaults, path) if mod_defaults else None})
+                    "default": _get(mod_defaults, path)})
     skins, voices = skin_ids(), kokoro_voices()
     for e in out:
         key = (e["where"], e["path"])
@@ -465,6 +467,10 @@ def session_one(sid):
     md = os.path.join(SESSIONS, sid + ".md")
     summary = open(md, encoding="utf-8").read() if os.path.exists(md) else ""
     return {"id": sid, "events": rows, "calls": calls, "summary": summary}
+
+# the mod's settings for friends on LAN, with their defaults (KindredConfig.java), for before the game has
+# written them to its settings file
+MOD_NEW = {"lanGuests": True, "lanGuestPowers": True, "follow": "", "sharedPip": "host"}
 
 MOD_CONFIGS = [os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit.json"),
                os.path.expanduser("~/.minecraft-kindred/config/kindredspirit.json"),
