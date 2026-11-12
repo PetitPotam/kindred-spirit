@@ -57,6 +57,6 @@ exactly when it's relevant ("how's the cherry house?" brings up the cherry house
 - Stored in `~/.kindred-spirit/memory/kindred.db` (or on your own deployed gateway, see
   [GATEWAY.md](GATEWAY.md)). Nothing is uploaded anywhere else; the AI provider sees only the few
   memories included in each message.
-- `brain/.venv/bin/python -m kindred.memory` shows everything it remembers;
-  `... -m kindred.memory forget` erases it all (after asking).
+- `scripts/memory.sh` shows everything it remembers;
+  `scripts/memory.sh forget` erases it all (after asking).
 - In game: "forget that I ..." removes matching memories.

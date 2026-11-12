@@ -202,7 +202,7 @@ near me?", "where are the sheep? lead the way", "where's the nearest village? ta
   $G persona "Speaks like a pirate."
   ```
   Keys go in `~/.kindred-spirit/secrets.env` (readable only by you).
-- **Memory:** `brain/.venv/bin/python -m kindred.memory` shows what it remembers ([how it works](docs/MEMORY.md)).
+- **Memory:** `scripts/memory.sh` shows what it remembers ([how it works](docs/MEMORY.md)).
 - **Her heart** (discovering her powers, bond, pride, play-fights, her mood, animals, pranks, mischief when angry, vanishing...): `[heart]` in brain.toml ([docs/HEART.md](docs/HEART.md)).
 - **Her voice:** set in the gateway: `$G voice af_bella`, or a blend like `af_sky*0.5+af_bella*0.5` (the default,
   young and bright), with pitch, speed and moods (excited, calm, sad, whisper): [docs/GATEWAY.md](docs/GATEWAY.md#her-voice).
