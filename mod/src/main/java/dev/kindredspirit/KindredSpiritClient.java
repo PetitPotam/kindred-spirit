@@ -148,7 +148,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             return dev.kindredspirit.guest.SharedPip.describe(companion, displayName, companion.anchor(m).getUUID(),
                     GuestBridge.hidden, System.currentTimeMillis()).toString();
         };
-        GuestBridge.enabled = () -> cfg.lanGuests && inWorld;
+        GuestBridge.enabled = () -> cfg.lanGuests && inWorld && link.connected(); // (no brain here: no Pip to share)
         GuestBridge.name = () -> displayName;
         GuestBridge.where = () -> {
             Behavior life = companion.life;
