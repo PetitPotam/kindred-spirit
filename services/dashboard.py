@@ -337,13 +337,17 @@ def _snapshot():
 
 
 def profiles_list():
-    out = []
+    """The saved profiles; "active" marks the one your settings match right now (the one in use)."""
+    out, now = [], None
     try:
         for f in sorted(os.listdir(PROFILES)):
             if f.endswith(".json"):
                 d = read_json(os.path.join(PROFILES, f)) or {}
+                saved = d.get("settings") or {}
+                now = now if now is not None else _snapshot()
+                same = [now[w][p] == v for w, vals in saved.items() for p, v in vals.items() if p in (now.get(w) or {})]
                 out.append({"name": d.get("name") or f[:-5], "time": d.get("time"),
-                            "count": sum(len(v) for v in (d.get("settings") or {}).values())})
+                            "count": sum(len(v) for v in saved.values()), "active": bool(same) and all(same)})
     except OSError:
         pass
     return out
