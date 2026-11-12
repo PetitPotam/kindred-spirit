@@ -1,0 +1,81 @@
+# Her face and moods, the gestures, her speech bubble and the HUD, with no brain needed: the "brain"
+# lines stand in for it (run it with brainPort pointing at a quiet stand-in, or no brain at all).
+# Screenshots: mod/run/screenshots/looks-*.png
+world kindred-test
+wait 200
+cmd gamemode creative
+cmd time set 6000
+cmd weather clear
+skin slime
+look 0 8
+act {"move": "come", "seconds": 120}
+wait 60
+lookat companion
+wait 30
+brain {"type": "mood", "mood": "happy"}
+lookat companion
+wait 40
+screenshot looks-01-happy
+brain {"type": "mood", "mood": "sad"}
+wait 50
+screenshot looks-02-sad
+brain {"type": "mood", "mood": "worried"}
+wait 50
+screenshot looks-03-worried
+brain {"type": "mood", "mood": "curious"}
+wait 50
+screenshot looks-04-curious
+brain {"type": "mood", "mood": "scared"}
+wait 50
+screenshot looks-05-scared
+brain {"type": "mood", "mood": "excited"}
+wait 50
+screenshot looks-06-excited
+brain {"type": "mood", "mood": "happy"}
+wait 40
+emote tease
+wait 14
+screenshot looks-07-tease
+wait 40
+emote happy
+wait 12
+screenshot looks-08-happy-eyes
+wait 40
+emote think
+wait 25
+screenshot looks-09-think
+wait 50
+emote doze
+wait 80
+screenshot looks-10-dozing
+emote startle
+wait 30
+skin sprout
+brain {"type": "mood", "mood": "happy"}
+wait 40
+lookat companion
+wait 10
+screenshot looks-11-sprout
+brain {"type": "mood", "mood": "sad"}
+wait 50
+screenshot looks-12-sprout-sad
+brain {"type": "mood", "mood": "curious"}
+skin slime_cube
+wait 50
+screenshot looks-13-cube-curious
+skin slime
+brain {"type": "mood", "mood": "happy"}
+act {"move": "follow"}
+wait 60
+look 0 8
+wait 20
+brain {"type": "say", "line": 7, "text": "Ooh, a sheep! Do you think it knows any good stories? I bet it does.", "mood": "excited", "emote": "hop"}
+wait 6
+brain {"type": "bond", "value": 42, "level": "friend", "change": 0.6}
+brain {"type": "notice", "text": "Pip found something: iron, 9 blocks below you"}
+wait 14
+screenshot looks-14-hud
+brain {"type": "say_more", "line": 7, "text": "Sheep are very wise, in a fluffy way."}
+wait 30
+screenshot looks-15-chat
+quit
