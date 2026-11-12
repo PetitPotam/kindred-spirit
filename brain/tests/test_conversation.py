@@ -165,3 +165,29 @@ def test_when_you_start_talking_she_stops_and_remembers_what_she_didnt_say(stubs
     asyncio.run(run())
     assert b.player_listening
     assert "interrupted before finishing" in b.mind.history[-1]["content"], "so she can come back to it"
+
+
+def test_her_answer_is_spoken_sentence_by_sentence_as_it_is_written():
+    from kindred.mind import Streamer
+    got = []
+    st = Streamer(lambda text, mood, gesture, whisper: got.append((text, mood, gesture)))
+    answer = "[excited][kind] {hop} Iron golems! You need beds for villagers. Then a zombie they can see."
+    for i in range(1, len(answer) + 1):  # it arrives a few characters at a time
+        st.feed(answer[:i])
+    assert [g[0] for g in got] == ["Iron golems!", "You need beds for villagers."], "each sentence once it ends"
+    assert got[0][1:] == ("excited", "hop")
+    st.finish(answer)
+    assert got[-1][0] == "Then a zombie they can see."
+
+
+def test_a_claimed_action_is_held_until_a_tool_really_ran():
+    from kindred.mind import Streamer
+    got = []
+    st = Streamer(lambda text, *a: got.append(text))
+    st.hold = True
+    st.feed("[happy][kind] I'm placing a torch right now! It will be bright.")
+    assert got == [], "not said before the check"
+    st.new_round()
+    st.hold = False
+    st.finish("[happy][kind] There, a torch! Better?")
+    assert got == ["There, a torch!", "Better?"]

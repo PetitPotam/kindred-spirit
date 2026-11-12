@@ -137,7 +137,16 @@ interrupts an answer, she finishes it afterwards ("Anyway, as I was saying...").
 the talk key she stops at once, stays quiet while you hold it (her voice would reach your
 microphone), and what she didn't finish is kept so she can come back to it; anything of hers the
 microphone still picked up is removed from what she hears. Her subtitle appears as soon as she
-knows what to say, and her voice follows.
+knows what to say, and her voice follows. Her answers are streamed: she starts speaking at the
+first finished sentence while the AI is still writing the rest, and each next sentence joins the
+subtitle as it comes.
+
+**Three ways of thinking.** *System 0*, instinct: rules and a small local model that understands
+what you mean in a few milliseconds (requests in your own words: "I'm getting destroyed by these
+skeletons" means protect me), plus her reflexes, warnings and the voice coordinator. *System 1*,
+the fast AI that answers you. *System 2*, the slower thinking in the background: learning, her
+story and tastes, the knowledge she listens for, powers waking up. They all speak through the one
+coordinator.
 
 - Short, spoken lines, whimsical and curious. Her voice (Kokoro, a blend of two young voices) is
   lively and quick when she's excited, softer when she's calm or sad, and she **whispers** secrets,

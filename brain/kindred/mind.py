@@ -232,13 +232,14 @@ class Mind:
             msgs.insert(1, {"role": "user", "content": "(we start playing)"})
         return msgs
 
-    async def reply(self, snapshot, player_text, done=(), tools=None, run_tool=None, force=None, spoken=False):
+    async def reply(self, snapshot, player_text, done=(), tools=None, run_tool=None, force=None, spoken=False,
+                    on_sentence=None):
         """Answer the player. done = what the body already did ("stay where you are");
         tools/run_tool = what it may do and how to do it. Returns (text, mood, gesture)."""
         prompt = ("(said aloud; speech-to-text may have misheard some words) " if spoken else "") + player_text
         if done:
             prompt += "\n(You already did this: %s.)" % "; ".join(done)
-        text, mood, gesture = await self._ask(snapshot, prompt, tools, run_tool, force=force)
+        text, mood, gesture = await self._ask(snapshot, prompt, tools, run_tool, force=force, on_sentence=on_sentence)
         self.remember("user", player_text)
         self.remember("assistant", "[%s] %s" % (mood or "happy", text))
         return text, mood, gesture
@@ -254,6 +255,38 @@ class Mind:
         """Remember lines that did not come from the AI (warnings, "Ow!", "We're here!"...) and why, so a
         reply to them makes sense."""
         self.remember("assistant", "[%s] %s%s" % (mood, text, " (you said this on your own: %s)" % why if why else ""))
+
+    async def _stream(self, body, kind, speaker):
+        """The AI's answer as server-sent events: content goes to the speaker sentence by sentence; tool
+        calls are put back together. Returns the message like the non-streaming answer."""
+        loop = asyncio.get_running_loop()
+        q = asyncio.Queue()
+        job = loop.run_in_executor(None, stream_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, kind,
+                                   lambda chunk: loop.call_soon_threadsafe(q.put_nowait, chunk))
+        job.add_done_callback(lambda _: loop.call_soon_threadsafe(q.put_nowait, None))
+        content, calls = "", {}
+        while True:
+            chunk = await q.get()
+            if chunk is None:
+                break
+            for ch in chunk.get("choices") or []:
+                d = ch.get("delta") or {}
+                if d.get("content"):
+                    content += d["content"]
+                    if not calls:
+                        speaker.feed(content)
+                for tc in d.get("tool_calls") or []:
+                    c = calls.setdefault(tc.get("index", 0), {"id": "", "type": "function",
+                                                               "function": {"name": "", "arguments": ""}})
+                    c["id"] = tc.get("id") or c["id"]
+                    f = tc.get("function") or {}
+                    c["function"]["name"] += f.get("name") or ""
+                    c["function"]["arguments"] += f.get("arguments") or ""
+        await job  # (raises the AIError of a failed request)
+        msg = {"role": "assistant", "content": content}
+        if calls:
+            msg["tool_calls"] = [calls[i] for i in sorted(calls)]
+        return msg
 
     async def reflect(self, transcript, known, diary=False, bond=""):
         """Learning: what in this stretch of play is worth knowing for good? Returns
@@ -323,13 +356,18 @@ class Mind:
             except Exception as e:  # memory is a bonus, never a reason not to answer
                 log.warning("memory recall failed: %s", e)
 
-    async def _ask(self, snapshot, prompt, tools=None, run_tool=None, rounds=4, force=None, kind="reply"):
+    async def _ask(self, snapshot, prompt, tools=None, run_tool=None, rounds=4, force=None, kind="reply",
+                   on_sentence=None):
+        """One answer, with tool rounds. on_sentence(text, mood, gesture, whisper): her answer is streamed
+        and each sentence handed over as soon as it's complete (self.streamed then says how much was)."""
         ai = self.cfg["ai"]
         await self.recall(snapshot, prompt)
         messages = self.build_messages(snapshot, prompt)
         log.debug("prompt context:\n%s", messages[-1]["content"])
         content = ""
         ran, checked = [], False
+        self.streamed = ""
+        speaker = Streamer(on_sentence) if on_sentence else None
         for round_ in range(rounds):
             body = {
                 "model": ai["model"],
@@ -341,11 +379,22 @@ class Mind:
                 body["tools"] = tools
                 if force and round_ == 0:  # a clear request: it must actually do it
                     body["tool_choice"] = {"type": "function", "function": {"name": force}}
-            raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, kind)
-            try:
-                msg = raw["choices"][0]["message"]
-            except (KeyError, IndexError, TypeError):
-                raise AIError("unexpected answer: %s" % json.dumps(raw)[:200])
+            if speaker:
+                # speak as it's written, but never a claimed action before a tool ran (it may be re-asked)
+                speaker.new_round()
+                speaker.hold = bool(tools and run_tool and not checked and not [n for n in ran if n not in TALK_TOOLS])
+                try:
+                    msg = await self._stream(body, kind, speaker)
+                except AIError:
+                    if speaker.said:
+                        raise
+                    speaker = None  # (a gateway that can't stream: the whole answer, as before)
+            if not speaker:
+                raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, kind)
+                try:
+                    msg = raw["choices"][0]["message"]
+                except (KeyError, IndexError, TypeError):
+                    raise AIError("unexpected answer: %s" % json.dumps(raw)[:200])
             calls = msg.get("tool_calls") or []
             content = msg.get("content") or ""
             if not calls:
@@ -372,12 +421,102 @@ class Mind:
                 ran.append(fn.get("name", ""))
                 log.info("tool %s(%s) -> %s", fn.get("name"), json.dumps(args), json.dumps(result)[:300])
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
+        if speaker:
+            speaker.finish(content)
+            self.streamed = " ".join(speaker.said)
         self.last_regard = regard_of(content)
         self.last_whisper = "{whisper}" in content[:80].lower()
         text, mood, gesture = parse_reply(content)
         if not text:
             raise AIError("empty answer")
         return text, mood, gesture
+
+
+class Streamer:
+    """Turns a growing answer into sentences for her voice: the tags first ([mood][regard] {gesture}),
+    then each sentence as soon as it ends. hold: don't speak a sentence that claims an action (the
+    answer may be re-asked after the check); it's spoken at the end only if nothing changed."""
+    END = re.compile(r"[.!?…](?:[\"')\]]*)(?=\s)")
+
+    def __init__(self, emit):
+        self.emit, self.said, self.pos, self.hold, self.held = emit, [], None, False, False
+        self.mood = self.gesture = None
+        self.whisper = False
+
+    def feed(self, content, final=False):
+        if self.held:
+            return
+        if self.pos is None:  # the tags at the start
+            m = re.match(r"\s*((\[\w+\]\s*){0,2}(\{\w+\}\s*){0,3})", content)
+            rest = content[m.end():].lstrip()
+            if not final and (not rest or rest.startswith(("[", "{"))):
+                return  # (the tags aren't complete yet)
+            _, self.mood, self.gesture = parse_reply(m.group(1) + "x")
+            self.whisper = "{whisper}" in m.group(1).lower()
+            self.pos = m.end()
+        while True:
+            tail = content[self.pos:]
+            m = self.END.search(tail)
+            if not m and not final:
+                return
+            piece = tail[:m.end()] if m else tail
+            if not piece.strip():
+                return
+            text = parse_reply(piece)[0]
+            if self.hold and claims_action(text):
+                self.held = True  # (the answer may be asked again: say nothing of this one yet)
+                return
+            self.pos += len(piece)
+            if text:
+                self.said.append(text)
+                self.emit(text, self.mood, self.gesture, self.whisper)
+            if not m:
+                return
+
+    def new_round(self):
+        """A new answer after a tool ran (or after the check): its own tags, from its start."""
+        self.pos, self.held = None, False
+
+    def finish(self, content):
+        """The answer is complete: say what's left of it (a held sentence too: nothing re-asked it)."""
+        self.held = self.hold = False
+        self.feed(content, final=True)
+
+
+def stream_json(url, body, key="", timeout=60, kind="", emit=None):
+    """POST with stream=True; emit(chunk) for each server-sent event (runs in a thread)."""
+    req = urllib.request.Request(url, data=json.dumps(dict(body, stream=True)).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json"})
+    if key:
+        req.add_header("Authorization", "Bearer " + key)
+    if kind:
+        req.add_header("X-Kindred-Kind", kind)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            if "event-stream" not in (r.headers.get("Content-Type") or ""):
+                # a server that answered all at once: the same answer, as one piece
+                whole = json.loads(r.read())
+                msg = (whole.get("choices") or [{}])[0].get("message") or {}
+                delta = {"content": msg.get("content") or ""}
+                if msg.get("tool_calls"):
+                    delta["tool_calls"] = [dict(tc, index=i) for i, tc in enumerate(msg["tool_calls"])]
+                emit({"choices": [{"index": 0, "delta": delta}]})
+                return
+            for raw in r:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                payload = line[5:].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    emit(json.loads(payload))
+                except ValueError:
+                    continue
+    except urllib.error.HTTPError as e:
+        raise AIError("HTTP %s from %s: %s" % (e.code, url, e.read()[:300].decode("utf-8", "replace")))
+    except (urllib.error.URLError, OSError) as e:
+        raise AIError("cannot reach %s (%s)" % (url, getattr(e, "reason", e)))
 
 
 def post_json(url, body, key="", timeout=60, kind=""):

@@ -61,6 +61,12 @@ public final class Companion {
     }
 
     /** More voice arrived for the same line: keep the subtitle up while it plays. */
+    /** The next sentence of the same line (her answer streams in): the subtitle grows. */
+    public void sayMore(String text, long nowMs) {
+        subtitle = subtitle.isEmpty() ? text : subtitle + " " + text;
+        subtitleUntil = Math.max(subtitleUntil, nowMs + 2500 + 60L * text.length());
+    }
+
     public void extend(double audioSeconds, long nowMs) {
         subtitleUntil = Math.max(subtitleUntil, nowMs + (long) (audioSeconds * 1000) + 1500);
     }

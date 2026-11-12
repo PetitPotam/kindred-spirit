@@ -65,6 +65,38 @@ def sentences(text, min_chars=25, first_max=0):
     return out
 
 
+class SpokenStream:
+    """One answer, spoken as it streams in: the first sentence starts her line (through the coordinator,
+    as a reply), the next ones join it. The voice for each is made in order while the AI keeps writing."""
+
+    def __init__(self, brain):
+        self.brain, self.q, self.line, self.said = brain, asyncio.Queue(), None, []
+        self.task = asyncio.create_task(self.run())
+
+    def add(self, text, mood, gesture, whisper):
+        self.said.append(text)
+        self.q.put_nowait((text, mood, gesture, whisper))
+
+    async def close(self):
+        self.q.put_nowait(None)
+        await self.task
+
+    async def run(self):
+        while True:
+            item = await self.q.get()
+            if item is None:
+                return
+            text, mood, gesture, whisper = item
+            style = "whisper" if whisper else None
+            try:
+                if self.line is None:
+                    self.line = await self.brain.say(text, mood or "happy", emote=gesture, style=style, prio="reply")
+                elif self.line:
+                    await self.brain.say_more(self.line, text, style)
+            except Exception as e:  # (one sentence failing must not silence the rest)
+                log.warning("couldn't say %r: %s", text[:60], e)
+
+
 def did_something(name, result):
     """Whether a power really showed itself: stopping isn't a power, pushing nothing away or finding
     nothing doesn't reveal anything."""
@@ -853,6 +885,7 @@ class Brain:
             self.heart_loaded = self.heart.key()
             await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(), "change": 0})
             await self.send({"type": "act", "closeness": self.heart.closeness()})
+            asyncio.create_task(self.warm_up())
             if self.cfg["behaviour"].get("greet_on_join") and (self.greet_task is None or self.greet_task.done()):
                 self.greet_task = asyncio.create_task(self.greet())
         elif name == "leave":
@@ -1192,7 +1225,7 @@ class Brain:
         if rank == 0 and (self.inbox or self.talk_lock.locked() or self.player_listening
                           or now - self.player_talked < 6):
             log.info("not now (%s): %s", prio, text[:70])
-            return
+            return None
         if left > 0.3:
             current = PRIORITY[self.speaking_prio]
             if rank == 3 or rank > current:
@@ -1203,7 +1236,7 @@ class Brain:
                 await asyncio.sleep(left)  # a reaction waits for her to finish the line
             else:
                 log.info("not now (%s while saying %s): %s", prio, self.speaking_prio, text[:70])
-                return
+                return None
         if why:  # a line that didn't come from the AI: the AI hears it too, with why it was said
             self.mind.note_said(text, mood, why)
         self.line += 1
@@ -1222,6 +1255,26 @@ class Brain:
         if emote:
             msg["emote"] = emote
         await self.send(msg)
+        for chunk in chunks:
+            audio = await self._voice(chunk, style)
+            if audio is None or line != self.line:
+                return line
+            await self.send({"type": "audio", "line": line, "audio": audio})
+        return line
+
+    async def say_more(self, line, text, style=None):
+        """The next sentence of a line (her answer streaming in): the subtitle grows, the voice follows.
+        If the line was interrupted meanwhile, it joins what she'll finish afterwards."""
+        now = self.clock()
+        if line != self.line:
+            if self.unfinished:
+                self.unfinished = (self.unfinished[0] + " " + text, self.unfinished[1])
+            return
+        chunks = sentences(text) if self.cfg["voice"].get("enabled", True) else []
+        self.speaking_chunks += chunks
+        self.speaking_until = max(self.speaking_until, now) + self.seconds_to_say(text)
+        self.recent_said.append((now, text))
+        await self.send({"type": "say_more", "line": line, "text": text})
         for chunk in chunks:
             audio = await self._voice(chunk, style)
             if audio is None or line != self.line:
@@ -1268,6 +1321,13 @@ class Brain:
         except voice.VoiceError as e:
             log.warning("%s (subtitle only)", e)
             return None
+
+    async def warm_up(self):
+        """Ready before the first message: System 0's example phrases (a third of a second, once)."""
+        try:
+            await asyncio.to_thread(self.understand._ready)
+        except Exception as e:  # (no embeddings: only the rules understand requests)
+            log.info("understanding not warmed up: %s", e)
 
     def hear_player(self, text, spoken=False):
         """Messages wait in an inbox while she's thinking; when she's free she answers all of them at once
@@ -1349,8 +1409,11 @@ class Brain:
                 note += fib
                 self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood),
                                                        self.heart.discovery_note(self.abilities), note) if x)
+                speech = SpokenStream(self)  # her answer, spoken sentence by sentence as it's written
                 reply, mood, gesture = await self.mind.reply(self.snapshot, text, done,
-                                                             tools.for_abilities(offered), self.run_tool, force, spoken)
+                                                             tools.for_abilities(offered), self.run_tool, force, spoken,
+                                                             on_sentence=speech.add)
+                await speech.close()
             except AIError as e:
                 log.error("AI error: %s", e)
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
@@ -1368,8 +1431,9 @@ class Brain:
             self.mind.world_knowledge = ""  # (only for the question it answered)
             hint = intents.offered_in(reply, self.abilities)
             self.her_offer = (hint, self.clock()) if hint else None
-            await self.say(reply, mood or "happy", emote=gesture,
-                           style="whisper" if self.mind.last_whisper else None)
+            if not speech.said:  # (nothing came as a stream: the whole answer, as before)
+                await self.say(reply, mood or "happy", emote=gesture,
+                               style="whisper" if self.mind.last_whisper else None)
             self.last_talk = self.clock()
         # how they treated her changes the bond (and, when it's really bad, she leaves for a while)
         regard = self.mind.last_regard

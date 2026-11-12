@@ -642,10 +642,15 @@ class Handler(BaseHTTPRequestHandler):
         if by_kind.get("model") and not state.get("model") and up.get("type") not in ("claude_cli", "cli"):
             req["model"] = by_kind["model"]
         started = time.time()
+        stream = bool(req.get("stream"))
         if up.get("type") in ("claude_cli", "cli"):  # an AI command-line tool the player already has
+            req.pop("stream", None)
             resp = (claude_cli_chat if up["type"] == "claude_cli" else any_cli_chat)(up, req, kind)
             req["model"] = resp["model"]
             status, data = 200, json.dumps(resp).encode()
+        elif stream:  # her words as they're written: the brain starts speaking at the first sentence
+            req["stream_options"] = {"include_usage": True}
+            return self.chat_stream(state, up, req, name, kind, player, hint, paused, started)
         else:
             status, data, _ = http_call("POST", up["base"].rstrip("/") + "/chat/completions",
                                         json.dumps(req, ensure_ascii=False).encode("utf-8"),
@@ -668,15 +673,100 @@ class Handler(BaseHTTPRequestHandler):
             if sig and tc.get("id"):
                 signatures[tc["id"]] = sig
         msg.pop("extra_content", None)
+        self.log_ai(state, req, name, kind, player, hint, paused, started, msg.get("content"),
+                    [tc["function"] for tc in msg.get("tool_calls") or []], resp.get("usage") or {})
+        if stream:  # (a provider that can't stream: the whole answer as one piece)
+            return self.sse_whole(resp)
+        self.reply(200, resp)
+
+    def chat_stream(self, state, up, req, name, kind, player, hint, paused, started):
+        """Passes the AI's answer through as it is written (server-sent events), and keeps what the
+        non-streaming path keeps: the transcript, tool calls, Gemini's thought signatures, usage."""
+        u = urllib.parse.urlsplit(up["base"].rstrip("/") + "/chat/completions")
+        conn = (http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection)(u.netloc, timeout=120)
+        headers = {"Content-Type": "application/json"}
+        key = key_of(up.get("key"), self.headers.get("Authorization", ""))
+        if key:
+            headers["Authorization"] = "Bearer " + key
+        try:
+            conn.request("POST", u.path, body=json.dumps(req, ensure_ascii=False).encode("utf-8"), headers=headers)
+            resp = conn.getresponse()
+            if resp.status != 200:
+                data = resp.read()
+                log.error("%s HTTP %s: %s", name, resp.status, data[:400])
+                self.reply(resp.status, data)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            if hint:
+                change(lambda s: s.__setitem__("hint_next", ""))
+            content, calls, ids, usage = [], {}, {}, {}
+            for raw in resp:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                payload = line[5:].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(payload)
+                except ValueError:
+                    continue
+                usage = chunk.get("usage") or usage
+                for ch in chunk.get("choices") or []:
+                    d = ch.get("delta") or {}
+                    content.append(d.get("content") or "")
+                    for tc in d.get("tool_calls") or []:
+                        i = tc.get("index", 0)
+                        ids[i] = tc.get("id") or ids.get(i)
+                        sig = ((tc.pop("extra_content", None) or {}).get("google") or {}).get("thought_signature")
+                        if sig and ids.get(i):
+                            signatures[ids[i]] = sig
+                        c = calls.setdefault(i, {"name": "", "arguments": ""})
+                        f = tc.get("function") or {}
+                        c["name"] += f.get("name") or ""
+                        c["arguments"] += f.get("arguments") or ""
+                    d.pop("extra_content", None)
+                self.wfile.write(("data: " + json.dumps(chunk, ensure_ascii=False) + "\n\n").encode("utf-8"))
+                self.wfile.flush()
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+        except (OSError, http.client.HTTPException) as exc:
+            log.error("%s stream failed: %s", name, exc)
+            return
+        finally:
+            conn.close()
+        self.log_ai(state, req, name, kind, player, hint, paused, started, "".join(content),
+                    [calls[i] for i in sorted(calls)], usage)
+
+    def sse_whole(self, resp):
+        msg = resp["choices"][0]["message"]
+        delta = {"role": "assistant", "content": msg.get("content") or ""}
+        if msg.get("tool_calls"):
+            delta["tool_calls"] = [dict(tc, index=i) for i, tc in enumerate(msg["tool_calls"])]
+        chunk = {"choices": [{"index": 0, "delta": delta, "finish_reason": resp["choices"][0].get("finish_reason")}],
+                 "usage": resp.get("usage")}
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+        self.wfile.write(("data: %s\n\ndata: [DONE]\n\n" % json.dumps(chunk, ensure_ascii=False)).encode("utf-8"))
+        self.wfile.flush()
+
+    def log_ai(self, state, req, name, kind, player, hint, paused, started, content, actions, usage):
         if len(signatures) > 2000:
             for k in list(signatures)[:1000]:
                 signatures.pop(k, None)
-        log.info("ai %s %s %.1fs | %s -> %s", name, req.get("model"), time.time() - started,
-                 player[-100:].replace("\n", " "), (msg.get("content") or "")[:160].replace("\n", " "))
-        usage = resp.get("usage") or {}
+        log.info("ai %s %s %.1fs%s | %s -> %s", name, req.get("model"), time.time() - started,
+                 " streamed" if req.get("stream") else "", player[-100:].replace("\n", " "),
+                 (content or "")[:160].replace("\n", " "))
         transcript({"upstream": name, "model": req.get("model"), "seconds": round(time.time() - started, 2),
-                    "player": player, "reply": msg.get("content"),
-                    "actions": [tc["function"] for tc in msg.get("tool_calls") or []],
+                    "player": player, "reply": content, "actions": actions, "streamed": bool(req.get("stream")),
                     # for the dashboard: what it cost, what it could do, and how it was steered
                     "tokens_in": usage.get("prompt_tokens"), "tokens_out": usage.get("completion_tokens"),
                     "kind": kind, "cost_usd": usage.get("cost_usd"), "effort": usage.get("effort"),
@@ -687,7 +777,6 @@ class Handler(BaseHTTPRequestHandler):
                     "controls": {k: v for k, v in (("persona", bool(state.get("persona")) and not paused),
                                                    ("facts", len(state.get("facts") or []) if not paused else 0),
                                                    ("hint", hint)) if v}})
-        self.reply(200, resp)
 
     # -------------------------------------------------------------- speech to text
     def stt(self, state, raw):

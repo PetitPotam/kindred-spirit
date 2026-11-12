@@ -357,7 +357,7 @@ def _awakening_brain(stubs, favour):
 
 def test_think_fast_then_slow_she_tries_then_the_power_wakes_up(stubs):
     stubs.ai_script = [
-        {"role": "assistant", "content": "[excited][kind] Diamonds? Ooh, I don't know if I can... but I'll try!"},
+        {"role": "assistant", "content": "[excited][kind] Ooh, I've never looked for those, but I'll try!"},
         {"role": "assistant", "content": "[curious][neutral] {whisper} Wait... something is humming under the ground."},
         {"role": "assistant", "content": "", "tool_calls": [
             {"id": "f1", "type": "function", "function": {"name": "find_ore", "arguments": '{"ore": "diamond"}'}}]},

@@ -526,6 +526,20 @@ public final class KindredSpiritClient implements ClientModInitializer {
                             .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
                 });
             }
+            case "say_more" -> {
+                // the next sentence of the line she's saying, as her answer streams in
+                if (!msg.has("line") || msg.get("line").getAsInt() != currentLine) return;
+                String more = str(msg, "text");
+                mc.execute(() -> {
+                    long now = System.currentTimeMillis();
+                    companion.sayMore(more, now);
+                    caption = companion.subtitle;
+                    captionUntil = companion.subtitleUntil;
+                    dev.kindredspirit.record.FrameRecorder.line("pip", more);
+                    logChat(Component.literal(displayName + ": ").withStyle(ChatFormatting.AQUA)
+                            .append(Component.literal(more).withStyle(ChatFormatting.WHITE)));
+                });
+            }
             case "audio" -> {
                 // the next sentence of the current line
                 if (!msg.has("line") || msg.get("line").getAsInt() != currentLine || recorder.isRecording()) return;
