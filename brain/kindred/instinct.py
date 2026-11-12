@@ -43,9 +43,11 @@ PER_MOMENT = 6
 def prompt(name, who_she_is, bond_level, player_name):
     moments = "\n".join('  "%s": %s' % (k, v[0]) for k, v in MOMENTS.items())
     return (
-        "You are writing the instant, spoken reactions of %s, a little spirit who floats beside the player in "
-        "Minecraft. Minecraft is her real world: no game words, no buttons, no numbers except {hearts}. "
-        "Whimsical, young, lively; short spoken lines (under 70 characters), no emojis or asterisks.\n"
+        "You are writing the instant, spoken reactions of %s, an ancient spirit with a child's heart who floats "
+        "beside the player in Minecraft (not a girl or a boy, not young or old; a bit of an oddball with opinions). "
+        "Minecraft is their real world: no game words, no buttons, no numbers except {hearts}. Casual and spoken: "
+        "contractions, little sounds (eep, pff, hm), odd turns of phrase; not sugary, not needy. Short lines "
+        "(under 70 characters), no emojis or asterisks; use the player's name only now and then.\n"
         "Who she is right now:\n%s\nHer bond with the player: %s.%s Never call the player by her own name or nickname.\n\n"
         "Write %d different lines for each moment below, in her own voice and colored by how she feels about the "
         "player (warmer and more teasing when close, shorter and colder when hurt). Keep {where} or {hearts} exactly "
@@ -72,6 +74,12 @@ def clean(raw):
             if not 2 <= len(line) <= 90 or "[" in line or "*" in line:
                 continue
             if (need and need not in braces) or braces - ({need} if need else set()):
+                continue
+            try:  # it must really fill in (a stray "{" or "}" would crash a warning later)
+                filled = line.format(where="behind you", hearts="3")
+            except (ValueError, KeyError, IndexError):
+                continue
+            if "{" in filled or "}" in filled:
                 continue
             if line not in good:
                 good.append(line)

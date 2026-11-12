@@ -19,7 +19,7 @@ DEFAULTS = {
     "ai": {
         "model": "",            # "" = the gateway's choice (gateway.json)
         "temperature": 0.8,
-        "max_tokens": 160,
+        "max_tokens": 160, "reasoning_effort": "",
         "history_turns": 8,     # kept word for word; older turns are folded into a short summary
     },
     "voice": {
@@ -33,6 +33,7 @@ DEFAULTS = {
         "small_talk_minutes": 4,
         "instinct_lines_after": 45,    # seconds after joining before her AI writes her instinct lines (0: never)
         "fill_silence_after": 1.4,     # a "Hmm..." when an answer takes longer than this (0: never)
+        "becoming_minutes": 20,        # at most this often, her thinking rewrites who she's become lately
     },
     "heart": {
         "same_companion_in_every_world": False,  # False: each world has its own companion, who starts fresh
@@ -71,6 +72,7 @@ key = ""                     # only if your gateway has an access key (e.g. depl
 model = ""                   # "" = the gateway's choice
 temperature = 0.8
 max_tokens = 160
+reasoning_effort = ""         # thinking models (e.g. gemini-3-flash-preview): "minimal" keeps answers quick
 
 [voice]
 enabled = true               # false = subtitles only, no speech

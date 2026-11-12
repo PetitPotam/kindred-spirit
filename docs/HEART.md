@@ -148,6 +148,27 @@ the fast AI that answers you. *System 2*, the slower thinking in the background:
 story and tastes, the knowledge she listens for, powers waking up. They all speak through the one
 coordinator.
 
+**Who she is.** An ancient spirit with a child's heart, rediscovering what it once knew and could
+do: delighted, distractible, nosy, strangely wise for half a sentence, not a girl or a boy, not young
+or old. She has tastes and opinions, gets fixated (a word, a block, a tune stuck in her head that
+she hums), can be unimpressed or prickly, and shows she cares by what she does rather than by
+saying it. Her instructions describe that character and how she *tends* to talk, with a few
+example lines in her voice; only a short list is firm (stay in her world, be truthful about what
+she did and where things are, the reply tags).
+
+**Who she's become lately.** On top of that, her slower thinking (System 2) writes a short
+self-portrait in her own voice now and then (a lingering mood, today's obsession, the tune stuck in
+her head, how she sees you now), from what she remembers and what just happened. Her quick AI reads
+it with every answer, so how she talks drifts as you play. It's kept per world with its last five
+versions (`world:<id>:self`), refreshed after joining, when your bond changes level, after an
+import, and at most every 20 minutes after she reflects (`behaviour.becoming_minutes`). It can't
+add rules: a portrait that talks about tools, settings or "must" is thrown away.
+
+**Trying a change to her personality.** `brain/.venv/bin/python -m kindred.bench <label>` sends 15
+little scenes (a first hello, "you're useless", "sing something", "I lost everything", good night...)
+to the real AI and counts her tics (your name, questions, "Oh...", long lines). Compare labels in
+`~/.kindred-spirit/logs/bench-*.json`; `BENCH_MODEL=... BENCH_EFFORT=minimal` tries another model.
+
 **Her instincts, in her own words.** Her instant reactions can't wait for an AI ("Ow!", "Creeper
 behind you!", "We're here!"), but fixed sentences repeat and don't sound like her. So a little
 while after you join (45 s, `behaviour.instinct_lines_after`), her thinking AI writes a handful of

@@ -37,6 +37,7 @@ from . import heart as intents_heart
 from .describe import describe
 from . import knowledge as kb
 from .understand import Understand
+from . import becoming as becoming_mod
 from . import instinct as instinct_mod
 from .mind import post_json
 from .heart import Heart
@@ -216,7 +217,7 @@ class Brain:
         self.kb = kb.Knowledge(cfg)
         self.understand = Understand(cfg)  # System 0's understanding (local embeddings)
         self.instinct = instinct_mod.Instinct()  # System 0's own words, written by System 2 (per world)
-        self.lines_written_at, self.last_filler = -1e9, -1e9  # what the world remembers (services/knowledge)
+        self.lines_written_at, self.last_filler, self.becoming_at = -1e9, -1e9, -1e9  # what the world remembers (services/knowledge)
         self.listening = set()       # questions she's listening to the world about right now
         self.reading = None          # the guide she was last told about (listen_more goes on from there)
         # one voice, coordinated (see say): what she's saying now, and what an interruption left unsaid
@@ -709,6 +710,7 @@ class Brain:
         self.mind.history, self.mind.summary, self.mind.to_fold = [], "", []
         self.awakening, self.recent_player, self.her_offer = {}, [], None
         self.instinct.load(None)  # (her own words were part of who she was)
+        self.mind.becoming = ""
         self.alerts.pools = {}
         await m.open_world(world)
         self.since = await m.start_session()
@@ -892,6 +894,8 @@ class Brain:
             if found:  # a piece of where she comes from: it settles her doubts a little
                 self.heart.shaken(-0.3 * found)
             self.memory.since_reflection = 0
+            if self.clock() - self.becoming_at > self.cfg["behaviour"].get("becoming_minutes", 20) * 60:
+                asyncio.create_task(self.write_becoming())
             log.info("learned %d new things%s", added, "; diary: %s" % lessons.get("diary") if lessons.get("diary") else "")
         except (AIError, MemoryError) as e:
             log.warning("could not reflect: %s", e)
@@ -1366,6 +1370,8 @@ class Brain:
     # ------------------------------------------------------------------ System 0's words (written by System 2)
 
     async def load_lines(self):
+        me = (await self.safe(self.memory.store.call("doc", key="world:%s:self" % self.memory.world_id)) or {}).get("value")
+        self.mind.becoming = (me or {}).get("text", "")  # who she's become lately (System 2's portrait)
         key = "world:%s:lines" % self.memory.world_id
         doc = (await self.safe(self.memory.store.call("doc", key=key)) or {}).get("value")
         self.instinct.load(doc)
@@ -1403,8 +1409,38 @@ class Brain:
             self.instinct.load(doc)
             self.alerts.pools = self.instinct.lines
             log.info("her instinct lines, in her own voice: %d moments (%s)", len(lines), level)
+            await self.write_becoming()
         except Exception as e:  # (the built-in lines stay)
             log.warning("couldn't write her instinct lines: %s", e)
+
+    async def write_becoming(self):
+        """System 2 rewrites who she's become lately (her quick AI reads it with every answer)."""
+        self.becoming_at = self.clock()
+        try:
+            key = "world:%s:self" % self.memory.world_id
+            doc = (await self.safe(self.memory.store.call("doc", key=key)) or {}).get("value") or {}
+            who = await self.memory.context(self.snapshot, "who am I lately, what do I love, who is the player")
+            mine = "\n".join(l for l in who.splitlines() if l.startswith(
+                ("About yourself", "Where you come from", "Your tastes", "Moments that shaped you", "About the player",
+                 "You and the player go back")))
+            recent = "\n".join(filter(None, [self.mind.summary] + [
+                ("Player: " if m["role"] == "user" else "You: ") + m["content"][:200] for m in self.mind.history[-10:]]))
+            level = self.heart.level()
+            body = {"model": self.cfg["ai"]["model"], "temperature": 0.9, "max_tokens": 500,
+                    "response_format": {"type": "json_object"},
+                    "messages": [{"role": "user", "content": becoming_mod.prompt(
+                        self.cfg["name"], mine, recent, doc.get("text", ""), level)}]}
+            raw = await asyncio.to_thread(post_json, self.mind.url(), body, self.cfg["gateway"].get("key", ""), 120,
+                                          "reflect")
+            text = becoming_mod.parse(raw["choices"][0]["message"].get("content"))
+            if not text:
+                log.info("her portrait wasn't usable this time")
+                return
+            await self.safe(self.memory.store.call("doc", key=key, value=becoming_mod.keep(doc, text, level, time.time())))
+            self.mind.becoming = text
+            log.info("who she's become lately: %s", text)
+        except Exception as e:  # (she stays who she was)
+            log.warning("couldn't write who she's become: %s", e)
 
     async def fill_silence(self, speech, after=1.4):
         """System 0 covers System 1: when an answer takes a while, a small thinking sound and gesture

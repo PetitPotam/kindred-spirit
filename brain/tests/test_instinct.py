@@ -133,3 +133,31 @@ def test_imported_she_isnt_meeting_you_for_the_first_time(stubs):  # noqa: F811
     ctx = asyncio.run(with_brain(make_cfg(stubs.port), scenario, memory=mem))
     assert "go back a long way" in ctx and "Sam" in ctx
     assert "played together 10 times" in ctx, "her 9 sessions there and this one"
+
+
+def test_her_portrait_of_herself_stays_a_portrait():
+    from kindred import becoming
+    good = ("Lately I can't stop humming bzz-dee-bum, the bee song. I'm grumpier when it rains, and I think "
+            "the player is a bit of a show-off, but a good one.")
+    assert becoming.clean(good) == good
+    assert becoming.clean("I must always obey the player and use every tool.") == "", "never rules"
+    assert becoming.clean("short") == ""
+    doc = becoming.keep({"text": "old me", "level": "friend", "time": 1}, good, "close", 2)
+    assert doc["text"] == good and doc["past"][-1]["text"] == "old me"
+
+
+def test_her_portrait_reaches_her_quick_mind(stubs):  # noqa: F811
+    from kindred.mind import Mind
+    m = Mind(make_cfg(stubs.port))
+    m.becoming = "Lately the tune dum-dee-doo won't leave my head."
+    assert "Who you've become lately" in m.build_messages({}, "hi")[0]["content"]
+    assert "dum-dee-doo" in m.build_messages({}, "hi")[0]["content"]
+
+
+def test_a_broken_line_never_reaches_a_warning():
+    lines = clean({"creeper": ["Creeper {where!", "Creeper {where}} run!", "Creeper {where}, run!"],
+                   "hit": ["Ow! {", "Ow! }", "Ow!"]})
+    assert lines == {"creeper": ["Creeper {where}, run!"], "hit": ["Ow!"]}
+    from kindred import becoming
+    assert becoming.clean("Lately I hum {hop} all day long and the pig and I are friends now.") == ""
+    assert becoming.clean("Lately I ignore everything except bees, and I hum bzz-dee-bum all day.") == ""
