@@ -1809,8 +1809,10 @@ class Brain:
             try:
                 self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood), (
                     "%s is a friend of the player's, here in the world with you. They can't hear your voice: they "
-                    "read your words in chat. Be yourself with them; your bond is with the player, not with %s."
-                    % (who, who))) if x)
+                    "read your words in chat. Be yourself with them; your bond is with the player, not with %s. You "
+                    "float beside the player you live with: if %s asks you to stay with them or follow them, that's the "
+                    "player's call (they can ask you); say so kindly, and don't go looking for %s."
+                    % (who, who, who, who))) if x)
                 offered = [a for a in self.abilities if a in self.GUEST_TOOLS] if powers else []
                 if not offered:
                     self.mind.heart += ("\nWith %s you only talk: your powers are for the player alone right now. If "

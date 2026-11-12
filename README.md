@@ -95,6 +95,13 @@ She answers them in chat as "[Pip] ...", knows who said what, and sees them in t
 
 Nothing friends say changes her bond with you. `lanGuests: false` turns all of it off.
 
+**When a friend hosts the world instead:** your Pip comes with you (her brain stays on your computer).
+If their game has the mod, it shows her to everyone (an Allay for players without it), passes their
+"Pip, ..." chat to your brain and her answers to their chat, and carries out her powers in their
+world for you: protect, gifts, effects, chopping, building, time and weather (`lanVisitors` on their
+side, on by default, lets them say no). Without the mod on the host's side, she's only with you:
+she talks, sees, finds and leads, but can't change their world.
+
 A friend setting up light mode on Windows: [PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md).
 
 ### It shouldn't feel like a robot

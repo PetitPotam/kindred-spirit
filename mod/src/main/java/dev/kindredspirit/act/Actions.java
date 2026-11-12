@@ -86,16 +86,9 @@ public final class Actions {
                 case FIND_ANIMAL -> done(findAnimal(mc, str(args, "animal", "sheep")));
                 case FIND_BLOCK -> done(findBlock(mc, str(args, "block", "flower")));
                 case FIND_PLAYER -> done(findPlayer(mc, str(args, "name", ""), str(args, "from", "")));
-                case LOCATE -> onServer(mc, s -> locate(s, mc.player, str(args, "what", "village")));
+                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER ->
+                        onServer(mc, a, args, power, style);
                 case GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> done(ok()); // handled by the companion itself
-                case PROTECT -> onServer(mc, s -> protect(target(s, mc.player, str(args, "to", ""))));
-                case PLACE_TORCH -> onServer(mc, s -> placeTorch(s, mc.player, style));
-                case HARVEST -> onServer(mc, s -> harvest(s, mc.player));
-                case BUILD -> onServer(mc, s -> Builder.start(s, mc.player, args, style));
-                case GIVE_ITEM -> onServer(mc, s -> give(target(s, mc.player, str(args, "to", "")), str(args, "item", ""), num(args, "count", 1)));
-                case GIVE_EFFECT -> onServer(mc, s -> effect(target(s, mc.player, str(args, "to", "")), str(args, "effect", "")));
-                case SET_TIME -> onServer(mc, s -> setTime(s, str(args, "time", "day")));
-                case SET_WEATHER -> onServer(mc, s -> setWeather(s, str(args, "weather", "clear")));
             };
         } catch (RuntimeException e) {
             return done(error("That didn't work: " + e.getMessage()));
@@ -226,18 +219,53 @@ public final class Actions {
 
     // ------------------------------------------------------------------ the server side (singleplayer / LAN host)
 
-    private static CompletableFuture<JsonObject> onServer(Minecraft mc, Function<MinecraftServer, JsonObject> job) {
+    /**
+     * In a friend's LAN world whose game has Kindred: asks their game to do it for you (visiting Pip, see
+     * GuestBridge.visit). Set by the client; null when there's no such world.
+     */
+    public static java.util.function.BiFunction<String, JsonObject, CompletableFuture<JsonObject>> remote;
+
+    private static CompletableFuture<JsonObject> onServer(Minecraft mc, Abilities.Ability a, JsonObject args,
+                                                          Abilities.Power power, Abilities.Style style) {
         MinecraftServer server = mc.getSingleplayerServer();
-        if (server == null) return done(error("I can only do that in singleplayer (or when you host LAN) for now."));
-        CompletableFuture<JsonObject> f = new CompletableFuture<>();
-        server.execute(() -> {
-            try {
-                f.complete(job.apply(server));
-            } catch (RuntimeException e) {
-                f.complete(error("That didn't work: " + e.getMessage()));
+        if (server == null) {
+            if (remote != null) {
+                JsonObject req = new JsonObject();
+                req.add("args", args);
+                req.addProperty("power", power.name());
+                req.addProperty("style", style.name());
+                return remote.apply(a.id(), req);
             }
+            return done(error("I can only do that in singleplayer, when you host LAN, or in a friend's world whose game has Kindred."));
+        }
+        CompletableFuture<JsonObject> f = new CompletableFuture<>();
+        java.util.UUID you = mc.player.getUUID();
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayer(you);
+            f.complete(sp == null ? error("player not found on the server") : serverSide(server, sp, a, args, style));
         });
         return f;
+    }
+
+    /** The world-changing powers, on the server (yours, or a friend's for your visiting Pip), for player sp. */
+    public static JsonObject serverSide(MinecraftServer s, ServerPlayer sp, Abilities.Ability a, JsonObject args,
+                                        Abilities.Style style) {
+        try {
+            return switch (a) {
+                case LOCATE -> locate(s, sp, str(args, "what", "village"));
+                case PROTECT -> protect(target(s, sp, str(args, "to", "")));
+                case PLACE_TORCH -> placeTorch(sp, style);
+                case HARVEST -> harvest(sp);
+                case BUILD -> Builder.start(s, sp, args, style);
+                case GIVE_ITEM -> give(target(s, sp, str(args, "to", "")), str(args, "item", ""), num(args, "count", 1));
+                case GIVE_EFFECT -> effect(target(s, sp, str(args, "to", "")), str(args, "effect", ""));
+                case SET_TIME -> setTime(s, str(args, "time", "day"));
+                case SET_WEATHER -> setWeather(s, str(args, "weather", "clear"));
+                default -> error("That isn't done on the server.");
+            };
+        } catch (RuntimeException e) {
+            return error("That didn't work: " + e.getMessage());
+        }
     }
 
     static ServerPlayer serverPlayer(MinecraftServer server, LocalPlayer p) {
@@ -247,8 +275,8 @@ public final class Actions {
     }
 
     @SuppressWarnings("unchecked")
-    static JsonObject locate(MinecraftServer server, LocalPlayer p, String what) {
-        ServerPlayer sp = serverPlayer(server, p);
+    static JsonObject locate(MinecraftServer server, ServerPlayer sp, String what) {
+        Player p = sp;
         ServerLevel level = sp.serverLevel();
         BlockPos from = sp.blockPosition();
         String key = what.toLowerCase(Locale.ROOT).replace("minecraft:", "").trim().replace(' ', '_');
@@ -308,8 +336,7 @@ public final class Actions {
     }
 
     /** A torch at your feet or right beside you. Grounded: uses one of your torches. */
-    static JsonObject placeTorch(MinecraftServer server, LocalPlayer p, Abilities.Style style) {
-        ServerPlayer sp = serverPlayer(server, p);
+    static JsonObject placeTorch(ServerPlayer sp, Abilities.Style style) {
         ServerLevel level = sp.serverLevel();
         boolean free = style == Abilities.Style.MAGIC || sp.getAbilities().instabuild;
         int slot = -1;
@@ -359,8 +386,7 @@ public final class Actions {
     }
 
     /** Who an action is for: you, or another player on your LAN world named (even roughly) in "to". */
-    static ServerPlayer target(MinecraftServer server, LocalPlayer you, String to) {
-        ServerPlayer me = serverPlayer(server, you);
+    static ServerPlayer target(MinecraftServer server, ServerPlayer me, String to) {
         if (to == null || to.isBlank() || to.equalsIgnoreCase("me") || to.equalsIgnoreCase("player")) return me;
         Player other = Players.match(server.getPlayerList().getPlayers(), to);
         if (other == null) throw new IllegalArgumentException("nobody called " + to + " is here");
@@ -499,8 +525,7 @@ public final class Actions {
      * grounded style no better tool than yours: stone by hand crumbles to nothing). Never unbreakable
      * blocks, never anything that holds items (chests, furnaces...).
      */
-    static JsonObject harvest(MinecraftServer server, LocalPlayer p) {
-        ServerPlayer sp = serverPlayer(server, p);
+    static JsonObject harvest(ServerPlayer sp) {
         ServerLevel level = sp.serverLevel();
         net.minecraft.world.phys.HitResult hit = sp.pick(6, 1f, false);
         BlockPos start = hit instanceof net.minecraft.world.phys.BlockHitResult bh
@@ -576,13 +601,13 @@ public final class Actions {
         return best;
     }
 
-    static JsonObject ok() {
+    public static JsonObject ok() {
         JsonObject o = new JsonObject();
         o.addProperty("ok", true);
         return o;
     }
 
-    static JsonObject error(String why) {
+    public static JsonObject error(String why) {
         JsonObject o = new JsonObject();
         o.addProperty("ok", false);
         o.addProperty("error", why);

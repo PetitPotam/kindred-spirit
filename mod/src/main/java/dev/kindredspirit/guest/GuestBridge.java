@@ -47,7 +47,14 @@ public final class GuestBridge {
     public static Supplier<double[]> where = () -> null;
     /** Her state for friends who have the mod (light mode: they draw her themselves, see SharedPip). */
     public static Supplier<String> state = () -> null;
+    /** Pips visiting from friends' games may act in this world (the host's setting lanVisitors). */
+    public static Supplier<Boolean> acceptVisitors = () -> true;
     private static int ticks;
+
+    // a visiting Pip: her brain lives in a friend's game, this world is yours (see visit())
+    private static volatile com.google.gson.JsonObject visitor;
+    private static volatile UUID visitorOwner;
+    private static volatile long visitorAt;
 
     /** Every server tick (your integrated server): keep the stand-in where she is, or remove it. */
     public static void tick(MinecraftServer server) {
@@ -61,7 +68,16 @@ public final class GuestBridge {
             }
         }
         double[] at = where.get();
-        boolean want = host != null && server.isPublished() && enabled.get() && at != null
+        boolean own = enabled.get() && at != null;
+        com.google.gson.JsonObject v = visiting();
+        ServerPlayer owner = host;
+        String pipName = name.get();
+        if (!own && v != null) { // no Pip of yours here: a friend's Pip visits
+            at = new double[]{v.get("x").getAsDouble(), v.get("y").getAsDouble(), v.get("z").getAsDouble()};
+            owner = server.getPlayerList().getPlayer(visitorOwner);
+            pipName = v.has("name") ? v.get("name").getAsString() : "Pip";
+        }
+        boolean want = host != null && owner != null && server.isPublished() && (own || v != null)
                 && server.getPlayerList().getPlayerCount() > 1;
         Allay pip = hidden == null || level == null ? null : (Allay) find(server, hidden);
         if (!want) {
@@ -83,25 +99,95 @@ public final class GuestBridge {
             level.addFreshEntity(pip);
             hidden = pip.getUUID();
         }
-        String n = name.get();
+        String n = pipName;
         if (pip.getCustomName() == null || !pip.getCustomName().getString().equals(n)) {
             pip.setCustomName(Component.literal(n).withStyle(ChatFormatting.LIGHT_PURPLE));
             pip.setCustomNameVisible(true);
         }
-        float yaw = (float) Math.toDegrees(Math.atan2(-(host.getX() - at[0]), host.getZ() - at[2]));
-        pip.moveTo(at[0], at[1] - 0.3, at[2], yaw, 0); // she looks at you
+        float yaw = (float) Math.toDegrees(Math.atan2(-(owner.getX() - at[0]), owner.getZ() - at[2]));
+        pip.moveTo(at[0], at[1] - 0.3, at[2], yaw, 0); // she looks at the one she lives with
         pip.setYHeadRot(yaw);
-        if (++ticks % 4 == 0) share(server, host);
+        if (++ticks % 4 == 0) share(server, owner, own ? null : v);
     }
 
-    /** Five times a second, to each friend whose game has the mod: her state, so they see her as you do. */
-    private static void share(MinecraftServer server, ServerPlayer host) {
+    /** A visiting Pip's latest state, if she's here and allowed (it came in the last 3 seconds). */
+    private static com.google.gson.JsonObject visiting() {
+        com.google.gson.JsonObject v = visitor;
+        return v != null && acceptVisitors.get() && System.currentTimeMillis() - visitorAt < 3000 && v.has("x") ? v : null;
+    }
+
+    /**
+     * Five times a second, to each player whose game has the mod (except the one she lives with):
+     * her state, so they see her as that player does. Yours, or the visiting Pip's.
+     */
+    private static void share(MinecraftServer server, ServerPlayer owner, com.google.gson.JsonObject visiting) {
+        if (visiting != null && hidden != null // the visitor's own game hides the stand-in too (they see their Pip)
+                && net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(owner, PipPayload.TYPE)) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(owner,
+                    new PipPayload("{\"type\":\"standin\",\"standIn\":\"" + hidden + "\"}"));
+        }
         String json = null;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            if (p == host || !net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(p, PipPayload.TYPE)) continue;
-            if (json == null) json = state.get();
+            if (p == owner || !net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(p, PipPayload.TYPE)) continue;
+            if (json == null) {
+                if (visiting != null) {
+                    com.google.gson.JsonObject o = visiting.deepCopy();
+                    if (hidden != null) o.addProperty("standIn", hidden.toString());
+                    json = o.toString();
+                } else {
+                    json = state.get();
+                }
+            }
             if (json == null) return;
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new PipPayload(json));
+        }
+    }
+
+    /**
+     * A visiting Pip's game talks to this world (you host; her brain is in your friend's game):
+     * her state (shown to the others, with a stand-in for those without the mod), her words (in their
+     * chat), and the powers she uses here, done for her owner as if in their own world. Server thread.
+     */
+    public static void visit(MinecraftServer server, ServerPlayer from, String json) {
+        com.google.gson.JsonObject m;
+        try {
+            m = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+        } catch (RuntimeException e) {
+            return;
+        }
+        String kind = m.has("kind") ? m.get("kind").getAsString() : "";
+        switch (kind) {
+            case "state" -> {
+                if (!m.has("state")) return;
+                visitor = m.getAsJsonObject("state");
+                visitorOwner = from.getUUID();
+                visitorAt = System.currentTimeMillis();
+            }
+            case "say" -> {
+                if (!acceptVisitors.get() || !m.has("text")) return;
+                String who = visitor != null && visitor.has("name") ? visitor.get("name").getAsString() : "Pip";
+                Component line = Component.literal("[" + who + "] ").withStyle(ChatFormatting.LIGHT_PURPLE)
+                        .append(Component.literal(m.get("text").getAsString()).withStyle(ChatFormatting.WHITE));
+                for (ServerPlayer p : server.getPlayerList().getPlayers()) if (p != from) p.sendSystemMessage(line);
+            }
+            case "act" -> {
+                com.google.gson.JsonObject res;
+                var a = dev.kindredspirit.act.Abilities.ability(m.has("action") ? m.get("action").getAsString() : "");
+                var power = dev.kindredspirit.act.Abilities.power(m.has("power") ? m.get("power").getAsString() : "");
+                var style = dev.kindredspirit.act.Abilities.style(m.has("style") ? m.get("style").getAsString() : "");
+                if (!acceptVisitors.get()) {
+                    res = dev.kindredspirit.act.Actions.error("This world's host doesn't let visiting Pips change things here.");
+                } else if (a == null || !dev.kindredspirit.act.Abilities.allowed(a, power, style)) {
+                    res = dev.kindredspirit.act.Actions.error("That isn't allowed.");
+                } else {
+                    var args = m.has("args") && m.get("args").isJsonObject() ? m.getAsJsonObject("args") : new com.google.gson.JsonObject();
+                    res = dev.kindredspirit.act.Actions.serverSide(server, from, a, args, style);
+                }
+                res.addProperty("type", "done");
+                res.addProperty("id", m.has("id") ? m.get("id").getAsString() : "");
+                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(from, new PipPayload(res.toString()));
+            }
+            default -> { }
         }
     }
 
@@ -115,6 +201,7 @@ public final class GuestBridge {
 
     /** The world closes: no stand-in left in it. */
     public static void stopping(MinecraftServer server) {
+        visitor = null;
         if (hidden != null) {
             var e = find(server, hidden);
             if (e != null) e.discard();

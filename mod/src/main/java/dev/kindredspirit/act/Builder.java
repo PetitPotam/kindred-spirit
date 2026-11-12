@@ -42,8 +42,7 @@ public final class Builder {
     private static int tick, placed, skipped;
 
     /** Starts a build. Called on the server thread. */
-    static JsonObject start(MinecraftServer server, LocalPlayer p, JsonObject args, Abilities.Style style) {
-        ServerPlayer sp = Actions.serverPlayer(server, p);
+    static JsonObject start(MinecraftServer server, ServerPlayer sp, JsonObject args, Abilities.Style style) {
         String shapeName = Actions.str(args, "shape", "pillar");
         if (shapeName.equalsIgnoreCase("stop")) {
             int left = queue.size();
