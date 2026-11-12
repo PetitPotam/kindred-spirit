@@ -2,6 +2,10 @@
 
 Each phase ends with something you can play with. Phases follow the [design](DESIGN.md).
 
+**Priorities (2026-11-13):** singleplayer first, then LAN with friends. Multiplayer on online servers
+comes last (accounts, permissions and server-safe behaviour are a world of their own); nothing is
+designed for it until singleplayer and LAN feel right.
+
 **0.1 preview (November 2026)** covers most of Phase 0 and 1: the slime (bounce, moods, subtitles), the WebSocket bridge with a token, voice chat (Whisper + Kokoro), typed chat, danger warnings, adaptive quality, and the sandbox test harness. Not yet: name tag on look, the settings screen. The bridge question is settled: Kindred carries its own (see the design).
 
 ### Look and presence: where each pick stands
@@ -196,6 +200,20 @@ you built as hers), then the items below.
 - Return your items after death; trading help.
 - Autonomous helpers (open question in the design).
 
+**Learning from Mindcraft** (MIT, Node.js + Mineflayer, AI agents that play as separate players with
+"!commands", and the *MineCollab* task benchmark): https://github.com/mindcraft-bots/mindcraft
+- **As a reference now:** its command vocabulary and skills (collect, craft, smelt, go to a player, place)
+  as input for her powers as Minecraft commands and for the jobs above; its tasks ("gather oak logs",
+  tech-tree crafting goals, a starting inventory and a timeout) as ready-made tests to measure her jobs.
+- **Her "hands" for grounded jobs, an experiment, two ways compared:**
+  - a Mineflayer bot steered by her brain's commands (not Mindcraft's own AI): proven walking, mining
+    and crafting, but an extra Node.js program, a visible second player (two bodies: the spirit and a
+    helper), maybe its own Microsoft account to join a LAN world, and AI-written code kept off;
+  - a stand-in player run by the game's own server inside our mod (the "fake player" approach from mods
+    like Carpet) with Baritone for walking and mining: more work, but one mod, nothing extra to install
+    for friends, no account.
+  Singleplayer first, then LAN.
+
 ## Phase 6: Voice and brain extras
 - Wake word, several languages, swappable speech services through the gateway.
 - Simple commands without AI, sending only the tools a request needs, the planner.
@@ -216,5 +234,5 @@ you built as hers), then the items below.
   and carries out her powers). Later: the stand-in wearing her skin, friends hearing her voice on their
   own computer. (Her own relationship with each friend: in progress, above.)
 - Port to the current Minecraft release (26.x): renderer, mixins and mappings need porting; friends then join on the latest version.
-- Servers: allowlist, server-safe behaviour, seed finder (cubiomes).
+- Servers (last, after singleplayer and LAN): allowlist, server-safe behaviour, seed finder (cubiomes).
 - Publish on GitHub and Modrinth as **Kindred Spirit** (slug `kindred-spirit` is free as of 2026-11-11).
