@@ -102,9 +102,10 @@ her voice across prompts and models, and her conversation on Gemini 3 Flash.
   makes her do it a bit more; what you ignore or stop, a bit less. A small learner on your own play.
 - **Her voice, later (parked: Lily works for now).** Chosen from an audition: Kokoro `bf_lily`
   (speed 1.12, pitch 1.1; excited 1.28/1.16), with per-sentence intonation and hums played as
-  note-block tunes. Tried and set aside on an M4 MacBook Air: Chatterbox (Lily cloned, real emotion,
-  but 2.5-7 s before she speaks), Orpheus (great laughs and sighs, 10-24 s), sung hums (creepy) and
-  vocoder tuning of Kokoro (buzzy). Ideas for later:
+  note-block tunes. Tried on an M4 MacBook Air and postponed (the versions we tried weren't good
+  enough yet; better ones are welcome): Chatterbox (Lily cloned, real emotion, but 2.5-7 s before she
+  speaks), Orpheus (great laughs and sighs, 10-24 s), sung hums (sounded creepy) and vocoder tuning
+  of Kokoro (sounded buzzy). Ideas for later:
   - *A younger Lily*: move Lily's Kokoro style vector away from the older British voices (bf_emma,
     bf_isabella, bf_alice) by a small step (voice arithmetic: no download, instant to try); or a
     gentle pitch lift that doesn't sound chipmunk.
