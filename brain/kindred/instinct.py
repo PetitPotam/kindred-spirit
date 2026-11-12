@@ -31,13 +31,15 @@ MOMENTS = {
     "shoo": ("you just pushed monsters away from the player (say 'you' or their name, not he/she)", ["Shoo! Leave them alone!", "Back off!", "Not my friend!"]),
     "thinking": ("a tiny sound while you think about what they just asked: 1 to 4 words (\"Hmm...\")",
                  ["Hmm...", "Ooh, let me think...", "Hmm, good question..."]),
-    "creeper": ("URGENT warning: a creeper is close, {where}. Very short.", None),
+    "creeper": ("URGENT: a creeper is close. An instinctive shout, 2 to 5 words, no directions (\"Creeper! Watch out!\")",
+                None),
     "low_health": ("URGENT warning: the player has only {hearts} hearts left. Short.", None),
-    "lava": ("URGENT warning: lava {where}. Very short.", None),
-    "drop": ("warning: a big drop {where}. Short.", None),
+    "lava": ("URGENT: lava right there. An instinctive shout, 2 to 5 words, no directions", None),
+    "drop": ("a big drop right at their feet. A quick shout, 2 to 5 words, no directions", None),
 }
-NEEDS = {"creeper": "{where}", "lava": "{where}", "drop": "{where}", "low_health": "{hearts}"}
+NEEDS = {"low_health": "{hearts}"}
 PER_MOMENT = 6
+VERSION = 2  # 2: warnings are shouts without directions (older lines are written again)
 
 
 def prompt(name, who_she_is, bond_level, player_name):
@@ -50,8 +52,8 @@ def prompt(name, who_she_is, bond_level, player_name):
         "(under 70 characters), no emojis or asterisks; use the player's name only now and then.\n"
         "Who she is right now:\n%s\nHer bond with the player: %s.%s Never call the player by her own name or nickname.\n\n"
         "Write %d different lines for each moment below, in her own voice and colored by how she feels about the "
-        "player (warmer and more teasing when close, shorter and colder when hurt). Keep {where} or {hearts} exactly "
-        "as written where a moment has it (it becomes 'behind you', '2'...). Vary them; no line twice.\n%s\n\n"
+        "player (warmer and more teasing when close, shorter and colder when hurt). Keep {hearts} exactly as written "
+        "where a moment has it (it becomes '2'...). Warnings are instinctive shouts, never directions. Vary them; no line twice.\n%s\n\n"
         "Answer with one JSON object: {\"moment\": [\"line\", ...], ...}."
         % (name, who_she_is or "(she's only just met the player)", bond_level,
            (" The player's name is %s; use it now and then." % player_name) if player_name else "",

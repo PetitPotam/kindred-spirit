@@ -1551,7 +1551,8 @@ class Brain:
         doc = (await self.safe(self.memory.store.call("doc", key=key)) or {}).get("value")
         self.instinct.load(doc)
         self.alerts.pools = self.instinct.lines
-        if not self.instinct.lines or self.instinct.level != "%s, %s" % (self.heart.level(), self.heart.stance()):
+        if (not self.instinct.lines or (doc or {}).get("v") != instinct_mod.VERSION
+                or self.instinct.level != "%s, %s" % (self.heart.level(), self.heart.stance())):
             after = self.cfg["behaviour"].get("instinct_lines_after", 45)
             if after:
                 asyncio.create_task(self.write_lines(after=after))
@@ -1579,7 +1580,7 @@ class Brain:
             if len(lines) < len(instinct_mod.MOMENTS) // 2:
                 log.info("her instinct lines weren't usable this time (%d moments)", len(lines))
                 return
-            doc = {"lines": lines, "level": level, "time": time.time()}
+            doc = {"lines": lines, "level": level, "time": time.time(), "v": instinct_mod.VERSION}
             await self.safe(self.memory.store.call("doc", key="world:%s:lines" % self.memory.world_id, value=doc))
             self.instinct.load(doc)
             self.alerts.pools = self.instinct.lines

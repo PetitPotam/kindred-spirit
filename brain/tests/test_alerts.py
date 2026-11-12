@@ -12,7 +12,7 @@ def alerts():
 def test_creeper_close_behind_warns_with_direction():
     a = alerts().check(snap(hostiles=[creeper(5, "behind")]), now=0)
     assert a and a.kind == "creeper" and a.mood == "scared"
-    assert "behind you" in a.text
+    assert "behind you" in a.text.lower(), "behind you: worth saying (you can't see it)"
 
 
 def test_creeper_far_away_is_ignored():
@@ -72,7 +72,8 @@ def test_lava_and_big_drops_ahead():
     a = Alerts()
     s = snap(hazards=[{"kind": "lava", "distance": 3, "direction": "ahead"}])
     alert = a.check(s, 0)
-    assert alert.kind == "lava" and "ahead" in alert.text and alert.mood == "scared"
+    assert alert.kind == "lava" and "lava" in alert.text.lower() and "ahead" not in alert.text and alert.mood == "scared", \
+        "a shout, not directions"
     assert a.check(s, 5) is None, "once, not nagging"
     deep = snap(hazards=[{"kind": "drop", "distance": 2, "depth": 14, "direction": "ahead"}])
     assert Alerts().check(deep, 0).kind == "drop"

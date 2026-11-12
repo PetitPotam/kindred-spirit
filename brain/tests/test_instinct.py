@@ -10,10 +10,10 @@ from kindred.instinct import Instinct, clean, prompt
 
 def test_only_usable_lines_are_kept():
     lines = clean({"hit": ["Ow, Tam! Why?!", "[sad] tagged", "x" * 120, "Ow!"],
-                   "creeper": ["Creeper {where}! Run, Tam!", "Creeper! Run!", "Creeper {where} {hearts}!"],
+                   "creeper": ["Creeper {where}! Run, Tam!", "Creeper! Run!", "Creeper {hearts}!"],
                    "low_health": ["Only {hearts} hearts, Tam!"], "nonsense": ["hi"]})
     assert lines["hit"] == ["Ow, Tam! Why?!", "Ow!"]
-    assert lines["creeper"] == ["Creeper {where}! Run, Tam!"], "a warning keeps its place to fill in, and nothing else"
+    assert lines["creeper"] == ["Creeper! Run!"], "a warning is a shout: no place to fill in"
     assert "nonsense" not in lines and lines["low_health"]
 
 
@@ -28,10 +28,10 @@ def test_her_words_replace_the_builtin_ones_and_dont_repeat():
 
 def test_warnings_in_her_words():
     a = Alerts(random.Random(2))
-    a.pools = {"creeper": ["Tam, creeper {where}! Go go go!"]}
+    a.pools = {"creeper": ["Tam, creeper! Go go go!"]}
     from fixtures import creeper
     alert = a.check(snap(hostiles=[creeper(4, "behind")]), 0)
-    assert alert.text == "Tam, creeper behind you! Go go go!"
+    assert alert.text == "Tam, creeper! Go go go! Behind you!"
 
 
 def test_the_prompt_asks_for_her_voice_in_her_world():
@@ -157,9 +157,9 @@ def test_her_portrait_reaches_her_quick_mind(stubs):  # noqa: F811
 
 
 def test_a_broken_line_never_reaches_a_warning():
-    lines = clean({"creeper": ["Creeper {where!", "Creeper {where}} run!", "Creeper {where}, run!"],
-                   "hit": ["Ow! {", "Ow! }", "Ow!"]})
-    assert lines == {"creeper": ["Creeper {where}, run!"], "hit": ["Ow!"]}
+    lines = clean({"creeper": ["Creeper {where!", "Creeper {where}} run!", "Creeper, run!"],
+                   "low_health": ["{hearts hearts!", "Only {hearts} hearts!"], "hit": ["Ow! {", "Ow! }", "Ow!"]})
+    assert lines == {"creeper": ["Creeper, run!"], "low_health": ["Only {hearts} hearts!"], "hit": ["Ow!"]}
     from kindred import becoming
     assert becoming.clean("Lately I hum {hop} all day long and the pig and I are friends now.") == ""
     assert becoming.clean("Lately I ignore everything except bees, and I hum bzz-dee-bum all day.") == ""

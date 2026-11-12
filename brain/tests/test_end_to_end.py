@@ -137,7 +137,7 @@ def test_creeper_warning_arrives_with_voice(stubs):
             assert welcome["name"] == "Pip"
             await ws.send(json.dumps(snap(hostiles=[creeper(4.0, "behind")])))
             say = await recv_until(ws, "say")
-            assert "creeper" in say["text"].lower() and "behind you" in say["text"]
+            assert "creeper" in say["text"].lower() and "behind you" in say["text"].lower()
             assert say["mood"] == "scared"
             assert say["audio"] == "" and say["more"]          # subtitle first, instantly...
             audio = await recv_until(ws, "audio")             # ...then the voice
