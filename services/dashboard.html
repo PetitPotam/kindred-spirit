@@ -213,7 +213,10 @@ svg text { fill: var(--muted); font-size: 10px; }
 
   <section class="tab" id="tab-settings">
     <div class="grid">
-      <div class="card wide"><h2>Change settings</h2><div id="set-edit"></div>
+      <div class="card wide"><h2>Change settings</h2>
+        <div id="prof" class="small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)"></div>
+        <div id="prof-cmp"></div>
+        <div id="set-edit"></div>
         <div class="small muted" style="margin-top:8px">Everything applies without a restart: her brain within a few seconds (saved in ~/.kindred-spirit/brain-overrides.json, on top of brain.toml), the gateway on the next call, the game within two seconds, even while you play. ↺ puts one setting back to its default.</div></div>
       <div class="card"><h2>In use</h2><div id="set-use"></div></div>
       <div class="card"><h2>Special instructions</h2><div id="set-instr"></div></div>
@@ -528,6 +531,7 @@ async function settingsTab() {
   $("set-brain").innerHTML = kv(top);
   $("set-mod").innerHTML = d.mod ? kv(d.mod) : `<div class="empty">The mod's settings file wasn't found.</div>`;
   $("set-gw").textContent = JSON.stringify(d.gateway, null, 2);
+  if (!editing) await profilesBar();
   await settingsEditor();
 }
 
@@ -557,6 +561,10 @@ async function settingsEditor() {
     if (x.type === "bool") input = `<input type="checkbox" id="${id}" ${x.value ? "checked" : ""}>`;
     else if (x.type === "choice") input = `<select id="${id}">${x.choices.map((c) => `<option value="${esc(c)}" ${c === x.value ? "selected" : ""}>${esc(c === "" ? "(same / default)" : c)}</option>`).join("")}</select>`;
     else if (x.type === "longtext") input = `<textarea id="${id}" rows="2" style="width:100%;font:inherit">${esc(x.value ?? "")}</textarea>`;
+    else if (x.range) input = `<input type="range" id="${id}" min="${x.range[0]}" max="${x.range[1]}" step="${x.range[2]}" value="${esc(x.value ?? 0)}"
+        oninput="this.nextElementSibling.textContent=this.value" style="width:120px"><span class="muted" style="width:34px;text-align:right">${esc(x.value ?? "")}</span>`;
+    else if (x.suggest) input = `<input type="search" id="${id}" list="${id}-dl" value="${esc(x.value ?? "")}" style="width:190px">
+        <datalist id="${id}-dl">${x.suggest.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>`;
     else input = `<input type="search" id="${id}" value="${esc(x.value ?? "")}" style="width:${x.type === "text" ? 170 : 70}px">`;
     const changed = x.default !== null && x.default !== undefined && String(x.value ?? "") !== String(x.default);
     const reset = x.default === null || x.default === undefined ? "" :
@@ -564,12 +572,15 @@ async function settingsEditor() {
     return `<label class="small" style="display:flex;justify-content:space-between;gap:8px;align-items:center;${x.type === "longtext" ? "grid-column:1/-1" : ""}">
       <span>${esc(x.label)}${changed ? ` <span class="muted">(default ${esc(show(x.default))})</span>` : ""}</span><span style="display:flex;gap:4px;align-items:center">${input}${reset}</span></label>`;
   };
-  $("set-edit").innerHTML = groups.map((g) => `<h3 class="small" style="margin:12px 0 4px">${esc(g.title)}</h3>
+  $("set-edit").innerHTML = `<div class="row" style="margin:10px 0 0"><button class="chip" id="st-save-top">Save changes</button>
+      <button class="chip off" id="st-defaults-top" title="every setting back to its default (then Save)">↺ Reset all to defaults</button>
+      <span class="small muted">or ↺ on a row for just that one</span></div>` + groups.map((g) => `<h3 class="small" style="margin:12px 0 4px">${esc(g.title)}</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:6px 18px">${g.items.map(row).join("")}</div>`).join("") +
     `<div class="row" style="margin-top:12px"><button class="chip" id="st-save">Save changes</button>
       <button class="chip off" id="st-defaults" title="every setting back to its default (then Save)">Reset all to defaults</button>
       <span class="small muted" id="st-msg"></span></div>`;
-  const setTo = (x, v) => { const el = $(idOf(x)); if (!el) return; if (x.type === "bool") el.checked = !!v; else el.value = v ?? ""; };
+  const setTo = (x, v) => { const el = $(idOf(x)); if (!el) return; if (x.type === "bool") el.checked = !!v; else el.value = v ?? "";
+    if (x.range && el.nextElementSibling) el.nextElementSibling.textContent = el.value; };
   const dirty = () => { editing = true; $("st-msg").textContent = "unsaved changes"; };
   $("set-edit").oninput = dirty;
   $("set-edit").onclick = (ev) => {
@@ -578,6 +589,8 @@ async function settingsEditor() {
   };
   $("st-defaults").onclick = () => { all.forEach((x) => { if (x.default !== null && x.default !== undefined) setTo(x, x.default); }); dirty();
     $("st-msg").textContent = "everything set back to its default: Save to keep it"; };
+  $("st-defaults-top").onclick = () => $("st-defaults").click();
+  $("st-save-top").onclick = () => $("st-save").click();
   $("st-save").onclick = async () => {
     const changes = [];
     all.forEach((x) => {
@@ -589,6 +602,32 @@ async function settingsEditor() {
     try { const r = await post("/api/settings", {changes}); editing = false;
       $("st-msg").textContent = "saved " + r.changed.length + " setting" + (r.changed.length > 1 ? "s" : ""); await settingsTab(); }
     catch (e) { $("st-msg").textContent = "not saved: " + e.message; }
+  };
+}
+
+// ---------------------------------------------------------------- profiles: saved sets of settings
+async function profilesBar() {
+  const d = await get("/api/profiles");
+  const opts = (sel, extra) => extra.concat(d.profiles.map((p) => p.name)).map((n) => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("");
+  $("prof").innerHTML = `<b>Profiles</b>
+    <select id="pf-pick">${opts("", []) || "<option value=''>(none saved yet)</option>"}</select>
+    <button class="chip" id="pf-apply" title="use these settings now">Use</button><button class="chip off" id="pf-del">Delete</button>
+    <span class="muted">·</span><input type="search" id="pf-name" placeholder="name, e.g. calm Pip" style="width:150px"><button class="chip" id="pf-save">Save current as</button>
+    <span class="muted">·</span>Compare <select id="pf-a">${opts("current", ["current", "defaults"])}</select> with <select id="pf-b">${opts("defaults", ["current", "defaults"])}</select>
+    <button class="chip" id="pf-cmp">Compare</button><span id="pf-msg" class="muted"></span>`;
+  const msg = (t) => ($("pf-msg").textContent = " " + t);
+  $("pf-save").onclick = async () => { const n = $("pf-name").value.trim(); if (!n) return msg("give it a name");
+    try { await post("/api/profiles", {action: "save", name: n}); msg("saved " + n); profilesBar(); } catch (e) { msg(e.message); } };
+  $("pf-apply").onclick = async () => { const n = $("pf-pick").value; if (!n) return;
+    try { const r = await post("/api/profiles", {action: "apply", name: n}); msg(`using ${n} (${r.changed.length} changed)`); editing = false; settingsTab(); } catch (e) { msg(e.message); } };
+  $("pf-del").onclick = async () => { const n = $("pf-pick").value; if (!n || !confirm("Delete the profile " + n + "?")) return;
+    try { await post("/api/profiles", {action: "delete", name: n}); msg("deleted"); profilesBar(); } catch (e) { msg(e.message); } };
+  $("pf-cmp").onclick = async () => {
+    const r = await get(`/api/profiles/compare?a=${encodeURIComponent($("pf-a").value)}&b=${encodeURIComponent($("pf-b").value)}`);
+    $("prof-cmp").innerHTML = `<div class="small" style="margin:8px 0">${r.differences.length ? `<table style="width:100%;border-collapse:collapse">
+      <tr><th style="text-align:left">Setting</th><th style="text-align:left">${esc(r.a)}</th><th style="text-align:left">${esc(r.b)}</th></tr>` +
+      r.differences.map((x) => `<tr style="border-top:1px solid var(--line)"><td>${esc(x.label)} <span class="muted">(${esc(x.where)})</span></td><td>${esc(JSON.stringify(x.a))}</td><td>${esc(JSON.stringify(x.b))}</td></tr>`).join("") +
+      `</table>` : `<span class="muted">${esc(r.a)} and ${esc(r.b)} are the same.</span>`} <button class="chip off" onclick="this.parentNode.remove()">close</button></div>`;
   };
 }
 

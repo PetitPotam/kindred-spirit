@@ -97,6 +97,43 @@ GATEWAY_EDITABLE = [
     ("stt.use", "Hearing you (speech-to-text)", "provider"),
 ]
 TEMPERAMENT_DEFAULT = "default"
+# numbers get a slider: (min, max, step)
+RANGES = {
+    ("brain", "ai.temperature"): (0, 1.5, 0.05), ("brain", "ai.max_tokens"): (60, 600, 10),
+    ("brain", "ai.history_turns"): (2, 20, 1), ("brain", "voice.speed"): (0, 2, 0.05),
+    ("brain", "behaviour.small_talk_minutes"): (0, 30, 1), ("brain", "behaviour.instinct_lines_after"): (0, 300, 5),
+    ("brain", "behaviour.fill_silence_after"): (0, 6, 0.1), ("brain", "behaviour.becoming_minutes"): (5, 120, 5),
+    ("brain", "heart.awakening_seconds"): (5, 180, 5), ("brain", "heart.start_bond"): (0, 100, 1),
+    ("gateway", "tts.providers.local_kokoro.speed"): (0.7, 1.6, 0.01), ("gateway", "tts.providers.local_kokoro.pitch"): (0.8, 1.25, 0.01),
+    ("mod", "voiceVolume"): (0, 2, 0.05), ("mod", "size"): (0.3, 3, 0.05), ("mod", "offsetRight"): (-3, 3, 0.05),
+    ("mod", "offsetForward"): (-1, 5, 0.05), ("mod", "offsetUp"): (-2, 3, 0.05), ("mod", "maxRecordSeconds"): (5, 30, 1),
+    ("mod", "life.drift"): (0, 2, 0.1), ("mod", "life.dozeAfterSeconds"): (0, 600, 10), ("mod", "life.turnSlack"): (0, 90, 1),
+}
+GEMINI_MODELS = ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"]
+ROOT = os.path.dirname(HERE)
+
+
+def skin_ids():
+    """The skins she can wear: the ones that come with the mod, and the ones you added."""
+    ids = set()
+    builtin = os.path.join(ROOT, "mod", "src", "main", "resources", "assets", "kindredspirit", "skins")
+    mp = mod_path()
+    for d in (builtin, os.path.join(os.path.dirname(mp), "kindredspirit", "skins") if mp else None):
+        try:
+            ids |= {os.path.splitext(f)[0] for f in os.listdir(d) if f.endswith((".json", ".png"))}
+        except (OSError, TypeError):
+            pass
+    return sorted(ids)
+
+
+def kokoro_voices():
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8885/v1/voices", timeout=3) as r:
+            data = json.loads(r.read())
+        names = data.get("voices") if isinstance(data, dict) else data
+        return sorted(v if isinstance(v, str) else v.get("id", "") for v in names or [])
+    except (urllib.error.URLError, OSError, ValueError):
+        return []
 
 
 def _get(d, path):
@@ -167,6 +204,19 @@ def editable():
         out.append({"where": "mod", "path": path, "label": LABELS.get(path, path.split(".")[-1]),
                     "type": "choice" if choices else _kind(value), "choices": choices, "value": value,
                     "default": _get(mod_defaults, path) if mod_defaults else None})
+    skins, voices = skin_ids(), kokoro_voices()
+    for e in out:
+        key = (e["where"], e["path"])
+        if key in RANGES and e["type"] in ("int", "float"):
+            e["range"] = RANGES[key]
+        if key == ("mod", "skin") and skins:
+            e["type"], e["choices"] = "choice", skins
+        elif key == ("gateway", "tts.providers.local_kokoro.voice") and voices:
+            e["suggest"] = voices  # one voice, or a blend like "bf_lily*0.7+bf_emma*0.3"
+        elif key == ("gateway", "upstreams.gemini.by_kind.reply.model"):
+            e["suggest"] = GEMINI_MODELS
+        elif key == ("brain", "ai.model"):
+            e["suggest"] = [""] + GEMINI_MODELS
     return out
 
 
@@ -214,6 +264,74 @@ def change_settings(changes):
             _set(mod, path, v)
         _write_json(mp, mod)  # (the mod sees it within two seconds, even in game)
     return {"changed": done}
+
+
+# ---------------------------------------------------------------------- profiles: saved sets of settings
+
+PROFILES = os.path.join(DIR, "profiles")
+NAME = re.compile(r"^[\w .'-]{1,40}$")
+
+
+def _profile_path(name):
+    if not NAME.match(name or ""):
+        raise ValueError("a profile name is up to 40 letters, numbers, spaces, - . or '")
+    return os.path.join(PROFILES, re.sub(r"\s+", "_", name.strip()) + ".json")
+
+
+def _snapshot():
+    snap = {}
+    for e in editable():
+        snap.setdefault(e["where"], {})[e["path"]] = e["value"]
+    return snap
+
+
+def profiles_list():
+    out = []
+    try:
+        for f in sorted(os.listdir(PROFILES)):
+            if f.endswith(".json"):
+                d = read_json(os.path.join(PROFILES, f)) or {}
+                out.append({"name": d.get("name") or f[:-5], "time": d.get("time"),
+                            "count": sum(len(v) for v in (d.get("settings") or {}).values())})
+    except OSError:
+        pass
+    return out
+
+
+def profile_action(action, name):
+    if action == "save":
+        os.makedirs(PROFILES, exist_ok=True)
+        _write_json(_profile_path(name), {"name": name.strip(), "time": time.time(), "settings": _snapshot()})
+        return {"saved": name}
+    path = _profile_path(name)
+    if action == "delete":
+        os.remove(path)
+        return {"deleted": name}
+    if action == "apply":
+        saved = (read_json(path) or {}).get("settings") or {}
+        now = _snapshot()
+        changes = [{"where": w, "path": p, "value": v} for w, vals in saved.items() for p, v in vals.items()
+                   if p in (now.get(w) or {}) and now[w][p] != v]
+        return change_settings(changes) if changes else {"changed": []}
+    raise ValueError("unknown action")
+
+
+def profile_compare(a, b):
+    """What differs between two profiles ("current" = what's set now, "defaults" = the defaults)."""
+    entries = editable()
+    labels = {(e["where"], e["path"]): e["label"] for e in entries}
+
+    def values(name):
+        if name == "current":
+            return {(e["where"], e["path"]): e["value"] for e in entries}
+        if name == "defaults":
+            return {(e["where"], e["path"]): e["default"] for e in entries if e["default"] is not None}
+        saved = (read_json(_profile_path(name)) or {}).get("settings") or {}
+        return {(w, p): v for w, vals in saved.items() for p, v in vals.items()}
+    va, vb = values(a), values(b)
+    rows = [{"where": k[0], "path": k[1], "label": labels.get(k, k[1]), "a": va.get(k), "b": vb.get(k)}
+            for k in labels if k in va and k in vb and va[k] != vb[k]]
+    return {"a": a, "b": b, "differences": rows}
 
 
 def _write_json(path, data):
@@ -631,6 +749,10 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/api/sim/token":  # the simulator talks to her brain like the game does (this computer only)
                 with open(os.path.join(DIR, "token"), encoding="utf-8") as fh:
                     return self.send(200, {"token": fh.read().strip()})
+            if url.path == "/api/profiles":
+                return self.send(200, {"profiles": profiles_list()})
+            if url.path == "/api/profiles/compare":
+                return self.send(200, profile_compare(q.get("a", "current"), q.get("b", "defaults")))
             if url.path == "/api/settings/editable":
                 return self.send(200, {"settings": editable()})
             if url.path == "/api/sessions":
@@ -651,7 +773,7 @@ class Handler(BaseHTTPRequestHandler):
 def _post(handler):
     """What the dashboard can change: the listed settings, and asking the knowledge base to learn."""
     url = urlparse(handler.path)
-    if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak"):
+    if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles"):
         return handler.send(404, {"error": "not found"})
     if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
         return handler.send(403, {"error": "only from the dashboard itself"})
@@ -665,6 +787,11 @@ def _post(handler):
                 return handler.send(200, r.read(), "audio/wav")
         except (urllib.error.URLError, OSError) as e:
             return handler.send(502, {"error": str(getattr(e, "reason", e))})
+    if url.path == "/api/profiles":
+        try:
+            return handler.send(200, profile_action(str(body.get("action", "")), str(body.get("name", ""))))
+        except (ValueError, TypeError, OSError) as e:
+            return handler.send(400, {"error": str(e)})
     if url.path == "/api/settings":
         try:
             return handler.send(200, change_settings(body.get("changes")))
