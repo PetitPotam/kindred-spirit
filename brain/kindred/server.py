@@ -56,6 +56,21 @@ def sentences(text, min_chars=25):
     return out or [text]
 
 
+def merge_messages(texts):
+    """Several messages at once, as one: repeats counted ("i love you (said 9 times in a row)")."""
+    out = []
+    for t in texts:
+        key = re.sub(r"[^a-z ]", "", t.lower()).strip()
+        if out and out[-1][0] == key:
+            out[-1][2] += 1
+        else:
+            out.append([key, t, 1])
+    lines = ["%s (said %d times in a row)" % (t, n) if n > 1 else t for _, t, n in out]
+    if len(lines) == 1:
+        return lines[0]
+    return "(several messages, sent one after another)\n" + "\n".join(lines)
+
+
 IMPORTED_KINDS = ("player", "self", "habit")  # what an import brings: who you are, who she is, your habits
 
 # moments worth waiting for a pause in the conversation, rather than skipping
@@ -104,6 +119,10 @@ class Brain:
         self.greet_task = None
         self.line = 0
         self.last_pet_reply = -1e9
+        self.tipped = {}             # power -> when the player last got a settings tip for it
+        self.recent = []             # (when, what) just happened: deaths, respawns, big hits (see happened)
+        self.prev_where = None
+        self.inbox, self.inbox_task = [], None  # what the player said while she was busy (hear_player)
         self.her_offer = None        # (action, when): what she offered in her own words just now
         self.offered = None          # powers offered to the AI right now (None: all allowed ones)
         self.recent_player = []      # the last few things the player said ("find them" -> them = sheep)
@@ -171,7 +190,7 @@ class Brain:
         elif kind == "event":
             await self.on_event(msg.get("event"), msg)
         elif kind == "chat":
-            asyncio.create_task(self.answer(msg.get("text", "")))
+            self.hear_player(msg.get("text", ""))
         elif kind == "voice":
             asyncio.create_task(self.on_voice(msg))
         elif kind == "admin":  # /kindred memory, /kindred reset, /kindred persona ... (answered in chat)
@@ -180,11 +199,16 @@ class Brain:
     def set_abilities(self, msg):
         self.abilities = list(msg.get("abilities") or [])
         self.singleplayer = bool(msg.get("singleplayer"))
-        known = self.abilities if not self.heart.amnesia() else "(you don't know yet: you discover it by trying)"
-        self.mind.powers = "Power: %s, style: %s. You can: %s.%s" % (
-            msg.get("power", "?"), msg.get("style", "?"),
-            (", ".join(known) or "only talk") if isinstance(known, list) else known,
-            "" if self.singleplayer else " This is not a singleplayer world, so actions that change the world won't work.")
+        # (said in her world's words: these are limits of what she is, never "settings" to talk about)
+        known = ", ".join(a.replace("_", " ") for a in self.abilities) if not self.heart.amnesia() else \
+            "you don't know yet: you find out by trying when the player asks"
+        self.mind.powers = "%s%s What you can do: %s.%s" % (
+            {"advisor": "You can only look, sense and lead the way; you can't touch or change anything.",
+             "helper": "You can help with your hands when asked, but nothing too big.",
+             "allpowerful": "Your power is great: even the sun and the sky listen to you."}.get(msg.get("power"), ""),
+            " You can only use what really exists (the player's own torches): you can't make things appear out of "
+            "nothing." if msg.get("style") == "grounded" else " Your magic can make things appear.",
+            known, "" if self.singleplayer else " Here your magic can't change the world itself.")
         log.info("abilities: %s", ", ".join(self.abilities))
 
     async def request(self, action, args, timeout=25):
@@ -234,13 +258,18 @@ class Brain:
         except MemoryError as e:
             return {"ok": False, "error": str(e)}
         if name not in self.abilities:
-            return {"ok": False, "error": "My settings don't let me do that (%s)." % self.mind.powers}
+            await self.tip_for(name)
+            return {"ok": False, "error": "That's beyond what you can do."}
         if self.offered is not None and name not in self.offered:
             # (amnesia) a power she hasn't discovered: the AI knows the name, she doesn't
             return {"ok": False, "error": "You don't know how to do that yet."}
         if name == "guide":
             args = await self.guide_target(args)
         result = await self.request(name, args)
+        m = re.search(r"\(?(?:The player can switch with )?(/kindred [a-z ]+?)\.?\)", result.get("error") or "")
+        if m:  # the way to unlock it is for the player, as a hint in chat: never in her mouth
+            await self.send({"type": "notice", "text": "Tip: %s lets %s do this" % (m.group(1), self.cfg["name"])})
+            result["error"] = result["error"].replace(m.group(0), "").strip()
         if name in ("find_ore", "locate") and result.get("ok") and "x" in result and result.get("found", True):
             what = result.get("ore") or result.get("what") or args.get("ore") or args.get("what") or "something"
             if name == "find_ore":
@@ -257,6 +286,15 @@ class Brain:
         return result
 
     # ------------------------------------------------------------------ her heart
+
+    async def tip_for(self, ability):
+        """A settings hint for the player (in chat, not from her) when she's asked for something her
+        power or style doesn't allow."""
+        need = {"give_item": "/kindred style magic", "set_time": "/kindred power allpowerful",
+                "set_weather": "/kindred power allpowerful", "protect": "/kindred power helper",
+                "place_torch": "/kindred power helper"}.get(ability)
+        if need:
+            await self.send({"type": "notice", "text": "Tip: %s lets %s do this" % (need, self.cfg["name"])})
 
     async def bond_update(self, delta, why=""):
         if abs(delta) < 0.5:
@@ -676,11 +714,17 @@ class Brain:
                     log.info("reminder: %s", r["text"])
                     await self.say("Psst, a reminder: %s" % r["text"].rstrip("."), "curious", instant=True)
 
+    def happened(self, what, now):
+        """Something that just happened, shown to her for 90 seconds with what she sees."""
+        self.recent = [(t, x) for t, x in self.recent if now - t < 90] + [(now, what)]
+
     async def on_snapshot(self, s):
         self.snapshot = s
         self.snapshot_at = self.clock()
         self.save_snapshot(s)
         await self.heart_watch(s)
+        now = self.clock()
+        s["recent"] = ["%s (%d seconds ago)" % (x, now - t) for t, x in self.recent if now - t < 90]
         if "health" in s:
             self.in_world = True
         now = self.clock()
@@ -771,9 +815,21 @@ class Brain:
             asyncio.create_task(self.notice("biome", biome))
         self.prev_biome = biome or self.prev_biome
         health = s.get("health", 20)
-        if self.prev_health is not None and self.prev_health > 0 and health <= 0:
+        prev = self.prev_health
+        jumped = self.prev_where is not None and w.get("x") is not None and \
+            abs(w["x"] - self.prev_where[0]) + abs(w["z"] - self.prev_where[1]) > 24
+        if prev is not None and prev > 0 and health <= 0:
+            self.happened("The player died", now)
             asyncio.create_task(self.notice("death"))
+        elif prev is not None and (prev <= 0 or (prev < 8 and health >= s.get("maxHealth", 20) and jumped)):
+            if prev > 0:  # (the death itself happened between two snapshots)
+                self.happened("The player died", now)
+                asyncio.create_task(self.notice("death"))
+            self.happened("The player came back to life at their spawn point (after dying)", now)
+        elif prev is not None and prev - health >= 6:
+            self.happened("The player just got badly hurt (lost %s hearts at once)" % round((prev - health) / 2), now)
         self.prev_health = health
+        self.prev_where = (w.get("x"), w.get("z")) if w.get("x") is not None else self.prev_where
         self.watch_animals(s, now)
         if (s.get("brokenRecently") or 0) >= 20:
             asyncio.create_task(self.notice("mining"))
@@ -936,7 +992,23 @@ class Brain:
             log.warning("%s (subtitle only)", e)
             return None
 
-    async def answer(self, text, spoken=False):
+    def hear_player(self, text, spoken=False):
+        """Messages wait in an inbox while she's thinking; when she's free she answers all of them at once
+        (so ten messages in a row get one answer, not ten answers trickling in for a minute)."""
+        text = (text or "").strip()
+        if not text:
+            return
+        self.inbox.append((text, spoken))
+        if self.inbox_task is None or self.inbox_task.done():
+            self.inbox_task = asyncio.create_task(self.drain_inbox())
+
+    async def drain_inbox(self):
+        while self.inbox:
+            batch, self.inbox = self.inbox, []
+            await self.answer(merge_messages([t for t, _ in batch]), any(s for _, s in batch),
+                              heard=[t for t, _ in batch])
+
+    async def answer(self, text, spoken=False, heard=None):
         text = (text or "").strip()
         if not text:
             return
@@ -965,9 +1037,15 @@ class Brain:
                 force = force or intents.action_hint(text, self.abilities + ["set_reminder", "name_place", "remember",
                                                                               "standing_request"]) \
                     or intents.hint_in_context(text, self.recent_player, self.abilities)
+                wanted = intents.action_hint(text, list(tools.ABILITY_TOOLS))
+                if wanted and wanted not in self.abilities and self.clock() - self.tipped.get(wanted, -1e9) > 600:
+                    self.tipped[wanted] = self.clock()  # her power or style doesn't allow it: a hint for you
+                    await self.tip_for(wanted)
                 self.recent_player = (self.recent_player + [text])[-3:]
                 if self.heart.angry():
                     force = None  # when she's cross, whether to help is her choice
+                for said in heard or [text]:  # (repeating the same words: less effect, then annoyance)
+                    self.heart.hear(said)
                 note = self.favour_heard(text)
                 if force and self.heart.slow(force):
                     # think fast: answer now ("I'll try!"); think slow: the power wakes up in the background
@@ -1032,7 +1110,7 @@ class Brain:
             await self.send({"type": "state", "state": "idle"})
             return
         await self.send({"type": "heard", "text": text})
-        await self.answer(text, spoken=True)
+        self.hear_player(text, spoken=True)
 
     async def greet(self):
         # Wait for a snapshot taken a moment after joining: the very first one can come before the

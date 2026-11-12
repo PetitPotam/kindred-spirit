@@ -601,6 +601,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.err(404, "unknown path " + path)
         except LookupError as exc:
+            log.warning("%s refused: %r", path, exc)
             self.err(400, str(exc))
         except (OSError, RuntimeError) as exc:
             log.error("%s failed: %s", path, exc)
@@ -748,6 +749,7 @@ def serve():
     if LISTEN_HOST not in ("127.0.0.1", "localhost") and not key_of(state.get("access_key", "")):
         log.warning("listening on %s WITHOUT an access key: anyone who can reach it can use your AI keys. "
                     "Set \"access_key\": \"env:KINDRED_GATEWAY_KEY\" in gateway.json.", LISTEN_HOST)
+    ThreadingHTTPServer.request_queue_size = 128  # the brain asks 6 memory questions at once; 5 waiting was too few
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler)
     server.daemon_threads = True
     log.info("kindred gateway on http://%s:%d/v1 | ai %s, stt %s, tts %s, embeddings %s, memory %s", LISTEN_HOST,

@@ -123,7 +123,8 @@ def events(limit=400):
 
 # ---------------------------------------------------------------------- AI calls (gateway.jsonl)
 
-SECTIONS = ("Game state right now", "What you remember", "How you feel about the player", "Your settings", "Player")
+SECTIONS = ("Game state right now", "What you see and sense right now", "What you remember",
+            "How you feel about the player", "Your settings", "What you can do", "Player")
 
 
 def split_prompt(text):

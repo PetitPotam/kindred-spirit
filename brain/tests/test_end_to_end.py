@@ -75,6 +75,7 @@ class Stubs:
                 self.end_headers()
                 self.wfile.write(data)
 
+        ThreadingHTTPServer.request_queue_size = 128  # (like the real gateway)
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), H)
         self.port = self.server.server_address[1]
         threading.Thread(target=self.server.serve_forever, daemon=True).start()

@@ -47,13 +47,17 @@ def describe(s):
         return "The player is not in a world right now."
     w, t = s.get("where", {}), s.get("time", {})
     lines = []
+    if s.get("recent"):
+        lines.append("Just happened: " + "; ".join(s["recent"]) + ".")
     lines.append("Health %s/%s hearts, hunger %s/10, armor %s. Game mode: %s." % (
         hearts(s.get("health", 0)), hearts(s.get("maxHealth", 20)), hearts(s.get("food", 0)),
         s.get("armor", 0), s.get("gamemode", "?")))
     dim = (w.get("dimension") or "").replace("minecraft:", "").replace("_", " ")
-    lines.append("Place: %s, biome %s, x %s y %s z %s, facing %s, %s, light level %s." % (
+    light = w.get("light", 15)
+    seeing = "bright" if light >= 11 else "dim" if light >= 6 else "dark, hard to see" if light >= 2 else "pitch dark"
+    lines.append("Place: %s, biome %s, x %s y %s z %s, facing %s, %s, %s." % (
         dim, nice(w.get("biome")), w.get("x"), w.get("y"), w.get("z"), w.get("facing"),
-        "under the open sky" if w.get("skyVisible") else "underground or under a roof", w.get("light")))
+        "under the open sky" if w.get("skyVisible") else "underground or under a roof", seeing))
     hhmm, part = clock(t.get("timeOfDay", 0))
     weather = "thunderstorm" if t.get("thundering") else "rain" if t.get("raining") else "clear"
     lines.append("Time: day %s, %s (%s), weather %s." % (t.get("day", "?"), part, hhmm, weather))
@@ -101,5 +105,7 @@ def describe(s):
     if s.get("onFire"):
         lines.append("The player is ON FIRE.")
     if s.get("air", 300) < s.get("maxAir", 300):
-        lines.append("Air: %d%%, the player is underwater." % (100 * s.get("air", 0) // max(1, s.get("maxAir", 300))))
+        left = s.get("air", 0) / max(1, s.get("maxAir", 300))
+        lines.append("The player is underwater, %s." % ("almost out of air!" if left < 0.3 else "running out of air"
+                                                          if left < 0.7 else "holding their breath"))
     return "\n".join(lines)

@@ -447,3 +447,39 @@ def test_a_long_scare_is_one_scare_not_one_per_snapshot():
         c.t += 1
     assert h.valence > -0.2, h.valence
     assert not h.too_upset_to_focus(), "startled, not upset with you"
+
+
+def test_saying_the_same_sweet_thing_over_and_over_annoys_her():
+    h, c = heart(start_bond=50)
+    gains = []
+    for _ in range(6):
+        h.hear("i love you")
+        gains.append(h.on_regard("sweet"))
+        c.t += 3
+    assert gains[0] == 4 and gains[1] < gains[0] and gains[2] < gains[1], gains
+    assert gains[3] < 0 and gains[5] < gains[3], "the 4th time it gets on her nerves, and it gets worse"
+    assert h.angry(), "she pulls away a bit"
+    assert "getting on your nerves" in h.guidance("happy")
+    assert h.bond < 58, "you can't fill her heart by repeating yourself (%.1f)" % h.bond
+
+
+def test_kind_words_cant_fill_her_heart_in_a_minute():
+    h, c = heart(start_bond=40)
+    for i in range(10):  # ten different sweet things in 30 seconds
+        h.hear("you are wonderful number %s" % "abcdefghij"[i])
+        h.on_regard("sweet")
+        c.t += 3
+    assert h.bond <= 48.01, h.bond
+
+
+def test_flooding_her_with_messages_annoys_her_too():
+    h, c = heart(start_bond=50)
+    bonds = []
+    for i in range(8):  # eight different kind messages in 16 seconds
+        h.hear("message number %s" % "abcdefgh"[i])
+        h.on_regard("kind")
+        bonds.append(h.bond)
+        c.t += 2
+    assert max(bonds) <= 58, "kind words: at most +8 a minute"
+    assert bonds[-1] < bonds[4] and bonds[-1] < bonds[-2], "from the 6th message in 30 s it costs: %s" % bonds
+    assert "spam" in h.guidance("happy")

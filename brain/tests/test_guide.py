@@ -78,3 +78,19 @@ def test_yes_to_what_she_offered_in_her_own_words():
     assert intents.offered_in("Should I try to light it up for you so you can see better?", allowed) == "place_torch"
     assert intents.offered_in("Should I push them back so we can find a place to hide?", allowed) == "protect"
     assert intents.offered_in("The sun is setting, how lovely.", allowed) is None
+
+
+def test_she_knows_you_just_died_and_came_back(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.send = lambda msg: asyncio.sleep(0)
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        b.notice = lambda *a, **k: asyncio.sleep(0)
+        far = dict(snap(health=4.0)["where"], x=500, z=500)
+        await b.on_snapshot(snap(health=4.0))                 # badly hurt, a skeleton shooting
+        await b.on_snapshot(snap(health=20.0, where=far))      # full health, far away: respawned
+    asyncio.run(run())
+    text = describe(b.snapshot)
+    assert "Just happened: The player died" in text and "came back to life" in text
