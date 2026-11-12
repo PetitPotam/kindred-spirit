@@ -24,6 +24,10 @@ public final class KindredConfig {
     public boolean allowPranks = true;
     /** Let her moods change the weather in singleplayer (rain when she cries). Up to her: brain.toml [heart]. */
     public boolean allowMoodWeather = true;
+    /** While she leads the way: an arrow and the distance at the top of the screen. */
+    public boolean guideArrow = true;
+    /** While she leads the way: a faint trail of sparkles behind her. */
+    public boolean guideTrail = true;
     /** Show the little heart meter when your bond with her changes. */
     public boolean showBond = true;
     public String brainHost = "127.0.0.1";

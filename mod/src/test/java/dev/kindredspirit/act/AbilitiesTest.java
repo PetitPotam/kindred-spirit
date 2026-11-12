@@ -40,6 +40,12 @@ class AbilitiesTest {
 
     @Test
     void oreWords() {
+        assertEquals("sheep", Places.creatureKind("sheeps"));
+        assertEquals("wolf", Places.creatureKind("Wolves"));
+        assertEquals("bunny", Places.creatureKind("bunnies"));
+        assertEquals("cow", Places.creatureKind("a cow"));
+        assertTrue(Places.isCreature("donkey", "horse") && Places.isCreature("pig", "animal"));
+        assertFalse(Places.isCreature("zombie", "animal"));
         assertEquals("diamond", Places.oreKind("Diamonds"));
         assertEquals("iron", Places.oreKind("minecraft:deepslate_iron_ore"));
         assertEquals("ancient_debris", Places.oreKind("ancient debris"));

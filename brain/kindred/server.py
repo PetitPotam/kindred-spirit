@@ -97,6 +97,9 @@ class Brain:
         self.greet_task = None
         self.line = 0
         self.last_pet_reply = -1e9
+        self.her_offer = None        # (action, when): what she offered in her own words just now
+        self.offered = None          # powers offered to the AI right now (None: all allowed ones)
+        self.recent_player = []      # the last few things the player said ("find them" -> them = sheep)
         self.awakening = {}          # power -> what System 2 is doing about it (see awaken)
         self.quiet_gap = 4.0         # seconds of quiet before she brings something up herself
 
@@ -168,8 +171,10 @@ class Brain:
     def set_abilities(self, msg):
         self.abilities = list(msg.get("abilities") or [])
         self.singleplayer = bool(msg.get("singleplayer"))
+        known = self.abilities if not self.heart.amnesia() else "(you don't know yet: you discover it by trying)"
         self.mind.powers = "Power: %s, style: %s. You can: %s.%s" % (
-            msg.get("power", "?"), msg.get("style", "?"), ", ".join(self.abilities) or "only talk",
+            msg.get("power", "?"), msg.get("style", "?"),
+            (", ".join(known) or "only talk") if isinstance(known, list) else known,
             "" if self.singleplayer else " This is not a singleplayer world, so actions that change the world won't work.")
         log.info("abilities: %s", ", ".join(self.abilities))
 
@@ -205,6 +210,9 @@ class Brain:
                 return {"ok": True, "cancelled": await self.memory.cancel_reminder(args.get("about", ""))}
             if name == "standing_request":
                 what = args.get("what", "")
+                if not args.get("stop") and not intents.STANDING.search(getattr(self, "last_player_text", "")):
+                    # models reach for this on any "find"; it's only for "always..." / "tell me whenever..."
+                    return {"ok": False, "error": "They didn't ask you to do it every time; just help with this once."}
                 if args.get("stop"):
                     n = self.heart.drop_request(what)
                     await self.heart.save()
@@ -218,6 +226,9 @@ class Brain:
             return {"ok": False, "error": str(e)}
         if name not in self.abilities:
             return {"ok": False, "error": "My settings don't let me do that (%s)." % self.mind.powers}
+        if self.offered is not None and name not in self.offered:
+            # (amnesia) a power she hasn't discovered: the AI knows the name, she doesn't
+            return {"ok": False, "error": "You don't know how to do that yet."}
         if name == "guide":
             args = await self.guide_target(args)
         result = await self.request(name, args)
@@ -384,10 +395,21 @@ class Brain:
             for f in (found or {}).get("results", []):
                 if to in f["meta"].get("what", "").lower():
                     return {k: f["meta"][k] for k in ("x", "y", "z")}
+        animal = self.animal_named(to + " " + getattr(self, "last_player_text", ""))
+        if animal:  # "lead me to the sheep" when she can see some: follow that one as it walks
+            return {"entity": animal["id"]}
         said_numbers = bool(re.search(r"-?\d{2,}", getattr(self, "last_player_text", "")))
         if "x" in args and "z" in args and said_numbers:
             return {k: args[k] for k in ("x", "y", "z") if k in args}
         return {}  # the mod then uses the last thing found or located
+
+    def animal_named(self, text):
+        """The nearest animal in view whose kind the text names ("sheeps" counts as sheep)."""
+        words = set(re.findall(r"[a-z]+", text.lower()))
+        words |= {w[:-1] for w in words if w.endswith("s")} | {w[:-2] for w in words if w.endswith("es")}
+        seen = [a for a in self.snapshot.get("animals") or []
+                if a.get("type", "").replace("minecraft:", "").replace("_", " ").split()[-1] in words]
+        return min(seen, key=lambda a: a.get("distance", 99)) if seen else None
 
     async def reflect(self, session_end=False):
         """Learning: the AI looks back at what happened and keeps what's worth knowing for good."""
@@ -439,6 +461,8 @@ class Brain:
                 asyncio.create_task(self.end_session())
             self.in_world = False
             self.snapshot = {}
+        elif name == "wrong_way":  # you walked off while she leads: she calls you back
+            asyncio.create_task(self.say(random.choice(intents.WRONG_WAY_LINES), "excited", instant=True, emote="hop"))
         elif name == "arrived":
             asyncio.create_task(self.say(random.choice(intents.ARRIVED_LINES), "excited", instant=True))
             await self.safe(self.memory.episode("We arrived where I was leading the player.", 4))
@@ -592,12 +616,13 @@ class Brain:
         if (s.get("placedRecently") or 0) >= 15:
             asyncio.create_task(self.notice("building"))
         # danger she can help with: by standing request, or by offering if she helped before
-        close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= 6]
+        reach = 10 if health <= 8 else 7  # when you're hurt, she keeps them further away
+        close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= reach]
         if close and "protect" in self.abilities and s.get("gamemode") not in ("creative", "spectator"):
             # (in the background: the game's answer arrives through this same message loop)
             self.heart.feel("danger", 0.3)
             if self.heart.wants("protect"):
-                if now - self.last_protect > 6:
+                if now - self.last_protect > 2.5:
                     self.last_protect = now
                     asyncio.create_task(self.auto_protect())
             else:
@@ -700,6 +725,7 @@ class Brain:
         """Say something on her own (from the AI), with her current feelings."""
         async with self.talk_lock:
             self.mind.heart = self.heart.guidance(self.mood)
+            self.offered = [force] if force else []
             text, m, gesture = await self.mind.initiative(self.snapshot, instruction, tools_,
                                                           self.run_tool if tools_ else None, force)
         self.last_talk = self.clock()
@@ -769,8 +795,13 @@ class Brain:
                 offer = self.heart.take_offer(self.clock()) if intents.YES.match(text) else None
                 if offer and offer["what"] in self.abilities:
                     force = offer["what"]  # "yes" to "want me to push them away?"
+                elif intents.YES.match(text) and self.her_offer and self.clock() - self.her_offer[1] < 60:
+                    force = self.her_offer[0]  # "yes please" to "should I light it up for you?"
+                self.her_offer = None
                 force = force or intents.action_hint(text, self.abilities + ["set_reminder", "name_place", "remember",
-                                                                              "standing_request"])
+                                                                              "standing_request"]) \
+                    or intents.hint_in_context(text, self.recent_player, self.abilities)
+                self.recent_player = (self.recent_player + [text])[-3:]
                 if self.heart.angry():
                     force = None  # when she's cross, whether to help is her choice
                 note = self.favour_heard(text)
@@ -784,6 +815,10 @@ class Brain:
                         self.start_awakening(force, text)
                     force = None
                 offered = self.heart.offered_tools(self.abilities, force)
+                self.offered = offered
+                fib = "" if force or (self.snapshot.get("hostiles") or []) else self.heart.fib(self.clock())
+                self.mind.allow_fib = bool(fib)
+                note += fib
                 self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood),
                                                        self.heart.discovery_note(self.abilities), note) if x)
                 reply, mood, gesture = await self.mind.reply(self.snapshot, text, done,
@@ -801,6 +836,8 @@ class Brain:
             await self.safe(self.memory.episode("The player said: %s | I said: %s" % (text, reply), 3))
             if self.memory.since_reflection >= 8:  # learn as we go, not only at the end
                 asyncio.create_task(self.reflect())
+            hint = intents.offered_in(reply, self.abilities)
+            self.her_offer = (hint, self.clock()) if hint else None
             await self.say(reply, mood or "happy", emote=gesture,
                            style="whisper" if self.mind.last_whisper else None)
             self.last_talk = self.clock()

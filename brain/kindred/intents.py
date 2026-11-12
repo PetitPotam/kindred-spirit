@@ -58,10 +58,16 @@ def match(text):
 ACTION_HINTS = [
     (r"\b(always|every time|whenever)\b.{0,40}\b(protect|defend|help|tell|warn|notify|let me know)\b|"
      r"\b(protect|defend|tell|warn|notify) me (always|every time|whenever)\b|\blet me know when\b", "standing_request"),
-    (r"\b(place|put|light|drop)\b.{0,30}\btorch|\btorch\b.{0,20}\b(here|down|please)", "place_torch"),
+    (r"\b(place|put|light|drop)\b.{0,30}\btorch|\btorch\b.{0,20}\b(here|down|please)|\b(give|make|need|want|some)"
+     r"( me| us)?( some| a)? light\b|\blight (it|this|that|the way|us|things|everything|our way) up\b|"
+     r"\blight (it|this|the way|our way)\b|\bcan'?t see\b|\bhelp (me|us) see\b|\btoo dark\b", "place_torch"),
     (r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b", "protect"),
     (r"\b(give|gimme|get) me\b|\bcan i (have|get)\b", "give_item"),
-    (r"\b(take|lead|guide|bring|show) (me|us)\b", "guide"),
+    (r"\b(take|lead|guide|bring|show) (me|us)\b|\blead the way\b|\bshow( me)? the way\b|\b(i'?ll|i will|we'?ll) "
+     r"follow you\b|\bgo ahead,? i'?ll follow\b|\bwhich way\b", "guide"),
+    (r"\b(find|where|any|nearest|closest|look for|search|see)\b.{0,40}\b(sheeps?|cows?|pigs?|chickens?|horses?|"
+     r"donkeys?|villagers?|wolf|wolves|cats?|foxes|fox|rabbits?|bees?|goats?|llamas?|camels?|frogs?|turtles?|"
+     r"axolotls?|parrots?|pandas?|animals?|mooshrooms?)\b", "find_animal"),
     (r"\b(find|where|any|nearest|closest|look for)\b.{0,40}\b(diamonds?|iron|gold|coal|copper|redstone|lapis|emeralds?|quartz|ancient debris|netherite)\b", "find_ore"),
     (r"\b(find|where|nearest|closest|locate)\b.{0,40}\b(village|mineshaft|shipwreck|ruined portal|monument|mansion|stronghold|fortress|bastion|temple|witch hut|igloo|outpost|ancient city|trail ruins|trial chambers?|end city|buried treasure|biome|grove|forest|desert|jungle|ocean|mushroom)", "locate"),
     (r"\bmake it (day|night|morning|sunrise|sunset|noon)\b|\bset the time\b|\bskip the night\b", "set_time"),
@@ -71,6 +77,7 @@ ACTION_HINTS = [
     (r"\b(stop the rain|make it (rain|sunny|clear|storm)|clear (the|up the) weather)\b", "set_weather"),
 ]
 _hints = [(re.compile(p), tool) for p, tool in ACTION_HINTS]
+STANDING = re.compile(ACTION_HINTS[0][0], re.I)
 
 
 def action_hint(text, allowed):
@@ -80,6 +87,38 @@ def action_hint(text, allowed):
         if tool in allowed and rx.search(t):
             return tool
     return None
+
+
+_FOLLOW_UP = re.compile(r"\b(them|it|those|one|any|some)\b")
+_SEEK = re.compile(r"\b(find|where|look for|search|see|spot)\b")
+SEEKING = ("find_animal", "find_ore", "locate")
+
+
+def hint_in_context(text, earlier, allowed):
+    """"Can you find them?" right after "I need sheep": the thing to find was named earlier."""
+    t = (text or "").lower()
+    if not (_SEEK.search(t) and _FOLLOW_UP.search(t)):
+        return None
+    for prev in reversed(earlier[-3:]):
+        tool = action_hint("find " + prev, [a for a in SEEKING if a in allowed])
+        if tool:
+            return tool
+    return None
+
+
+WRONG_WAY_LINES = ["Hey, this way! Follow me!", "Wrong way, silly! Over here!", "No no, it's this way!",
+                   "Psst! I'm over here! Follow the sparkles!"]
+
+# her own offers ("Should I light it up for you?"): a "yes" then means do exactly that
+_OFFERING = re.compile(r"\b(should i|shall i|want me to|do you want me to|would you like me to|i could|i can try to|"
+                       r"let me)\b", re.I)
+
+
+def offered_in(her_line, allowed):
+    """The action she just offered in her own words, if her line is an offer."""
+    if not her_line or not _OFFERING.search(her_line):
+        return None
+    return action_hint(her_line, allowed)
 
 
 YES = re.compile(r"^\s*(yes|yeah|yep|yup|sure|please|ok(ay)?|go ahead|do it|help( me)?)\b", re.I)

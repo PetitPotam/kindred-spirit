@@ -41,6 +41,7 @@ DEFAULTS = {
         "auto_protect": False,         # protect you without being asked (she'll offer otherwise)
         "curiosity": True,             # notices advancements, new items, biomes... and talks about them
         "pranks": True,                # playful pranks once you're friends
+        "fibs": True,                  # pranks may include a playful fib she owns up to (otherwise she never lies)
         "block_pranks": True,          # pranks may borrow a block you just placed (it goes to your inventory)
         "mischief_when_angry": "spicy",  # off | mild (sulks, spooky sounds) | spicy (also borrows your blocks)
         "can_vanish": True,            # disappears for a while when mistreated
@@ -88,6 +89,7 @@ start_bond = 30              # 0-100; how close she feels to you at first (30 = 
 auto_protect = false         # protect you without being asked (otherwise she offers, once you've asked before)
 curiosity = true             # notices advancements, new items, biomes... and talks about them
 pranks = true                # playful pranks once you're friends
+fibs = true                  # pranks may include a playful fib she owns up to (otherwise she never lies)
 block_pranks = true          # pranks may borrow a block you just placed (it goes to your inventory)
 mischief_when_angry = "spicy"  # off | mild (sulks, spooky sounds) | spicy (also borrows your blocks)
 can_vanish = true            # disappears for a while when mistreated

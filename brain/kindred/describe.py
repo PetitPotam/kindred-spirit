@@ -78,6 +78,22 @@ def describe(s):
             for m in mobs[:6]) + ".")
     else:
         lines.append("No hostile mobs nearby.")
+    animals = s.get("animals") or []
+    if animals:  # grouped: "3 sheep, nearest 14 blocks ahead on your left"
+        groups = {}
+        for a in animals:
+            groups.setdefault(nice(a.get("type")), []).append(a)
+        parts = []
+        for kind, group in sorted(groups.items(), key=lambda g: min(a.get("distance", 99) for a in g[1]))[:6]:
+            near = min(group, key=lambda a: a.get("distance", 99))
+            babies = sum(1 for a in group if a.get("baby"))
+            pets = [a.get("name") or "a pet" for a in group if a.get("tamed")]
+            parts.append("%d %s%s, nearest %d blocks %s%s" % (
+                len(group), kind + ("s" if len(group) > 1 and not kind.endswith(("s", "sheep", "fish")) else ""), " (%d babies)" % babies if babies else "", int(near.get("distance", 0)),
+                where_words(near.get("direction")), " (your pet: %s)" % ", ".join(pets) if pets else ""))
+        lines.append("Animals within 32 blocks: " + "; ".join(parts) + ".")
+    else:
+        lines.append("No animals within 32 blocks.")
     fx = s.get("effects") or []
     if fx:
         lines.append("Effects: " + ", ".join("%s %s (%ss)" % (nice(e.get("id")), e.get("level"), e.get("seconds"))

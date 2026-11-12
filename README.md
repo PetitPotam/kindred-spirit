@@ -46,7 +46,7 @@ from scratch for Fabric.
 | Danger warnings | creeper within 8 blocks, health at 3 hearts or less: instant subtitle, voice right after, with cooldowns |
 | She has a heart | a whimsical character with a **bond meter**: kindness brings her closer and makes her open up, propose plans and play pranks; hitting her or being mean makes her keep her distance, sulk, or vanish for a while. She forgives quickly ([how](docs/HEART.md)) |
 | She discovers her powers | she doesn't know what she can do until you ask. She answers at once ("I'll try!"), then the power slowly wakes up in the background: she senses something strange, maybe asks you a small favour, and then "I can sense diamonds now!" She remembers it after that |
-| She helps | finds ores, locates any structure or biome, **leads the way** there, pushes monsters away, places a torch; magic style gives items, all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
+| She helps | finds ores, animals ("where are the sheep?") and any structure or biome, and tells you which way; **leads the way** there, floating well ahead of you with an arrow and the distance at the top of the screen and a sparkle trail (she keeps ahead even when you sprint, follows a walking animal, and calls you back if you go the wrong way); pushes monsters away, places a torch; magic style gives items, all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
 | It remembers and learns | who you are, what you like, your habits, your places, its own little personality, a diary of your sessions; reminders ("in 10 minutes", "at night", "next time we play") ([how](docs/MEMORY.md)) |
 | Personality | greets you, small talk when it's been quiet a while (configurable), moods |
 | Subtitles | above the slime, optional captions and a log in your chat (only on your screen) |
@@ -63,7 +63,7 @@ You decide how much it can do (`/kindred power`, `/kindred style`); the mod enfo
 
 | | grounded (only what really exists) | magic (things can appear) |
 |---|---|---|
-| **advisor** | talks, finds ores, locates places, leads the way | same |
+| **advisor** | talks, finds ores and animals, locates places, leads the way | same |
 | **helper** (default) | + pushes monsters away, places one of *your* torches | + gives items, torches from thin air |
 | **allpowerful** | + time and weather | + all of it |
 
@@ -184,14 +184,14 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 
 Mostly, you just talk to her, and discover what she can do along the way (that's the point, so
 this list is for the curious): "stay here", "come here", "look at me", "do a spin", "any diamonds
-near me?", "where's the nearest village? take me there", "push them away", "always protect me",
+near me?", "where are the sheep? lead the way", "where's the nearest village? take me there", "push them away", "always protect me",
 "this is my base", "remind me in 10 minutes to check the furnace", "put my block back".
 
 ## Settings
 
 - **Brain:** `~/.kindred-spirit/brain.toml` (name, personality, model, voice, chattiness, alerts).
 - **Mod:** `minecraft-kindred/config/kindredspirit.json` (skin, quality, subtitles, captions, position, size,
-  volume, and the liveliness switches under `"life"`).
+  volume, the guide arrow and sparkle trail (`guideArrow`, `guideTrail`), and the liveliness switches under `"life"`).
 - **AI, speech-to-text, voice, embeddings, memory storage:** all chosen in the gateway, live, no
   restart. The guide: **[docs/GATEWAY.md](docs/GATEWAY.md)**.
   ```bash

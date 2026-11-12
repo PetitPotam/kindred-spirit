@@ -302,6 +302,53 @@ public class BehaviorTest {
     }
 
     @Test
+    void whenYouSprintSheStaysAheadAndCallsYouBackIfYouGoTheWrongWay() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 2, Behavior.Activity.IDLE);
+        b.guide(200, 64, 0, s.now);
+        double minLead = 99;
+        for (int i = 0; i < 100; i++) { // sprinting toward it: 5.6 blocks a second
+            s.ex += 5.6 * TICK;
+            run(b, s, TICK, Behavior.Activity.IDLE);
+            if (i > 20) minLead = Math.min(minLead, b.x - s.ex);
+        }
+        assertTrue(minLead > 3, "always well ahead of you, even sprinting: " + minLead);
+        assertTrue(b.y > s.ey + 0.3, "above your head, visible over the grass");
+        assertFalse(b.wrongWay);
+        for (int i = 0; i < 60; i++) { // you turn around and walk away
+            s.ex -= 4.3 * TICK;
+            run(b, s, TICK, Behavior.Activity.IDLE);
+        }
+        assertTrue(b.wrongWay, "this way!");
+        assertEquals(Behavior.Mode.GUIDE, b.mode, "still leading");
+    }
+
+    @Test
+    void ifAWallStopsYouOffTheWaySheStillCallsYouBack() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        b.guide(40, 64, 0, s.now);
+        run(b, s, 1, Behavior.Activity.IDLE);
+        for (int i = 0; i < 30; i++) { // 7 blocks the wrong way, then stuck against a wall
+            s.ex -= 0.25;
+            run(b, s, TICK, Behavior.Activity.IDLE);
+        }
+        run(b, s, 2, Behavior.Activity.IDLE);
+        assertTrue(b.wrongWay);
+    }
+
+    @Test
+    void sheFollowsAWalkingAnimal() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        b.guide(40, 64, 0, s.now);
+        b.retarget(0, 64, 40);
+        run(b, s, 1, Behavior.Activity.IDLE);
+        assertTrue(b.z > 2 && Math.abs(b.x) < 1.5, "leads toward where the animal is now: " + b.x + "," + b.z);
+    }
+
+    @Test
     void sheFloatsCloserWhenSheFeelsCloseAndAwayWhenHurt() {
         assertEquals(1.0, Behavior.distanceScale(0.5), 1e-9);
         assertTrue(Behavior.distanceScale(1) < 0.8 && Behavior.distanceScale(0) > 2);

@@ -98,6 +98,21 @@ voice and what she says.
   turns are folded into a short running summary, so long conversations stay cheap and she doesn't
   lose the thread.
 
+## She doesn't make things up
+
+She only states as fact what she really knows: the game state right now, what a power found, what
+she remembers, or Minecraft knowledge. If she doesn't know, she says so, looks, or asks. Her
+imagination is part of her, but she says it as imagination ("I bet...", "I wonder if..."), never as
+something she sees or something that happened. If she says she did something ("I'm placing a
+torch", "follow me!") and nothing actually ran, the brain catches it and makes her either really
+do it or say honestly that she can't.
+
+The one exception is on purpose, as a prank (`fibs = true`): once you're friends she may, rarely,
+tell an obviously playful fib and own up in the same breath ("I think I saw a diamond behind
+you! Hehe, kidding!"). When she's angry and `mischief_when_angry = "spicy"`, she may mislead you a
+little out of spite (a wrong direction) and admit it when you apologize. Never about danger, your
+health or your things.
+
 ## Helping: asked, standing, or offered
 
 She cares about you and gets scared *for* you, but she acts when:
@@ -106,7 +121,17 @@ She cares about you and gets scared *for* you, but she acts when:
 - **you asked her to always do it**: "always protect me", "tell me when we're near diamonds"
   become standing requests she follows on her own (and stops when you say so);
 - **she offers**: if you once asked her for help with something, the next time it happens she asks
-  "Want me to push them away?". Say yes and she does it.
+  "Want me to push them away?". Say yes and she does it. The same goes for anything she offers in
+  her own words ("Should I light it up for you?" "Yes please!").
+
+When she protects you, she pushes every monster within 10 blocks away and leaves it dazed (slowed)
+for a few seconds, so it doesn't walk straight back. With "always protect me" she checks every couple
+of seconds and keeps them further away when you're low on health. "I can't see", "give me some
+light" or "it's too dark" ask her for a torch (in grounded style she uses yours, so carry some).
+
+**Where things are.** She only says where something is when she actually knows (she can see the
+animals within 32 blocks, or a power found it), and always says which way from you: "two sheep, 38
+blocks to your right". "Lead the way" or "I'll follow you" makes her really lead.
 
 `auto_protect = true` makes her protect you without asking.
 
@@ -160,6 +185,7 @@ start_bond = 30              # where the bond starts (0-100)
 auto_protect = false         # protect you without being asked
 curiosity = true             # notices advancements, items, biomes, animals... and talks about them
 pranks = true                # playful pranks once you're friends
+fibs = true                  # pranks may include a playful fib she owns up to (otherwise she never lies)
 block_pranks = true          # pranks may borrow a block you just placed
 mischief_when_angry = "spicy"  # off | mild | spicy
 can_vanish = true            # disappears for a while when mistreated

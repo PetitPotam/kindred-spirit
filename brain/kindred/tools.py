@@ -21,11 +21,17 @@ ABILITY_TOOLS = {
                     "loaded). Use when they ask where to find diamonds, iron, coal, etc.",
                     {"ore": {"type": "string", "description": "diamond, iron, gold, coal, copper, redstone, lapis, emerald, quartz or ancient_debris"}},
                     ["ore"]),
+    "find_animal": _fn("find_animal", "Find the nearest animal of a kind (or a villager) within about 96 blocks of "
+                        "the player, among what the game has loaded. Use when they look for sheep, cows, horses, "
+                        "villagers... Then guide can lead them to it, even as it walks around.",
+                        {"animal": {"type": "string", "description": "sheep, cow, pig, chicken, horse, wolf, cat, fox, "
+                                    "villager... or 'animal' for any animal"}}, ["animal"]),
     "locate": _fn("locate", "Find the nearest structure or biome in this world (uses the world seed, any distance). "
                   "Structures: " + STRUCTURES + ". Or any biome, like cherry_grove or mushroom_fields.",
                   {"what": {"type": "string"}}, ["what"]),
-    "guide": _fn("guide", "Float ahead and lead the player to a place until they arrive. Usually call it with no "
-                 "arguments: it goes to what you just found or located. Or set 'to' to the name of a place you "
+    "guide": _fn("guide", "Float ahead and lead the player to a place until they arrive (they see an arrow and the "
+                 "distance on screen). Use it whenever you say 'follow me' or 'this way'. Usually call it with no "
+                 "arguments: it goes to what you just found or located (an animal: you follow it as it walks). Or set 'to' to the name of a place you "
                  "remember (like 'base'). Give x/z only if the player said exact coordinates.",
                  {"to": {"type": "string", "description": "'last' (default) or a remembered place name"},
                   "x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}}),

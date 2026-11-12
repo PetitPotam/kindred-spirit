@@ -60,12 +60,14 @@ SULK_PRANKS = ["Hmph. That's what you get.", "Maybe now you'll be nicer.", "Oh n
 BLOCK_PRANK = ["Hmm? Where did your block go? Hehe~", "Oops! Your block is... somewhere. Check your pockets!",
                "A block was here a second ago. Strange, isn't it?"]
 # powers that wake up slowly the first time (the others are instinct: they work at once)
-SLOW_POWERS = ("find_ore", "locate", "give_item", "set_time", "set_weather")
-POWER_NAMES = {"find_ore": "sense ores hidden underground", "locate": "feel where faraway places are",
+SLOW_POWERS = ("find_ore", "find_animal", "locate", "give_item", "set_time", "set_weather")
+POWER_NAMES = {"find_ore": "sense ores hidden underground", "find_animal": "feel where animals are, even far away",
+               "locate": "feel where faraway places are",
                "give_item": "make things appear out of nothing", "set_time": "move the sun across the sky",
                "set_weather": "change the weather", "protect": "push monsters away",
                "place_torch": "make light appear", "guide": "lead the way"}
 SENSES = {"find_ore": "a faint humming under the ground, like little stars glittering in the rock",
+          "find_animal": "tiny heartbeats all around, far away, like little drums in the grass",
           "locate": "a gentle pull from far away, like a string tied to places you've never been",
           "give_item": "a warm tingle in your middle, as if things want to come out of you",
           "set_time": "the sky feels movable, as if the sun is listening to you",
@@ -178,6 +180,9 @@ class Heart:
 
     def feel(self, event, strength=1.0):
         dv, da = FEELINGS.get(event, (0.0, 0.0))
+        if event == "danger" and self.clock() < self.danger_until - 4:
+            self.danger_until = self.clock() + 8  # still the same scare (snapshots come every second)
+            return
         self.settle()
         self.valence = max(-1.0, min(1.0, self.valence + dv * strength))
         self.arousal = max(0.0, min(1.0, self.arousal + da * strength))
@@ -328,7 +333,8 @@ class Heart:
                 "tangent": self.rng.random() < 0.5}
 
     def too_upset_to_focus(self):
-        return self.valence < -0.35
+        """Upset with the player (not just startled by a zombie): the new power slips away."""
+        return self.valence < -0.35 and self.angry()
 
     def first_reply_note(self, ability):
         return ("The player just asked you for something you have never done (%s). You don't know yet whether you "
@@ -339,7 +345,8 @@ class Heart:
         start = ("Start with a quick little tangent about something around you, then trail off: " if tangent else "")
         return ("%sYou suddenly feel something strange and mysterious: %s. It has to do with what the player asked "
                 "earlier (\"%s\"), but you don't understand it yet. Say it in one or two short, wondering sentences; "
-                "you may whisper. Don't say you can do it yet." % (start, SENSES[ability], request))
+                "you may whisper. Don't say you can do it yet, and don't say where or in which direction: you don't know "
+                "yet." % (start, SENSES[ability], request))
 
     def favour_note(self, favour):
         return FAVOURS[favour] + " Explain it's because of the strange feeling. One short sentence."
@@ -465,6 +472,25 @@ class Heart:
         return self.rng.choice(options)
 
     # ------------------------------------------------------------------ pranks and mischief
+
+    def fib(self, now):
+        """Once in a while, a deliberate fib as a prank (otherwise she never invents anything).
+        Friends: a playful one she owns up to at once. Angry (spicy): a little spiteful misdirection,
+        admitted once they apologize. Never about danger, health or anything that could hurt them."""
+        if not self.p.get("fibs", True) or now - self.state.get("last_fib", 0) < 600:
+            return ""
+        angry = self.angry() and self.mischief() == "spicy"
+        friendly = self.p.get("pranks", True) and self.bond >= 55 and not self.angry()
+        if not (angry or friendly) or self.rng.random() > (0.25 if angry else 0.08):
+            return ""
+        self.state["last_fib"] = now
+        if angry:
+            return ("Prank allowed this time: you're cross with them, so you may mislead them a little out of spite "
+                    "(a wrong direction, pretending not to know). Never about danger, their health or their things. "
+                    "Admit it as soon as they apologize.")
+        return ("Prank allowed this time: you may tell one small, obviously playful fib to tease them (\"I think I saw "
+                "a diamond behind you!\") and then giggle and admit it in the same answer (\"Hehe, kidding!\"). Never "
+                "about danger, their health or their things.")
 
     def mischief(self):
         return str(self.p.get("mischief_when_angry", "spicy")).lower()

@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.kindredspirit.act.Abilities;
 import dev.kindredspirit.act.Actions;
+import dev.kindredspirit.util.Direction8;
 import dev.kindredspirit.audio.VoicePlayer;
 import dev.kindredspirit.audio.VoiceRecorder;
 import dev.kindredspirit.life.Behavior;
@@ -298,6 +299,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             inWorld = true;
             joinedAt = System.currentTimeMillis();
             lastHealth = -1;
+            sendAbilities(); // the hello came from the title screen: now we know if it's singleplayer
             event("join");
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
@@ -335,8 +337,14 @@ public final class KindredSpiritClient implements ClientModInitializer {
         trackWorld(mc);
         if (companion.life.arrived) {
             companion.life.arrived = false;
+            guideEntity = -1;
             event("arrived");
         }
+        if (companion.life.wrongWay) {
+            companion.life.wrongWay = false;
+            event("wrong_way");
+        }
+        tickGuide(mc);
 
         // push-to-talk: hold the key, speak, release
         boolean held = talkKey.isDown() && mc.screen == null;
@@ -574,6 +582,26 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
     /** Which block you're placing (confirmed a tick later) and which items are new in your pockets. */
     private int visiting = -1;
+    /** The animal she's leading you to (it walks, so the trip follows it), or -1. */
+    private int guideEntity = -1;
+
+    /** While leading: follow a walking animal, and leave a faint trail of sparkles you can follow. */
+    private void tickGuide(Minecraft mc) {
+        Behavior life = companion.life;
+        if (life.mode != Behavior.Mode.GUIDE) {
+            guideEntity = -1;
+            return;
+        }
+        if (guideEntity >= 0) {
+            net.minecraft.world.entity.Entity e = mc.level.getEntity(guideEntity);
+            if (e != null && e.isAlive()) life.retarget(e.getX(), e.getY(), e.getZ());
+        }
+        if (cfg.guideTrail && mc.level.getGameTime() % 4 == 0 && companion.life.presence > 0.5) {
+            mc.level.addParticle(net.minecraft.core.particles.ParticleTypes.WAX_OFF,
+                    life.x + (Math.random() - 0.5) * 0.4, life.y - 0.15, life.z + (Math.random() - 0.5) * 0.4,
+                    0, 0, 0);
+        }
+    }
     private final java.util.Map<Integer, Long> attacked = new java.util.HashMap<>();
 
     private void trackWorld(Minecraft mc) {
@@ -673,7 +701,14 @@ public final class KindredSpiritClient implements ClientModInitializer {
         Behavior life = companion.life;
         if (action.equals("guide")) {
             double[] t = Actions.lastTarget;
-            if (args.has("x") && args.has("z")) {
+            int follow = Actions.lastTargetEntity;
+            net.minecraft.world.entity.Entity animal = args.has("entity") && Minecraft.getInstance().level != null
+                    ? Minecraft.getInstance().level.getEntity(args.get("entity").getAsInt()) : null;
+            if (animal != null) {
+                t = new double[]{animal.getX(), animal.getY(), animal.getZ()};
+                follow = animal.getId();
+            } else if (args.has("x") && args.has("z")) {
+                follow = -1;
                 t = new double[]{args.get("x").getAsDouble() + 0.5, args.has("y") ? args.get("y").getAsDouble() : 64,
                         args.get("z").getAsDouble() + 0.5};
             }
@@ -683,10 +718,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 res.addProperty("error", "Guide where? Find or locate something first, or give coordinates.");
             } else {
                 life.guide(t[0], t[1], t[2], companion.now());
+                guideEntity = follow;
                 res.addProperty("ok", true);
                 res.addProperty("guiding", true);
                 double dx = t[0] - Minecraft.getInstance().player.getX(), dz = t[2] - Minecraft.getInstance().player.getZ();
                 res.addProperty("distance", Math.round(Math.sqrt(dx * dx + dz * dz)));
+                res.addProperty("direction", Direction8.relative(Minecraft.getInstance().player.getYRot(), dx, dz));
+                res.addProperty("following", follow >= 0 ? "a walking animal" : "a fixed place");
             }
             reply.accept(res);
             return;
@@ -857,6 +895,16 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
         if (now < noticeUntil && !notice.isEmpty()) {
             g.drawString(mc.font, notice, 6, 6, 0xFFFFD27A);
+        }
+        Behavior life = companion.life;
+        if (cfg.guideArrow && life.mode == Behavior.Mode.GUIDE) { // which way, and how far, at a glance
+            double[] t = life.guideTarget();
+            double dx = t[0] - mc.player.getX(), dz = t[2] - mc.player.getZ();
+            String s = Direction8.arrow(mc.player.getYRot(), dx, dz) + " " + displayName + " leads you · "
+                    + Math.round(Math.hypot(dx, dz)) + " blocks";
+            int x = (w - mc.font.width(s)) / 2;
+            g.fill(x - 4, 6, x + mc.font.width(s) + 4, 18, 0x80000000);
+            g.drawString(mc.font, s, x, 8, 0xFFFFE9A8);
         }
     }
 
