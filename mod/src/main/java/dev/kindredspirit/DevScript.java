@@ -167,10 +167,11 @@ public final class DevScript {
         String[] parts = line.split(" ", 2);
         String cmd = parts[0], arg = parts.length > 1 ? parts[1] : "";
         // everything except "world" needs to be in a world
-        if (!cmd.equals("world") && !cmd.equals("quit") && !cmd.equals("wait") && !cmd.startsWith("#")
+        if (!cmd.equals("world") && !cmd.equals("join") && !cmd.equals("quit") && !cmd.equals("wait") && !cmd.startsWith("#")
                 && (mc.player == null || mc.level == null)) return;
         // a first launch shows the accessibility welcome screen before the title screen
-        if (cmd.equals("world") && !(mc.screen instanceof TitleScreen || mc.screen instanceof AccessibilityOnboardingScreen)) return;
+        if ((cmd.equals("world") || cmd.equals("join"))
+                && !(mc.screen instanceof TitleScreen || mc.screen instanceof AccessibilityOnboardingScreen)) return;
         lines.poll();
         KindredSpiritClient.LOG.info("dev script: {}", line);
         switch (cmd) {
@@ -185,6 +186,14 @@ public final class DevScript {
                     mc.createWorldOpenFlows().createFreshLevel(arg, settings, new WorldOptions(20261111L, true, false),
                             WorldPresets::createNormalWorldDimensions, new TitleScreen());
                 }
+            }
+            case "join" -> { // a friend's LAN world, e.g. "join 127.0.0.1:25599" (the host ran /publish ... 25599)
+                mc.options.onboardAccessibility = false;
+                mc.getTutorial().setStep(TutorialSteps.NONE);
+                var address = net.minecraft.client.multiplayer.resolver.ServerAddress.parseString(arg.trim());
+                net.minecraft.client.gui.screens.ConnectScreen.startConnecting(new TitleScreen(), mc, address,
+                        new net.minecraft.client.multiplayer.ServerData("LAN", arg.trim(),
+                                net.minecraft.client.multiplayer.ServerData.Type.LAN), false, null);
             }
             case "wait" -> waitTicks = Integer.parseInt(arg.trim());
             case "waitsay" -> { // until she says something (at most N ticks)
@@ -295,8 +304,11 @@ public final class DevScript {
                     KindredSpiritClient.LOG.warn("dev script: cannot read {}: {}", arg, e.toString());
                 }
             }
-            case "screenshot" -> Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(),
+            case "screenshot" -> {
+                if (mc.screen instanceof net.minecraft.client.gui.screens.PauseScreen) mc.setScreen(null); // (focus lost)
+                Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(),
                     msg -> KindredSpiritClient.LOG.info("dev script: {}", msg.getString()));
+            }
             case "quit" -> mc.stop();
             default -> KindredSpiritClient.LOG.warn("dev script: unknown step {}", line);
         }

@@ -178,8 +178,11 @@ Decision pending: `sprout` as her default skin (today `slime`).
 ## Phase 8: Sharing
 - Installer and setup guide, including for your brothers.
 - More skins and shapes (little star, cube robot) and skin packs. (Ball, cube, wisp, fairy and custom PNG skins shipped in 0.1.)
-- LAN guests without the mod (shipped): an Allay stand-in, "Pip, ..." chat both ways, other players in her senses.
-  Later: her own relationship with each guest, voice for guests (a resource pack sound), the stand-in wearing her skin.
+- LAN friends (shipped): one Pip on the host's computer. Friends with the mod see her as the host does
+  (light mode, no AI of their own), friends without it see an Allay stand-in; everyone talks to her in
+  chat; she finds, leads, protects, gives items and effects to them (when the host allows), and stays
+  with whoever the host asks. Later: her own relationship with each friend, the stand-in wearing her
+  skin, friends hearing her voice on their own computer.
 - Port to the current Minecraft release (26.x): renderer, mixins and mappings need porting; friends then join on the latest version.
 - Servers: allowlist, server-safe behaviour, seed finder (cubiomes).
 - Publish on GitHub and Modrinth as **Kindred Spirit** (slug `kindred-spirit` is free as of 2026-11-11).

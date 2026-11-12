@@ -41,6 +41,7 @@ EXAMPLES = {
                      "remind me to sleep at night", "tell me later to go back home"],
     "name_place": ["this is my base", "remember this spot as my farm", "save this place as home",
                    "save this spot, it's my house"],
+    "give_effect": ["give me night vision", "heal me", "can i have haste", "give me speed", "i need health"],
     "give_item": ["give me a sword", "can i have some bread", "make me a pickaxe", "i need food, give me some"],
     "set_time": ["make it day", "skip the night", "turn it into night"],
     "set_weather": ["stop the rain", "make it sunny", "start a storm"],

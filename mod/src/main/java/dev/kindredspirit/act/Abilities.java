@@ -24,11 +24,11 @@ public final class Abilities {
 
     public enum Ability {
         // advice: reads the world, changes nothing
-        FIND_ORE(false), FIND_ANIMAL(false), FIND_BLOCK(false), LOCATE(false), GUIDE(false), STOP_GUIDE(false),
+        FIND_ORE(false), FIND_ANIMAL(false), FIND_BLOCK(false), FIND_PLAYER(false), LOCATE(false), GUIDE(false), STOP_GUIDE(false), FOLLOW_PLAYER(false),
         // acts in the world when you ask
         PROTECT(true), PLACE_TORCH(true), HARVEST(true), BUILD(true),
         // makes things appear
-        GIVE_ITEM(true),
+        GIVE_ITEM(true), GIVE_EFFECT(true),
         // changes the whole world
         SET_TIME(true), SET_WEATHER(true);
 
@@ -46,9 +46,9 @@ public final class Abilities {
 
     public static boolean allowed(Ability a, Power p, Style s) {
         return switch (a) {
-            case FIND_ORE, FIND_ANIMAL, FIND_BLOCK, LOCATE, GUIDE, STOP_GUIDE -> true;
+            case FIND_ORE, FIND_ANIMAL, FIND_BLOCK, FIND_PLAYER, LOCATE, GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> true;
             case PROTECT, PLACE_TORCH, HARVEST, BUILD -> p != Power.ADVISOR;
-            case GIVE_ITEM -> p != Power.ADVISOR && s == Style.MAGIC;
+            case GIVE_ITEM, GIVE_EFFECT -> p != Power.ADVISOR && s == Style.MAGIC;
             case SET_TIME, SET_WEATHER -> p == Power.ALLPOWERFUL;
         };
     }
@@ -61,7 +61,7 @@ public final class Abilities {
 
     /** Why it can't, in words the AI can pass on kindly. */
     public static String refusal(Ability a, Power p, Style s) {
-        if (a == Ability.GIVE_ITEM && s == Style.GROUNDED && p != Power.ADVISOR) {
+        if ((a == Ability.GIVE_ITEM || a == Ability.GIVE_EFFECT) && s == Style.GROUNDED && p != Power.ADVISOR) {
             return "In grounded style I can't make things appear; I can only use what really exists. "
                     + "(The player can switch with /kindred style magic.)";
         }

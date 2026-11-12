@@ -40,6 +40,9 @@ public final class Companion {
     public long subtitleUntil;
     public float mouth;
 
+    /** Who she floats beside: you (null), or another player in the world (on LAN, when you ask her). */
+    public java.util.UUID follow;
+
     private final Behavior.Senses senses = new Behavior.Senses();
     private final long start = System.nanoTime();
     private long lastFrame;
@@ -84,21 +87,31 @@ public final class Companion {
      * runs every 5th tick only and stays within a few blocks, so it costs next to nothing.
      * @return whether the player just petted or hit her
      */
+    /** The player she floats beside: you, or the one she's following if they're here. */
+    public Player anchor(Minecraft mc) {
+        if (follow != null && mc.level != null) {
+            Player other = mc.level.getPlayerByUUID(follow);
+            if (other != null && other.isAlive()) return other;
+        }
+        return mc.player;
+    }
+
     public Touch tick(Minecraft mc) {
         LocalPlayer p = mc.player;
         ClientLevel level = mc.level;
         if (p == null || level == null) return Touch.NONE;
+        Player a = anchor(mc);
         Behavior.Senses s = senses;
         s.now = now();
-        Vec3 eye = p.getEyePosition();
-        Vec3 look = p.getViewVector(1f);
+        Vec3 eye = a.getEyePosition();
+        Vec3 look = a.getViewVector(1f);
         s.ex = eye.x; s.ey = eye.y; s.ez = eye.z;
         s.lx = look.x; s.ly = look.y; s.lz = look.z;
-        s.yawDeg = p.getYRot();
-        s.speed = p.getDeltaMovement().horizontalDistance() * 20;
-        s.sneaking = p.isShiftKeyDown();
-        HitResult hit = mc.hitResult;
-        Entity target = mc.crosshairPickEntity;
+        s.yawDeg = a.getYRot();
+        s.speed = (a == p ? p.getDeltaMovement() : a.position().subtract(a.xo, a.yo, a.zo)).horizontalDistance() * 20;
+        s.sneaking = a.isShiftKeyDown();
+        HitResult hit = a == p ? mc.hitResult : null;
+        Entity target = a == p ? mc.crosshairPickEntity : null;
         if (target != null) {
             s.hasLookHit = true;
             s.hx = target.getX(); s.hy = target.getY() + target.getBbHeight() * 0.8; s.hz = target.getZ();
@@ -109,7 +122,7 @@ public final class Companion {
         } else {
             s.hasLookHit = false;
         }
-        if (tickCount++ % 5 == 0) scan(p, level);
+        if (tickCount++ % 5 == 0) scan(a, level);
         life.tick(s, activity, mood, (x, y, z) -> {
             BlockPos pos = BlockPos.containing(x, y, z);
             return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
@@ -147,7 +160,7 @@ public final class Companion {
         return Touch.NONE;
     }
 
-    private void scan(LocalPlayer p, ClientLevel level) {
+    private void scan(Player p, ClientLevel level) {
         senses.threats.clear();
         senses.interests.clear();
         List<Mob> mobs = level.getEntitiesOfClass(Mob.class, p.getBoundingBox().inflate(12),

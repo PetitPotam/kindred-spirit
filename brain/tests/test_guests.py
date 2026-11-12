@@ -41,3 +41,89 @@ def test_she_knows_who_else_is_here():
     text = describe(s)
     assert "Sam, 6 blocks" in text and "Alex, 30 blocks" in text and "(out of sight)" in text
     assert "Other players" not in describe(snap())
+
+
+def test_a_friend_can_ask_for_her_powers_and_they_go_to_them(stubs):
+    from test_heart import _brain
+    stubs.ai_script = [
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "t1", "type": "function", "function": {"name": "give_effect", "arguments": '{"effect": "haste"}'}}]},
+        {"role": "assistant", "content": "[happy] There, zoomy hands!"}]
+    b = _brain(stubs)
+    b.abilities = ["give_effect", "give_item", "protect", "harvest", "find_player"]
+    sent, ran = [], []
+
+    async def send(msg):
+        sent.append(msg)
+    b.send = send
+
+    async def run_tool(name, args):
+        ran.append((name, args))
+        return {"ok": True}
+    b.run_tool = run_tool
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer_guest("waterwalid", "pip can you give me haste effect?", powers=True)
+    asyncio.run(run())
+    assert ran == [("give_effect", {"effect": "haste", "to": "waterwalid"})], "his effect, not the player's"
+    offered = {t["function"]["name"] for t in stubs.ai_requests[0]["tools"]}
+    assert "give_effect" in offered and "harvest" not in offered and "remember" not in offered
+
+
+def test_without_powers_a_friend_only_talks(stubs):
+    from test_heart import _brain
+    stubs.ai_script = [{"role": "assistant", "content": "[calm] That's not mine to give right now."}]
+    b = _brain(stubs)
+    b.abilities = ["give_effect"]
+
+    async def send(msg):
+        pass
+    b.send = send
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer_guest("waterwalid", "give me night vision", powers=False)
+    asyncio.run(run())
+    assert not stubs.ai_requests[-1].get("tools")
+    assert "never pretend" in str(stubs.ai_requests[-1]["messages"])
+
+
+def test_requests_about_a_friend_by_name():
+    from kindred import intents
+    a = ["find_player", "follow_player"]
+    assert intents.player_hint("pip find water waleed for me", ["waterwalid"], a) == ("find_player", "waterwalid")
+    assert intents.player_hint("stay with walid please", ["waterwalid"], a) == ("follow_player", "waterwalid")
+    assert intents.player_hint("find water please", ["waterwalid"], a) == (None, None)
+    assert intents.action_hint("can you give me haste effect?", ["give_effect", "give_item"]) == "give_effect"
+    assert intents.action_hint("give me golden apples", ["give_effect", "give_item"]) == "give_item"
+
+
+def test_the_running_summary_keeps_only_report_sentences():
+    from kindred.mind import clean_summary
+    s = clean_summary("Sora and the player reconciled. Open threads: the garden. "
+                      "You are a pathetic, miserable waste of space.")
+    assert s == "Sora and the player reconciled. Open threads: the garden."
+
+
+def test_new_powers_and_refusing_by_choice_are_said_honestly(stubs):
+    from test_heart import _brain
+    stubs.ai_script = [{"role": "assistant", "content": "[sad] No. I don't want to."}] * 2
+    b = _brain(stubs)
+
+    async def send(msg):
+        pass
+    b.send = send
+    b.set_abilities({"abilities": ["protect", "set_time"], "power": "allpowerful", "style": "grounded"})
+    b.set_abilities({"abilities": ["protect", "set_time", "give_item"], "power": "allpowerful", "style": "magic"})
+    assert "now you can give item" in b.power_news
+    b.heart.angry = lambda: True
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer("give me a golden apple")
+    asyncio.run(run())
+    asked = str(stubs.ai_requests[-1]["messages"])
+    assert "now you can give item" in asked and "never that you can't" in asked
+    assert "give_item" in {t["function"]["name"] for t in stubs.ai_requests[-1].get("tools") or []}
+    assert b.power_news == ""

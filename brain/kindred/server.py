@@ -71,7 +71,7 @@ def sentences(text, min_chars=25, first_max=0):
     return out
 
 
-HANDS = ("protect", "place_torch", "harvest", "build", "give_item", "set_time", "set_weather")  # powers that touch the world
+HANDS = ("protect", "place_torch", "harvest", "build", "give_item", "give_effect", "set_time", "set_weather")  # powers that touch the world
 
 
 def player_name(memories):
@@ -195,6 +195,7 @@ class Brain:
             GatewayMemory(cfg["gateway"]["url"], cfg["gateway"].get("key", "")))
         self.mind = mind or Mind(cfg, self.memory)
         self.abilities = []
+        self.power_news = ""
         self.singleplayer = False
         self.pending = {}
         self.next_id = 0
@@ -318,7 +319,7 @@ class Brain:
         elif kind == "event":
             await self.on_event(msg.get("event"), msg)
         elif kind == "chat" and msg.get("from"):  # a friend on your LAN world called her in chat
-            asyncio.create_task(self.answer_guest(msg["from"], msg.get("text", "")))
+            asyncio.create_task(self.answer_guest(msg["from"], msg.get("text", ""), bool(msg.get("powers"))))
         elif kind == "chat":
             self.hear_player(msg.get("text", ""))
         elif kind == "voice":
@@ -327,7 +328,11 @@ class Brain:
             asyncio.create_task(self.admin(msg.get("command", ""), msg.get("text", "")))
 
     def set_abilities(self, msg):
-        self.abilities = list(msg.get("abilities") or [])
+        before, self.abilities = self.abilities, list(msg.get("abilities") or [])
+        gained = [a for a in self.abilities if a not in before and a in HANDS] if before else []
+        if gained:  # (the player changed her power or style while playing: she stops saying she can't)
+            self.power_news = ("Something in you just changed: now you can %s. If you told the player earlier that "
+                               "you couldn't, that was true then, not now." % ", ".join(a.replace("_", " ") for a in gained))
         self.singleplayer = bool(msg.get("singleplayer"))
         # (said in her world's words: these are limits of what she is, never "settings" to talk about)
         known = ", ".join(a.replace("_", " ") for a in self.abilities) if not self.heart.amnesia() else \
@@ -450,7 +455,7 @@ class Brain:
     async def tip_for(self, ability):
         """A settings hint for the player (in chat, not from her) when she's asked for something her
         power or style doesn't allow."""
-        need = {"give_item": "/kindred style magic", "set_time": "/kindred power allpowerful",
+        need = {"give_item": "/kindred style magic", "give_effect": "/kindred style magic", "set_time": "/kindred power allpowerful",
                 "set_weather": "/kindred power allpowerful", "protect": "/kindred power helper",
                 "place_torch": "/kindred power helper"}.get(ability)
         if need:
@@ -1683,6 +1688,9 @@ class Brain:
                     force = self.her_offer[0]  # "yes please" to "should I light it up for you?"
                 self.her_offer = None
                 talk_tools = ["set_reminder", "name_place", "remember", "standing_request"]
+                others = [p.get("name", "") for p in self.snapshot.get("players") or []]
+                about_tool, about = intents.player_hint(text, others, self.abilities)
+                force = force or about_tool  # "find walid", "stay with walid"
                 force = force or intents.action_hint(text, self.abilities + talk_tools) \
                     or intents.hint_in_context(text, self.recent_player, self.abilities)
                 if not force and len(text) < 160:  # System 0: what you mean, whatever words you use
@@ -1694,12 +1702,23 @@ class Brain:
                     self.tipped[wanted] = self.clock()  # her power or style doesn't allow it: a hint for you
                     await self.tip_for(wanted)
                 self.recent_player = (self.recent_player + [text])[-3:]
-                if self.heart.angry():
-                    force = None  # when she's cross, whether to help is her choice
+                asked = force
+                if self.heart.angry() and force:
+                    force = None  # when she's cross, whether to help is her choice (but never "I can't")
+                    note_cross = ("They ask you to %s, and you can. You're cross with them: whether you do it is "
+                                  "your choice. If you won't, say you don't want to, never that you can't."
+                                  % asked.replace("_", " "))
+                else:
+                    note_cross = ""
                 self.heart.known_self = getattr(self.memory, "self_known", 0)
                 for said in heard or [text]:  # (repeating the same words: less effect, then annoyance)
                     self.heart.hear(said)
-                note = self.favour_heard(text)
+                someone = ("They mean %s, another player here (for gifts, effects or protection, set 'to' to %s)."
+                           % (about, about)) if about else ""
+                note = " ".join(x.strip() for x in (self.favour_heard(text), note_cross, self.power_news, someone)
+                                if x.strip())
+                note += " " if note else ""
+                self.power_news = ""
                 if force == "find_animal" and self.animal_named(text):
                     force = None  # it's right there in view: she just says where, no searching needed
                 if force and self.heart.slow(force):
@@ -1712,7 +1731,7 @@ class Brain:
                         self.start_awakening(force, text)
                     force = None
                 note += await self.world_answer(text)  # how the world works: what it remembers, or listen
-                offered = self.heart.offered_tools(self.abilities, force)
+                offered = self.heart.offered_tools(self.abilities, force or (asked if note_cross else None))
                 self.offered = offered
                 fib = "" if force or (self.snapshot.get("hostiles") or []) else self.heart.fib(self.clock())
                 self.mind.allow_fib = bool(fib)
@@ -1771,7 +1790,10 @@ class Brain:
         if regard == "mean" and self.heart.bond < 12 and self.heart.p.get("can_vanish", True):
             await self.vanish(120, random.choice(intents_heart.VANISH_LINES))
 
-    async def answer_guest(self, who, text):
+    GUEST_TOOLS = ("give_item", "give_effect", "protect", "find_ore", "find_animal", "find_block", "find_player",
+                   "locate", "guide", "stop_guide", "set_time", "set_weather")
+
+    async def answer_guest(self, who, text, powers=False):
         """A friend on your LAN world (without the mod) called her in chat: she answers them, in chat for
         them (the mod sends her lines there) and aloud for you. Talk only: she doesn't use her powers for
         them, and nothing they say moves her heart: the bond is between her and you."""
@@ -1786,10 +1808,26 @@ class Brain:
                     "%s is a friend of the player's, here in the world with you. They can't hear your voice: they "
                     "read your words in chat. Be yourself with them; your bond is with the player, not with %s."
                     % (who, who))) if x)
+                offered = [a for a in self.abilities if a in self.GUEST_TOOLS] if powers else []
+                if not offered:
+                    self.mind.heart += ("\nWith %s you only talk: your powers are for the player alone right now. If "
+                                        "they ask for something, say so kindly; never pretend to do it." % who)
+                force = intents.action_hint(text, offered)
+                if not force:
+                    force = intents.player_hint(text, [p.get("name", "") for p in self.snapshot.get("players") or []],
+                                                offered)[0]
+
+                async def for_them(name, args):  # (gifts, effects and protection go to them, not to the player)
+                    if name in ("give_item", "give_effect", "protect") and not (args or {}).get("to"):
+                        args = dict(args or {}, to=who)
+                    if name == "find_player":  # (where someone is, from where they stand)
+                        args = dict(args or {}, **{"from": who})
+                    return await self.run_tool(name, args)
                 speech = SpokenStream(self)
                 reply, mood, gesture = await self.mind.reply(
                     self.snapshot, "(%s, another player here, not the player you live beside, says to you in chat:) %s"
-                    % (who, text), (), [], self.run_tool, None, False, on_sentence=speech.add)
+                    % (who, text), (), [tools.ABILITY_TOOLS[a] for a in offered if a in tools.ABILITY_TOOLS], for_them, force,
+                    False, on_sentence=speech.add)
                 await speech.close()
             except AIError as e:
                 log.error("AI error answering %s: %s", who, e)
@@ -1823,6 +1861,10 @@ class Brain:
         if mine != text:  # her own voice reached your microphone: only your words count
             log.info("removed her own words from what was heard: %r -> %r", text, mine)
         if not mine:
+            await self.send({"type": "state", "state": "idle"})
+            return
+        if msg.get("relay"):  # light mode: words for the host's Pip, sent on in chat by the game
+            await self.send({"type": "heard", "text": mine, "relay": True})
             await self.send({"type": "state", "state": "idle"})
             return
         await self.send({"type": "heard", "text": mine})

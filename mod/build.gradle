@@ -38,6 +38,15 @@ loom {
                 programArgs '--width', wh[0], '--height', wh[1]
             }
         }
+        // a second game on the same computer, as a friend joining your LAN world (light mode checks):
+        // ./gradlew runGuest -PguestScript=devscripts/lan-guest.txt
+        guest {
+            client()
+            name "Guest client"
+            runDir "run-guest"
+            programArgs '--username', 'Walid'
+            if (project.hasProperty('guestScript')) vmArg "-Dkindredspirit.devScript=${file(project.property('guestScript'))}"
+        }
     }
 }
 
