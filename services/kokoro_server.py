@@ -94,7 +94,30 @@ def keep_phonemizer(engine):
     tok.phonemize = phonemize
 
 
+# Little sounds the voice engine would spell out letter by letter ("Hm" as "aitch-em", "Shh" as
+# "es-aitch-aitch"), rewritten as words it says as sounds. The subtitle keeps what she wrote.
+SOUNDS = [
+    (r"\b[Hh]m+\b|\b[Mm]{2,}\b(?!-)", "Hmm"),
+    (r"\b(?:[Mm]+-?h+m+|[Mm]hm)\b", "Uh-huh"),
+    (r"\b[Hh]mph\b", "Humph"),
+    (r"\b[Pp]f+t*\b", "Pah"),
+    (r"\b[Ss]h{2,}\b|\b[Ss]h\b", "Shush"),
+    (r"\b[Tt]ch\b", "Tsk"),
+    (r"\b[Bb]rr+\b", "Burr"),
+    (r"\b[Gg]rr+\b", "Gah"),
+    (r"\b[Bb]zz+\b", "Buzz"),
+    (r"\b[Zz]{3,}\b", ""),
+]
+
+
+def speakable(text):
+    for pattern, word in SOUNDS:
+        text = re.sub(pattern, word, text)
+    return re.sub(r"\s{2,}", " ", text).strip() or "Hmm"
+
+
 def synthesize(text, voice, speed, pitch=1.0, gain=1.0):
+    text = speakable(text)
     style = voice_style(voice)
     lang = "en-gb" if isinstance(style, str) and style.startswith("b") else "en-us"
     pitch = min(max(pitch, 0.8), 1.25)

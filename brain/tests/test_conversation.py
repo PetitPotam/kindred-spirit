@@ -178,7 +178,8 @@ def test_her_answer_is_spoken_sentence_by_sentence_as_it_is_written():
     answer = "[excited][kind] {hop} Iron golems! You need beds for villagers. Then a zombie they can see."
     for i in range(1, len(answer) + 1):  # it arrives a few characters at a time
         st.feed(answer[:i])
-    assert [g[0] for g in got] == ["Iron golems!", "You need beds for villagers."], "each sentence once it ends"
+    assert [g[0] for g in got] == ["Iron golems! You need beds for villagers."], \
+        "each sentence once it ends (a very short one waits for the next)"
     assert got[0][1:] == ("excited", "hop")
     st.finish(answer)
     assert got[-1][0] == "Then a zombie they can see."
