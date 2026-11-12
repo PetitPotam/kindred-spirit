@@ -1,0 +1,8 @@
+world kindred-chat
+wait 200
+type tell me in three sentences what you love about the sky
+wait 70
+screenshot stream-01
+wait 60
+screenshot stream-02
+quit
