@@ -1,0 +1,14 @@
+# Visiting Pip, the visitor's side (runClient, with the brain): join Walid's LAN world, bring Pip along.
+wait 500
+join 127.0.0.1:25599
+wait 200
+lookat
+screenshot visit-visitor-1
+do give_effect {"effect": "haste"}
+wait 100
+do protect {}
+wait 300
+lookat
+screenshot visit-visitor-2
+wait 1600
+quit

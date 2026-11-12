@@ -40,6 +40,8 @@ public final class KindredConfig {
     /** Friends on your LAN world may ask for her powers too (gifts, effects, finding, leading), within her
      *  power and style; off = they can only talk with her. */
     public boolean lanGuestPowers = true;
+    /** When a friend's Pip visits your LAN world (her brain in their game): she may use her powers here. */
+    public boolean lanVisitors = true;
     /** Joining a friend's world where their Pip lives: "host" = you see and share their Pip (one Pip, their
      *  AI and voice; you talk to her in chat), "own" = your own Pip and brain, as at home. */
     public String sharedPip = "host";

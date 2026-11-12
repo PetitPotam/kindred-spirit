@@ -1,0 +1,22 @@
+# Visiting Pip, the friend's side (runGuest, no brain): Walid hosts the LAN world; the visitor's Pip comes in.
+world Walid World
+wait 200
+cmd time set day
+cmd publish false survival 25599
+# (until the visitor has joined: their game starts later)
+wait 1500
+cmd tp @s @p[name=!Walid]
+cmd tp @s ~3 ~ ~3
+wait 60
+lookat
+screenshot visit-host-1
+type Pip, hi! Can you give me night vision please?
+wait 160
+lookat
+screenshot visit-host-2
+type Pip, stay with me for a bit!
+wait 300
+lookat
+screenshot visit-host-3
+wait 900
+quit

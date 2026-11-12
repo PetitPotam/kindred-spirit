@@ -79,6 +79,63 @@ public final class KindredSpiritClient implements ClientModInitializer {
     /** Light mode: in a friend's LAN world, you see and share their Pip (see SharedPip). */
     private final dev.kindredspirit.guest.SharedPip shared = new dev.kindredspirit.guest.SharedPip();
     private volatile boolean sharing;
+    /** Visiting: your Pip (your brain) in a friend's LAN world whose game has Kindred. */
+    private volatile boolean visitingWorld;
+    /**
+     * This computer has her brain (it was set up here, or it connected): only then is there a Pip of its own
+     * to show, grey while the brain is off. A friend with only the mod sees Pip when someone's Pip is there.
+     */
+    private volatile boolean brainHere = java.nio.file.Files.exists(
+            Path.of(System.getProperty("user.home"), ".kindred-spirit", "brain.toml"));
+    private int visitTicks;
+    private final java.util.Map<String, java.util.concurrent.CompletableFuture<JsonObject>> visitPending =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void sendVisit(JsonObject o) {
+        if (Minecraft.getInstance().getConnection() == null) return;
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+                new dev.kindredspirit.guest.VisitPayload(o.toString()));
+    }
+
+    private void sayVisiting(String text) {
+        if (!visitingWorld || text == null || text.isBlank()) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("kind", "say");
+        o.addProperty("text", text);
+        sendVisit(o);
+    }
+
+    /** One of her powers, done by the friend's game that hosts this world. */
+    private java.util.concurrent.CompletableFuture<JsonObject> visitAct(String action, JsonObject req) {
+        String id = java.util.UUID.randomUUID().toString();
+        var f = new java.util.concurrent.CompletableFuture<JsonObject>();
+        visitPending.put(id, f);
+        req.addProperty("kind", "act");
+        req.addProperty("id", id);
+        req.addProperty("action", action);
+        Minecraft.getInstance().execute(() -> sendVisit(req));
+        return f.completeOnTimeout(Actions.error("This world's game didn't answer."), 10, java.util.concurrent.TimeUnit.SECONDS)
+                .whenComplete((r, e) -> visitPending.remove(id));
+    }
+
+    private void standInHere(String json) {
+        try {
+            GuestBridge.hidden = java.util.UUID.fromString(
+                    com.google.gson.JsonParser.parseString(json).getAsJsonObject().get("standIn").getAsString());
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private void visitDone(String json) {
+        try {
+            JsonObject r = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            var f = visitPending.remove(str(r, "id"));
+            r.remove("type");
+            r.remove("id");
+            if (f != null) f.complete(r);
+        } catch (RuntimeException ignored) {
+        }
+    }
     private String notice = "";
     private long noticeUntil;
     private String caption = "";
@@ -140,8 +197,31 @@ public final class KindredSpiritClient implements ClientModInitializer {
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
                 dev.kindredspirit.guest.PipPayload.TYPE, (payload, context) -> {
                     String json = payload.json();
-                    context.client().execute(() -> shared.receive(json));
+                    context.client().execute(() -> {
+                        if (json.contains("\"type\":\"done\"")) visitDone(json); // (an action your visiting Pip asked for)
+                        else if (json.contains("\"type\":\"standin\"")) standInHere(json); // (her stand-in there: not drawn)
+                        else shared.receive(json);
+                    });
                 });
+        // a visiting Pip: you joined a friend's LAN world whose game has Kindred, your brain is here
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playC2S().register(
+                dev.kindredspirit.guest.VisitPayload.TYPE, dev.kindredspirit.guest.VisitPayload.CODEC);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
+                dev.kindredspirit.guest.VisitPayload.TYPE, (payload, context) -> {
+                    String json = payload.json();
+                    context.server().execute(() -> GuestBridge.visit(context.server(), context.player(), json));
+                });
+        GuestBridge.acceptVisitors = () -> cfg.lanVisitors;
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.CHAT.register((message, signed, sender, params, time) -> {
+            // their chat to her reaches your game: when you host, your world's server already passes it on
+            if (!visitingWorld || sender == null || signed == null) return;
+            Minecraft m = Minecraft.getInstance();
+            if (m.player == null || sender.getId().equals(m.player.getUUID())) return;
+            String text = signed.signedContent();
+            if (ChatRoute.forCompanion("name", false, displayName, text)) {
+                m.execute(() -> fromGuest(new GuestBridge.Heard(sender.getName(), text)));
+            }
+        });
         GuestBridge.state = () -> {
             Minecraft m = Minecraft.getInstance();
             if (m.player == null) return null;
@@ -164,6 +244,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.player.isSpectator()) return;
+            if (!sharing && !brainHere) return; // (a friend's game with only the mod: no Pip of its own to show)
             float partial = ctx.tickCounter().getGameTimeDeltaPartialTick(false);
             if (companion.activity == Behavior.Activity.SPEAKING && !voice.isPlaying()
                     && System.currentTimeMillis() > speakingGrace) {
@@ -394,6 +475,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
             inWorld = false;
             sharing = false;
+            visitingWorld = false;
+            Actions.remote = null;
+            visitPending.clear();
             shared.forget();
             companion.follow = null;
             voice.stop();
@@ -435,9 +519,12 @@ public final class KindredSpiritClient implements ClientModInitializer {
             }
             LOG.info("settings changed outside the game: applied");
         }
-        boolean share = "host".equalsIgnoreCase(cfg.sharedPip) && mc.getSingleplayerServer() == null && shared.active(now);
+        // (hosting with no brain of your own: a friend's visiting Pip, relayed by your own world, is the one you see)
+        boolean share = "host".equalsIgnoreCase(cfg.sharedPip) && shared.active(now)
+                && (mc.getSingleplayerServer() == null || !link.connected());
         if (share != sharing) {
             sharing = share;
+            LOG.info(share ? "Showing {}, who lives in another player's game" : "No longer showing {}", shared.name());
             if (share) {
                 notice("You see " + shared.name() + ", who lives in this world's host's game. Talk to her in chat: \""
                         + shared.name() + ", ...\"", 7000);
@@ -447,6 +534,23 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 companion.follow = null;
                 if (link.connected() && inWorld) event("join");
             }
+        }
+        boolean visit = !sharing && link.connected() && inWorld && mc.getSingleplayerServer() == null
+                && mc.getConnection() != null
+                && net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(dev.kindredspirit.guest.VisitPayload.TYPE);
+        if (visit != visitingWorld) {
+            visitingWorld = visit;
+            LOG.info(visit ? "{} visits this world (its game has Kindred)" : "{} no longer visiting", displayName);
+            Actions.remote = visit ? this::visitAct : null;
+            if (visit) notice(displayName + " comes along into this world: everyone here can see her and talk to her.", 6000);
+            sendAbilities(); // (her powers work here now, through this world's game)
+        }
+        if (visitingWorld && ++visitTicks % 4 == 0) {
+            JsonObject o = new JsonObject();
+            o.addProperty("kind", "state");
+            o.add("state", dev.kindredspirit.guest.SharedPip.describe(companion, displayName, companion.anchor(mc).getUUID(),
+                    null, now));
+            sendVisit(o);
         }
         if (sharing) {
             shared.apply(companion, now);
@@ -481,7 +585,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             mc.setScreen(new net.minecraft.client.gui.screens.ChatScreen(shared.name() + ", "));
         } else if (held && !recorder.isRecording() && companion.activity != Behavior.Activity.LISTENING) {
             if (!link.connected()) {
-                notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
+                if (brainHere) notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
             } else {
                 voice.stop();
                 companion.activity = Behavior.Activity.LISTENING;
@@ -687,6 +791,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     companion.say(text, secs, now);
                     dev.kindredspirit.record.FrameRecorder.line("pip", text);
                     GuestBridge.say(mc.getSingleplayerServer(), text);
+                    sayVisiting(text);
                     Emote gesture = Emote.parse(str(msg, "emote"));
                     if (gesture != null && cfg.life.aiGestures) companion.life.play(gesture, companion.now());
                     boolean talking = secs > 0 || more;
@@ -709,6 +814,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     captionUntil = companion.subtitleUntil;
                     dev.kindredspirit.record.FrameRecorder.line("pip", more);
                     GuestBridge.say(mc.getSingleplayerServer(), more);
+                    sayVisiting(more);
                     logChat(Component.literal("   " + more).withStyle(ChatFormatting.WHITE)); // (continues her line)
                 });
             }
@@ -773,6 +879,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     }
 
     private void onBrainOpen() {
+        brainHere = true;
         LOG.info("Connected to the Kindred brain");
         JsonObject hello = new JsonObject();
         hello.addProperty("type", "hello");
@@ -970,7 +1077,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         com.google.gson.JsonArray a = new com.google.gson.JsonArray();
         for (String id : Abilities.allowedIds(p, s)) a.add(id);
         o.add("abilities", a);
-        o.addProperty("singleplayer", Minecraft.getInstance().getSingleplayerServer() != null);
+        o.addProperty("singleplayer", Minecraft.getInstance().getSingleplayerServer() != null || visitingWorld);
         o.addProperty("glow", cfg.glow);
     }
 
@@ -1218,7 +1325,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 y += 10;
             }
         }
-        if (!sharing && !link.connected() && inWorld && now - joinedAt > 3000 && now - joinedAt < 15000) {
+        if (brainHere && !sharing && !link.connected() && inWorld && now - joinedAt > 3000 && now - joinedAt < 15000) {
             notice("Kindred brain not connected yet: run scripts/start.sh, then /kindred reconnect", 2000);
         }
         int rightY = 6;
