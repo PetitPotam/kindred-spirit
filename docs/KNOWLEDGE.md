@@ -4,7 +4,8 @@ Pip must never invent facts. She says only what comes from the game, a tool, her
 Minecraft knowledge, and the knowledge base is where that knowledge comes from: recipes, mobs,
 biomes, mechanics, redstone, farming and build guides, fetched from a few sources into one local
 SQLite file she can search. When she says "a piston takes 3 planks, 4 cobblestone, an iron ingot
-and redstone dust", that sentence comes from a page she can point to.
+and redstone dust", that sentence comes from a page anyone can check (its URL and license stay
+with it, for the logs and the dashboard; Pip herself never talks about pages, see Integration).
 
 Code: `services/knowledge/` (standard library only; numpy is used if present). Tests:
 `brain/tests/test_knowledge.py` (no network: hand-recorded responses).
@@ -325,38 +326,50 @@ asks for embeddings (default `http://127.0.0.1:11437/v1`).
 
 ## Integration (next step)
 
-Not wired into the companion yet (her brain files are being changed in another branch). The plan:
+Not wired into the companion yet (her brain files are being changed in another branch; the brain
+side belongs there). The API above doesn't change; this is how she should use it.
 
-**1. A `look_up` tool**, next to `remember`/`forget` in `MEMORY_TOOLS` (`brain/kindred/tools.py`)
-and in `TALK_TOOLS` (`brain/kindred/mind.py`) so she can use it while talking:
+**She stays in her world.** Minecraft is Pip's real world and she is a spirit of it: she never
+mentions books, the internet, a wiki or "looking something up". What the knowledge base holds is,
+to her, what the world remembers: the old stones remember everything that's been built, the wind
+has passed over every village. Sources, URLs and licenses stay in the data (logs, dashboard),
+never in her words.
+
+**1. A tool in her world's terms**, next to `remember`/`forget` in `MEMORY_TOOLS`
+(`brain/kindred/tools.py`) and in `TALK_TOOLS` (`brain/kindred/mind.py`) so she can use it while
+talking:
 
 ```python
-_fn("look_up", "Look up how Minecraft works: recipes, mobs, biomes, mechanics, redstone, farming, "
-    "build guides. Use it before stating a game fact you are not sure of.",
+_fn("listen_to_the_world", "Listen to what the world remembers about how things work here: what things "
+    "are made from, where creatures live, how to breed or tame them, how redstone behaves, how farms "
+    "and builds are put together. Use it before saying any such fact you are not sure of.",
     {"query": {"type": "string", "description": "the question, in plain words"}}, ["query"]),
 ```
 
 handled by `POST {gateway}/knowledge/search {"query": q, "k": 3, "max_chars": 900}` (the brain
-already talks to the gateway for `/memory/...` in `GatewayMemory`), returning each result as
-`"<title> / <section>: <text> (from <url>, <license>)"`. Her instructions gain one line: *"For
-game facts, use look_up and say only what it returns; if it isn't covered, say you don't know
-yet."*
+already talks to the gateway for `/memory/...` in `GatewayMemory`), giving the AI each result as
+`"<title> / <section>: <text>"` (no URL). Her instructions gain one line: *"For how things work in
+the world, listen to the world and say only what it tells you; if it is quiet, say so, never
+guess."*
 
 **2. Learning while you play**, when the search says `"covered": false`:
 
-1. **She answers at once**, honestly, in character: *"Hmm, I don't know that one well... let me
-   look into it!"* No invented fact, no waiting in silence.
-2. **The brain calls `POST /v1/knowledge/learn {"query": q}` in the background** (a task, not
-   blocking the conversation; 2 to 4 seconds, up to ~15 s if the wiki is slow).
-3. **She comes back with the answer** when it returns `"covered": true`: the brain gives the AI
-   the returned `results` as what she just found out, and she tells the player, like her slow
-   power awakening: *"Oh! I found it: a beacon needs 5 glass, 3 obsidian and a nether star..."*,
-   saying it comes from the wiki. If it comes back `nothing`/`capped`/`off`/still not covered,
-   she says she couldn't find it, once, and moves on.
-4. **Next time it's already known**: the pages stay in the knowledge base, so the same question
-   (or a close one) is covered immediately, and `learn` refuses to look up the same question twice
-   in 24 hours (`"recent"`).
+1. **She answers at once, in her world**: *"The old stones remember everything that's been
+   built... let me listen for a moment."* or *"The wind passes over every village, maybe it
+   heard how."* No invented fact, no silence.
+2. **She listens**: she drifts off a few blocks and turns slowly, as if listening, while the brain
+   calls `POST /v1/knowledge/learn {"query": q}` in the background (a task that doesn't block the
+   conversation: 2.5 to 3.3 s measured, up to ~15 s if the wiki is slow).
+3. **She comes back with the answer** when it returns `"covered": true`: the brain hands the AI the
+   returned `results` as what the world just told her, and she floats back and says it, like her
+   slow power awakening: *"The stones told me about iron golems! Villagers who sleep and work
+   together, and a golem appears when..."* If it comes back `nothing`/`capped`/`off`/`busy` or still
+   not covered: *"The stones are quiet about that one... maybe we'll figure it out together."*,
+   once, and she moves on.
+4. **Next time she already knows**: the pages stay in the knowledge base, so the same question (or a
+   close one) is covered at once and she answers without listening; `learn` refuses to look up
+   the same question twice in 24 hours (`"recent"`).
 
-Later, recall can also do it unasked: when the player's message is a Minecraft question (make,
-craft, spawn, breed, farm, build, where/how + a game word), the top 2 chunks of a covered search
-go into her context next to her memories, under "What the wiki says".
+Later, recall can also do it unasked: when the player's message is a question about how the world
+works (make, craft, spawn, breed, farm, build, where/how + a game word), the top 2 chunks of a
+covered search go into her context next to her memories, under "What the world remembers".
