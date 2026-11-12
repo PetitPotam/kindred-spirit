@@ -7,6 +7,6 @@ cd "$(dirname "$0")/.." || exit 1
 scripts/start.sh --background
 echo
 echo "Opening the Minecraft Launcher: pick the Kindred Spirit profile and press Play."
-echo "In game: hold V to talk, or type /kindred <message>."
+echo "In game: hold V to talk, or just type in chat (on a server: start with her name)."
 echo "Watch what she's doing, thinking and remembering: http://127.0.0.1:11440"
 /Applications/Minecraft.app/Contents/MacOS/launcher >/dev/null 2>&1

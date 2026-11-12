@@ -24,6 +24,8 @@ laptop. Code: `brain/kindred/memory.py` (what to keep, learning, recall) and
 By default every world gets its own companion: a new world means meeting a new Pip, with her own
 memories, bond and discovered powers. Coming back to a world, you find the Pip who lives there.
 
+- In game: `/kindred memory` (what she knows here), `/kindred memory worlds`, `/kindred memory import
+  <world>` (her bond and powers come along too), `/kindred memory forget <words>`, `/kindred reset`.
 - `scripts/memory.sh worlds` lists your worlds and what she knows in each.
 - `scripts/memory.sh import "Old World"` brings what she knew about you, about herself and your
   habits into the world you played last (or name it: `import "Old World" "New World"`). Places and

@@ -52,6 +52,21 @@ $G model gemini-3.1-flash-lite   # override the AI model (--clear to undo)
 Changes apply on the next request. If you switch a part away from a local tool, `scripts/start.sh`
 stops starting that tool, so it costs nothing.
 
+## Special instructions
+
+The gateway can steer the AI without touching the brain, from the game or the terminal:
+
+| In game | Terminal (`$G ...`) | What it does |
+|---|---|---|
+| `/kindred persona Speaks like a pirate.` | `persona "..."` | standing rules for how she behaves and speaks (`clear` / `--clear` removes) |
+| `/kindred fact The base is at the lake.` | `fact "..."` | facts she knows to be true (add several; `clear` removes all) |
+| `/kindred hint Tease them about the creeper.` | `hint "..."` | for her next reply only |
+| `/kindred model gemini-3.1-flash` | `model ...` | use another model of the same provider |
+| `/kindred pause` / `resume` | `pause` / `resume` | send requests through untouched, or apply the instructions again |
+| `/kindred instructions` | `status` | what's set right now |
+
+The dashboard ([DASHBOARD.md](DASHBOARD.md)) shows them, and which AI calls they were applied to.
+
 ## Her voice
 
 With the local voice (Kokoro), Pip's voice is a blend of two young voices, `af_sky` and `af_bella`,

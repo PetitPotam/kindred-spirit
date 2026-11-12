@@ -135,6 +135,14 @@ public final class KindredSpiritClient implements ClientModInitializer {
             renderer.render(ctx, companion, skins.texture(companion.skin), cfg, quality.level(), System.currentTimeMillis());
         });
         HudRenderCallback.EVENT.register((g, delta) -> hud(g));
+        // plain chat to her (chatMode): the message goes to her instead of the game's chat
+        net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (!link.connected() || !ChatRoute.forCompanion(cfg.chatMode, mc.getSingleplayerServer() != null,
+                    displayName, message)) return true;
+            talk(message.trim());
+            return false;
+        });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> {
             LiteralCommandNode<FabricClientCommandSource> root = dispatcher.register(ClientCommandManager.literal("kindred")
                     .then(ClientCommandManager.literal("reconnect").executes(c -> {
@@ -272,6 +280,23 @@ public final class KindredSpiritClient implements ClientModInitializer {
                             .then(ClientCommandManager.argument("at", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"me", "there", "ahead", "up", "down", "around"}, b))
                                     .executes(c -> act("look", StringArgumentType.getString(c, "at")))))
+                    // her memory, per world: what she knows, other worlds, bring memories over, forget, start over
+                    .then(ClientCommandManager.literal("memory").executes(c -> admin("memory", ""))
+                            .then(ClientCommandManager.literal("worlds").executes(c -> admin("worlds", "")))
+                            .then(ClientCommandManager.literal("import")
+                                    .executes(c -> admin("import", ""))
+                                    .then(ClientCommandManager.argument("world", StringArgumentType.greedyString())
+                                            .executes(c -> admin("import", StringArgumentType.getString(c, "world")))))
+                            .then(ClientCommandManager.literal("forget")
+                                    .then(ClientCommandManager.argument("what", StringArgumentType.greedyString())
+                                            .executes(c -> admin("forget", StringArgumentType.getString(c, "what"))))))
+                    .then(ClientCommandManager.literal("reset").executes(c -> admin("reset", ""))
+                            .then(ClientCommandManager.literal("confirm").executes(c -> admin("reset", "confirm"))))
+                    // the gateway's special instructions ("clear" removes them)
+                    .then(adminText("persona")).then(adminText("fact")).then(adminText("hint")).then(adminText("model"))
+                    .then(ClientCommandManager.literal("instructions").executes(c -> admin("instructions", "")))
+                    .then(ClientCommandManager.literal("pause").executes(c -> admin("pause", "")))
+                    .then(ClientCommandManager.literal("resume").executes(c -> admin("resume", "")))
                     .then(ClientCommandManager.argument("message", StringArgumentType.greedyString()).executes(c -> {
                         talk(StringArgumentType.getString(c, "message"));
                         return 1;
@@ -398,6 +423,27 @@ public final class KindredSpiritClient implements ClientModInitializer {
     // ------------------------------------------------------------------ talking
 
     /** Typed message for the companion (/kindred TEXT or /ks TEXT). */
+    private com.mojang.brigadier.builder.LiteralArgumentBuilder<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>
+            adminText(String name) {
+        return ClientCommandManager.literal(name).executes(c -> admin(name, ""))
+                .then(ClientCommandManager.argument("text", StringArgumentType.greedyString())
+                        .executes(c -> admin(name, StringArgumentType.getString(c, "text"))));
+    }
+
+    /** A command the brain answers in chat (memory, reset, special instructions). */
+    private int admin(String command, String text) {
+        if (!link.connected()) {
+            notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
+            return 0;
+        }
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "admin");
+        o.addProperty("command", command);
+        o.addProperty("text", text);
+        link.send(o);
+        return 1;
+    }
+
     public void talk(String text) {
         if (!link.connected()) {
             notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
@@ -509,6 +555,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 }
             });
             case "notice" -> mc.execute(() -> notice(str(msg, "text"), 6000));
+            case "admin" -> mc.execute(() -> { // the answer to a /kindred command: always shown
+                if (mc.gui != null) mc.gui.getChat().addMessage(Component.literal("[" + displayName + "] ")
+                        .withStyle(ChatFormatting.LIGHT_PURPLE).append(Component.literal(str(msg, "text")).withStyle(ChatFormatting.GRAY)));
+            });
             case "welcome" -> mc.execute(() -> {
                 String n = str(msg, "name");
                 if (!n.isEmpty()) displayName = n;

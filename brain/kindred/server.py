@@ -27,6 +27,7 @@ import os
 import random
 import re
 import time
+import urllib.request
 
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
@@ -54,6 +55,8 @@ def sentences(text, min_chars=25):
             out.append(p)
     return out or [text]
 
+
+IMPORTED_KINDS = ("player", "self", "habit")  # what an import brings: who you are, who she is, your habits
 
 # moments worth waiting for a pause in the conversation, rather than skipping
 WORTH_WAITING = ("baby", "tamed", "first_meet", "killed_villager", "kill_spree", "death", "advancement")
@@ -171,6 +174,8 @@ class Brain:
             asyncio.create_task(self.answer(msg.get("text", "")))
         elif kind == "voice":
             asyncio.create_task(self.on_voice(msg))
+        elif kind == "admin":  # /kindred memory, /kindred reset, /kindred persona ... (answered in chat)
+            asyncio.create_task(self.admin(msg.get("command", ""), msg.get("text", "")))
 
     def set_abilities(self, msg):
         self.abilities = list(msg.get("abilities") or [])
@@ -319,6 +324,122 @@ class Brain:
         self.last_talk = self.clock()
         log.info("noticed %s (%s): %s", event, detail, text)
         await self.say(text, mood or "curious", emote=gesture)
+
+    # ------------------------------------------------------------------ in-game commands
+
+    async def admin(self, command, text):
+        try:
+            out = await self.admin_text(command, (text or "").strip())
+        except Exception as e:  # always answer, so the command never seems to do nothing
+            log.warning("/kindred %s failed: %s", command, e)
+            out = "That didn't work: %s" % e
+        await self.send({"type": "admin", "command": command, "text": out})
+
+    async def admin_text(self, command, text):
+        m, name = self.memory, self.cfg["name"]
+        here = (m.world_id or "").split(":", 1)[-1]
+        if command in ("persona", "fact", "hint", "model", "temp", "pause", "resume", "instructions"):
+            op = "status" if command == "instructions" else command
+            r = await asyncio.to_thread(self.gateway_control, op, text)
+            return ("Special instructions%s: persona: %s | facts: %s | next reply: %s | model: %s" % (
+                " (paused)" if r["paused"] else "", r["persona"] or "none", "; ".join(r["facts"]) or "none",
+                r["hint_next"] or "none", r["model"] or "the gateway's"))
+        if m.world_id is None:
+            return "Join a world first."
+        if command == "memory":
+            rows = (await m.store.call("list", kinds=list(IMPORTED_KINDS) + ["world", "place", "episode"],
+                                       world=m.world_id, limit=400, order="important"))["results"]
+            counts = {}
+            for r in rows:
+                counts[r["kind"]] = counts.get(r["kind"], 0) + 1
+            top = [r["text"] for r in rows if r["kind"] == "player"][:3]
+            return "%s in %s remembers: %s.%s Bond %d (%s), powers: %s." % (
+                name, here, ", ".join("%d %s" % (n, k) for k, n in counts.items()) or "nothing yet",
+                (" About you: " + " ".join(top)) if top else "", round(self.heart.bond), self.heart.level(),
+                ", ".join(self.heart.state.get("discovered", [])) or "none yet")
+        if command == "worlds":
+            rows = (await m.store.call("list", limit=5000, all_worlds=True))["results"]
+            counts = {}
+            for r in rows:
+                if r["world"]:
+                    counts[r["world"]] = counts.get(r["world"], 0) + 1
+            return "Worlds: " + (", ".join("%s (%d memories)%s" % (w.split(":", 1)[-1], n, " <- here" if w == m.world_id
+                                                                    else "") for w, n in counts.items()) or "none yet")
+        if command == "import":
+            return await self.import_world(text)
+        if command == "forget":
+            n = await m.forget(text)
+            return "Forgot %d memor%s about \"%s\"." % (n, "y" if n == 1 else "ies", text) if text else \
+                "Forget what? /kindred memory forget <words>"
+        if command == "reset":
+            if text.lower() != "confirm":
+                return ("This makes the %s of %s brand new: no memories, a stranger's bond, no powers discovered. "
+                        "Type /kindred reset confirm to do it." % (name, here))
+            return await self.reset_world()
+        return "Unknown command."
+
+    def gateway_control(self, op, text):
+        clear = text.lower() in ("clear", "--clear", "off", "none")
+        req = urllib.request.Request(self.cfg["gateway"]["url"].rstrip("/") + "/control", method="POST",
+                                     data=json.dumps({"op": op, "text": text, "clear": clear}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        if self.cfg["gateway"].get("key"):
+            req.add_header("Authorization", "Bearer " + self.cfg["gateway"]["key"])
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return json.loads(r.read())
+
+    async def import_world(self, name):
+        m = self.memory
+        rows = (await m.store.call("list", limit=5000, all_worlds=True))["results"]
+        worlds = []
+        for r in rows:
+            if r["world"] and r["world"] not in worlds and r["world"] != m.world_id:
+                worlds.append(r["world"])
+        hits = [w for w in worlds if name and name.lower() in w.lower()]
+        if len(hits) != 1:
+            return ("Import from which world? %s" % (", ".join(w.split(":", 1)[-1] for w in worlds) or "No other worlds yet."))
+        src = hits[0]
+        copied = 0
+        for r in (await m.store.call("list", kinds=list(IMPORTED_KINDS), world=src, limit=200))["results"]:
+            if r["world"] != src:
+                continue
+            out = await m.store.call("add", kind=r["kind"], text=r["text"], world=m.world_id, importance=r["importance"],
+                                     meta=dict(r.get("meta") or {}, imported_from=src), dedupe=0.88)
+            copied += 0 if out.get("merged") else 1
+        theirs = (await m.store.call("doc", key="world:%s:heart" % src)).get("value") or {}
+        extra = ""
+        if theirs:  # the brain holds this world's heart, so it can take hers in right now
+            st = self.heart.state
+            st["bond"] = max(st["bond"], theirs.get("bond", 0))
+            st["discovered"] = sorted(set(st.get("discovered", [])) | set(theirs.get("discovered", [])))
+            for k, v in (theirs.get("asked") or {}).items():
+                st.setdefault("asked", {})[k] = max(st["asked"].get(k, 0), v)
+            await self.heart.save()
+            await self.bond_update(0.6, "imported")  # (shows the heart meter)
+            extra = " Bond now %d (%s); powers: %s." % (round(self.heart.bond), self.heart.level(),
+                                                       ", ".join(st["discovered"]) or "none")
+        log.info("imported %d memories from %s", copied, src)
+        return "%s now remembers %d things from %s.%s" % (self.cfg["name"], copied, src.split(":", 1)[-1], extra)
+
+    async def reset_world(self):
+        m, world = self.memory, self.memory.world_id
+        if m.per_world:
+            n = (await m.store.call("delete", kinds=["player", "self", "habit", "world", "place", "found", "episode",
+                                                       "diary", "reminder"], world=world, contains=""))["deleted"]
+            await m.store.call("clear_docs", prefix="world:%s:" % world)
+        else:
+            n = (await m.store.call("delete", kinds=["player", "self", "habit", "world", "place", "found", "episode",
+                                                       "diary", "reminder"], contains=""))["deleted"]
+            await m.store.call("clear_docs")
+        self.heart.state = self.heart.fresh()
+        self.mind.history, self.mind.summary, self.mind.to_fold = [], "", []
+        self.awakening, self.recent_player, self.her_offer = {}, [], None
+        await m.open_world(world)
+        self.since = await m.start_session()
+        await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(), "change": 0})
+        await self.send({"type": "act", "closeness": self.heart.closeness()})
+        log.info("reset %s (%d memories)", world, n)
+        return "Done: a brand-new %s (%d memories forgotten). Say hello!" % (self.cfg["name"], n)
 
     # ------------------------------------------------------------------ what she's like right now (dashboard)
 

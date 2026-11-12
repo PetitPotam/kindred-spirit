@@ -279,10 +279,12 @@ class Store:
                                (prefix + "%",)).fetchall()
         return [{"key": r[0], "size": r[1], "updated": r[2]} for r in rows]
 
-    def clear_docs(self):
-        """Forget the saved state: the bond, discovered powers, conversations and summaries."""
+    def clear_docs(self, prefix=""):
+        """Forget the saved state (all of it, or one world's: prefix "world:ID:"): the bond,
+        discovered powers, conversations and summaries."""
         with self.lock:
-            n = self.db.execute("delete from docs").rowcount
+            like = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            n = self.db.execute("delete from docs where key like ? escape '\\'", (like,)).rowcount
             self.db.commit()
         return n
 

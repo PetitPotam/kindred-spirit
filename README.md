@@ -41,7 +41,8 @@ from scratch for Fabric.
 |---|---|
 | A slime ball drawn beside you | bounces and squishes, blinks, color follows its mood, mouth moves with its voice |
 | Voice chat | hold **V**, speak, release; local Whisper hears you, local Kokoro answers |
-| Typed chat | `/kindred <message>` (or `/ks`) |
+| Typed chat | just type in the game's chat: in singleplayer everything goes to her; on a server, start with her name ("Pip, where are the cows?"). Or `/kindred <message>` (`/ks`). Set `chatMode` to `all`, `name` or `command` |
+| In-game commands | `/kindred memory` (what she knows here), `memory worlds`, `memory import <world>` (bring what she knew about you from another world), `memory forget <words>`, `reset` (a brand-new companion for this world), and the gateway's special instructions: `persona`, `fact`, `hint`, `model` (`clear` removes), `instructions`, `pause`, `resume` |
 | It understands your game | health, hunger, armor, effects, inventory, position, biome, time, weather, what you look at, nearby hostile mobs with direction |
 | Danger warnings | creeper within 8 blocks, health at 3 hearts or less: instant subtitle, voice right after, with cooldowns |
 | She has a heart | a whimsical character with a **bond meter**: kindness brings her closer and makes her open up, propose plans and play pranks; hitting her or being mean makes her keep her distance, sulk, or vanish for a while. She forgives quickly ([how](docs/HEART.md)) |
