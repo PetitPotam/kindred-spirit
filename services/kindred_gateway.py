@@ -109,11 +109,13 @@ DEFAULT_STATE = {
     }},
     # ---- text to speech ----
     "tts": {"use": "local_kokoro", "providers": {
-        # Pip's voice: sky and bella blended, a little brighter; "styles" change how she says each line
+        # Pip's voice: Lily (young, British), a little brighter; "styles" change how she says each line
+        # (no breathy voices: they made her sound intimate rather than lively)
         "local_kokoro": {"url": "http://127.0.0.1:8885/v1/audio/speech", "key": "", "model": "kokoro",
-                         "voice": "af_sky*0.5+af_bella*0.5", "speed": 1.12, "pitch": 1.08,
-                         "styles": {"excited": {"speed": 1.3}, "calm": {"speed": 1.0}, "sad": {"speed": 0.95, "pitch": 1.04},
-                                    "whisper": {"voice": "af_sky*0.2+af_bella*0.2+af_nicole*0.6", "speed": 0.95, "gain": 0.45}}},
+                         "voice": "bf_lily", "speed": 1.12, "pitch": 1.1,
+                         "styles": {"excited": {"speed": 1.28, "pitch": 1.16}, "calm": {"speed": 1.08},
+                                    "sad": {"speed": 1.0, "pitch": 1.06},
+                                    "whisper": {"voice": "bf_lily", "speed": 1.0, "gain": 0.5}}},
         "openai": {"url": "https://api.openai.com/v1/audio/speech", "key": "env:OPENAI_API_KEY", "model": "gpt-4o-mini-tts", "voice": "coral"},
         "none": {},  # no voice: subtitles only
     }},
