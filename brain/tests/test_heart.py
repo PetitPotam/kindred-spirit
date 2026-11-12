@@ -33,10 +33,11 @@ def test_kindness_brings_her_closer_rudeness_pushes_her_away():
     assert h.level() == "friend"
     h.on_regard("sweet")
     h.on_regard("sweet")
-    assert h.bond == 48
-    h.on_regard("mean")
-    assert h.bond == 36 and h.angry(), "upset for a while after a mean message"
-    assert h.closeness() <= 0.1, "keeps her distance while hurt"
+    warm = h.bond
+    assert warm > 40
+    h.on_regard("mean", "you're useless")
+    assert h.bond < warm - 2 and h.angry(), "upset for a while after a mean message"
+    assert h.closeness() <= 0.15, "keeps her distance while it stings"
     h.on_regard("sorry")
     assert not h.angry(), "quick to forgive"
 
@@ -52,19 +53,20 @@ def test_three_hits_and_she_vanishes():
     assert h.on_hit()[2] == 0
     c.t += 5
     delta, line, vanish, back = h.on_hit()
-    assert vanish >= 90 and h.bond == 32 and back is None
+    assert vanish >= 90 and h.bond < 45 and back is None
     assert not heart(start_bond=50, can_vanish=False)[0].on_hit()[2]
 
 
-def test_time_heals_up_to_a_friendly_baseline_only():
-    h, c = heart(start_bond=10)
-    c.t += 1000
-    h.drift(10)
-    assert h.bond == 20
-    h.drift(100)
-    assert h.bond == 40
-    h.drift(100)
-    assert h.bond == 40, "time doesn't make her love you, only forgive"
+def test_time_together_heals_the_sting_and_the_grudge_and_builds_trust():
+    h, c = heart(start_bond=40)
+    h.on_regard("rude", "you're annoying")
+    g, t = h.rel.s["g"], h.rel.s["t"]
+    assert h.rel.sting(c.t) > 0.2
+    for _ in range(60):  # an hour together, a minute at a time
+        c.t += 60
+        h.drift(1)
+    assert h.rel.sting(c.t) < 0.01 and h.rel.s["g"] < g * 0.6, "the sting and the grudge fade (half an hour-ish)"
+    assert h.rel.s["t"] > t, "and trust grows back from time together, not from words"
 
 
 def test_amnesia_she_only_knows_what_she_discovered():
@@ -103,6 +105,7 @@ def test_pranks_only_among_friends_or_when_angry_and_never_in_danger():
     stranger, c = heart(start_bond=30)
     assert stranger.prank(dark, 60, True, False, c.t) is None
     friend, c = heart(start_bond=70)
+    friend.rel.s["f"] = 40  # pranks are for friends who know each other
     friend.rng = random.Random(1)
     p = None
     for i in range(20):
@@ -111,9 +114,11 @@ def test_pranks_only_among_friends_or_when_angry_and_never_in_danger():
     danger = snap(hostiles=[zombie(5)])
     assert heart(start_bond=90)[0].prank(danger, 60, True, False, 1e9) is None
     angry, c = heart(start_bond=5)
+    angry.rel.s["g"] = 50  # spite needs a grudge
     got = [angry.prank(dark, 60, False, True, c.t + i * 300) for i in range(20)]
     assert any(g and g["action"] == "steal_block" for g in got), "spicy mischief borrows your blocks"
     mild, c = heart(start_bond=5, mischief_when_angry="mild")
+    mild.rel.s["g"] = 50
     got = [mild.prank(dark, 60, False, True, c.t + i * 300) for i in range(20)]
     assert all(g is None or g["action"] == "prank_sound" for g in got)
     off, c = heart(start_bond=5, mischief_when_angry="off", pranks=False)
@@ -147,9 +152,9 @@ def test_hitting_her_hurts_the_bond_and_she_says_so(stubs):
                 bond = await recv_until(ws, "bond")
             assert bond["change"] < 0
             act = await recv_until(ws, "act")
-            assert act["closeness"] <= 0.1
+            assert act["closeness"] < 0.3, "a hit from someone she hardly knows: she keeps away"
             say = await recv_until(ws, "say")
-            assert say["mood"] == "sad"
+            assert say["mood"] in ("sad", "worried")
     asyncio.run(with_brain(make_cfg(stubs.port), scenario))
 
 
@@ -223,21 +228,22 @@ def test_auto_protect_never_blocks_the_conversation(stubs):
 def test_an_accidental_hit_between_friends_is_just_an_ow_or_a_bonk_back():
     h, _ = heart(start_bond=80)
     delta, line, vanish, back = h.on_hit()
-    assert delta == -2 and vanish == 0 and not h.angry()
+    assert delta == 0 and vanish == 0 and not h.angry(), "an accident from a friend costs nothing"
     assert back in ("bonk", None)
 
 
 def test_sorry_after_sorry_counts_for_less():
     h, c = heart(start_bond=50)
-    gains = []
-    for i in range(4):
+    credits = []
+    for i in range(3):
         h.on_hit()
+        c.t += 2
+        h.on_hit()           # two in a row: on purpose
         c.t += 30
-        before = h.bond
-        h.on_regard("sorry")
-        gains.append(h.bond - before)
-        c.t += 30
-    assert gains[0] == 6 and gains[-1] < 2, gains
+        h.on_regard("sorry", "sorry")
+        credits.append(h.rel.credit(c.t))
+        c.t += 60            # and again, while she's still watching whether you meant it
+    assert credits[-1] < credits[0], credits
     assert h.insincere() and "pride" in h.guidance()
 
 
@@ -457,7 +463,7 @@ def test_saying_the_same_sweet_thing_over_and_over_annoys_her():
         h.hear("i love you")
         gains.append(h.on_regard("sweet"))
         c.t += 3
-    assert gains[0] == 4 and gains[1] < gains[0] and gains[2] < gains[1], gains
+    assert gains[0] > 0 and gains[1] < gains[0] and gains[2] < gains[1], gains
     assert gains[3] < 0 and gains[5] < gains[3], "the 4th time it gets on her nerves, and it gets worse"
     assert h.angry(), "she pulls away a bit"
     assert "getting on your nerves" in h.guidance("happy")

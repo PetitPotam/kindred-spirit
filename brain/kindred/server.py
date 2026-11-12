@@ -437,9 +437,11 @@ class Brain:
     async def bond_update(self, delta, why=""):
         if abs(delta) < 0.5:
             return
-        log.info("bond %+.1f (%s) -> %.0f %s", delta, why, self.heart.bond, self.heart.level())
+        log.info("bond %+.1f (%s) -> %.0f %s | %s", delta, why, self.heart.bond, self.heart.level(),
+                 getattr(self.heart.rel, "last_line", ""))
         level = self.heart.level()
-        if self.instinct.level and level != self.instinct.level and self.clock() - self.lines_written_at > 600:
+        feel = "%s, %s" % (level, self.heart.stance())
+        if self.instinct.level and feel != self.instinct.level and self.clock() - self.lines_written_at > 600:
             asyncio.create_task(self.write_lines())  # she feels differently about you: her instincts too
         if level in ("close", "best friend") and level not in self.heart.state.setdefault("levels_reached", []):
             self.heart.state["levels_reached"].append(level)  # a milestone: it may reveal a piece of her story
@@ -449,8 +451,36 @@ class Brain:
                 asyncio.create_task(self.speak_up("You feel how much closer you've grown to the player." + moment,
                                                   "happy"))
         await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(),
-                         "change": round(delta, 1)})
+                         "change": round(delta, 1), "trust": round(self.heart.rel.s["t"]),
+                         "stance": self.heart.stance()})
         await self.send({"type": "act", "closeness": self.heart.closeness()})
+        await self.heart.save()
+
+    async def after_gesture(self):
+        await self.bond_update(0.6, "made up for it")
+        await self.speak_up("The player just did the small thing you asked of them to make up for hurting you. "
+                            "It means something to you; react as yourself, in one short line.", "happy", prio="reaction")
+
+    async def heart_news(self):
+        """After her heart moved: a scar becomes a painful core memory, a healed one is marked, a serious
+        hurt may get a small ask to make up, and she's told once that she asked."""
+        rel, now = self.heart.rel, self.clock()
+        for inc in rel.new_scars:
+            what = ("\"%s\"" % inc["words"]) if inc.get("words") else {"hit_deliberate": "hitting me on purpose"}.get(
+                inc["kind"], "how they treated me")
+            await self.safe(self.memory.add("core", "The player hurt me again and again (%s). It left a mark." % what,
+                                            10, meta={"feeling": "hurt", "pain": True, "scar": inc["id"]}))
+            log.info("a scar: incident %s", inc["id"])
+        rel.new_scars = []
+        for inc in rel.healed_scars:
+            rows = (await self.safe(self.memory.store.call("list", kinds=["core"], world=self.memory.world_id,
+                                                           limit=50)) or {}).get("results") or []
+            for r in rows:
+                if (r.get("meta") or {}).get("scar") == inc["id"]:
+                    await self.safe(self.memory.store.call("update", id=r["id"], meta=dict(r["meta"], healed=True)))
+            log.info("a scar healed: incident %s", inc["id"])
+        rel.healed_scars = []
+        rel.ask_gesture(self.heart.rng, now)
         await self.heart.save()
 
     async def vanish(self, seconds, line):
@@ -617,6 +647,27 @@ class Brain:
                 r["hint_next"] or "none", r["model"] or "the gateway's"))
         if m.world_id is None:
             return "Join a world first."
+        if command == "heart":
+            rel, now = self.heart.rel, self.clock()
+            if text.lower() in ("fresh", "fresh start", "reset"):  # her feelings for you start over; the old ones are kept
+                old = dict(rel.s)
+                hist = (await self.safe(m.store.call("doc", key="world:%s:heart_history" % m.world_id)) or {}).get("value") or []
+                await self.safe(m.store.call("doc", key="world:%s:heart_history" % m.world_id,
+                                             value=(hist + [{"time": time.time(), "rel": old}])[-5:]))
+                from . import bonds as bonds_mod
+                self.heart.state["rel"] = bonds_mod.fresh(self.heart.p.get("start_bond", 30),
+                                                          str(self.heart.p.get("temperament", "default")),
+                                                          self.heart.rng, now)
+                await self.bond_update(0.6, "a fresh start")
+                return "%s's feelings for you start fresh here (the old ones are kept in her history)." % name
+            e = rel.explain(now)
+            words = lambda v: "very low" if v < 20 else "low" if v < 40 else "middling" if v < 60 else "high" if v < 80 else "very high"  # noqa: E731
+            open_ = [i for i in e["incidents"] if i["state"] in ("open", "apologised", "probation")]
+            return ("%s %s Affection %s, trust %s, respect %s, familiarity %s, resentment %s.%s%s" % (
+                name, e["summary"], words(e["affection"]), words(e["trust"]), words(e["respect"]),
+                words(e["familiarity"]), words(e["resentment"]),
+                (" Still open: %d hurt%s." % (len(open_), "" if len(open_) == 1 else "s")) if open_ else "",
+                (" A scar she carries." if e["floor"] else "")))
         if command == "memory":
             rows = (await m.store.call("list", kinds=list(IMPORTED_KINDS) + ["world", "place", "episode"],
                                        world=m.world_id, limit=400, order="important"))["results"]
@@ -693,7 +744,17 @@ class Brain:
         extra = ""
         if theirs:  # the brain holds this world's heart, so it can take hers in right now
             st = self.heart.state
-            st["bond"] = max(st["bond"], theirs.get("bond", 0))
+            if theirs.get("rel"):  # her feelings for you come along: who she was to you there
+                mine, rel = self.heart.rel.s, dict(theirs["rel"])
+                for k in ("a", "t", "r", "f", "f_peak"):
+                    mine[k] = max(mine[k], rel.get(k, 0))
+                mine["g"] = rel.get("g", 0)
+                mine["incidents"] = [dict(i) for i in rel.get("incidents", []) if i.get("state") != "repaired"]
+                mine["beliefs"] = list(rel.get("beliefs", []))
+                mine["temperament"] = dict(rel.get("temperament", mine["temperament"]))
+            elif theirs.get("bond", 0) > self.heart.bond:
+                self.heart.rel.set_bond(theirs["bond"])
+            self.heart.state["bond"] = self.heart.rel.bond()
             st["discovered"] = sorted(set(st.get("discovered", [])) | set(theirs.get("discovered", [])))
             for k, v in (theirs.get("asked") or {}).items():
                 st.setdefault("asked", {})[k] = max(st["asked"].get(k, 0), v)
@@ -741,7 +802,8 @@ class Brain:
                       "valence": round(h.valence, 2), "arousal": round(h.arousal, 2), "novelty": round(h.novelty, 2),
                       "discovered": h.state.get("discovered", []), "asked": h.state.get("asked", {}),
                       "requests": h.state.get("requests", []), "pets": len(h.state.get("pets", [])),
-                      "species_met": h.state.get("seen_species", []), "amnesia": h.amnesia()},
+                      "species_met": h.state.get("seen_species", []), "amnesia": h.amnesia(),
+                      "relationship": h.rel.explain(now)},
             "awakening": [{"power": k, "plan": v["plan"], "favour": v["favour"], "favour_done": v["done"]}
                           for k, v in self.awakening.items()],
             "offer": (h.pending_offer or {}).get("what"), "her_offer": self.her_offer[0] if self.her_offer else None,
@@ -897,8 +959,16 @@ class Brain:
         transcript = "\n".join("%s: %s" % ("Player" if m["role"] == "user" else "You", m["content"]) for m in history)
         try:
             known = await self.memory.known_for(transcript[-1500:])
+            rel, now = self.heart.rel, self.clock()
+            ledger = "\n".join("#%d %s %s, %s (%s)" % (i["id"], i["kind"], ('"%s"' % i["words"]) if i["words"] else "",
+                                                        i["intent"], i["state"]) for i in rel.s["incidents"][-8:])
             lessons = await self.mind.reflect(transcript, known, diary=session_end and talk >= 2,
-                                              bond=self.heart.level())
+                                              bond="%s; %s" % (self.heart.level(), rel.summary(now)), ledger=ledger)
+            if lessons.get("beliefs") is not None and ledger:
+                rel.set_beliefs(lessons.get("beliefs"), now)
+            for r in lessons.get("reappraise") or []:
+                if isinstance(r, dict) and rel.reappraise(int(r.get("id", -1)), str(r.get("intent", "")), now):
+                    log.info("reappraised incident %s as %s", r.get("id"), r.get("intent"))
             added = await self.memory.learn(lessons)
             found = len(lessons.get("origin") or [])
             if found:  # a piece of where she comes from: it settles her doubts a little
@@ -959,7 +1029,11 @@ class Brain:
                                          why="you arrived where you were leading the player"))
             await self.safe(self.memory.episode("We arrived where I was leading the player.", 4))
         elif name == "hit":
-            delta, line, vanish, back = self.heart.on_hit()
+            s = self.snapshot or {}
+            fight = any(m.get("distance", 99) < 6 for m in s.get("hostiles") or []) or any(
+                d.startswith("hit ") for d in s.get("youDid") or [])  # swinging at something else: likely an accident
+            delta, line, vanish, back = self.heart.on_hit(fight=fight)
+            await self.heart_news()
             await self.bond_update(delta, "hit")
             if vanish:
                 asyncio.create_task(self.vanish(vanish, line))
@@ -968,13 +1042,17 @@ class Brain:
                 await self.say(line, "excited", instant=True, emote="hop",
                                why="the player hit you (probably by accident) and you playfully bonked them back")
             else:
-                await self.say(line, "sad" if delta <= -4 else "worried", instant=True, why="the player hit you")
+                await self.say(line, "sad" if self.heart.angry() else "worried", instant=True, why="the player hit you")
             await self.safe(self.memory.episode("The player hit me.", 5))
         elif name in ("advancement", "new_item"):
             detail = msg.get("detail", "")
             if name == "advancement" and self.last_kill and self.clock() - self.last_kill[0] < 15:
                 detail += " (they just killed a %s)" % self.last_kill[1].replace("minecraft:", "").replace("_", " ")
             asyncio.create_task(self.notice(name, detail))
+            if name == "advancement":  # how they handle the world: respect (a lot for the big ones)
+                big = re.search(r"free the end|the end\?|withering|monsters hunted|sky's the limit|hero of the village",
+                                detail, re.I)
+                self.heart.thing_happened("feat", scale=2 if big else 0.5, words=detail)
         elif name == "killed":
             self.last_kill = (self.clock(), msg.get("detail", ""))
             if not msg.get("monster"):  # (a monster you fought off doesn't make her sad)
@@ -1018,6 +1096,8 @@ class Brain:
 
     async def on_snapshot(self, s):
         self.novelty.annotate(s, self.clock())
+        if self.heart.rel.gesture_check(s.get("youDid"), self.clock()):  # they did the small thing she asked
+            asyncio.create_task(self.after_gesture())
         self.snapshot = s
         self.snapshot_at = self.clock()
         self.save_snapshot(s)
@@ -1056,7 +1136,7 @@ class Brain:
         """She's sad about innocent villagers, and about many animals killed in a short time."""
         now = self.clock()
         if villager:
-            self.heart.change(-2, "killed villager")
+            await self.bond_update(self.heart.thing_happened("killed_villager", words=kind), "killed a villager")
             await self.safe(self.memory.episode("The player killed a %s." % kind, 6))
             asyncio.create_task(self.notice("killed_villager", kind))
             return
@@ -1065,6 +1145,7 @@ class Brain:
         if len(self.kills) >= 4:
             self.kills = []
             asyncio.create_task(self.notice("kill_spree", max(set(same), key=same.count) if same else kind))
+            self.heart.thing_happened("kill_spree")
 
     def listen(self, s):
         """A new, interesting sound from something she can't see catches her attention ("did you hear that?")."""
@@ -1126,6 +1207,9 @@ class Brain:
         if self.prev_biome and biome and biome != self.prev_biome:
             place = self.heart.lore_place(biome, w.get("dimension"))  # a place from the old stories: the first time
             asyncio.create_task(self.notice("lore_place", place) if place else self.notice("biome", biome))
+            if place or biome not in self.heart.state.setdefault("biomes_together", []):
+                self.heart.state["biomes_together"].append(biome)  # a shared first: more history together
+                self.heart.rel.familiar_moment(now)
         self.prev_biome = biome or self.prev_biome
         health = s.get("health", 20)
         prev = self.prev_health
@@ -1211,11 +1295,11 @@ class Brain:
                 if not await self.quiet_moment():
                     return
                 st["favour"] = plan["favour"]
+                st["asked_at"] = self.clock()  # (asked as soon as she starts asking: you may answer right away)
                 await self.speak_up(self.heart.favour_note(plan["favour"]), "curious", prio="reaction")
-                st["asked_at"] = self.clock()
                 done = await self.wait_favour(st)
                 if done:
-                    await self.bond_update(self.heart.change(2, "favour"), "did her favour")
+                    await self.bond_update(self.heart.thing_happened("favour"), "did her favour")
             else:
                 await asyncio.sleep(max(2.0, plan["reveal"] - plan["sense"]))
             if not await self.quiet_moment():
@@ -1401,7 +1485,7 @@ class Brain:
         doc = (await self.safe(self.memory.store.call("doc", key=key)) or {}).get("value")
         self.instinct.load(doc)
         self.alerts.pools = self.instinct.lines
-        if not self.instinct.lines or self.instinct.level != self.heart.level():
+        if not self.instinct.lines or self.instinct.level != "%s, %s" % (self.heart.level(), self.heart.stance()):
             after = self.cfg["behaviour"].get("instinct_lines_after", 45)
             if after:
                 asyncio.create_task(self.write_lines(after=after))
@@ -1419,7 +1503,7 @@ class Brain:
             mine = "\n".join(l for l in who.splitlines() if l.startswith(
                 ("About yourself", "Where you come from", "Your tastes", "Moments that shaped you")))
             name = player_name(who)
-            level = self.heart.level()
+            level = "%s, %s" % (self.heart.level(), self.heart.stance())
             body = {"model": self.cfg["ai"]["model"], "temperature": 0.9, "max_tokens": 2200,
                     "response_format": {"type": "json_object"},
                     "messages": [{"role": "user", "content": instinct_mod.prompt(self.cfg["name"], mine, level, name)}]}
@@ -1601,7 +1685,11 @@ class Brain:
             self.last_talk = self.clock()
         # how they treated her changes the bond (and, when it's really bad, she leaves for a while)
         regard = self.mind.last_regard
-        await self.bond_update(self.heart.on_regard(regard), regard)
+        gesture = self.heart.rel.s.get("gesture")
+        if gesture and not gesture.get("said"):
+            gesture["said"] = True  # (she had the chance to ask once; she won't keep asking)
+        await self.bond_update(self.heart.on_regard(regard, text), regard)
+        await self.heart_news()
         if regard == "mean" and self.heart.bond < 25:
             await self.mood_weather(sad=True)
         elif regard == "sorry" and not self.heart.angry():

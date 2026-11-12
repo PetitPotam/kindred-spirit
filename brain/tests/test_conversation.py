@@ -63,6 +63,7 @@ def test_fibs_only_as_a_prank_among_friends_or_when_cross():
     h = Heart(cfg, rng=random.Random(1))
     assert not any(h.fib(i * 1000) for i in range(200)), "strangers: never"
     h.state["bond"] = 80
+    h.rel.s["f"] = 40  # friends who know each other
     fibs = [h.fib(i * 1000) for i in range(200)]
     assert any(fibs) and all("admit" in f for f in fibs if f)
     off = Heart(config.merge(config.DEFAULTS, {"heart": {"start_bond": 80, "fibs": False}}), rng=random.Random(1))

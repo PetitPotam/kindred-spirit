@@ -185,6 +185,28 @@ svg text { fill: var(--muted); font-size: 10px; }
 
 <script>
 const $ = (id) => document.getElementById(id);
+// her five feelings, her stance, the hurts between you and why (brain/kindred/bonds.py)
+function relationship(R) {
+  if (!R) return "";
+  const bar = (label, v, bad) => `<div class="small" style="display:flex;gap:8px;align-items:center;margin-top:4px">
+    <span style="width:84px">${label}</span><div class="meter" style="flex:1;margin:0"><i style="width:${v}%;${bad ? "background:var(--bad)" : ""}"></i></div>
+    <span class="muted" style="width:28px;text-align:right">${Math.round(v)}</span></div>`;
+  const inc = (R.incidents || []).filter((i) => i.state !== "repaired").map((i) => `<div class="small" style="margin-top:4px">
+    ${i.state === "scar" ? "🩹" : i.state === "probation" ? "⏳" : "💢"} <b>${esc(i.kind.replace(/_/g, " "))}</b>
+    ${i.words ? "“" + esc(i.words) + "”" : ""} · ${esc(i.intent)} · ${esc(i.state)}${i.probation ? ` (${i.probation[0]} of ${i.probation[1]} min)` : ""} · ${esc(i.ago)}</div>`).join("");
+  const bel = (R.beliefs || []).map((b) => `<div class="small" style="margin-top:4px">${b.good ? "🌱" : "🌧"} ${esc(b.text)}</div>`).join("");
+  const log = (R.log || []).slice(-5).reverse().map((l) => `<div class="small muted" style="margin-top:2px;font-family:var(--mono, monospace)">${esc(l.line)}</div>`).join("");
+  const T = R.temperament || {};
+  return `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+    <div><span class="chip">${esc(R.stance)}</span> ${esc(R.summary)}</div>
+    ${bar("affection", R.affection)}${bar("trust", R.trust)}${bar("respect", R.respect)}${bar("familiarity", R.familiarity)}${bar("resentment", R.resentment, true)}
+    <div class="small muted" style="margin-top:6px">sting ${R.sting} · pattern ${R.pattern} · apology credit ${R.credit}${R.floor ? " · scar floor " + R.floor : ""}
+      · temperament: sensitivity ${T.sensitivity}, forgiveness ${T.forgiveness}, warmth ${T.warmth}, pride ${T.pride}</div>
+    ${R.gesture ? `<div class="small" style="margin-top:6px">She'd like you to make up: <b>${esc(R.gesture.kind)}</b></div>` : ""}
+    ${inc ? `<div style="margin-top:8px"><b class="small">Between you</b>${inc}</div>` : ""}
+    ${bel ? `<div style="margin-top:8px"><b class="small">What she's come to believe</b>${bel}</div>` : ""}
+    ${log ? `<div style="margin-top:8px"><b class="small">Why (latest first)</b>${log}</div>` : ""}</div>`;
+}
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const fmt = (n) => n == null ? "–" : Number(n).toLocaleString();
 const ago = (s) => s == null ? "–" : s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
@@ -219,7 +241,8 @@ async function live() {
     <div class="meter"><i style="width:${H.bond}%"></i></div>
     <div><b>${esc(H.level)}</b>${H.angry ? ` · <span style="color:var(--bad)">upset with you</span>` : ""}</div>
     <div class="small muted">floats ${H.closeness >= .6 ? "close" : H.closeness >= .3 ? "nearby" : "at a distance"} (closeness ${H.closeness}) · ${b.per_world ? "this world's own companion" : "the same companion in every world"}</div>
-    <div class="small muted" style="margin-top:6px">last message from you felt <b>${esc(b.last_regard)}</b> · talked ${ago(b.seconds_since_talk)} ago</div>`;
+    <div class="small muted" style="margin-top:6px">last message from you felt <b>${esc(b.last_regard)}</b> · talked ${ago(b.seconds_since_talk)} ago</div>
+    ${relationship(H.relationship)}`;
   // mood: valence (left/right) and arousal (down/up)
   const x = 10 + (H.valence + 1) / 2 * 120, y = 130 - H.arousal * 120;
   $("mood").innerHTML = `<div style="display:flex;gap:14px;align-items:center">

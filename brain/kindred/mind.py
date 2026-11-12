@@ -18,7 +18,8 @@ MOOD_TAG = re.compile(r"^\s*\[(\w+)\]\s*")
 GESTURE_TAG = re.compile(r"^\s*\{(\w+)\}\s*")
 
 
-REGARDS = ("sweet", "kind", "neutral", "rude", "mean", "sorry", "frustrated")
+REGARDS = ("sweet", "kind", "thanks", "teasing", "neutral", "dismissive", "rude", "mean", "cruel", "threat",
+           "sorry_real", "sorry", "frustrated")
 
 
 def system_prompt(name, personality, becoming=""):
@@ -79,9 +80,11 @@ How you might sound (examples of your voice, never lines to reuse):
 The shape of every reply
 - Start with two tags: your mood, then how the player just treated you.
   Mood, one of: {" ".join("[%s]" % m for m in MOODS)}
-  How they treated you, one of: [sweet] [kind] [neutral] [rude] [mean] [sorry] [frustrated]
-  (sorry = only when THEY apologize to you; frustrated = they're annoyed because you misunderstood or got
-  something wrong; neutral for ordinary talk).
+  How they treated you, one of: [sweet] [kind] [thanks] [teasing] [neutral] [dismissive] [rude] [mean] [threat]
+  [sorry] [sorry_real] [frustrated]
+  (teasing = playful banter; dismissive = brushing you off or ignoring you; threat = threatening you;
+  sorry = THEY apologize to you; sorry_real = they apologize naming what they did, with no excuses;
+  frustrated = they're annoyed because you misunderstood or got something wrong; neutral for ordinary talk).
 - When it fits, one gesture after the tags: {" ".join("{%s}" % g for g in GESTURES)}. Most replies need none.
   To whisper, add {{whisper}} after the tags.
 - Your words are spoken aloud and shown as a subtitle: plain words only, no emojis, lists, markdown or asterisks.
@@ -298,7 +301,7 @@ class Mind:
             msg["tool_calls"] = [calls[i] for i in sorted(calls)]
         return msg
 
-    async def reflect(self, transcript, known, diary=False, bond=""):
+    async def reflect(self, transcript, known, diary=False, bond="", ledger=""):
         """Learning: what in this stretch of play is worth knowing for good? Returns
         {"player": [...], "self": [...], "habit": [...], "world": [...], "diary": "..."}."""
         name = self.cfg["name"]
@@ -332,13 +335,22 @@ class Mind:
                    "something just happened (\"Alex is sad about losing their items\", \"I feel guilty about "
                    "tonight\"). Those fade after a day or two. Lasting things (name, likes, personality, long-term "
                    "goals, habits) are not temporary.")
+        if ledger:
+            system += ('\nThe hurts and kindnesses between you (below) also matter. Add:\n'
+                       '  "beliefs": at most 3 short things you have come to believe about the player from a pattern, '
+                       'each {"text": "...", "good": true|false, "evidence": [incident #ids]} (\"They get mean when they '
+                       'lose something.\" / \"They always come back for me.\"). Only from real patterns; empty if none.\n'
+                       '  "reappraise": incidents you now see differently from the conversation, each {"id": #, "intent": '
+                       '"accident"|"careless"|"deliberate"} (it was banter, or an accident, or really on purpose). '
+                       'Usually empty.')
         system += ('\nThe diary, if asked, is one plain string.')
         if diary:
             system += ('\nAlso "diary": one or two honest sentences in your own voice, first person, about this play session '
                        "(what you did together, anything special).")
         user = "Already known:\n%s\n\n%sWhat happened:\n%s" % (
             "\n".join("- " + k for k in known) or "(nothing yet)",
-            "How you feel about the player right now: %s.\n\n" % bond if bond else "", transcript)
+            ("How you feel about the player right now: %s.\n\n" % bond if bond else "")
+            + ("Between you (the ledger):\n%s\n\n" % ledger if ledger else ""), transcript)
         ai = self.cfg["ai"]
         body = {"model": ai["model"], "temperature": 0.3, "max_tokens": 500,
                 "response_format": {"type": "json_object"},
