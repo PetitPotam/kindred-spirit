@@ -259,6 +259,9 @@ class Brain:
     def check_auth(self, connection, request):
         auth = request.headers.get("Authorization", "")
         given = auth[7:] if auth.lower().startswith("bearer ") else ""
+        if not given and "token=" in (request.path or ""):  # the dashboard's simulator (a browser can't set headers)
+            from urllib.parse import parse_qs, urlparse
+            given = (parse_qs(urlparse(request.path).query).get("token") or [""])[0]
         if not hmac.compare_digest(given.encode(), self.token.encode()):
             log.warning("refused a connection with a wrong token")
             return connection.respond(401, "bad token\n")
@@ -842,7 +845,16 @@ class Brain:
 
     async def state_loop(self, every=2.0):
         path = os.path.join(config.HOME, "logs", "brain-state.json")
+        seen = self._settings_stamp()
         while True:
+            stamp = self._settings_stamp()
+            if stamp != seen and self.cfg.get("_live_settings"):  # changed from the dashboard (or by hand)
+                seen = stamp
+                try:
+                    config.refresh(self.cfg, config.load())
+                    log.info("settings changed: picked up without a restart")
+                except Exception as e:
+                    log.warning("settings not reloaded: %s", e)
             try:
                 with open(path + ".tmp", "w", encoding="utf-8") as fh:
                     json.dump(self.state(), fh, ensure_ascii=False, default=str)
@@ -850,6 +862,16 @@ class Brain:
             except Exception as e:  # the dashboard is a bonus: never a reason to stop
                 log.debug("state not written: %s", e)
             await asyncio.sleep(every)
+
+    @staticmethod
+    def _settings_stamp():
+        out = []
+        for p in (config.PATH, config.OVERRIDES):
+            try:
+                out.append(os.path.getmtime(p))
+            except OSError:
+                out.append(None)
+        return tuple(out)
 
     async def heart_loop(self, every=15.0):
         """Her own rhythm: forgiving with time, standing requests, little pranks."""
@@ -1428,7 +1450,7 @@ class Brain:
             self.mind.note_said(text, mood, why)
         self.line += 1
         line = self.line
-        self.session.event("pip", text=text, mood=mood, prio=prio, why=why, source=source or (
+        self.session.event("pip", line=line, text=text, mood=mood, prio=prio, why=why, source=source or (
             "warning" if why.startswith("a warning") else "instinct" if why else "reply"))
         self.mood = mood or self.mood
         # a warning's fright passes quickly; a feeling from conversation lasts a bit longer

@@ -9,6 +9,8 @@ import tomllib
 HOME = os.environ.get("KINDRED_HOME") or os.path.join(os.path.expanduser("~"), ".kindred-spirit")
 PATH = os.path.join(HOME, "brain.toml")
 TOKEN = os.path.join(HOME, "token")
+# what you change from the dashboard: on top of brain.toml (which keeps your comments), picked up live
+OVERRIDES = os.path.join(HOME, "brain-overrides.json")
 
 DEFAULTS = {
     "name": "Pip",
@@ -118,7 +120,27 @@ def load(path=PATH):
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(TEMPLATE)
     with open(path, "rb") as fh:
-        return merge(DEFAULTS, tomllib.load(fh))
+        cfg = merge(DEFAULTS, tomllib.load(fh))
+    return merge(cfg, read_overrides()) if path == PATH else cfg
+
+
+def read_overrides(path=None):
+    import json
+    try:
+        with open(path or OVERRIDES, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def refresh(cfg, new):
+    """New settings into the same dicts the brain already holds (her heart, her mind... see them at once)."""
+    for k, v in new.items():
+        if isinstance(v, dict) and isinstance(cfg.get(k), dict):
+            refresh(cfg[k], v)
+        else:
+            cfg[k] = v
 
 
 def read_or_create_token(path=TOKEN):

@@ -20,3 +20,32 @@ Token counts are recorded from the first gateway start with the dashboard; older
 
 Run it on its own with `brain/.venv/bin/python services/dashboard.py` (standard library only), or on
 another port with `KINDRED_DASHBOARD_PORT`.
+
+## Sessions
+
+Every play session is recorded in `~/.kindred-spirit/logs/sessions/`: a timeline (`.jsonl`) and,
+when you leave, a summary (`.md`) with what stands out (how much she talked, how much on her own,
+interruptions, failed tools, slow answers, errors). The **Sessions** tab shows them: what you said,
+every line she said (and why: answering you, on her own, on instinct, a warning), lines she held
+back, interruptions, tools and their results, heart changes, errors, how long answers took, and,
+under each thing you said, *what went to the AI and what came back*. ▶ next to a line says it
+again with her current voice (made again from the text; no audio is stored).
+
+## Try Pip (a simulator)
+
+The **Try Pip** tab talks to her brain the way the game does, without Minecraft: type or hold to
+talk (your microphone goes through her real speech-to-text), pet her, hit her, and set up a
+pretend world (biome, time, weather, health, what you hold, animals, a monster nearby,
+underground). Her answers come with her voice. Her tools can pretend to work or fail honestly.
+It's its own world (`sim:Playground`), with its own companion and memories. Close the game first:
+her brain talks to one game at a time (the simulator, or Minecraft).
+
+## Changing settings
+
+The **Settings** tab can now change a short list of settings: her name, warnings, greeting, small
+talk, temperament, how she discovers powers, pranks, fibs, play-fights, vanishing, mischief, weather,
+voice on/off and temperature (brain: saved in `~/.kindred-spirit/brain-overrides.json` on top of
+`brain.toml`, which keeps your comments, and picked up within seconds without a restart); and the
+AI for her conversation and for her deeper thinking, the Gemini model for her replies, her Kokoro
+voice, speed and pitch, and speech-to-text (gateway: applies to the next call). Only those listed
+settings, with their types checked, and only from the dashboard's own page.

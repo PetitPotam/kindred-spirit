@@ -27,7 +27,8 @@ class SessionLog:
         self.world, self.started, self.events = world or "unknown", self.clock(), []
         safe = re.sub(r"[^\w.-]+", "_", (world or "unknown").split(":", 1)[-1])[:40]
         self.path = os.path.join(self.dir, "%s-%s" % (time.strftime("%Y%m%d-%H%M", time.localtime(self.started)), safe))
-        self.event("start", world=world)
+        self.event("start", world=world, at=round(self.started, 1))
+
 
     def event(self, kind, **data):
         if self.path is None:

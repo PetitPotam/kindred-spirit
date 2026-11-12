@@ -101,6 +101,8 @@ svg text { fill: var(--muted); font-size: 10px; }
     <button data-tab="voice">Speech &amp; voice</button>
     <button data-tab="memory">Memory</button>
     <button data-tab="knowledge">Knowledge</button>
+    <button data-tab="sessions">Sessions</button>
+    <button data-tab="sim">Try Pip</button>
     <button data-tab="settings">Settings</button>
   </nav>
 </header>
@@ -171,8 +173,48 @@ svg text { fill: var(--muted); font-size: 10px; }
     </div>
   </section>
 
+  <section class="tab" id="tab-sessions">
+    <div class="grid">
+      <div class="card"><h2>Play sessions</h2><div id="ses-list" style="max-height:640px;overflow:auto"></div></div>
+      <div class="card" style="grid-column: span 2"><h2>What happened</h2><div id="ses-one"><div class="empty">Pick a session.</div></div></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-sim">
+    <div class="grid">
+      <div class="card" style="grid-column: span 2">
+        <h2>Talk to Pip (no Minecraft needed)</h2>
+        <div class="small muted" id="sim-status">Not connected. Close the game first: her brain talks to one game at a time.</div>
+        <div class="row" style="margin-top:8px"><button class="chip" id="sim-connect">Connect</button>
+          <label class="small"><input type="checkbox" id="sim-voice" checked> her voice</label>
+          <label class="small">tools <select id="sim-tools"><option value="pretend">pretend they worked</option><option value="fail">fail honestly</option></select></label></div>
+        <div id="sim-log" style="height:380px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0"></div>
+        <div class="row"><input type="search" id="sim-text" placeholder="Say something to her (Enter)" style="flex:1 1 300px">
+          <button class="chip" id="sim-send">Send</button><button class="chip" id="sim-mic" title="Hold to talk">🎙 hold to talk</button></div>
+        <div class="row small">Do: <button class="chip" data-ev="petted">pet her</button><button class="chip" data-ev="hit">hit her</button>
+          <button class="chip" data-ev="death">die</button><button class="chip" data-ev="arrived">arrive</button></div>
+      </div>
+      <div class="card"><h2>The pretend world</h2>
+        <div class="small" style="display:grid;gap:6px">
+          <label>Biome <select id="w-biome"><option>plains</option><option>forest</option><option>flower_forest</option><option>jungle</option><option>desert</option><option>snowy_plains</option><option>swamp</option><option>dark_forest</option><option>cherry_grove</option><option>deep_dark</option></select></label>
+          <label>Time <select id="w-time"><option value="1000">morning</option><option value="6000">noon</option><option value="12500">sunset</option><option value="18000">midnight</option></select></label>
+          <label>Weather <select id="w-weather"><option>clear</option><option>rain</option><option>thunder</option></select></label>
+          <label>Health <input type="range" id="w-health" min="1" max="20" value="20"></label>
+          <label>Holding <select id="w-hold"><option value="">nothing</option><option>minecraft:iron_sword</option><option>minecraft:stone_pickaxe</option><option>minecraft:oak_log</option><option>minecraft:torch</option><option>minecraft:bread</option></select></label>
+          <label>Animals in sight <input type="search" id="w-animals" value="sheep, cow" placeholder="sheep, cow, pig"></label>
+          <label>Monsters near <select id="w-mob"><option value="">none</option><option value="zombie">a zombie</option><option value="creeper">a creeper</option><option value="skeleton">a skeleton</option></select></label>
+          <label>Underground <input type="checkbox" id="w-cave"></label>
+        </div>
+        <div class="small muted" style="margin-top:8px">Sent to her every 2 seconds, like the game does. World: <b>sim:Playground</b> (its own companion and memories).</div>
+        <h2 style="margin-top:14px">Her heart</h2><div id="sim-heart" class="small muted">–</div>
+      </div>
+    </div>
+  </section>
+
   <section class="tab" id="tab-settings">
     <div class="grid">
+      <div class="card wide"><h2>Change settings</h2><div id="set-edit"></div>
+        <div class="small muted" style="margin-top:8px">Brain settings are picked up within a few seconds, no restart (saved in ~/.kindred-spirit/brain-overrides.json, on top of brain.toml). Gateway settings apply to the next call. In-game settings (power, style, skin, chat) stay in game: /kindred.</div></div>
       <div class="card"><h2>In use</h2><div id="set-use"></div></div>
       <div class="card"><h2>Special instructions</h2><div id="set-instr"></div></div>
       <div class="card wide"><h2>Her heart (brain.toml)</h2><div id="set-heart"></div></div>
@@ -486,11 +528,200 @@ async function settingsTab() {
   $("set-brain").innerHTML = kv(top);
   $("set-mod").innerHTML = d.mod ? kv(d.mod) : `<div class="empty">The mod's settings file wasn't found.</div>`;
   $("set-gw").textContent = JSON.stringify(d.gateway, null, 2);
+  await settingsEditor();
+}
+
+// ---------------------------------------------------------------- change settings
+async function post(url, body) {
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).error || m; } catch (e) {} throw new Error(m); }
+  return r.headers.get("Content-Type", "").includes("json") ? r.json() : r.blob();
+}
+let editing = false;
+async function settingsEditor() {
+  if (editing) return;  // (don't redraw under your fingers)
+  const d = await get("/api/settings/editable");
+  const groups = {brain: "Her (brain)", gateway: "AI, voice and hearing (gateway)"};
+  $("set-edit").innerHTML = Object.entries(groups).map(([w, title]) => `<h3 class="small" style="margin:10px 0 4px">${title}</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:6px 18px">` +
+    d.settings.filter((x) => x.where === w).map((x, i) => {
+      const id = "st-" + w + "-" + x.path.replace(/\W/g, "_");
+      let input;
+      if (x.type === "bool") input = `<input type="checkbox" id="${id}" ${x.value ? "checked" : ""}>`;
+      else if (x.type === "choice") input = `<select id="${id}">${x.choices.map((c) => `<option value="${esc(c)}" ${c === x.value ? "selected" : ""}>${esc(c || "(same as conversation)")}</option>`).join("")}</select>`;
+      else input = `<input type="search" id="${id}" value="${esc(x.value ?? "")}" style="width:${x.type === "text" ? 180 : 80}px">`;
+      return `<label class="small" style="display:flex;justify-content:space-between;gap:8px;align-items:center">${esc(x.label)} ${input}</label>`;
+    }).join("") + "</div>").join("") +
+    `<div class="row" style="margin-top:10px"><button class="chip" id="st-save">Save changes</button><span class="small muted" id="st-msg"></span></div>`;
+  const all = d.settings;
+  $("set-edit").oninput = () => { editing = true; $("st-msg").textContent = "unsaved changes"; };
+  $("st-save").onclick = async () => {
+    const changes = [];
+    all.forEach((x) => {
+      const el = $("st-" + x.where + "-" + x.path.replace(/\W/g, "_"));
+      const v = x.type === "bool" ? el.checked : el.value;
+      if (String(v) !== String(x.value ?? "")) changes.push({where: x.where, path: x.path, value: v});
+    });
+    if (!changes.length) { $("st-msg").textContent = "nothing changed"; return; }
+    try { const r = await post("/api/settings", {changes}); editing = false;
+      $("st-msg").textContent = "saved: " + r.changed.map((c) => c.path + " = " + c.value).join(", "); await settingsTab(); }
+    catch (e) { $("st-msg").textContent = "not saved: " + e.message; }
+  };
+}
+
+// ---------------------------------------------------------------- sessions
+let sesOpen = null;
+async function sessionsTab() {
+  const d = await get("/api/sessions");
+  $("ses-list").innerHTML = d.sessions.length ? d.sessions.map((x) => `<div class="small" style="padding:6px 4px;border-bottom:1px solid var(--line);cursor:pointer;${x.id === sesOpen ? "background:var(--accent-soft)" : ""}" data-id="${esc(x.id)}">
+      <b>${esc(x.world)}</b> · ${x.at ? new Date(x.at * 1000).toLocaleString() : esc(x.id)}<br>
+      <span class="muted">${x.minutes} min · you ${x.you} · Pip ${x.pip} (${x.own} on her own)${x.errors ? ` · <span style="color:var(--bad)">${x.errors} errors</span>` : ""}</span></div>`).join("")
+    : `<div class="empty">No sessions yet: play a little.</div>`;
+  $("ses-list").onclick = (ev) => { const r = ev.target.closest("[data-id]"); if (r) { sesOpen = r.dataset.id; sessionsTab(); openSession(sesOpen); } };
+}
+async function openSession(id) {
+  const d = await get("/api/sessions/one?id=" + encodeURIComponent(id));
+  const calls = d.calls || [];
+  const fmt = (t) => String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  const callFor = (t) => calls.filter((c) => c.t >= t - 1 && c.t <= t + 30 && (c.kind === "reply" || c.kind === "own"));
+  let used = new Set();
+  const rows = d.events.map((e) => {
+    const t = `<span class="muted">${fmt(e.t)}</span>`;
+    if (e.kind === "you") {
+      const c = callFor(e.t).find((c) => !used.has(c)); if (c) used.add(c);
+      return `<div style="margin:6px 0">${t} <b>You</b>${e.spoken ? " 🎙" : ""}: ${esc(e.text)}${c ? `<details class="small"><summary class="muted">what went to the AI (${esc(c.model || c.kind)}, ${c.seconds}s, ${c.tokens_in || "?"}→${c.tokens_out || "?"} tokens) and what came back</summary>
+        <pre style="white-space:pre-wrap;max-height:260px;overflow:auto">${esc(c.input)}</pre><div><b>Came back:</b> ${esc(c.reply)}</div>${c.actions ? `<div><b>Tools:</b> ${esc(JSON.stringify(c.actions))}</div>` : ""}</details>` : ""}</div>`;
+    }
+    if (e.kind === "pip") return `<div style="margin:6px 0">${t} <b style="color:var(--accent)">Pip</b> <span class="chip">${esc(e.source || "")}</span> ${esc(e.text)}
+      <button class="chip" data-say="${esc(e.text)}" data-mood="${esc(e.mood || "")}" title="hear it again">▶</button>${e.why ? `<div class="small muted">why: ${esc(e.why)}</div>` : ""}</div>`;
+    if (e.kind === "not_said") return `<div class="small muted" style="margin:4px 0">${t} held back (${esc(e.reason)}): ${esc(e.text)}</div>`;
+    if (e.kind === "cut") return `<div class="small" style="margin:4px 0;color:var(--warn)">${t} interrupted${e.by_player ? " by you" : ""}${e.rest ? ": " + esc(e.rest) : ""}</div>`;
+    if (e.kind === "tool") return `<div class="small" style="margin:4px 0">${t} 🔧 ${esc(e.name)} ${esc(e.args || "")} → <span style="color:${e.ok ? "var(--good)" : "var(--bad)"}">${esc(e.result || "")}</span></div>`;
+    if (e.kind === "answer") return `<div class="small muted" style="margin:2px 0">${t} answered: first words after ${e.first_words}s</div>`;
+    if (e.kind === "error") return `<div class="small" style="margin:4px 0;color:var(--bad)">${t} error: ${esc(e.text)}</div>`;
+    if (e.kind === "alert") return `<div class="small" style="margin:4px 0">${t} ⚠️ ${esc(e.text)}</div>`;
+    if (e.kind === "heart") return `<div class="small muted" style="margin:2px 0">${t} ♥ ${e.change > 0 ? "+" : ""}${e.change} (${esc(e.why)}) → ${e.bond}, ${esc(e.stance || "")}</div>`;
+    return "";
+  }).join("");
+  const sum = (d.summary || "").split("## Timeline")[0];
+  $("ses-one").innerHTML = (sum ? `<details open><summary class="small muted">Summary</summary><pre style="white-space:pre-wrap">${esc(sum)}</pre></details>` : "") +
+    `<div style="max-height:620px;overflow:auto">${rows || `<div class="empty">Nothing recorded.</div>`}</div>`;
+  $("ses-one").onclick = playLine;
+}
+async function playLine(ev) {
+  const b = ev.target.closest("[data-say]"); if (!b) return;
+  b.textContent = "…";
+  try {
+    const style = {excited: "excited", scared: "excited", worried: "excited", calm: "calm", sleepy: "calm", sad: "sad"}[b.dataset.mood] || "";
+    const blob = await post("/api/speak", {text: b.dataset.say, style});
+    const a = new Audio(URL.createObjectURL(blob)); a.onended = () => (b.textContent = "▶"); await a.play();
+  } catch (e) { b.textContent = "▶"; alert("Couldn't make her voice: " + e.message); }
+}
+
+// ---------------------------------------------------------------- try Pip (a pretend game for her brain)
+const sim = {ws: null, timer: null, queue: [], playing: false, n: 0};
+function simLog(html) { const el = $("sim-log"); el.insertAdjacentHTML("beforeend", `<div style="margin:5px 0">${html}</div>`); el.scrollTop = el.scrollHeight; }
+function simSnapshot() {
+  const mob = $("w-mob").value, cave = $("w-cave").checked, tod = +$("w-time").value, w = $("w-weather").value;
+  const animals = $("w-animals").value.split(",").map((x) => x.trim()).filter(Boolean)
+    .map((a, i) => ({id: 100 + i, type: "minecraft:" + a.replace(/ /g, "_"), distance: 6 + 5 * i, direction: ["ahead", "ahead-left", "right", "behind"][i % 4], seen: true, baby: false, tamed: false}));
+  return {type: "snapshot", health: +$("w-health").value, maxHealth: 20, food: 18, saturation: 4, armor: 0, air: 300, maxAir: 300, onFire: false,
+    gamemode: "survival", effects: [], where: {x: 10, y: cave ? 20 : 70, z: -40, dimension: "minecraft:overworld", biome: "minecraft:" + $("w-biome").value,
+    facing: "north", yaw: 180, skyVisible: !cave, light: cave ? 3 : (tod > 13000 ? 4 : 15)},
+    time: {day: 3, timeOfDay: tod, raining: w !== "clear", thundering: w === "thunder"},
+    holding: $("w-hold").value, offhand: "", inventory: {"minecraft:oak_log": 12, "minecraft:cobblestone": 30, "minecraft:torch": 8}, wearing: [],
+    lookingAt: {block: "minecraft:grass_block", distance: 3}, hostiles: mob ? [{type: "minecraft:" + mob, distance: 7, direction: "ahead-right", above: 0, seen: true}] : [],
+    animals, hazards: [], sounds: [], feel: {temperature: $("w-biome").value.includes("snow") ? -0.5 : $("w-biome").value === "desert" ? 2 : 0.7, light: 15}, youDid: []};
+}
+const PRETEND = {find_ore: {found: true, ore: "iron", distance: 9, where: "9 blocks below you, a little ahead"},
+  find_animal: {found: true, distance: 22, direction: "ahead-left", where: "22 blocks ahead on your left"},
+  find_block: {found: true, distance: 14, where: "14 blocks to your right"}, locate: {found: true, where: "about 600 blocks east"},
+  guide: {guiding: true, distance: 20, direction: "ahead"}, stop_guide: {}, protect: {pushedAway: 1},
+  place_torch: {placedAt: "10 70 -40", usedYourTorch: true}, harvest: {broken: 5, what: "a tree (5 logs)", gaveThePlayer: "5 oak log"},
+  build: {building: "pillar", block: "cobblestone", blocks: 6, seconds: 1}};
+function simPlay(b64) {
+  if (!$("sim-voice").checked || !b64) return;
+  sim.queue.push(b64); if (!sim.playing) simNext();
+}
+function simNext() {
+  const b64 = sim.queue.shift(); if (!b64) { sim.playing = false; return; }
+  sim.playing = true; const a = new Audio("data:audio/wav;base64," + b64); a.onended = simNext; a.onerror = simNext; a.play().catch(simNext);
+}
+async function simConnect() {
+  if (sim.ws) { sim.ws.close(); return; }
+  let tok;
+  try { tok = (await get("/api/sim/token")).token; } catch (e) { $("sim-status").textContent = "No token: " + e.message; return; }
+  const ws = new WebSocket("ws://127.0.0.1:47811/?token=" + encodeURIComponent(tok));
+  sim.ws = ws; $("sim-status").textContent = "connecting…";
+  ws.onopen = () => {
+    $("sim-status").textContent = "Connected to her brain, in the pretend world sim:Playground."; $("sim-connect").textContent = "Disconnect";
+    ws.send(JSON.stringify({type: "hello", mod: "dashboard-simulator", minecraft: "1.21.1", power: "helper", style: "grounded", singleplayer: true,
+      abilities: Object.keys(PRETEND), glow: true}));
+    ws.send(JSON.stringify({type: "event", event: "join", world: "sim:Playground"}));
+    ws.send(JSON.stringify(simSnapshot()));
+    sim.timer = setInterval(() => ws.readyState === 1 && ws.send(JSON.stringify(simSnapshot())), 2000);
+  };
+  ws.onclose = () => { clearInterval(sim.timer); sim.ws = null; $("sim-status").textContent = "Disconnected."; $("sim-connect").textContent = "Connect"; };
+  ws.onmessage = (m) => {
+    const msg = JSON.parse(m.data);
+    if (msg.type === "say") { simLog(`<b style="color:var(--accent)">Pip</b> <span class="muted small">${esc(msg.mood || "")}${msg.emote ? " · " + esc(msg.emote) : ""}</span> <span id="ln-${msg.line}">${esc(msg.text)}</span>`); simPlay(msg.audio); }
+    else if (msg.type === "say_more") { const el = $("ln-" + msg.line); if (el) el.textContent += " " + msg.text; }
+    else if (msg.type === "audio") simPlay(msg.audio);
+    else if (msg.type === "heard") simLog(`<span class="small muted">she heard: ${esc(msg.text)}</span>`);
+    else if (msg.type === "notice") simLog(`<span class="small" style="color:var(--warn)">${esc(msg.text)}</span>`);
+    else if (msg.type === "bond") $("sim-heart").innerHTML = `bond <b>${msg.value}</b> · ${esc(msg.level)}${msg.stance ? " · " + esc(msg.stance) : ""}${msg.change ? ` (${msg.change > 0 ? "+" : ""}${msg.change})` : ""}`;
+    else if (msg.type === "tune") simLog(`<span class="small muted">🎵 hums a tune (${msg.notes.length} notes, ${esc(msg.instrument)})</span>`);
+    else if (msg.type === "act" && (msg.move || msg.emote)) simLog(`<span class="small muted">↳ ${esc(msg.move || "")} ${esc(msg.emote || "")} ${esc(msg.look || "")}</span>`);
+    else if (msg.type === "do") {
+      const ok = $("sim-tools").value === "pretend" && PRETEND[msg.action];
+      const res = ok ? Object.assign({type: "done", id: msg.id, ok: true, simulated: true}, PRETEND[msg.action])
+                     : {type: "done", id: msg.id, ok: false, error: "There's no real world here (simulator)."};
+      simLog(`<span class="small">🔧 ${esc(msg.action)} ${esc(JSON.stringify(msg.args || {}))} → ${ok ? "pretended it worked" : "failed"}</span>`);
+      ws.send(JSON.stringify(res));
+    }
+  };
+}
+function simSend() {
+  const t = $("sim-text").value.trim(); if (!t || !sim.ws) return;
+  sim.ws.send(JSON.stringify({type: "chat", text: t})); simLog(`<b>You</b>: ${esc(t)}`); $("sim-text").value = "";
+}
+// hold to talk: the microphone, as a 16 kHz WAV, through her real speech-to-text
+const mic = {ctx: null, src: null, proc: null, chunks: [], stream: null};
+async function micDown() {
+  if (!sim.ws) return;
+  mic.stream = await navigator.mediaDevices.getUserMedia({audio: true});
+  mic.ctx = new AudioContext(); mic.src = mic.ctx.createMediaStreamSource(mic.stream);
+  mic.proc = mic.ctx.createScriptProcessor(4096, 1, 1); mic.chunks = [];
+  mic.proc.onaudioprocess = (e) => mic.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  mic.src.connect(mic.proc); mic.proc.connect(mic.ctx.destination);
+  sim.ws.send(JSON.stringify({type: "event", event: "listening"})); $("sim-mic").textContent = "🎙 listening…";
+}
+function micUp() {
+  if (!mic.ctx) return;
+  mic.proc.disconnect(); mic.src.disconnect(); mic.stream.getTracks().forEach((t) => t.stop());
+  const rate = mic.ctx.sampleRate; mic.ctx.close(); mic.ctx = null; $("sim-mic").textContent = "🎙 hold to talk";
+  const all = new Float32Array(mic.chunks.reduce((n, c) => n + c.length, 0)); let o = 0; mic.chunks.forEach((c) => { all.set(c, o); o += c.length; });
+  const n = Math.floor(all.length * 16000 / rate), pcm = new Int16Array(n); let peak = 0;
+  for (let i = 0; i < n; i++) { const v = Math.max(-1, Math.min(1, all[Math.floor(i * rate / 16000)] || 0)); pcm[i] = v * 32767; peak = Math.max(peak, Math.abs(v)); }
+  const buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf), w = (p, s) => [...s].forEach((ch, i) => dv.setUint8(p + i, ch.charCodeAt(0)));
+  w(0, "RIFF"); dv.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, 16000, true); dv.setUint32(28, 32000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, "data"); dv.setUint32(40, n * 2, true);
+  new Int16Array(buf, 44).set(pcm);
+  let bin = ""; new Uint8Array(buf).forEach((b) => (bin += String.fromCharCode(b)));
+  sim.ws.send(JSON.stringify({type: "voice", wav: btoa(bin), peak})); simLog(`<span class="small muted">🎙 (you spoke)</span>`);
+}
+let simReady = false;
+async function simTab() {
+  if (simReady) return; simReady = true;
+  $("sim-connect").onclick = simConnect; $("sim-send").onclick = simSend;
+  $("sim-text").onkeydown = (e) => { if (e.key === "Enter") simSend(); };
+  $("sim-mic").onpointerdown = micDown; $("sim-mic").onpointerup = micUp; $("sim-mic").onpointerleave = micUp;
+  document.querySelectorAll("[data-ev]").forEach((b) => (b.onclick = () => { if (sim.ws) { sim.ws.send(JSON.stringify({type: "event", event: b.dataset.ev})); simLog(`<span class="small muted">(you ${esc(b.textContent)})</span>`); } }));
 }
 
 // ---------------------------------------------------------------- tabs + refresh
-const LOAD = {live, talk, ai, voice, memory: memoryTab, knowledge: knowledgeTab, settings: settingsTab};
-const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, knowledge: 30000, settings: 30000};
+const LOAD = {live, talk, ai, voice, memory: memoryTab, knowledge: knowledgeTab, settings: settingsTab, sessions: sessionsTab, sim: simTab};
+const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, knowledge: 30000, settings: 30000, sessions: 20000, sim: 60000};
 $("nav").onclick = (ev) => {
   const b = ev.target.closest("button"); if (!b) return;
   tab = b.dataset.tab;
