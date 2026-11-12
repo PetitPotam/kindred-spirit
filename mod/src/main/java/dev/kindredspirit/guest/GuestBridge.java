@@ -107,7 +107,7 @@ public final class GuestBridge {
         float yaw = (float) Math.toDegrees(Math.atan2(-(owner.getX() - at[0]), owner.getZ() - at[2]));
         pip.moveTo(at[0], at[1] - 0.3, at[2], yaw, 0); // she looks at the one she lives with
         pip.setYHeadRot(yaw);
-        if (++ticks % 4 == 0) share(server, owner, own ? null : v);
+        if (++ticks % 2 == 0) share(server, owner, own ? null : v); // (10 times a second)
     }
 
     /** A visiting Pip's latest state, if she's here and allowed (it came in the last 3 seconds). */
@@ -117,7 +117,7 @@ public final class GuestBridge {
     }
 
     /**
-     * Five times a second, to each player whose game has the mod (except the one she lives with):
+     * Ten times a second, to each player whose game has the mod (except the one she lives with):
      * her state, so they see her as that player does. Yours, or the visiting Pip's.
      */
     private static void share(MinecraftServer server, ServerPlayer owner, com.google.gson.JsonObject visiting) {

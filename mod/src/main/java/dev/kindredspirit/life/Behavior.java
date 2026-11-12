@@ -586,6 +586,13 @@ public final class Behavior {
         return new double[]{ex, ey, ez};
     }
 
+    /**
+     * In a friend's game (light mode): where she really is, sent by the game she lives in a few times a
+     * second. She floats there (smoothly, by her springs) instead of choosing her own spot, so she stands
+     * and moves the same on every screen. null: she chooses, as usual.
+     */
+    public volatile double[] puppet;
+
     /** Put her somewhere at once (a friend's game catching up with the host's Pip; tests). */
     public void placeAt(double nx, double ny, double nz) {
         x = px[0] = nx;
@@ -825,7 +832,9 @@ public final class Behavior {
         presence = Smooth.clamp(Smooth.damp(presenceState, mode == Mode.HIDE ? 0 : 1, 0.25, dt, 6), 0, 1);
         double[] t = target(ex, ey, ez, followYaw(yawDeg, dt), lx, ly, lz, now);
         t[1] += Smooth.damp(avoid, avoidLift, 0.4, dt, 4);
-        boolean bodily = solid != null && mode != Mode.HIDE;
+        double[] p = puppet;
+        if (p != null) t = new double[]{p[0], p[1], p[2]}; // (where she really is, in the game she lives in)
+        boolean bodily = solid != null && mode != Mode.HIDE && p == null;
         if (bodily) t = free(t[0], t[1], t[2], ex, ey, ez); // her spot is never inside a block
 
         if (!placed || dist2(t[0], t[1], t[2], x, y, z) > 14 * 14) {
@@ -834,7 +843,7 @@ public final class Behavior {
             placed = true;
         }
         if (bodily) t = headFor(t, now); // around walls, not through them (or over the roof)
-        double smooth = mode == Mode.GUIDE ? GUIDE_SMOOTH : mode == Mode.COME ? 0.35
+        double smooth = p != null ? 0.3 : mode == Mode.GUIDE ? GUIDE_SMOOTH : mode == Mode.COME ? 0.35
                 : (emote == Emote.DOZE || mood == Mood.SLEEPY) ? 0.9 : 0.5;
         x = Smooth.damp(px, t[0], smooth, dt, 14);
         y = Smooth.damp(py, t[1], smooth * 0.8, dt, 14);

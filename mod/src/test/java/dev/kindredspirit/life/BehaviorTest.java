@@ -343,6 +343,20 @@ public class BehaviorTest {
     }
 
     @Test
+    void inAFriendsGameSheFloatsWhereSheReallyIs() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        runIn(b, s, 1, (x, y, z) -> y < 0);
+        b.puppet = new double[]{4, 2.2, 3};
+        runIn(b, s, 2, (x, y, z) -> y < 0);
+        assertTrue(Math.abs(b.x - 4) < 0.05 && Math.abs(b.y - 2.2) < 0.05 && Math.abs(b.z - 3) < 0.05,
+                "at the host's spot, not her own: " + b.x + " " + b.y + " " + b.z);
+        b.puppet = null;
+        runIn(b, s, 3, (x, y, z) -> y < 0);
+        assertTrue(Math.abs(b.x - 4) > 0.5 || Math.abs(b.z - 3) > 0.5, "back to choosing her own spot");
+    }
+
+    @Test
     void aClosedRoomAndSheBlinksToYou() {
         Behavior b = companion();
         Behavior.Senses s = player();

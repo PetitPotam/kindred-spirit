@@ -37,6 +37,7 @@ public final class SharedPip {
 
     public void forget() {
         state = null;
+        if (last != null) last.life.puppet = null;
         playedSeen = -1;
         GuestBridge.hidden = null;
     }
@@ -50,8 +51,11 @@ public final class SharedPip {
     }
 
     /** Every tick: her mood, words, gestures and where she goes, from the host. */
+    private Companion last;
+
     public void apply(Companion c, long nowMs) {
         if (state == null) return;
+        last = c;
         Behavior life = c.life;
         double now = c.now();
         c.follow = uuid("follow");
@@ -76,26 +80,22 @@ public final class SharedPip {
         }
         playedSeen = played;
         String mode = str("mode");
-        switch (mode) {
+        switch (mode) { // (where she floats comes from the host; the mode is for her arrow, her trail, her fading)
             case "GUIDE" -> {
                 double gx = num("gx"), gy = num("gy"), gz = num("gz");
                 if (life.mode != Behavior.Mode.GUIDE) life.guide(gx, gy, gz, now);
                 else life.retarget(gx, gy, gz);
             }
             case "HIDE" -> life.hide(2, now);
-            case "STAY" -> {
-                if (life.mode != Behavior.Mode.STAY) life.setMode(Behavior.Mode.STAY, now);
-            }
             default -> {
-                if (life.mode == Behavior.Mode.GUIDE || life.mode == Behavior.Mode.HIDE || life.mode == Behavior.Mode.STAY) {
-                    life.setMode(Behavior.Mode.FOLLOW, now);
-                }
+                if (life.mode == Behavior.Mode.GUIDE || life.mode == Behavior.Mode.HIDE) life.setMode(Behavior.Mode.FOLLOW, now);
             }
         }
-        // far from where she really is (she stayed, or visited something): there in a blink
-        if (state.has("x") && !"HIDE".equals(mode)) {
-            double dx = num("x") - life.x, dy = num("y") - life.y, dz = num("z") - life.z;
-            if (dx * dx + dy * dy + dz * dz > 6 * 6) life.placeAt(num("x"), num("y"), num("z"));
+        if (state.has("x")) { // she floats where she really is, smoothly (her springs fill the gaps between updates)
+            double[] at = {num("x"), num("y"), num("z")};
+            double dx = at[0] - life.x, dy = at[1] - life.y, dz = at[2] - life.z;
+            if (life.puppet == null || dx * dx + dy * dy + dz * dz > 16 * 16) life.placeAt(at[0], at[1], at[2]);
+            life.puppet = at;
         }
     }
 
