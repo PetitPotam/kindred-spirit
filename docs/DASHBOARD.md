@@ -1,7 +1,7 @@
 # The dashboard: watch what she does, thinks and remembers
 
 `scripts/start.sh` also starts a small dashboard. Open **http://127.0.0.1:11440** in your browser
-while you play (or after). It only listens on your computer, only reads, and shows nothing that
+while you play (or after). It only listens on your computer, only reads (except **Learn this** in the Knowledge tab), and shows nothing that
 isn't already on your computer or behind your gateway.
 
 | Tab | What you see | Where it comes from |
@@ -11,6 +11,7 @@ isn't already on your computer or behind your gateway.
 | **AI calls** | every call to the AI: why (a reply to you, on her own, learning, summarizing), how long it took, tokens sent and back, an estimated cost (today and per call, with a chart), the tools offered, a tool it had to use, special instructions applied. Click a call to see each part of the prompt and the answer | `logs/gateway.jsonl` |
 | **Speech & voice** | each time speech-to-text heard you (and what it heard), each voice line, average times, problems | `logs/gateway.log` |
 | **Memory** | her memories per world, by kind, with importance, passing feelings and when they fade, what was imported from another world; a search box that shows what would come to her mind for any sentence (the same search she uses); her saved state (bond, conversations) | the gateway's memory API (works with a remote memory too) |
+| **Knowledge** | what the world remembers (the knowledge base): how many pages and passages from which sources and licenses, its size, whether learning while playing is on; a box to ask any question as the player would and see what she'd be told and whether it counts as known; **Learn this** to make it read the pages that answer a question now; what she learned while you played; the latest pages | the gateway's `/knowledge/` API and the knowledge file (read-only) |
 | **Settings** | which AI, speech-to-text, voice, embeddings and memory are in use, the gateway's special instructions (persona, facts, next-reply hint, paused), `brain.toml`, the mod's settings. Keys are never shown, only their names | `gateway.json`, `brain.toml`, `kindredspirit.json` |
 
 Cost estimates use Gemini 3.1 Flash-Lite's list prices ($0.25 per million tokens sent, $1.50 per

@@ -56,6 +56,27 @@ Each piece she realizes is kept as part of "where you come from" in that world, 
 it, so her story stays consistent and grows with how you play. Ask her about it any time: before she
 knows, she wonders with you. Importing a world's memories brings her story along.
 
+## Who she is: doubts, tastes, the moments that shaped her
+
+She doesn't think about what she is on her own. But ask her ("what are you?", "where do you come
+from?", "are you real?") and she starts to reflect; the less she knows about herself, the more it
+unsettles her. A meter of how shaken she is grows with each question and fades by itself (half-life
+30 minutes): around the middle she wonders out loud, near the top she has a small existential crisis
+(am I real? why am I here?) that colors her mood, and lets you comfort her. Kind words and every
+piece of her origin she discovers settle it. When a power wakes up she may wonder what it says about
+her. And if you talk a lot about yourself while she knows little about herself, she may feel a small,
+honest pang of jealousy, once in a while.
+
+She forms her own **tastes**: things she comes to love, like, dislike or hate, and why. Her feelings
+for you color them: while she likes you she warms to what you love; while she's hurt or cross, what
+you love annoys her. One opinion per thing, and she can change her mind (she remembers what it was).
+
+A few **moments shape her**: rare, big ones (a joy, a fear, a hurt, a pride) become core memories she
+always carries. A painful one "still hurts", until kindness and time help her make peace with it.
+
+All of it is learned as you play (her learning, `reflect`), per world, shown in the dashboard's
+Memory tab ("her tastes", "moments that shaped her").
+
 ## The bond
 
 A number from 0 to 100, shown as a small heart meter (top right) whenever it changes, and in

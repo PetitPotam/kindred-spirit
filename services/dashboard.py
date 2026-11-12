@@ -243,6 +243,40 @@ def memory_overview(world=None):
     return {"worlds": worlds, "memories": picked, "docs": docs}
 
 
+# ---------------------------------------------------------------------- knowledge (what the world remembers)
+
+def knowledge(op, **body):
+    """The knowledge base through the gateway (search, stats, sources, learn)."""
+    state = kindred_gateway.load()
+    key = kindred_gateway.key_of(state.get("access_key"), "") if state.get("access_key") else ""
+    req = urllib.request.Request(GATEWAY + "/knowledge/" + op, data=json.dumps(body).encode(), method="POST",
+                                 headers={"Content-Type": "application/json"})
+    if key:
+        req.add_header("Authorization", "Bearer " + key)
+    with urllib.request.urlopen(req, timeout=60 if op == "learn" else 15) as r:
+        return json.loads(r.read())
+
+
+def knowledge_overview():
+    """Stats and sources (gateway), plus recent pages, the learning log and settings (the file, read-only)."""
+    out = {"stats": knowledge("stats"), "sources": knowledge("sources").get("sources", []), "pages": [], "log": []}
+    try:
+        import sqlite3
+        from knowledge import learn as kb_learn, sources as kb_sources
+        out["learning"] = kb_learn.settings(kb_sources.knowledge_dir())
+        db = sqlite3.connect("file:%s?mode=ro" % out["stats"]["path"], uri=True, timeout=5)
+        db.row_factory = sqlite3.Row
+        out["pages"] = [dict(r) for r in db.execute(
+            "select p.title, p.url, p.source, p.fetched, count(c.id) as chunks from pages p left join chunks c "
+            "on c.page_id = p.id group by p.id order by p.fetched desc limit 60")]
+        out["log"] = [dict(r) for r in db.execute(
+            "select t, query, status, pages, chunks, seconds from learn_log order by t desc limit 30")]
+        db.close()
+    except Exception as e:  # the overview still shows what the gateway gave
+        out["error"] = str(e)
+    return out
+
+
 # ---------------------------------------------------------------------- settings
 
 def redact(obj):
@@ -342,9 +376,30 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, memory("doc", key=q.get("key", "")))
             if url.path == "/api/settings":
                 return self.send(200, settings())
+            if url.path == "/api/knowledge":
+                return self.send(200, knowledge_overview())
+            if url.path == "/api/knowledge/search":
+                return self.send(200, knowledge("search", query=q.get("q", ""), k=8, max_chars=700))
             return self.send(404, {"error": "not found"})
         except (urllib.error.URLError, OSError) as e:
             return self.send(502, {"error": "the gateway isn't reachable (%s): is it running?" % getattr(e, "reason", e)})
+
+
+def _post(handler):
+    """The one thing the dashboard can change: ask the knowledge base to learn about a question."""
+    url = urlparse(handler.path)
+    if url.path != "/api/knowledge/learn":
+        return handler.send(404, {"error": "not found"})
+    if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
+        return handler.send(403, {"error": "only from the dashboard itself"})
+    body = json.loads(handler.rfile.read(int(handler.headers.get("Content-Length") or 0)) or b"{}")
+    try:
+        return handler.send(200, knowledge("learn", query=str(body.get("query", ""))[:300]))
+    except (urllib.error.URLError, OSError) as e:
+        return handler.send(502, {"error": str(getattr(e, "reason", e))})
+
+
+Handler.do_POST = _post
 
 
 def main():

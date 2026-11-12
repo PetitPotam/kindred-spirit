@@ -100,6 +100,7 @@ svg text { fill: var(--muted); font-size: 10px; }
     <button data-tab="ai">AI calls</button>
     <button data-tab="voice">Speech &amp; voice</button>
     <button data-tab="memory">Memory</button>
+    <button data-tab="knowledge">Knowledge</button>
     <button data-tab="settings">Settings</button>
   </nav>
 </header>
@@ -154,6 +155,19 @@ svg text { fill: var(--muted); font-size: 10px; }
         <div id="mem-list"></div>
       </div>
       <div class="card wide"><h2>Saved state</h2><div id="mem-docs"></div></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-knowledge">
+    <div class="grid">
+      <div class="card wide"><h2>What the world remembers</h2><div id="kb-stats"></div></div>
+      <div class="card wide">
+        <div class="row"><input type="search" id="kb-q" placeholder="Ask like the player would: how do I build an iron farm?">
+          <button class="chip" id="kb-learn" title="Read the wiki pages that answer this question, now">Learn this</button></div>
+        <div id="kb-results"><div class="empty">Type a question to see what she'd be told, and whether it counts as known.</div></div>
+      </div>
+      <div class="card"><h2>Learned while playing</h2><div id="kb-log"></div></div>
+      <div class="card"><h2>Latest pages</h2><div id="kb-pages" style="max-height:420px;overflow:auto"></div></div>
     </div>
   </section>
 
@@ -341,8 +355,8 @@ async function voice() {
 
 // ---------------------------------------------------------------- memory
 let memData = null;
-const KINDS = ["player", "self", "origin", "habit", "world", "place", "found", "reminder", "diary", "episode"];
-const KIND_LABEL = {player: "about you", self: "about her", origin: "her story", habit: "your habits", world: "the world", place: "places", found: "found", reminder: "reminders", diary: "diary", episode: "what happened"};
+const KINDS = ["player", "self", "origin", "core", "taste", "habit", "world", "place", "found", "reminder", "diary", "episode"];
+const KIND_LABEL = {player: "about you", self: "about her", origin: "her story", core: "moments that shaped her", taste: "her tastes", habit: "your habits", world: "the world", place: "places", found: "found", reminder: "reminders", diary: "diary", episode: "what happened"};
 async function memoryTab() {
   memData = await get("/api/memory");
   const worlds = Object.keys(memData.worlds);
@@ -382,6 +396,46 @@ $("mem-docs").onclick = async (ev) => {
   const v = $("doc-view"); v.style.display = "block"; v.textContent = tr.dataset.key + "\n\n" + JSON.stringify(d.value, null, 2);
 };
 
+// ---------------------------------------------------------------- knowledge (what the world remembers)
+const pageTitles = (p) => { try { return JSON.parse(p).map((x) => x.title).join(", "); } catch (e) { return String(p).slice(0, 160); } };
+const when = (t) => t ? new Date(t * 1000).toLocaleString() : "–";
+async function knowledgeTab() {
+  const d = await get("/api/knowledge");
+  const s = d.stats || {}, L = d.learning || {};
+  const src = Object.entries(s.sources || {}).map(([k, v]) => `<div class="stat"><div class="v">${fmt(v.pages)}</div><div class="l">pages from ${esc(v.title || k)} (${fmt(v.chunks)} passages, ${esc(v.license || "")})</div></div>`).join("");
+  $("kb-stats").innerHTML = `<div class="stats">${src || `<div class="empty">Nothing yet: crawl a source (docs/KNOWLEDGE.md).</div>`}
+      <div class="stat"><div class="v">${((s.db_bytes || 0) / 1e6).toFixed(1)} MB</div><div class="l">on this computer</div></div>
+      <div class="stat"><div class="v">${L.enabled ? "on" : "off"}</div><div class="l">learning while playing${L.enabled ? ` (up to ${L.max_per_hour}/hour, ${L.pages_per_learn} pages each)` : ""}</div></div></div>
+    <div class="small muted" style="margin-top:8px">To Pip, this is what her world remembers (the old stones, the wind): she never mentions where it comes from. Sources and licenses stay here. ${d.error ? "(" + esc(d.error) + ")" : ""}</div>`;
+  $("kb-log").innerHTML = (d.log || []).map((r) => `<div class="mem"><div><span class="badge ${r.status === "learned" ? "k-tool" : r.status === "nothing" ? "k-problem" : ""}">${esc(r.status)}</span></div>
+      <div>${esc(r.query)}<div class="small muted">${when(r.t)} · ${r.chunks || 0} passages · ${(r.seconds || 0).toFixed(1)}s${r.pages ? " · " + esc(pageTitles(r.pages)) : ""}</div></div></div>`).join("") || `<div class="empty">Nothing learned while playing yet.</div>`;
+  $("kb-pages").innerHTML = (d.pages || []).map((p) => `<div class="mem" style="grid-template-columns:1fr"><div><a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(p.title)}</a>
+      <div class="small muted">${p.chunks} passages · ${when(p.fetched)}</div></div></div>`).join("");
+}
+let kbTimer = null;
+$("kb-q").oninput = () => { clearTimeout(kbTimer); kbTimer = setTimeout(kbSearch, 350); };
+async function kbSearch() {
+  const q = $("kb-q").value.trim();
+  if (!q) return;
+  const d = await get(`/api/knowledge/search?q=${encodeURIComponent(q)}`);
+  $("kb-results").innerHTML = `<div class="small" style="margin-bottom:6px">${d.covered ? `<b style="color:var(--good)">Known</b>: she'd answer from this` : `<b style="color:var(--warn)">Not known well</b>: she'd say she'll listen to the world, and learn it`} (best match ${(d.best ?? 0).toFixed(2)}, needs ${d.threshold ?? "?"})</div>` +
+    (d.results || []).map((r) => `<div class="mem"><div><span class="badge">${(r.score ?? 0).toFixed(2)}</span></div><div><b>${esc(r.title)}</b>${r.section ? ` <span class="muted">/ ${esc(r.section)}</span>` : ""}
+      <pre>${esc(r.text)}</pre><div class="small muted"><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--muted)">${esc(r.url)}</a> · ${esc(r.license || "")}</div></div></div>`).join("");
+}
+$("kb-learn").onclick = async () => {
+  const q = $("kb-q").value.trim();
+  if (!q) return;
+  $("kb-learn").textContent = "Learning…";
+  try {
+    const r = await fetch("/api/knowledge/learn", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({query: q})});
+    const d = await r.json();
+    showErr(r.ok ? null : d.error);
+    $("kb-results").insertAdjacentHTML("afterbegin", `<div class="small" style="margin-bottom:8px">Learning: <b>${esc(d.status || "?")}</b>${d.added ? ` · ${d.added.length} pages: ${esc(d.added.map((a) => a.title).join(", "))}` : ""}${d.seconds ? ` · ${d.seconds}s` : ""}</div>`);
+    await knowledgeTab();
+    await kbSearch();
+  } finally { $("kb-learn").textContent = "Learn this"; }
+};
+
 // ---------------------------------------------------------------- settings
 function kv(obj) {
   return `<div class="kv">${Object.entries(obj || {}).map(([k, v]) => `<div>${esc(k)}</div><div>${esc(typeof v === "object" ? JSON.stringify(v) : v)}</div>`).join("")}</div>`;
@@ -402,8 +456,8 @@ async function settingsTab() {
 }
 
 // ---------------------------------------------------------------- tabs + refresh
-const LOAD = {live, talk, ai, voice, memory: memoryTab, settings: settingsTab};
-const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, settings: 30000};
+const LOAD = {live, talk, ai, voice, memory: memoryTab, knowledge: knowledgeTab, settings: settingsTab};
+const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, knowledge: 30000, settings: 30000};
 $("nav").onclick = (ev) => {
   const b = ev.target.closest("button"); if (!b) return;
   tab = b.dataset.tab;
