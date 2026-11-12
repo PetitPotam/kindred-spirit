@@ -129,6 +129,7 @@ public final class Companion {
         if (target != null) inTheWay = target.distanceTo(p) - 0.3;
         else if (hit != null && hit.getType() == HitResult.Type.BLOCK) inTheWay = hit.getLocation().distanceTo(eye);
         boolean struck = attack && !attackWasDown && !life.hidden() && life.aimedAt(s, inTheWay);
+        if (attack && !struck) life.playerSwings(s.now); // fighting or digging: she gets out of the way
         attackWasDown = attack;
         if (struck) {
             life.play(dev.kindredspirit.life.Emote.STARTLE, s.now);

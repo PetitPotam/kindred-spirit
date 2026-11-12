@@ -66,6 +66,7 @@ class Alerts:
         self.last = {}
         self.last_any = -1e9
         self.health_armed = True
+        self.pools = {}  # her own words for each warning, written by her thinking AI (instinct.py)
 
     def check(self, s, now):
         """Returns at most one Alert for this snapshot (the most urgent)."""
@@ -92,7 +93,7 @@ class Alerts:
         if not creepers or not self._ready("creeper", self.CREEPER_COOLDOWN, now):
             return None
         c = min(creepers, key=lambda m: m.get("distance", 99))
-        text = self.rng.choice(CREEPER_LINES).format(where=where_words(c.get("direction")))
+        text = self.rng.choice(self.pools.get("creeper") or CREEPER_LINES).format(where=where_words(c.get("direction")))
         return Alert("creeper", text[0].upper() + text[1:], "scared")
 
     def _lava(self, s, now):
@@ -101,14 +102,15 @@ class Alerts:
             return None
         pool = DROP_LAVA_LINES if h["kind"] == "drop_lava" else LAVA_LINES
         where = "right next to you" if h.get("distance", 9) <= 1 else where_words(h.get("direction"))
-        text = self.rng.choice(pool).format(where=where)
+        text = self.rng.choice(self.pools.get("lava") or pool).format(where=where)
         return Alert("lava", text, "scared")
 
     def _drop(self, s, now):
         h = next((h for h in s.get("hazards") or [] if h.get("kind") == "drop" and h.get("depth", 0) >= 8), None)
         if not h or not self._ready("drop", self.DROP_COOLDOWN, now):
             return None
-        return Alert("drop", self.rng.choice(DROP_LINES).format(where=where_words(h.get("direction"))), "worried")
+        return Alert("drop", self.rng.choice(self.pools.get("drop") or DROP_LINES).format(
+            where=where_words(h.get("direction"))), "worried")
 
     def _low_health(self, s, now):
         health = s.get("health", 20)
@@ -120,7 +122,8 @@ class Alerts:
         hearts_text = ("barely 1" if hearts <= 1 else "about %d" % round(hearts)) if hearts != int(hearts) else "%d" % hearts
         close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= 12]
         pool = LOW_HEALTH_DANGER if close else LOW_HEALTH_HUNGRY if s.get("food", 20) < 18 else LOW_HEALTH_FED
-        return Alert("low_health", self.rng.choice(pool).format(hearts=hearts_text), "worried")
+        return Alert("low_health", self.rng.choice(self.pools.get("low_health") or pool).format(hearts=hearts_text),
+                     "worried")
 
 
 def ambient_mood(s):

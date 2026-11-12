@@ -142,6 +142,9 @@ public final class Behavior {
     /** How close she feels to you (0 = keeps far away, 1 = snuggles up); set from her bond. */
     public double closeness = 0.5;
     private final double[] distScale = {1, 0};
+    /** 0..1: how much she has stepped back out of your way because you're fighting. */
+    private final double[] combat = {0, 0};
+    private double fightingUntil = -1;
     /** 1 = here, 0 = gone (she vanished for a while); eased, so she puffs away and back. */
     public double presence = 1;
     private final double[] presenceState = {1, 0};
@@ -311,6 +314,7 @@ public final class Behavior {
         lastLookZ = s.lz;
         double idleFor = now - lastActive;
         boolean threatNear = nearestThreat(s) != null;
+        if (threatNear) fightingUntil = Math.max(fightingUntil, now + 3);
 
         // dozing off, and waking up softly
         if (emote == Emote.DOZE) {
@@ -497,6 +501,16 @@ public final class Behavior {
         return null;
     }
 
+    /** You're swinging (at a mob, a block, the air): she gets out of your way for a few seconds. */
+    public void playerSwings(double now) {
+        fightingUntil = Math.max(fightingUntil, now + 4);
+    }
+
+    /** True while she keeps out of your way because you're fighting or monsters are near. */
+    public boolean keepingClear() {
+        return combat[0] > 0.5;
+    }
+
     /** Is the player's crosshair on the companion? A ray against a slightly generous sphere. */
     public boolean playerLooksAtMe(Senses s) {
         double dx = x - s.ex, dy = y - s.ey, dz = z - s.ez;
@@ -580,6 +594,12 @@ public final class Behavior {
             amp *= Math.max(0, settings.drift);
             r *= distScale[0]; // closer when she feels close to you, further when she's hurt
             f *= Math.max(1, distScale[0] * 0.85);
+            // fighting: never in front of you, where your sword goes; just behind your shoulder, a bit higher
+            double c = combat[0];
+            r += (Math.signum(r == 0 ? 1 : r) * 1.25 - r) * c;
+            f += (-0.6 - f) * c;
+            u += 0.35 * c;
+            amp *= 1 - 0.7 * c;
             r += Smooth.noise(now * 0.13, 1) * amp;
             u += Smooth.noise(now * 0.17, 2) * amp * 0.45;
             f += Smooth.noise(now * 0.11, 3) * amp * 0.6;
@@ -592,13 +612,14 @@ public final class Behavior {
 
         // never park in the middle of the view: slide sideways out of a 14° cone
         // (unless you are looking at it on purpose: then it stays for the eye contact)
-        if (settings.keepOutOfView && mode == Mode.FOLLOW && !(lookedAtSince >= 0 && contactChosen)) {
+        if ((settings.keepOutOfView || combat[0] > 0.05) && mode == Mode.FOLLOW
+                && !(lookedAtSince >= 0 && contactChosen && combat[0] < 0.5)) {
             double dx = tx - ex, dy = ty - ey, dz = tz - ez;
             double along = dx * lx + dy * ly + dz * lz;
             if (along > 0 && along < 5) {
                 double cx = dx - lx * along, cy = dy - ly * along, cz = dz - lz * along;
                 double perp = Math.sqrt(cx * cx + cy * cy + cz * cz);
-                double need = Math.tan(Math.toRadians(14)) * along;
+                double need = Math.tan(Math.toRadians(14 + 26 * combat[0])) * along; // much wider while fighting
                 if (perp < need) {
                     double push = need - perp;
                     if (perp > 1e-3) { // outward, the way it already leans
@@ -632,6 +653,7 @@ public final class Behavior {
         // wander wider while you stand still, come close again when you move
         Smooth.damp(wanderAmp, exploring ? 1.6 : 0.22, exploring ? 3.0 : 0.8, dt, 2);
         Smooth.damp(distScale, distanceScale(closeness), 1.5, dt, 1);
+        Smooth.damp(combat, now < fightingUntil ? 1 : 0, now < fightingUntil ? 0.15 : 1.2, dt, 1); // quick out, slow back
         presence = Smooth.clamp(Smooth.damp(presenceState, mode == Mode.HIDE ? 0 : 1, 0.25, dt, 6), 0, 1);
         double[] t = target(ex, ey, ez, followYaw(yawDeg, dt), lx, ly, lz, now);
         t[1] += Smooth.damp(avoid, avoidLift, 0.4, dt, 4);

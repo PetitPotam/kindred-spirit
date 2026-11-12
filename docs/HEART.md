@@ -148,6 +148,23 @@ the fast AI that answers you. *System 2*, the slower thinking in the background:
 story and tastes, the knowledge she listens for, powers waking up. They all speak through the one
 coordinator.
 
+**Her instincts, in her own words.** Her instant reactions can't wait for an AI ("Ow!", "Creeper
+behind you!", "We're here!"), but fixed sentences repeat and don't sound like her. So a little
+while after you join (45 s, `behaviour.instinct_lines_after`), her thinking AI writes a handful of
+lines for each moment (being hit, a playful bonk, petting, arriving, warnings, a pranks' giggle...)
+in her voice, from who she has become, your bond and your name; they're kept per world and written
+again when your bond changes level. The built-in lines stay as the fallback. Warnings keep their
+place for where the danger is ("Creeper {where}!" becomes "Creeper behind you!").
+
+**She doesn't leave you in silence.** When an answer takes more than a moment
+(`behaviour.fill_silence_after`, 1.4 s), she makes a small thinking sound ("Hmm...", in her own
+words too) and a thinking gesture, at most every 20 seconds and never in danger. It isn't part of
+the conversation the AI sees. When you start talking to her, she turns to look at you.
+
+**She stays out of your way in a fight.** When you swing (at a mob, a block or the air) or monsters
+are close, she drifts to just behind your shoulder, a little higher, and keeps well out of your
+aim, then comes back to her usual spot a few seconds after it's over.
+
 - Short, spoken lines, whimsical and curious. Her voice (Kokoro, a blend of two young voices) is
   lively and quick when she's excited, softer when she's calm or sad, and she **whispers** secrets,
   spooky things and what she senses in the dark.

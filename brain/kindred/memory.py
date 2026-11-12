@@ -408,8 +408,11 @@ class Memory:
         """Applies what reflection found: new knowledge, merged with what it already knew."""
         added = 0
         for kind in ("player", "self", "habit", "world", "origin"):
-            for item in lessons.get(kind) or []:
-                text = item.get("text") if isinstance(item, dict) else str(item)
+            items = lessons.get(kind) or []
+            for item in [items] if isinstance(items, (str, dict)) else items:  # (one, not a list: not letter by letter)
+                text = (item.get("text") if isinstance(item, dict) else str(item)).strip()
+                if len(text) < 8:
+                    continue
                 imp = item.get("importance", 6) if isinstance(item, dict) else 6
                 passing = isinstance(item, dict) and bool(item.get("temporary"))
                 if text and len(text) < 300:

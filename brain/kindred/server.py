@@ -37,6 +37,8 @@ from . import heart as intents_heart
 from .describe import describe
 from . import knowledge as kb
 from .understand import Understand
+from . import instinct as instinct_mod
+from .mind import post_json
 from .heart import Heart
 from .memory import GatewayMemory, Memory
 from .alerts import Alerts
@@ -63,6 +65,13 @@ def sentences(text, min_chars=25, first_max=0):
             cut = 20 + m.end()
             out[0:1] = [out[0][:cut].rstrip(), out[0][cut:]]
     return out
+
+
+def player_name(memories):
+    """The player's name from what she remembers ("The player's name is Tam"), never the name they gave her."""
+    m = re.search(r"(?:player's name is|player is called|player's called|name of the player is) ([A-Z][\w-]+)",
+                  memories or "")
+    return m.group(1) if m else ""
 
 
 class SpokenStream:
@@ -202,7 +211,9 @@ class Brain:
         self.last_pet_reply = -1e9
         self.tipped = {}             # power -> when the player last got a settings tip for it
         self.kb = kb.Knowledge(cfg)
-        self.understand = Understand(cfg)  # System 0's understanding (local embeddings)  # what the world remembers (services/knowledge)
+        self.understand = Understand(cfg)  # System 0's understanding (local embeddings)
+        self.instinct = instinct_mod.Instinct()  # System 0's own words, written by System 2 (per world)
+        self.lines_written_at, self.last_filler = -1e9, -1e9  # what the world remembers (services/knowledge)
         self.listening = set()       # questions she's listening to the world about right now
         self.reading = None          # the guide she was last told about (listen_more goes on from there)
         # one voice, coordinated (see say): what she's saying now, and what an interruption left unsaid
@@ -408,6 +419,8 @@ class Brain:
             return
         log.info("bond %+.1f (%s) -> %.0f %s", delta, why, self.heart.bond, self.heart.level())
         level = self.heart.level()
+        if self.instinct.level and level != self.instinct.level and self.clock() - self.lines_written_at > 600:
+            asyncio.create_task(self.write_lines())  # she feels differently about you: her instincts too
         if level in ("close", "best friend") and level not in self.heart.state.setdefault("levels_reached", []):
             self.heart.state["levels_reached"].append(level)  # a milestone: it may reveal a piece of her story
             moment = self.heart.origin_moment("you and the player just became %s" % (
@@ -883,6 +896,7 @@ class Brain:
                 self.animals_seen, self.animals_since = {}, None
             await self.heart.load()  # (always: memories may have been imported while you were away)
             self.heart_loaded = self.heart.key()
+            await self.load_lines()
             await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(), "change": 0})
             await self.send({"type": "act", "closeness": self.heart.closeness()})
             asyncio.create_task(self.warm_up())
@@ -897,6 +911,7 @@ class Brain:
             self.player_listening, self.listening_since = True, self.clock()
             self.cut_short(self.clock(), by_player=True)
             self.speaking_until = self.clock()
+            await self.send({"type": "act", "look": "me", "seconds": 8})  # she turns to you and listens
         elif name == "wrong_way":  # you walked off while she leads: she calls you back
             asyncio.create_task(self.say(random.choice(intents.WRONG_WAY_LINES), "excited", instant=True, emote="hop",
                                          why="the player walked away from where you're leading them"))
@@ -1237,7 +1252,8 @@ class Brain:
             else:
                 log.info("not now (%s while saying %s): %s", prio, self.speaking_prio, text[:70])
                 return None
-        if why:  # a line that didn't come from the AI: the AI hears it too, with why it was said
+        if why:  # a line said on instinct: in her own words (if written), and the AI hears it, with why
+            text = self.instinct.personal(text)
             self.mind.note_said(text, mood, why)
         self.line += 1
         line = self.line
@@ -1321,6 +1337,62 @@ class Brain:
         except voice.VoiceError as e:
             log.warning("%s (subtitle only)", e)
             return None
+
+    # ------------------------------------------------------------------ System 0's words (written by System 2)
+
+    async def load_lines(self):
+        key = "world:%s:lines" % self.memory.world_id
+        doc = (await self.safe(self.memory.store.call("doc", key=key)) or {}).get("value")
+        self.instinct.load(doc)
+        self.alerts.pools = self.instinct.lines
+        if not self.instinct.lines or self.instinct.level != self.heart.level():
+            after = self.cfg["behaviour"].get("instinct_lines_after", 45)
+            if after:
+                asyncio.create_task(self.write_lines(after=after))
+
+    async def write_lines(self, after=0):
+        """The thinking AI writes her instinct lines in her own voice (in the background, a few seconds),
+        after a quiet while once you've joined, so it never competes with her greeting or first answers."""
+        self.lines_written_at = self.clock()
+        if after:
+            await asyncio.sleep(after)
+            if not self.ws:
+                return
+        try:
+            who = await self.memory.context(self.snapshot, "who am I, what do I love")
+            mine = "\n".join(l for l in who.splitlines() if l.startswith(
+                ("About yourself", "Where you come from", "Your tastes", "Moments that shaped you")))
+            name = player_name(who)
+            level = self.heart.level()
+            body = {"model": self.cfg["ai"]["model"], "temperature": 0.9, "max_tokens": 2200,
+                    "response_format": {"type": "json_object"},
+                    "messages": [{"role": "user", "content": instinct_mod.prompt(self.cfg["name"], mine, level, name)}]}
+            raw = await asyncio.to_thread(post_json, self.mind.url(), body, self.cfg["gateway"].get("key", ""), 120,
+                                          "reflect")
+            lines = instinct_mod.parse(raw["choices"][0]["message"].get("content"))
+            if len(lines) < len(instinct_mod.MOMENTS) // 2:
+                log.info("her instinct lines weren't usable this time (%d moments)", len(lines))
+                return
+            doc = {"lines": lines, "level": level, "time": time.time()}
+            await self.safe(self.memory.store.call("doc", key="world:%s:lines" % self.memory.world_id, value=doc))
+            self.instinct.load(doc)
+            self.alerts.pools = self.instinct.lines
+            log.info("her instinct lines, in her own voice: %d moments (%s)", len(lines), level)
+        except Exception as e:  # (the built-in lines stay)
+            log.warning("couldn't write her instinct lines: %s", e)
+
+    async def fill_silence(self, speech, after=1.4):
+        """System 0 covers System 1: when an answer takes a while, a small thinking sound and gesture
+        (at most every 20 s, never in danger)."""
+        await asyncio.sleep(after)
+        danger = any(m.get("distance", 99) < 10 for m in (self.snapshot or {}).get("hostiles") or [])
+        if speech.said or danger or self.clock() - self.last_filler < 20:
+            return
+        self.last_filler = self.clock()
+        await self.send({"type": "act", "emote": "think"})
+        line = self.instinct.pick("thinking")
+        if line:
+            await self.say(line, "curious", prio="reaction")
 
     async def warm_up(self):
         """Ready before the first message: System 0's example phrases (a third of a second, once)."""
@@ -1410,9 +1482,15 @@ class Brain:
                 self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood),
                                                        self.heart.discovery_note(self.abilities), note) if x)
                 speech = SpokenStream(self)  # her answer, spoken sentence by sentence as it's written
-                reply, mood, gesture = await self.mind.reply(self.snapshot, text, done,
-                                                             tools.for_abilities(offered), self.run_tool, force, spoken,
-                                                             on_sentence=speech.add)
+                filler = (asyncio.create_task(self.fill_silence(speech, self.cfg["behaviour"]["fill_silence_after"]))
+                          if self.cfg["behaviour"].get("fill_silence_after") else None)
+                try:
+                    reply, mood, gesture = await self.mind.reply(self.snapshot, text, done,
+                                                                 tools.for_abilities(offered), self.run_tool, force,
+                                                                 spoken, on_sentence=speech.add)
+                finally:
+                    if filler:
+                        filler.cancel()
                 await speech.close()
             except AIError as e:
                 log.error("AI error: %s", e)
