@@ -2,6 +2,8 @@
 """Kindred Spirit's knowledge base, from the command line.
 
     kb.py sources                                   the sources and their licenses
+    kb.py crawl minecraft-wiki --core [--grow 600]  the pages survival players ask about, then the pages
+                                                    they link to most (the recommended set, see below)
     kb.py crawl minecraft-wiki [--limit N] [--category Mobs ...] [--page Piston ...] [--all] [--depth 1]
     kb.py crawl local                               your own .md/.txt files (~/.kindred-spirit/knowledge/local)
     kb.py refresh [SOURCE] [--limit N]              fetch again only what changed
@@ -11,8 +13,10 @@
     kb.py stats                                     pages, chunks, vectors, size on disk
     kb.py reindex [SOURCE]                          rebuild stored pages from the cache (after a parser change)
     kb.py embed                                     give vectors to chunks that have none (gateway needed)
+    kb.py compact                                   smaller on disk: 16-bit vectors, free space given back
     kb.py remove SOURCE [--cache]                   forget a source (and its cached downloads)
     kb.py add NAME --kind web --sitemap URL --allow PREFIX --license "..."     add a source
+    kb.py eval [--json FILE]                        score it on questions players ask (eval_questions.json)
 
 A crawl that is stopped continues where it was the next time. Requests go one at a time,
 at most one per second (--delay), obey robots.txt and are cached. See docs/KNOWLEDGE.md.
@@ -20,6 +24,7 @@ at most one per second (--delay), obey robots.txt and are cached. See docs/KNOWL
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -110,7 +115,13 @@ def _run(args, names, refresh):
             opts = json.loads(row["params"] or "{}") if row else {}
             print("refreshing %s %s" % (name, json.dumps(opts) if opts else ""))
         else:
-            opts = {"categories": args.category, "pages": args.page, "all": args.all}
+            pages = list(args.page or [])
+            if getattr(args, "core", False):
+                pages = list(src.config.get("core_pages") or []) + pages
+                if not pages:
+                    print("%s has no core pages: use --category or --page" % name)
+                    return 2
+            opts = {"categories": args.category, "pages": pages or None, "all": args.all}
             if args.depth is not None:
                 opts["depth"] = args.depth
             opts["retry"] = args.retry
@@ -122,15 +133,35 @@ def _run(args, names, refresh):
         except KeyboardInterrupt:
             return 130
         totals.append(s)
-        print("  done in %ss: %d new, %d changed, %d same, %d unchanged (not fetched), %d gone, %d failed, %d blocked;"
-              " %d chunks; %d requests, %s downloaded; %d still queued" % (
-                  s["seconds"], s["new"], s["changed"], s["same"], s["unchanged"], s["gone"], s["errors"],
+        print("  done in %ss: %d new, %d changed, %d same, %d unchanged (not fetched), %d gone, %d not kept,"
+              " %d failed, %d blocked; %d chunks; %d requests, %s downloaded; %d still queued" % (
+                  s["seconds"], s["new"], s["changed"], s["same"], s["unchanged"], s["gone"], s["skipped"], s["errors"],
                   s["blocked"], s["chunks"], s["requests"], human(s["downloaded"]), s["left"]))
         if s["processed"]:
             print("  %.2f s per page" % (s["seconds"] / s["processed"]))
         if s["embed_errors"]:
             print("  embeddings failed %d times (%s): keyword search still works; `kb.py embed` retries" % (
                 s["embed_errors"], s["embed_error"]))
+        grow = getattr(args, "grow", None)
+        if grow and not refresh:
+            canonical = None
+            if hasattr(src, "lastmods"):  # the wiki's real titles, so redirects aren't fetched twice
+                canonical = {t.lower(): t for t in (src.title_of(u) for u in src.lastmods(
+                    fetcher, say, offline=opts.get("offline"))) if t}
+            more = crawler.linked_titles(store, src, min_links=args.min_links, canonical=canonical)[:grow]
+            if not more:
+                print("  nothing linked from %d pages or more is missing" % args.min_links)
+                continue
+            print("growing: the %d pages most linked from what is stored (from %d links down to %d)" % (
+                len(more), more[0][1], more[-1][1]))
+            opts = {"pages": [t for t, _ in more], "offline": opts.get("offline"), "delay_given": opts["delay_given"]}
+            try:
+                s = crawler.crawl(store, src, fetcher, opts, limit=args.limit, log=say)
+            except KeyboardInterrupt:
+                return 130
+            print("  done in %ss: %d new, %d changed, %d same, %d not kept, %d failed; %d chunks; %d requests, %s" % (
+                s["seconds"], s["new"], s["changed"], s["same"], s["skipped"], s["errors"], s["chunks"], s["requests"],
+                human(s["downloaded"])))
     return 0
 
 
@@ -223,7 +254,9 @@ def cmd_stats(args):
         if s["queue"].get("pending") or s["queue"].get("failed"):
             print("  %16s queue: %s" % ("", ", ".join("%s %d" % kv for kv in sorted(s["queue"].items()))))
         if s["params"]:
-            print("  %16s refresh asks for: %s" % ("", json.dumps(s["params"])))
+            shown = {k: (v if not isinstance(v, list) or len(v) <= 8 else v[:5] + ["... %d in all" % len(v)])
+                     for k, v in s["params"].items()}
+            print("  %16s refresh asks for: %s" % ("", json.dumps(shown)))
         when = s["last_refresh"] or s["last_crawl"]
         if when:
             print("  %16s last fetched: %s" % ("", time.strftime("%Y-%m-%d %H:%M", time.localtime(when))))
@@ -236,8 +269,8 @@ def cmd_reindex(args):
     for name in [args.source] if args.source else store.source_names():
         src = sources.make(name, configs)
         c = crawler.reindex(store, src, fetcher_for(args), log=say)
-        say("%s: %d changed, %d same, %d not in the cache; %d chunks" % (name, c["changed"], c["same"], c["errors"],
-                                                                       c["chunks"]))
+        say("%s: %d changed, %d same, %d not kept, %d not in the cache; %d chunks" % (
+            name, c["changed"], c["same"], c["skipped"], c["errors"], c["chunks"]))
     return 0
 
 
@@ -248,6 +281,57 @@ def cmd_embed(args):
         return 1
     n = store.embed_missing(progress=lambda t: print("  %d chunks embedded" % t))
     print("embedded %d chunks%s" % (n, (" (errors: %s)" % store.last_embed_error) if store.embed_errors else ""))
+    return 0
+
+
+def cmd_eval(args):
+    """How well it answers what players ask: eval_questions.json (or --questions), each with the
+    pages that answer it. First / top 3: a right page ranks there. Covered: the store says it has
+    the answer; covered but wrong is the costly mistake (she won't listen for the real answer)."""
+    store = open_store(args, quiet=True)
+    path = args.questions or os.path.join(os.path.dirname(os.path.abspath(__file__)), "eval_questions.json")
+    with open(path, encoding="utf-8") as f:
+        qs = json.load(f)["questions"]
+    have = {r[0] for r in store.db.execute("select title from pages")}
+    rows, t0 = [], time.time()
+    for q in qs:
+        ans = store.ask(q["q"], k=5)
+        got = [re.sub(r" \(Java [0-9.]+ data\)$", "", r["title"]) for r in ans["results"]]  # minecraft-data pages
+        gold = set(q["gold"])
+        top = ans["results"][0] if ans["results"] else {}
+        rows.append({"topic": q["topic"], "q": q["q"], "first": bool(got[:1] and got[0] in gold),
+                     "top3": bool(gold & set(got[:3])), "covered": ans["covered"], "best": round(ans["best"], 3),
+                     "got": got[:3], "stored": bool(gold & have), "future": bool(q.get("future")),
+                     "status": top.get("status", "")})
+    ms = 1000 * (time.time() - t0) / max(1, len(qs))
+    cur = [r for r in rows if not r["future"]]
+    fut = [r for r in rows if r["future"]]
+    def n(key):
+        return sum(1 for r in cur if r[key])
+    print("%d questions (%d ms each): a right page stored %d, first %d, in the top 3 %d; covered %d (right %d, "
+          "wrong %d)" % (len(cur), ms, n("stored"), n("first"), n("top3"), n("covered"),
+                          sum(1 for r in cur if r["covered"] and r["top3"]),
+                          sum(1 for r in cur if r["covered"] and not r["top3"])))
+    if fut:
+        print("%d about things after the player's version: %d found and marked %s, %d answered as if current" % (
+            len(fut), sum(1 for r in fut if r["first"] and r["status"] == "future"), "future",
+            sum(1 for r in fut if r["covered"])))
+    if args.verbose:
+        for r in rows:
+            print("%s %s %-11s %-52s %.2f %s%s" % ("1" if r["first"] else "3" if r["top3"] else "-",
+                                                   "C" if r["covered"] else " ", r["topic"], r["q"][:52], r["best"],
+                                                   r["got"], "" if r["stored"] else "  (no right page stored)"))
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as f:
+            json.dump(rows, f, indent=1)
+    return 0
+
+
+def cmd_compact(args):
+    store = knowledge.KnowledgeStore(knowledge.db_path(args.dir))
+    before = store.stats()["db_bytes"]
+    n = store.compact()
+    print("%d vectors made 16-bit; database %s -> %s" % (n, human(before), human(store.stats()["db_bytes"])))
     return 0
 
 
@@ -303,6 +387,9 @@ def main(argv=None):
     c.add_argument("--depth", type=int, help="subcategory depth (default 1)")
     c.add_argument("--retry", action="store_true", help="try pages that failed 3 times again")
     c.add_argument("--offline", action="store_true", help="rebuild from the download cache, no network")
+    c.add_argument("--core", action="store_true", help="the source's core pages (what survival players ask about)")
+    c.add_argument("--grow", type=int, help="then the N pages the stored pages link to most")
+    c.add_argument("--min-links", type=int, default=4, help="--grow: linked from at least this many pages (4)")
     r = sub.add_parser("refresh")
     r.add_argument("source", nargs="?")
     r.add_argument("--limit", type=int)
@@ -324,6 +411,11 @@ def main(argv=None):
     ri = sub.add_parser("reindex")
     ri.add_argument("source", nargs="?")
     sub.add_parser("embed")
+    sub.add_parser("compact")
+    ev = sub.add_parser("eval")
+    ev.add_argument("--questions", help="a JSON file like eval_questions.json")
+    ev.add_argument("--json", help="write every answer to this file")
+    ev.add_argument("-v", "--verbose", action="store_true", help="one line per question")
     rm = sub.add_parser("remove")
     rm.add_argument("source")
     rm.add_argument("--cache", action="store_true", help="also delete its cached downloads")
@@ -346,7 +438,7 @@ def main(argv=None):
         args.depth = None
     return {"sources": cmd_sources, "crawl": cmd_crawl, "refresh": cmd_refresh, "search": cmd_search,
             "stats": cmd_stats, "embed": cmd_embed, "remove": cmd_remove, "add": cmd_add, "learn": cmd_learn,
-            "learning": cmd_learning, "reindex": cmd_reindex}[args.cmd](args) or 0
+            "learning": cmd_learning, "reindex": cmd_reindex, "compact": cmd_compact, "eval": cmd_eval}[args.cmd](args) or 0
 
 
 if __name__ == "__main__":

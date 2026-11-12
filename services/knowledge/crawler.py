@@ -4,6 +4,7 @@ The queue lives in the knowledge database, so a crawl that is stopped (Ctrl+C, a
 closed laptop) simply continues where it was the next time. Pages whose version token is
 unchanged are not fetched again; pages fetched again but unchanged keep their chunks and vectors.
 """
+import json
 import time
 
 from .fetcher import Blocked
@@ -48,7 +49,7 @@ def crawl(store, src, fetcher, opts=None, limit=None, log=print, refresh=False):
         src.name, len(items), unchanged, len(pend), (" (stopping after %d)" % limit) if limit and limit < len(pend) else ""))
 
     # 2. fetch them, politely, one by one
-    counts = {"new": 0, "changed": 0, "same": 0, "gone": 0, "blocked": 0, "errors": 0, "chunks": 0}
+    counts = {"new": 0, "changed": 0, "same": 0, "gone": 0, "skipped": 0, "blocked": 0, "errors": 0, "chunks": 0}
     done = 0
     try:
         for q in pend:
@@ -64,8 +65,9 @@ def crawl(store, src, fetcher, opts=None, limit=None, log=print, refresh=False):
                 log("  [%d/%d] %s: %s (%s)" % (done, len(pend), title, "skipped" if status == "blocked" else "failed",
                                               error[:120]))
                 continue
-            store.mark(src.name, item.key, "done", "gone" if status == "gone" else None)
-            log("  [%d/%d] %s: %s%s" % (done, len(pend), title, "gone, removed" if status == "gone" else status,
+            store.mark(src.name, item.key, "done", "gone" if status == "gone" else error if status == "skipped" else None)
+            log("  [%d/%d] %s: %s%s" % (done, len(pend), title, "gone, removed" if status == "gone" else
+                                       ("not kept (%s)" % error) if status == "skipped" else status,
                                        (" (%d chunks)" % n) if n else ""))
     except KeyboardInterrupt:
         log("  stopped: %d pages still queued, `kb.py crawl %s` continues from here" % (
@@ -73,6 +75,7 @@ def crawl(store, src, fetcher, opts=None, limit=None, log=print, refresh=False):
         raise
     finally:
         store.upsert_source(src, crawled=not refresh, refreshed=refresh)
+        store.prune_params(src.name)
     took = time.time() - t0
     summary = dict(counts, source=src.name, found=len(items), unchanged=unchanged, processed=done,
                    left=len(store.pending(src.name)), requests=fetcher.requests - req0,
@@ -83,7 +86,7 @@ def crawl(store, src, fetcher, opts=None, limit=None, log=print, refresh=False):
 
 def fetch_one(store, src, fetcher, item, offline=False):
     """Fetch, clean, chunk and store one page. Returns (status, title, chunks, error) with status
-    new | changed | same | gone | blocked | errors. Never raises for a bad page."""
+    new | changed | same | gone | skipped | blocked | errors. Never raises for a bad page."""
     try:
         doc = src.fetch(fetcher, item, offline=offline)
     except Blocked as exc:
@@ -93,6 +96,16 @@ def fetch_one(store, src, fetcher, item, offline=False):
     if doc is GONE:
         store.delete_page(src.name, item.key)
         return "gone", item.title or item.key, 0, None
+    if doc.key != item.key and hasattr(src, "wanted") and not src.wanted(doc.key):
+        # a redirect to a page the rules leave out ("Tutorial:Redstone" is the "Tutorials" index)
+        store.delete_page(src.name, item.key)
+        return "skipped", doc.title, 0, "redirects to %s" % doc.title
+    skip = src.skip_status() if hasattr(src, "skip_status") else ()
+    if doc.meta.get("status") in skip:  # April Fools, spin-off games: not kept
+        store.delete_page(src.name, item.key)
+        if doc.key != item.key:
+            store.delete_page(src.name, doc.key)
+        return "skipped", doc.title, 0, doc.meta["status"]
     if doc.key != item.key and store.page(src.name, item.key):
         store.delete_page(src.name, item.key)  # it moved (a redirect): keep one copy, under the new name
     try:
@@ -107,9 +120,14 @@ def fetch_one(store, src, fetcher, item, offline=False):
 def reindex(store, src, fetcher, log=print):
     """Rebuild every stored page of a source from the download cache, no network: after the
     cleaning or chunking rules changed. Pages whose text comes out the same are left as they are."""
-    counts = {"new": 0, "changed": 0, "same": 0, "gone": 0, "blocked": 0, "errors": 0, "chunks": 0}
+    counts = {"new": 0, "changed": 0, "same": 0, "gone": 0, "skipped": 0, "blocked": 0, "errors": 0, "chunks": 0}
     rows = store.db.execute("select key, title, url, token from pages where source = ?", (src.name,)).fetchall()
     for r in rows:
+        if hasattr(src, "wanted") and not src.wanted(r["key"]):  # the source's rules now leave it out
+            store.delete_page(src.name, r["key"])
+            counts["skipped"] += 1
+            log("  %s: removed (not wanted any more)" % r["title"])
+            continue
         url = src.url_of(r["key"]) if hasattr(src, "url_of") else r["url"]  # the address it was fetched by
         status, title, n, error = fetch_one(store, src, fetcher, Item(r["key"], r["title"], url, r["token"]),
                                             offline=True)
@@ -119,6 +137,33 @@ def reindex(store, src, fetcher, log=print):
         counts["chunks"] += n
         if status == "changed":
             log("  %s: changed (%d chunks)" % (title, n))
+        elif status == "skipped":
+            log("  %s: removed (%s)" % (title, error))
         elif status == "errors":
             log("  %s: %s" % (title, error or "not in the cache"))
     return counts
+
+
+def linked_titles(store, src, min_links=3, exclude=(), canonical=None):
+    """Pages the stored pages link to most, not stored yet: [(title, how many pages link to it)].
+    What a set of good pages keeps pointing at (Diamond, Redstone Dust, Crafting Table) is worth
+    having too; a focused crawl grows the knowledge base along those links. canonical: the real
+    titles ({lowercase: Title}, from the sitemap): a link to "Iron golem" or "Endermen" is a
+    redirect to a page stored already, or to one under its real name; links to no real page go."""
+    def real(t):
+        if canonical is None:
+            return t
+        return canonical.get(t.lower())
+    have = {r[0] for r in store.db.execute("select key from pages where source = ?", (src.name,))}
+    have |= {r[0] for r in store.db.execute("select key from queue where source = ? and status = 'done'", (src.name,))}
+    have = {real(t) or t for t in have}
+    count = {}
+    for (meta,) in store.db.execute("select meta from pages where source = ?", (src.name,)):
+        try:
+            links = json.loads(meta or "{}").get("links") or []
+        except ValueError:
+            continue
+        for t in {real(x) for x in links} - {None}:
+            if t not in have and t not in exclude and (not hasattr(src, "wanted") or src.wanted(t)):
+                count[t] = count.get(t, 0) + 1
+    return sorted(((t, n) for t, n in count.items() if n >= min_links), key=lambda x: (-x[1], x[0]))
