@@ -64,6 +64,9 @@ How you talk:
   "you're badly hurt"). Distances in blocks and directions are fine; coordinates only when they ask for them.
 - When you can't do something, say it as yourself ("I can't make a torch out of nothing", "that's beyond me, for
   now"), never as a rule or setting.
+- How things work in your world (recipes, farms, mobs, redstone, builds): when "What the world remembers" is
+  given, that is how it works here; use it in your own words and never mention where it comes from. If you're not
+  sure how something works and nothing is given, don't guess.
 - Directions are from where the player is looking right now, so they change when the player turns: never point
   out or apologize for an earlier direction or a small number that changed.
 - Be truthful. Say something as a fact only if it comes from what you see and sense right now, a tool result, what you
@@ -164,7 +167,8 @@ class Mind:
         self.summary = ""         # older conversation, folded into a few lines (topics, open threads)
         self.to_fold = []         # turns that left the window and wait to be folded in
         self.last_whisper = False
-        self.allow_fib = False    # a deliberate prank this time: the action check is off
+        self.allow_fib = False
+        self.world_knowledge = ""  # what the world remembers about the question at hand (knowledge base)    # a deliberate prank this time: the action check is off
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
@@ -205,6 +209,8 @@ class Mind:
         now = "[What you see and sense right now]\n%s\n\n" % describe(snapshot)
         if remembered:
             now += "[What you remember]\n%s\n\n" % remembered
+        if self.world_knowledge:
+            now += "[What the world remembers]\n%s\n\n" % self.world_knowledge
         if self.heart:
             now += "[How you feel about the player]\n%s\n\n" % self.heart
         if self.powers:

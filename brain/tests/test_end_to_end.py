@@ -42,6 +42,8 @@ class Stubs:
     def __init__(self):
         self.ai_requests = []
         self.ai_script = []  # replies to give, in order (a message dict); then the default line
+        self.kb = []         # knowledge base answers to give, in order (search/learn), then "not covered"
+        self.kb_requests = []
         self.memory = LocalStore()
         stubs = self
 
@@ -53,6 +55,10 @@ class Stubs:
                 body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
                 if "/memory/" in self.path:
                     out = memory_call(stubs.memory.store, self.path.rsplit("/", 1)[1], json.loads(body or b"{}"))
+                    self._send(200, json.dumps(out).encode(), "application/json")
+                elif "/knowledge/" in self.path:
+                    stubs.kb_requests.append((self.path.rsplit("/", 1)[1], json.loads(body or b"{}")))
+                    out = stubs.kb.pop(0) if stubs.kb else {"covered": False, "best": 0.1, "results": []}
                     self._send(200, json.dumps(out).encode(), "application/json")
                 elif self.path.endswith("/chat/completions"):
                     req = json.loads(body)
