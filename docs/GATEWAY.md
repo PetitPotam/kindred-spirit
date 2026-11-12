@@ -118,8 +118,18 @@ $G use ai --for reflect --clear      # back to the main AI
 Kinds: `reply` (answering you), `own` (things she says on her own), `reflect` (learning), `fold`
 (summarizing older conversation). The dashboard shows which AI answered each call.
 
-Within one provider, `by_kind` can also change the model, for example a stronger Gemini model only for learning:
-`"gemini": {"by_kind": {"reflect": {"model": "gemini-3.1-flash"}}}`.
+Within one provider, `by_kind` can also change the model and, for thinking models, how much it thinks
+(`reasoning_effort`). The recommended Gemini setup puts her conversation on Gemini 3 Flash kept quick, and
+summaries on Flash-Lite:
+
+```json
+"gemini": {"model": "gemini-3.1-flash-lite",
+           "by_kind": {"reply": {"model": "gemini-3-flash-preview", "reasoning_effort": "minimal"},
+                       "own":   {"model": "gemini-3-flash-preview", "reasoning_effort": "minimal"}}}
+```
+
+Without `"minimal"`, a thinking model can spend her whole answer budget thinking and get cut off. A model or
+thinking level set by hand (`$G model ...`) still wins.
 
 ## Special instructions
 

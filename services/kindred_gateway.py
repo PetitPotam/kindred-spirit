@@ -273,6 +273,19 @@ def controls_block(state, hint):
     return "\n\n".join(parts)
 
 
+def for_kind(req, state, up, kind):
+    """Within one provider, a kind of call can use its own model and thinking level ("by_kind"), e.g.
+    her answers on a stronger model kept quick, summaries on the cheap one. A model or thinking level
+    set by hand (/control) still wins. CLI providers read by_kind themselves."""
+    by_kind = (up.get("by_kind") or {}).get(kind) or {}
+    if up.get("type") not in ("claude_cli", "cli"):
+        if by_kind.get("model") and not state.get("model"):
+            req["model"] = by_kind["model"]
+        if by_kind.get("reasoning_effort") and not state.get("reasoning_effort"):
+            req["reasoning_effort"] = by_kind["reasoning_effort"]
+    return req
+
+
 def shape(req, state, upstream_name, hint):
     up = state["upstreams"][upstream_name]
     if state.get("model"):
@@ -638,9 +651,7 @@ class Handler(BaseHTTPRequestHandler):
         paused = state.get("paused")
         hint = "" if paused else state.get("hint_next", "")
         req = shape(req, dict(DEFAULT_STATE, upstreams=state["upstreams"]) if paused else state, name, hint)
-        by_kind = (up.get("by_kind") or {}).get(kind) or {}
-        if by_kind.get("model") and not state.get("model") and up.get("type") not in ("claude_cli", "cli"):
-            req["model"] = by_kind["model"]
+        req = for_kind(req, state, up, kind)
         started = time.time()
         stream = bool(req.get("stream"))
         if up.get("type") in ("claude_cli", "cli"):  # an AI command-line tool the player already has

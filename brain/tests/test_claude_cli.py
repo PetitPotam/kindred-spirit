@@ -122,3 +122,14 @@ def test_each_kind_of_call_can_use_another_ai():
     assert gw.pick_upstream(state, "reply") == "gemini"
     assert gw.pick_upstream(state, "reflect") == "claude"
     assert gw.pick_upstream(state, "fold") == "gemini", "an unknown provider falls back to the main AI"
+
+
+def test_a_kind_of_call_can_use_a_stronger_model_kept_quick():
+    up = {"base": "https://x", "model": "gemini-3.1-flash-lite",
+          "by_kind": {"reply": {"model": "gemini-3-flash-preview", "reasoning_effort": "minimal"}}}
+    reply = gw.for_kind({"model": "gemini-3.1-flash-lite"}, {}, up, "reply")
+    assert reply["model"] == "gemini-3-flash-preview" and reply["reasoning_effort"] == "minimal"
+    fold = gw.for_kind({"model": "gemini-3.1-flash-lite"}, {}, up, "fold")
+    assert fold == {"model": "gemini-3.1-flash-lite"}, "summaries stay on the cheap model"
+    pinned = gw.for_kind({"model": "x"}, {"model": "x"}, up, "reply")
+    assert pinned["model"] == "x", "a model set by hand still wins"
