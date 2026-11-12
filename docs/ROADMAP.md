@@ -11,15 +11,15 @@ The rule for all of it: everything is a setting, so each player finds the compan
 | Pick | Status |
 |---|---|
 | Floating companion drawn only on your screen, cute, with personality (WANT) | **Done in 0.1**: no entity, nothing in the world; gaze, eye contact, petting, wandering, dozing, gestures |
-| Shapes: slime ball, slime cube (WANT) | **Done**: `slime`, `slime_cube` (plus `wisp`, `strawberry`, `starry`) |
+| Shapes: slime ball, slime cube (WANT) | **Done**: `slime`, `slime_cube` (plus `wisp`, `strawberry`, `starry`, and `sprout`, a silhouette of her own with leaves) |
 | Shape: fairy or pixie (WANT) | **Done**: `fairy` and `pixie` skins, two pairs of wings that flutter faster when it moves or is excited and fold when it dozes; any skin can have wings |
 | Custom skins like player skins (WANT) | **Done**: a PNG in `config/kindredspirit/skins`, optional JSON, resource packs ([SKINS.md](SKINS.md)) |
-| Mood colors and expressions (WANT) | **Done**: mood tints, happy eyes, blush, shy look-away, startle, mouth with the voice |
+| Mood colors and expressions (WANT) | **Done**: mood tints, a face that shows her mood on every skin (smile, frown, worried brows, curious eye), a wink, happy eyes, blush, shy look-away, startle, mouth with the voice |
 | Floating subtitles above it (MAYBE, configurable) | **Done**: `worldSubtitles` in kindredspirit.json (on by default); HUD captions as an option |
 | Name tag only when you look at it (MAYBE, configurable) | **Planned** (Phase 1 leftovers): off by default |
 | Radial command wheel (MAYBE, configurable) | **Planned** (Phase 3): stay, come, follow, look, gestures, skins on one key |
 | Companion screen with a rotating 3D preview (WANT) | **Planned** (Phase 3): pick skin, size, name and personality while it turns in front of you |
-| A real companion mob / autonomous helpers (MAYBE) | **Open question** in the design; never by default |
+| A real companion mob / autonomous helpers (MAYBE) | **Open question** in the design; never by default. For friends on your LAN world only, a stand-in (an Allay) shows where she is |
 | Everything configurable | **Mostly**: every look and liveliness behavior is a setting (config file, `/kindred skin`, `/kindred life` with 13 switches). Still to come: an in-game settings screen (Phase 1 leftover) |
 
 ## Phase 0: Spike, no Java (one or two evenings)
@@ -112,6 +112,47 @@ her voice across prompts and models, and her conversation on Gemini 3 Flash.
   - Fast models still untested: Chatterbox Turbo, Pocket TTS (Kyutai), Soprano, Kitten TTS.
   - Pre-rendering her written-ahead instinct lines with an expressive model in the background, so
     they play instantly with real emotion while live answers stay on Kokoro.
+
+### Next, from the 2026-11-12 review
+
+A review of the whole project after the design pass (dashboard, her face, her words on screen),
+measured on a 17-minute playtest and 1,000 logged AI calls. Small fixes first, each an hour or less:
+
+- **Shorter answers.** 35 of 39 replies were cut off by the player talking, after about 6 s, and 16
+  ended in a question nobody heard. One sentence by default, a question only first, and the session
+  summary reporting the cut rate.
+- **No lines of her own between your words and her answer**: from the moment you start talking to
+  her answer's first words, only warnings.
+- **No claims without the deed**: "follow my glow", "this way", "I'll show you" count as claims;
+  a tool that gained nothing (leaves broken instead of wood) is told to her as a failure; harvest
+  with no target takes the nearest log.
+- **Low-health warnings without numbers**, like the creeper ones.
+- **One protect per turn**, and System 0 protects at once on "help me / they're attacking me".
+- **All-powerful explains magic**: giving items also needs the magic style; the dashboard says so.
+- **Fewer "Oh"/"Ooh" openings** (a fifth of her replies), gestures described so spin stays rare,
+  invented gestures mapped (sigh, wave, tilt, smile).
+- **The gateway refuses other web pages** (Origin and Host checks), so no site can rewrite her
+  persona or her memories.
+- **Memory never records the player's gender or age** unless the player said it.
+- Logs that rotate, a `scripts/test.sh` that works from any checkout, a sign in game when the
+  brain is offline, her mouth moving with subtitles when her voice is off, a test for every
+  dashboard route.
+
+Bigger, for System 0, 1 and 2 working together:
+
+- **Speak before the tool**: an instinct line as guide, protect or come starts, the AI's words only
+  if there's more (1.5 to 2 s sooner).
+- **System 0 answers plain commands alone** ("come back", "help me"): a third of the playtest's lines.
+- **System 2 tunes her from each session's numbers** (cut rate, length, lines on her own) within
+  bounds, writes her reactions to likely moments ahead of time, and proposes urges.
+- **Only the context each request needs** (4,460 tokens per reply today) and a prompt that keeps
+  Gemini's prefix cache (the running summary out of the system message).
+- **Reflection less often, on Haiku for routine passes** (System 2 is 85% of the cost).
+- **The speech coordinator in its own module** with tests for its races; only the sentences she
+  really said count as said in her history.
+- When you stray while she leads, she comes back to you and leads again.
+
+Decision pending: `sprout` as her default skin (today `slime`).
 
 ## Phase 4: Expertise and understanding
 - Recipes and items (minecraft-data), wiki knowledge search.
