@@ -78,7 +78,7 @@ flowchart LR
   s0 -- "what you meant (the request kind),<br/>what it already did, what she noticed" --> s1
   s0 -- "lines said on instinct, with why<br/>(so a reply to them makes sense)" --> s1
   s1 -- "sentences to speak, as they're written" --> s0
-  s1 -- "tools: guide, protect, torch, chop, find" --> body
+  s1 -- "tools: guide, protect, torch, chop, build, find" --> body
   s1 -- "the conversation, every few exchanges<br/>and when you leave" --> s2
   s1 -- "a power she doesn't know yet:<br/>'I'll try!'" --> s2
   s1 -- "listen more: how something works" --> s2
@@ -256,8 +256,6 @@ pays off most for little cost, because it's called rarely.
 
 Planned next (details in [ROADMAP.md](ROADMAP.md)):
 
-- **Building with you**: stacking and placing blocks from your inventory in patterns you ask for
-  ("a pillar 10 high on each corner").
 - **Seeking**: when you ask her to find something far away, she reaches out with effort and magic;
   precise when close, fuzzy when far, and beyond what's loaded she senses where such things *live*
   (biomes, structures) and sharpens as you get closer.

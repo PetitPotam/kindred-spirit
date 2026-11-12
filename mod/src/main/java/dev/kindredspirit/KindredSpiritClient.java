@@ -120,6 +120,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 "key.kindredspirit.talk", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.kindredspirit"));
 
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        // her building works block by block on the (integrated) server
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
+                dev.kindredspirit.act.Builder::tick);
         WorldRenderEvents.START.register(ctx -> {
             if (devScript != null) devScript.frame(Minecraft.getInstance());
         });

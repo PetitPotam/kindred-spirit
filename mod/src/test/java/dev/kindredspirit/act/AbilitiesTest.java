@@ -22,6 +22,8 @@ class AbilitiesTest {
         assertTrue(Abilities.allowed(Ability.HARVEST, Power.HELPER, Style.GROUNDED));
         assertTrue(Abilities.allowed(Ability.FIND_BLOCK, Power.ADVISOR, Style.GROUNDED), "finding is only looking");
         assertFalse(Abilities.allowed(Ability.HARVEST, Power.ADVISOR, Style.MAGIC));
+        assertTrue(Abilities.allowed(Ability.BUILD, Power.HELPER, Style.GROUNDED), "building with your own blocks");
+        assertFalse(Abilities.allowed(Ability.BUILD, Power.ADVISOR, Style.MAGIC));
         assertFalse(Abilities.allowed(Ability.GIVE_ITEM, Power.HELPER, Style.GROUNDED));
         assertTrue(Abilities.allowed(Ability.GIVE_ITEM, Power.HELPER, Style.MAGIC));
         assertTrue(Abilities.refusal(Ability.GIVE_ITEM, Power.HELPER, Style.GROUNDED).contains("grounded"));

@@ -1,0 +1,35 @@
+# Building with you: ten blocks on each corner, then a pillar of planks.
+world kindred-build
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -16 198 -16 16 198 24 minecraft:grass_block
+cmd fill -16 199 -16 16 220 24 minecraft:air
+cmd tp @s 0.5 199 0.5 0 35
+cmd clear @s
+cmd give @s minecraft:cobblestone 64
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power helper
+type /kindred style grounded
+act {"move": "follow"}
+wait 100
+chat can you place 10 blocks on top of each other on each corner of a 5 by 5 square?
+wait 500
+camera back
+look 0 15
+wait 20
+screenshot build-01-corners
+camera first
+cmd give @s minecraft:oak_planks 10
+cmd tp @s 8.5 199 0.5 0 35
+wait 20
+chat pip, build a pillar 6 blocks high with the oak planks
+wait 300
+screenshot build-02-pillar
+wait 20
+quit
