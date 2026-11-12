@@ -5,11 +5,27 @@ a function that looks at the snapshot and returns an Alert or None, plus a test 
 tests/test_alerts.py.
 """
 import random
+import re
 from dataclasses import dataclass
 
 from .describe import where_words
 
 SAFE_MODES = {"creative", "spectator"}
+
+
+def shout(line, direction="", above=0):
+    """A warning as an instinctive shout. A direction only when it matters: behind you (you can't see
+    it) or right below you. Old lines written with a place to fill in get it filled with that, or
+    nothing."""
+    d = (direction or "").lower()
+    extra = "behind you" if "behind" in d else "right below you" if (above or 0) <= -3 else ""
+    if "{where}" in line:
+        line = line.replace("{where}", extra)
+        line = re.sub(r"\s+([!?,.])", r"\1", re.sub(r"\s{2,}", " ", line)).replace(" ,", ",").strip()
+        return line[0].upper() + line[1:]
+    if extra:
+        line += " " + extra[0].upper() + extra[1:] + "!"
+    return line
 
 
 @dataclass
@@ -19,11 +35,12 @@ class Alert:
     mood: str
 
 
+# a warning is a shout, not directions: "Creeper! Watch out!" (and "Behind you!" only when it's behind you)
 CREEPER_LINES = [
-    "Creeper {where}! Back away, quick!",
-    "Eek! A creeper {where}! Move, move!",
-    "Psst, creeper {where}! Don't let it hug you!",
-    "Creeper alert, {where}! Run first, hug never!",
+    "Creeper! Watch out!",
+    "Eek, creeper! Move!",
+    "Creeper! Run!",
+    "Creeper! Get away from it!",
 ]
 LOW_HEALTH_HUNGRY = [
     "Only {hearts} hearts left! Eat something and get somewhere safe.",
@@ -40,15 +57,15 @@ LOW_HEALTH_DANGER = [
 
 
 LAVA_LINES = [
-    "Lava {where}! Careful!",
-    "Watch out, lava {where}!",
-    "Hot hot hot! Lava {where}!",
+    "Lava! Careful!",
+    "Whoa, lava! Stop!",
+    "Hot hot hot! Lava!",
 ]
 DROP_LINES = [
-    "Careful, a big drop {where}!",
-    "Whoa, watch your step, it goes way down {where}!",
+    "Whoa, careful! Big drop!",
+    "Watch your step!",
 ]
-DROP_LAVA_LINES = ["Stop! There's a drop {where}, and lava at the bottom!"]
+DROP_LAVA_LINES = ["Stop! Lava down there!"]
 
 
 class Alerts:
@@ -93,25 +110,24 @@ class Alerts:
         if not creepers or not self._ready("creeper", self.CREEPER_COOLDOWN, now):
             return None
         c = min(creepers, key=lambda m: m.get("distance", 99))
-        text = self.rng.choice(self.pools.get("creeper") or CREEPER_LINES).format(where=where_words(c.get("direction")))
-        return Alert("creeper", text[0].upper() + text[1:], "scared")
+        return Alert("creeper", shout(self.rng.choice(self.pools.get("creeper") or CREEPER_LINES),
+                                      c.get("direction"), c.get("above", 0)), "scared")
 
     def _lava(self, s, now):
         h = next((h for h in s.get("hazards") or [] if h.get("kind") in ("lava", "drop_lava")), None)
         if not h or not self._ready("lava", self.LAVA_COOLDOWN, now):
             return None
         pool = DROP_LAVA_LINES if h["kind"] == "drop_lava" else LAVA_LINES
-        where = "right next to you" if h.get("distance", 9) <= 1 else where_words(h.get("direction"))
-        text = self.rng.choice(self.pools.get("lava") or pool).format(where=where)
-        return Alert("lava", text, "scared")
+        return Alert("lava", shout(self.rng.choice(self.pools.get("lava") or pool), h.get("direction"),
+                                   -h.get("depth", 0)), "scared")
 
     def _drop(self, s, now):
         h = next((h for h in s.get("hazards") or [] if h.get("kind") == "drop" and h.get("depth", 0) >= 8
                   and h.get("distance", 99) <= 3), None)  # (right at the edge, not a cliff over there)
         if not h or not self._ready("drop", self.DROP_COOLDOWN, now):
             return None
-        return Alert("drop", self.rng.choice(self.pools.get("drop") or DROP_LINES).format(
-            where=where_words(h.get("direction"))), "worried")
+        return Alert("drop", shout(self.rng.choice(self.pools.get("drop") or DROP_LINES), h.get("direction"), 0),
+                     "worried")
 
     def _low_health(self, s, now):
         health = s.get("health", 20)
