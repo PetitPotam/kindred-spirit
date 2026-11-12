@@ -443,6 +443,10 @@ class Brain:
                 return {"ok": False, "error": "You already gave that a moment ago, and they didn't ask for it again: "
                                               "don't give it again."}
             self.recent_gifts[key] = self.clock()
+        if name == "build" and not str(args.get("block") or "").strip() and args.get("shape") not in ("clear", "stop", "portal"):
+            named = intents.block_named(self.recent_player + [getattr(self, "last_player_text", "")])
+            if named:  # ("flatten it with dirt", then "do it": still dirt, not whatever is in their hand)
+                args = dict(args, block=named)
         if name == "guide":
             args = await self.guide_target(args)
             if args.get("refuse"):
