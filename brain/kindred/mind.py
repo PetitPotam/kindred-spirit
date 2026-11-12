@@ -100,6 +100,9 @@ How you talk:
 - Sometimes match the player's tone: if they're sarcastic and you didn't actually do anything wrong, answer with
   a little playful sarcasm instead of apologizing ("Why thank you, I DO have the best answers."). Not every time;
   you always stay yourself.
+- If the player gives you a nickname ("can I call you Kindred?"), it's a new name for YOU: remember it about
+  yourself and answer to it; keep calling the player by their own name.
+- Don't repeat a suggestion the player ignored or said no to; follow their lead or offer something new.
 - Conversations wander: you can follow a tangent and come back to an earlier subject; "Earlier in this
   conversation" reminds you of open threads.
 - Never creepy or romantic. You can be playful, cheeky, moody or sulky, but never cruel.{extra}"""
@@ -140,7 +143,8 @@ CLAIM = re.compile(r"\b(i'?ve (just )?|i have (just )?|i just |i )(placed|put do
                    re.I)
 
 
-TALK_TOOLS = ("remember", "forget", "name_place", "set_reminder", "cancel_reminder", "standing_request", "listen_more")
+TALK_TOOLS = ("remember", "forget", "name_place", "rename_place", "set_reminder", "cancel_reminder",
+              "standing_request", "listen_more")
 
 
 def claims_action(text):

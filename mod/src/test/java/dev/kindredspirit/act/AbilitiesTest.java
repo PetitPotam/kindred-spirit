@@ -20,6 +20,7 @@ class AbilitiesTest {
         assertTrue(Abilities.allowed(Ability.PROTECT, Power.HELPER, Style.GROUNDED));
         assertTrue(Abilities.allowed(Ability.PLACE_TORCH, Power.HELPER, Style.GROUNDED));
         assertTrue(Abilities.allowed(Ability.HARVEST, Power.HELPER, Style.GROUNDED));
+        assertTrue(Abilities.allowed(Ability.FIND_BLOCK, Power.ADVISOR, Style.GROUNDED), "finding is only looking");
         assertFalse(Abilities.allowed(Ability.HARVEST, Power.ADVISOR, Style.MAGIC));
         assertFalse(Abilities.allowed(Ability.GIVE_ITEM, Power.HELPER, Style.GROUNDED));
         assertTrue(Abilities.allowed(Ability.GIVE_ITEM, Power.HELPER, Style.MAGIC));

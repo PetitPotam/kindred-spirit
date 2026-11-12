@@ -305,7 +305,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
         });
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world.isClientSide && (entity instanceof net.minecraft.world.entity.animal.Animal
-                    || entity instanceof net.minecraft.world.entity.npc.AbstractVillager)) {
+                    || entity instanceof net.minecraft.world.entity.npc.AbstractVillager
+                    || entity instanceof net.minecraft.world.entity.monster.Enemy)) {
                 attacked.put(entity.getId(), System.currentTimeMillis());
             }
             return net.minecraft.world.InteractionResult.PASS;
@@ -388,6 +389,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 voice.stop();
                 companion.activity = Behavior.Activity.LISTENING;
                 recorder.start(cfg.maxRecordSeconds, this::onRecorded);
+                event("listening"); // she stops, and holds back what she'd say while you talk
             }
         } else if (!held && companion.activity == Behavior.Activity.LISTENING) {
             recorder.stop();
@@ -503,8 +505,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 boolean more = msg.has("more") && msg.get("more").getAsBoolean();
                 currentLine = msg.has("line") ? msg.get("line").getAsInt() : currentLine + 1;
                 // decoded here, off the game thread, then played on the audio thread
-                double secs = b64.isEmpty() ? 0 : voice.play(Base64.getDecoder().decode(b64), volume(mc));
-                if (b64.isEmpty()) voice.stop();
+                // while you hold the talk key her voice stays off (the microphone would hear it): subtitle only
+                boolean muted = recorder.isRecording();
+                double secs = b64.isEmpty() || muted ? 0 : voice.play(Base64.getDecoder().decode(b64), volume(mc));
+                if (b64.isEmpty() || muted) voice.stop();
                 mc.execute(() -> {
                     long now = System.currentTimeMillis();
                     companion.mood = mood;
@@ -524,7 +528,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             }
             case "audio" -> {
                 // the next sentence of the current line
-                if (!msg.has("line") || msg.get("line").getAsInt() != currentLine) return;
+                if (!msg.has("line") || msg.get("line").getAsInt() != currentLine || recorder.isRecording()) return;
                 double secs = voice.enqueue(Base64.getDecoder().decode(str(msg, "audio")), volume(mc));
                 mc.execute(() -> {
                     long now = System.currentTimeMillis();
@@ -688,6 +692,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     o.addProperty("event", "killed");
                     o.addProperty("detail", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
                     o.addProperty("villager", e instanceof net.minecraft.world.entity.npc.AbstractVillager);
+                    o.addProperty("monster", e instanceof net.minecraft.world.entity.monster.Enemy);
                     link.send(o);
                     return true;
                 }

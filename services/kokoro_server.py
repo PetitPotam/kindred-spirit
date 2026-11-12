@@ -72,6 +72,28 @@ def voice_style(expr):
     return sum(_engine.get_voice_style(n) * (w / total) for n, w in mix).astype(np.float32)
 
 
+def keep_phonemizer(engine):
+    """kokoro-onnx calls phonemizer.phonemize() for every line, which builds a new espeak backend each
+    time (~60 ms, "initializing backend espeak" in the log). One backend per language, kept: the same
+    phonemes, without the setup on every line."""
+    try:
+        from phonemizer.backend import EspeakBackend
+        from kokoro_onnx.tokenizer import Tokenizer
+    except ImportError:
+        return
+    tok, backends = engine.tokenizer, {}
+
+    def phonemize(text, lang="en-us", norm=True):
+        if norm:
+            text = Tokenizer.normalize_text(text)
+        b = backends.get(lang)
+        if b is None:
+            b = backends[lang] = EspeakBackend(lang, preserve_punctuation=True, with_stress=True)
+        ph = b.phonemize([text], strip=True)[0]
+        return "".join(p for p in ph if p in tok.vocab).strip()
+    tok.phonemize = phonemize
+
+
 def synthesize(text, voice, speed, pitch=1.0, gain=1.0):
     style = voice_style(voice)
     lang = "en-gb" if isinstance(style, str) and style.startswith("b") else "en-us"
@@ -166,6 +188,7 @@ def main():
     session = rt.InferenceSession(os.path.join(args.models, model), sess_options=opts,
                                   providers=["CPUExecutionProvider"])
     _engine = Kokoro.from_session(session, os.path.join(args.models, "voices-v1.0.bin"))
+    keep_phonemizer(_engine)
     _voices = set(_engine.get_voices())
     synthesize("Hi.", DEFAULT_VOICE if DEFAULT_VOICE in _voices else sorted(_voices)[0], 1.0)  # warm up
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler)

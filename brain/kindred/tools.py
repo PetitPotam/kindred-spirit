@@ -26,6 +26,10 @@ ABILITY_TOOLS = {
                         "villagers... Then guide can lead them to it, even as it walks around.",
                         {"animal": {"type": "string", "description": "sheep, cow, pig, chicken, horse, wolf, cat, fox, "
                                     "villager... or 'animal' for any animal"}}, ["animal"]),
+    "find_block": _fn("find_block", "Find the nearest block of a kind within about 24 blocks: a flower, a pumpkin, "
+                       "a melon, sugar cane, bamboo, a chest, a bed, water, a tree... Use it before leading the player "
+                       "to such a thing, then guide.", {"block": {"type": "string", "description": "flower, pumpkin, "
+                       "chest, water, tree, sugar cane..."}}, ["block"]),
     "locate": _fn("locate", "Find the nearest structure or biome in this world (uses the world seed, any distance). "
                   "Structures: " + STRUCTURES + ". Or any biome, like cherry_grove or mushroom_fields.",
                   {"what": {"type": "string"}}, ["what"]),
@@ -78,7 +82,12 @@ MEMORY_TOOLS = [
     _fn("forget", "Forget facts or named places that mention something, when the player asks you to forget.",
         {"about": {"type": "string"}}, ["about"]),
     _fn("name_place", "Remember where the player is standing under a name, when they say things like "
-        "'this is my base' or 'remember this spot'.", {"name": {"type": "string"}}, ["name"]),
+        "'this is my base' or 'remember this spot'. Use the full name they give ('pumpkin base', not 'base'). If "
+        "that name is already used somewhere else it won't move it unless replace is true (only when they said so).",
+        {"name": {"type": "string"}, "replace": {"type": "boolean", "description": "move the existing place here"}},
+        ["name"]),
+    _fn("rename_place", "Give a remembered place another name ('no, call it my pumpkin base').",
+        {"old": {"type": "string"}, "new": {"type": "string"}}, ["old", "new"]),
 ]
 
 

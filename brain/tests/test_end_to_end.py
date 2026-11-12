@@ -155,7 +155,8 @@ def test_voice_question_is_heard_and_answered_with_game_state(stubs):
             assert heard["text"] == "what is around me?"
             say = await recv_until(ws, "say")
             assert say["text"] == "I see an oak log, three blocks ahead!" and say["mood"] == "curious"
-            assert say["audio"]
+            audio = await recv_until(ws, "audio")  # the subtitle comes first, her voice right after
+            assert audio["line"] == say["line"] and base64.b64decode(audio["audio"]).startswith(b"RIFF")
     asyncio.run(with_brain(make_cfg(stubs.port), scenario))
     last = stubs.ai_requests[-1]["messages"][-1]["content"]
     assert "Looking at: oak log" in last and "biome plains" in last

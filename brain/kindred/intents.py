@@ -67,6 +67,9 @@ ACTION_HINTS = [
     (r"\b(chop|cut|fell|harvest|break|mine|dig out|knock down)\b.{0,25}\b(tree|trees|log|logs|wood|this|that|block|it|"
      r"stone|ore|rock)\b|\bget (me )?(some )?wood\b", "harvest"),
     (r"\b(give|gimme|get) me\b|\bcan i (have|get)\b", "give_item"),
+    (r"\b(find|where|any|nearest|closest|look for|lead me to|take me to|show me|bring me to)\b.{0,40}\b(flowers?|"
+     r"pumpkins?|melons?|sugar ?cane|bamboo|cactus|chests?|beds?|water|trees?|mushrooms?|berr(y|ies)|wheat|carrots?|"
+     r"potatoes|crafting table|furnace|lily pads?)\b(?!\s*(base|home|house|farm|spot|place|patch))", "find_block"),
     (r"\b(take|lead|guide|bring|show) (me|us)\b|\blead the way\b|\bshow( me)? the way\b|\b(i'?ll|i will|we'?ll) "
      r"follow you\b|\bgo ahead,? i'?ll follow\b|\bwhich way\b", "guide"),
     (r"\b(find|where|any|nearest|closest|look for|search|see)\b.{0,40}\b(sheeps?|cows?|pigs?|chickens?|horses?|"

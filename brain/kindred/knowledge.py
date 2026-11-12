@@ -22,7 +22,7 @@ WORLD = re.compile(
     r"wither|dragon|warden|horse|wolf|cat|axolotl|bee|sheep|cow|pig|chicken|fish|boat|rail|minecart|bed|"
     r"armor|sword|pickaxe|axe|shovel|bow|crossbow|trident|shield|map|compass|clock|book|lectern|furnace|"
     r"chest|torch|lantern|glass|concrete|terracotta|wool|dye|block|item)s?\b", re.I)
-ABOUT_US = re.compile(r"\b(you|your|yourself|pip)\b", re.I)
+ABOUT_US = re.compile(r"\b(you|your|yourself|pip|my|mine|our|coordinates?|where am i|where are we)\b", re.I)
 
 
 def is_world_question(text):

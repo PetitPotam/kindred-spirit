@@ -43,7 +43,7 @@ def test_world_knowledge_stays_in_its_world():
     assert "quartz" in a and "quartz" not in b
 
 
-def test_places_from_where_you_stand_and_renaming_moves_them():
+def test_places_from_where_you_stand_and_moving_one_when_asked():
     m = memory()
 
     async def go():
@@ -51,7 +51,8 @@ def test_places_from_where_you_stand_and_renaming_moves_them():
         await m.name_place("my base", snap())                                  # x 12, z -30
         far = snap(where={"x": 12, "y": 70, "z": 70, "dimension": "minecraft:overworld"})
         one = await m.context(far, "hello")
-        await m.name_place("my base", far)                                     # moved house
+        assert (await m.name_place("my base", far))["exists"]                 # never moved silently
+        await m.name_place("my base", far, replace=True)                       # "yes, move it here"
         two = await m.context(snap(), "hello")
         return one, two, len(await m.places())
     one, two, n = run(go())
@@ -270,4 +271,26 @@ def test_her_tastes_change_and_her_hurts_can_heal():
         await m.learn({"healed": [core["id"]]})
         text = await m.context({}, "hi")
         assert "made peace with it" in text and "dislike cherry wood" in text
+    asyncio.run(run())
+
+
+def test_two_bases_never_overwrite_each_other_and_first_means_first():
+    def at(x, z):
+        return {"where": {"x": x, "y": 64, "z": z, "dimension": "minecraft:overworld"}}
+
+    async def run():
+        m = memory()
+        await m.open_world("sp:A")
+        await m.name_place("base", at(23, -6))
+        clash = await m.name_place("base", at(26, 30))
+        assert clash and clash["exists"]["x"] == 23, "the first base isn't moved silently"
+        await m.name_place("pumpkin base", at(26, 30))
+        places = await m.places()
+        assert m.pick_place(places, "pumpkin base")["meta"]["x"] == 26
+        assert m.pick_place(places, "base")["meta"]["x"] == 23, "'base' is the base, not the pumpkin base"
+        assert m.pick_place(places, "my original base")["meta"]["x"] == 23
+        await m.rename_place("pumpkin base", "farm")
+        assert m.pick_place(await m.places(), "farm")["meta"]["x"] == 26
+        moved = await m.name_place("base", at(40, 40), replace=True)
+        assert moved["x"] == 40, "moved when they said so"
     asyncio.run(run())

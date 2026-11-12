@@ -1,0 +1,10 @@
+world kindred-features
+wait 200
+cmd setblock ~4 ~ ~3 minecraft:poppy
+cmd setblock ~-6 ~ ~2 minecraft:pumpkin
+wait 20
+do find_block {"block": "flower"}
+do find_block {"block": "pumpkins"}
+do find_block {"block": "diamond block"}
+wait 20
+quit

@@ -83,6 +83,7 @@ public final class Actions {
             return switch (a) {
                 case FIND_ORE -> done(findOre(mc, str(args, "ore", "diamond")));
                 case FIND_ANIMAL -> done(findAnimal(mc, str(args, "animal", "sheep")));
+                case FIND_BLOCK -> done(findBlock(mc, str(args, "block", "flower")));
                 case LOCATE -> onServer(mc, s -> locate(s, mc.player, str(args, "what", "village")));
                 case GUIDE, STOP_GUIDE -> done(ok()); // handled by the companion itself
                 case PROTECT -> onServer(mc, s -> protect(s, mc.player));
@@ -135,6 +136,58 @@ public final class Actions {
         res.addProperty("found", true);
         res.addProperty("ore", kind);
         res.addProperty("blocksOfIt", count);
+        return res;
+    }
+
+    /**
+     * Nearest block of a kind within 24 blocks ("flower", "pumpkin", "sugar cane", "chest", "water", "tree"):
+     * a group by tag (any flower, any log, any leaves, any bed), else any block whose id has those words.
+     */
+    static JsonObject findBlock(Minecraft mc, String what) {
+        String w = what.toLowerCase(Locale.ROOT).replace("minecraft:", "").trim().replaceAll("\\s+", "_");
+        if (w.endsWith("s") && !w.endsWith("ss") && !w.equals("grass")) w = w.substring(0, w.length() - 1);
+        final String want = w;
+        java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> match = switch (want) {
+            case "flower" -> st -> st.is(net.minecraft.tags.BlockTags.FLOWERS);
+            case "tree", "log", "wood" -> st -> st.is(net.minecraft.tags.BlockTags.LOGS);
+            case "leave", "leaf" -> st -> st.is(net.minecraft.tags.BlockTags.LEAVES);
+            case "bed" -> st -> st.is(net.minecraft.tags.BlockTags.BEDS);
+            case "water" -> st -> st.getFluidState().is(net.minecraft.tags.FluidTags.WATER) && st.getFluidState().isSource();
+            case "lava" -> st -> st.getFluidState().is(net.minecraft.tags.FluidTags.LAVA);
+            default -> st -> BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath().contains(want);
+        };
+        LocalPlayer p = mc.player;
+        BlockPos center = p.blockPosition();
+        int r = 24;
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        int count = 0;
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        for (int dy = -12; dy <= 12; dy++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    m.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
+                    net.minecraft.world.level.block.state.BlockState st = mc.level.getBlockState(m);
+                    if (st.isAir() || !match.test(st)) continue;
+                    count++;
+                    double d = dx * dx + dy * dy * 2 + dz * dz; // the same level counts as closer
+                    if (d < bestD) {
+                        bestD = d;
+                        best = m.immutable();
+                    }
+                }
+            }
+        }
+        if (best == null) {
+            JsonObject r0 = ok();
+            r0.addProperty("found", false);
+            r0.addProperty("searched", "24 blocks around the player");
+            return r0;
+        }
+        JsonObject res = place(p, best.getX() + 0.5, best.getY() + 0.5, best.getZ() + 0.5);
+        res.addProperty("found", true);
+        res.addProperty("block", BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(best).getBlock()).getPath().replace('_', ' '));
+        res.addProperty("howMany", count);
         return res;
     }
 
