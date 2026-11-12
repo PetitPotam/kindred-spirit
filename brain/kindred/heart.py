@@ -404,6 +404,31 @@ class Heart:
                 "do what they asked, then tell them with wonder and delight (\"I can sense diamonds now!\"), in one "
                 "or two short sentences." % (thanks, POWER_NAMES[ability], request))
 
+    # ------------------------------------------------------------------ where she comes from (discovered in play)
+
+    def origin_moment(self, why, now, chance=1.0):
+        """A moment that may reveal a small piece of where she comes from: a power waking up, a place
+        from the world's old stories, the bond deepening. At most one every 20 minutes. Returns the
+        words to add to her instruction, or ""."""
+        if now - self.state.get("last_origin", -1e9) < 1200 or self.rng.random() > chance:
+            return ""
+        self.state["last_origin"] = now
+        return (" This moment (%s) stirs something deep in you: you may realize ONE small new piece about where you "
+                "come from or what you are, rooted in your world's old stories and in what you two have lived here, "
+                "consistent with what you already know about your origin. Keep it small and wondering; it can raise a "
+                "new question. Say it naturally, as a discovery." % why)
+
+    def lore_place(self, biome, dimension):
+        """The first time in a place from the world's old stories: what it is, else None."""
+        b = (biome or "").replace("minecraft:", "")
+        d = (dimension or "").replace("minecraft:", "")
+        place = ("the deep dark, where the ancient cities sleep" if b == "deep_dark" else
+                 "the End" if d == "the_end" else "the Nether" if d == "the_nether" else None)
+        if place and place not in self.state.setdefault("lore_places", []):
+            self.state["lore_places"].append(place)
+            return place
+        return None
+
     def fizzle_note(self, ability):
         return ("You were trying to %s for the player, but you feel too upset to focus right now and it slips "
                 "away. Say so in one short sentence; you might try again later." % POWER_NAMES[ability])
@@ -471,6 +496,10 @@ class Heart:
         if event == "biome":
             return ("You've just arrived in a %s. Share one little dreamy observation about it, in one short "
                     "sentence." % detail.replace("minecraft:", "").replace("_", " "))
+        if event == "lore_place":
+            return ("You've just arrived in %s for the very first time. Something about it feels strangely familiar. "
+                    "Say what you feel, in one or two short sentences.%s" % (
+                        detail, self.origin_moment("arriving in %s" % detail, self.clock())))
         if event == "death":
             return "The player just died. Be worried and sweet about it in one short sentence."
         if event == "mining":

@@ -237,3 +237,17 @@ def test_passing_feelings_fade_lasting_facts_stay():
         later = await m.context({}, "how are you")
         assert "sad about losing" not in later and "spruce" in later
     asyncio.run(run())
+
+
+def test_her_origin_is_a_mystery_until_she_discovers_it():
+    async def run():
+        m = memory()
+        await m.open_world("sp:A")
+        assert "you don't know yet" in await m.context({}, "hi")
+        await m.learn({"origin": [{"text": "I think I was born from the light of the first beacon.", "importance": 9}]})
+        await m.learn({"origin": [{"text": "The old stones hum when I'm near them, like family.", "importance": 9}]})
+        text = await m.context({}, "hi")
+        line = next(l for l in text.splitlines() if l.startswith("Where you come from"))
+        assert line.index("beacon") < line.index("old stones"), "her story, in the order she discovered it"
+        assert "still a mystery" in line
+    asyncio.run(run())
