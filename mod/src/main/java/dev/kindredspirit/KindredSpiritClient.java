@@ -545,7 +545,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             if (visit) notice(displayName + " comes along into this world: everyone here can see her and talk to her.", 6000);
             sendAbilities(); // (her powers work here now, through this world's game)
         }
-        if (visitingWorld && ++visitTicks % 4 == 0) {
+        if (visitingWorld && ++visitTicks % 2 == 0) {
             JsonObject o = new JsonObject();
             o.addProperty("kind", "state");
             o.add("state", dev.kindredspirit.guest.SharedPip.describe(companion, displayName, companion.anchor(mc).getUUID(),
