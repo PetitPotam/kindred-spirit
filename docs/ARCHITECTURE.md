@@ -85,13 +85,16 @@ flowchart LR
   s2 -- "her instinct lines, in her own voice (checked)" --> s0
   s2 -- "who she's become lately (checked);<br/>a power waking up; a piece of her story" --> s1
   s2 -- "learned facts, tastes, core memories, diary" --> mem
-  mem -- "what comes to mind for this message" --> s1
+  s1 -- "live, with her tools: remember, forget,<br/>name a place, reminders, standing requests" --> mem
+  s0 -- "episodes (each exchange, hits, kills, arrivals),<br/>places found, her history" --> mem
+  mem -- "what comes to mind for this message<br/>(picked by meaning, before every answer)" --> s1
   mem -- "what she remembers, to reflect on" --> s2
   s0 -- "hits, petting, spam, danger, kind words" --> heart
   s1 -- "how you just treated her (the regard tag)" --> heart
   heart -- "how she feels about you right now" --> s1
   heart -- "bond level changed: rewrite her lines and portrait" --> s2
   heart -- "may she prank, sulk, vanish?" --> s0
+  s2 -- "reappraisal: how she sees what happened" --> heart
 ```
 
 | From → to | What passes | When |
