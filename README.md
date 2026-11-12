@@ -230,6 +230,7 @@ gateway's settings and special instructions. See [docs/DASHBOARD.md](docs/DASHBO
   ```
   Keys go in `~/.kindred-spirit/secrets.env` (readable only by you).
 - **Memory:** each world has its own companion by default; `scripts/memory.sh` shows what she remembers, `worlds` and `import` bring memories from one world to another, `reset` starts over ([how it works](docs/MEMORY.md)).
+- **What she knows about Minecraft:** a local knowledge base (recipes, mobs, biomes, redstone, farming, build guides) you fill yourself from the Minecraft Wiki and your own notes: `python3 services/knowledge/kb.py crawl minecraft-wiki --category Mobs --limit 50` ([docs/KNOWLEDGE.md](docs/KNOWLEDGE.md)). Not yet used by her in conversation.
 - **Her heart** (discovering her powers, bond, pride, play-fights, her mood, animals, pranks, mischief when angry, vanishing...): `[heart]` in brain.toml ([docs/HEART.md](docs/HEART.md)).
 - **Her voice:** set in the gateway: `$G voice af_bella`, or a blend like `af_sky*0.5+af_bella*0.5` (the default,
   young and bright), with pitch, speed and moods (excited, calm, sad, whisper): [docs/GATEWAY.md](docs/GATEWAY.md#her-voice).
