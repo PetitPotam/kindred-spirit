@@ -84,6 +84,12 @@ public final class KindredSpiritClient implements ClientModInitializer {
         return instance;
     }
 
+    /** Playing alone: singleplayer and not opened to LAN (with friends on LAN, chat is for them too). */
+    static boolean alone(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        return server != null && !server.isPublished();
+    }
+
     public Companion companion() {
         return companion;
     }
@@ -141,7 +147,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         // plain chat to her (chatMode): the message goes to her instead of the game's chat
         net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             Minecraft mc = Minecraft.getInstance();
-            if (!link.connected() || !ChatRoute.forCompanion(cfg.chatMode, mc.getSingleplayerServer() != null,
+            if (!link.connected() || !ChatRoute.forCompanion(cfg.chatMode, alone(mc),
                     displayName, message)) return true;
             talk(message.trim());
             return false;
