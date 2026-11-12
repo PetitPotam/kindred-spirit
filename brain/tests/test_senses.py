@@ -53,12 +53,35 @@ def test_a_new_sound_out_of_sight_catches_her_attention():
     b.notice = notice
 
     async def run():
-        b.listen(snap(sounds=[{"what": "Zombie groans", "distance": 12, "direction": "behind", "above": -5,
+        b.listen(snap(sounds=[{"what": "Zombie groans", "distance": 12, "direction": "behind", "new": True}]))
+        b.listen(snap(sounds=[{"what": "Wolf howls", "distance": 12, "direction": "behind", "above": -5,
                                "new": True}]))
         b.listen(snap(sounds=[{"what": "Footsteps", "distance": 9, "direction": "left", "new": True}]))
         b.listen(snap(sounds=[{"what": "Cow moos", "distance": 9, "direction": "left", "new": True}],
                       animals=[{"type": "minecraft:cow", "distance": 9, "seen": True}]))
         await asyncio.sleep(0)
     asyncio.run(run())
-    assert got == [("heard", "Zombie groans (12 blocks behind you, below)")], \
-        "footsteps aren't news, and a cow she can see isn't a mystery"
+    assert got == [("heard", "Wolf howls (12 blocks behind you, below)")], \
+        "monsters are for her warnings, footsteps aren't news, and a cow she can see isn't a mystery"
+
+
+def test_a_session_leaves_a_record_to_read_afterwards(tmp_path):
+    from kindred.sessionlog import SessionLog
+    t = [0.0]
+    s = SessionLog(str(tmp_path), clock=lambda: t[0])
+    s.start("sp:New World")
+    s.event("you", text="lead the way", spoken=True)
+    t[0] += 2
+    s.event("pip", text="This way!", source="reply")
+    for i in range(5):
+        t[0] += 3
+        s.event("pip", text="Ooh, look at that %d!" % i, source="own")
+    s.event("cut", by_player=False, rest="and then the stones...")
+    s.event("tool", name="guide", ok=False, result="Guide where?")
+    md = s.finish()
+    text = open(md).read()
+    assert "she spoke | 6 lines" in text and "on her own | 5" in text
+    assert "She talked on her own more than she answered you." in text and "Failed tools: guide" in text
+    assert "**you** (voice): lead the way" in text
+    rows = [__import__("json").loads(x) for x in open(md[:-3] + ".jsonl").read().splitlines()]
+    assert len(rows) == 11 and rows[2]["t"] == 2.0, "start, you, 6 lines, a cut, a tool, the end; real times"

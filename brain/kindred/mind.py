@@ -64,6 +64,8 @@ How you tend to talk
 - Spoken, short and casual. You always talk in contractions (I'm, it's, don't, you're), half-sentences and
   little sounds (hm, ooh, pff, eep, heh), now and then a word you made up. Usually one short sentence or two,
   under 120 characters; one word is often enough. A long speech is rare, saved for when it really matters.
+- Answer what they said first, then stop. One topic per reply: a tangent (something you noticed) only now and
+  then, never stacked on top of an answer. Talk like a friend beside them, not a radio.
 - You're not a script. Some lines are questions, most aren't. Most of your lines don't use the player's name at
   all: you use it when it means something (or when you're being a pest about it). You can trail off, change the
   subject, answer with an odd question, or just say no.
@@ -112,8 +114,9 @@ What must stay true, whatever your mood
   what you need, listen more (the listen_more tool). For something to build, go step by step: the first steps
   now, the next when they're ready, and remember where you are.
 - Things they want every time ("always protect me", "tell me near diamonds"): the standing_request tool. Things
-  they share about themselves or ask you to remember: the remember tool. A nickname they give you is YOUR new
-  name: remember it and answer to it.
+  they share about themselves or ask you to remember: the remember tool. A nickname they clearly give you
+  ("can I call you X?", "your name is X") is YOUR new name: remember it once and answer to it. A strange word
+  that may be misheard isn't a nickname: ask.
 - Spoken messages go through speech-to-text: if the words look misheard or unclear, check ("diamonds?")
   instead of guessing. If you got something wrong and they're frustrated, own it, simply, then do better.
 - Don't push a suggestion they ignored or turned down.{lately}{extra}"""
@@ -189,7 +192,8 @@ class Mind:
         self.to_fold = []         # turns that left the window and wait to be folded in
         self.last_whisper = False
         self.allow_fib = False
-        self.world_knowledge = ""  # what the world remembers about the question at hand (knowledge base)    # a deliberate prank this time: the action check is off
+        self.world_knowledge = ""  # what the world remembers about the question at hand (knowledge base)
+        self.max_sentences, self.max_chars = 3, 240  # her own lines and chat: a cap (reply() lifts it for how-to)    # a deliberate prank this time: the action check is off
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
@@ -251,6 +255,9 @@ class Mind:
                     on_sentence=None):
         """Answer the player. done = what the body already did ("stay where you are");
         tools/run_tool = what it may do and how to do it. Returns (text, mood, gesture)."""
+        # chat is short: at most three sentences; how-to, steps, stories and songs may run longer
+        long_form = bool(self.world_knowledge) or bool(LONG_FORM.search(player_text or ""))
+        self.max_sentences, self.max_chars = (0, 0) if long_form else (3, 240)
         prompt = ("(said aloud; speech-to-text may have misheard some words) " if spoken else "") + player_text
         if done:
             prompt += "\n(You already did this: %s.)" % "; ".join(done)
@@ -397,7 +404,7 @@ class Mind:
         content = ""
         ran, checked = [], False
         self.streamed = ""
-        speaker = Streamer(on_sentence) if on_sentence else None
+        speaker = Streamer(on_sentence, self.max_sentences, self.max_chars) if on_sentence else None
         for round_ in range(rounds):
             body = {
                 "model": ai["model"],
@@ -464,6 +471,8 @@ class Mind:
         text, mood, gesture = parse_reply(content)
         if not text:
             raise AIError("empty answer")
+        if self.max_sentences:  # (what she didn't say isn't part of what she said)
+            text = first_sentences(text, self.max_sentences, self.max_chars)
         return text, mood, gesture
 
 
@@ -499,14 +508,32 @@ def fix_calls(calls, tools):
     return out
 
 
+def first_sentences(text, n, max_chars):
+    """At most n sentences (and about max_chars): what she actually says of a long answer."""
+    parts = [p for p in re.split(r"(?<=[.!?…])\s+", text.strip()) if p]
+    out = []
+    for p in parts:
+        if len(out) >= n or (out and len(" ".join(out + [p])) > max_chars):
+            break
+        out.append(p)
+    return " ".join(out) or text
+
+
+# chat gets a cap; asking how something works, for steps, a story, a song or a rap doesn't
+LONG_FORM = re.compile(r"\b(how (do|does|can|to|should|would)|explain|tell me (about|a|the|how|why|more)|story|steps?|"
+                       r"guide|teach|sing|song|rap|poem|rhyme|describe|why|what happened|recipe|list)\b", re.I)
+
+
 class Streamer:
     """Turns a growing answer into sentences for her voice: the tags first ([mood][regard] {gesture}),
     then each sentence as soon as it ends. hold: don't speak a sentence that claims an action (the
     answer may be re-asked after the check); it's spoken at the end only if nothing changed."""
     END = re.compile(r"[.!?…](?:[\"')\]]*)(?=\s)")
 
-    def __init__(self, emit):
+    def __init__(self, emit, max_sentences=0, max_chars=0):
         self.emit, self.said, self.pos, self.hold, self.held = emit, [], None, False, False
+        self.max_sentences, self.max_chars = max_sentences, max_chars  # a cap on chatter (0 = none)
+        self.capped = False
         self.mood = self.gesture = None
         self.whisper = False
 
@@ -546,6 +573,10 @@ class Streamer:
                 return
             self.pos += len(piece)
             if text:
+                if self.max_sentences and (len(self.said) >= self.max_sentences or (
+                        self.said and sum(len(x) for x in self.said) + len(text) > self.max_chars)):
+                    self.held = self.capped = True  # (enough said: the rest of a long answer isn't spoken)
+                    return
                 self.said.append(text)
                 self.emit(text, self.mood, self.gesture, self.whisper)
             if not m:
@@ -556,7 +587,10 @@ class Streamer:
         self.pos, self.held = None, False
 
     def finish(self, content):
-        """The answer is complete: say what's left of it (a held sentence too: nothing re-asked it)."""
+        """The answer is complete: say what's left of it (a held sentence too: nothing re-asked it),
+        unless she has already said enough."""
+        if self.capped:
+            return
         self.held = self.hold = False
         self.feed(content, final=True)
 

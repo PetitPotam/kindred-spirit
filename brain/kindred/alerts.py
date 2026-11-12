@@ -59,7 +59,7 @@ class Alerts:
     LOW_HEALTH_REMIND = 90.0   # ...or after this long still low
     MIN_GAP = 3.0              # never two warnings closer than this
     LAVA_COOLDOWN = 15.0
-    DROP_COOLDOWN = 45.0       # (standing at an edge to build shouldn't nag)
+    DROP_COOLDOWN = 180.0      # (walking along cliffs or building at an edge shouldn't nag)
 
     def __init__(self, rng=None):
         self.rng = rng or random.Random()
@@ -106,7 +106,8 @@ class Alerts:
         return Alert("lava", text, "scared")
 
     def _drop(self, s, now):
-        h = next((h for h in s.get("hazards") or [] if h.get("kind") == "drop" and h.get("depth", 0) >= 8), None)
+        h = next((h for h in s.get("hazards") or [] if h.get("kind") == "drop" and h.get("depth", 0) >= 8
+                  and h.get("distance", 99) <= 3), None)  # (right at the edge, not a cliff over there)
         if not h or not self._ready("drop", self.DROP_COOLDOWN, now):
             return None
         return Alert("drop", self.rng.choice(self.pools.get("drop") or DROP_LINES).format(
