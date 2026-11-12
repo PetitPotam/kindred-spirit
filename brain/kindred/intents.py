@@ -66,6 +66,12 @@ ACTION_HINTS = [
      r"\b(i'?m|i am|we'?re|we are) (being )?(attacked|under attack|getting (shot|hit|attacked))\b|\b(save|defend) me\b|"
      r"\b(is|are|re|theyre|s|they|it)\s?(shooting|attacking|hitting) (me|us)\b", "protect"),
     (r"\b(place|put)\b.{0,12}\b(this|that|the|a|my|one) block\b", "build"),
+    # "set up three vertical wood blocks here", "place 4 wood blocks vertically", "place two above it",
+    # "put something on the ground" (numbers in words are digits by now: see action_hint)
+    (r"\b(place|put|set( up)?|stack|lay)\b.{0,30}\b(\d+|some|a few|more)\b.{0,20}\b(blocks?|logs?|planks?|wood|"
+     r"stones?|cobble\w*|bricks?|dirt|glass)\b|\b(place|put|stack|set)\b.{0,40}\b(vertical(ly)?|on top( of)?|above (it|"
+     r"that|this|them)|upwards?|on the ground|in a (row|line|column))\b", "build"),
+    (r"\bbuild\b.{0,15}\b(house|hut|shelter|walls?|tower|room|pen|fence|floor|platform|pillar)\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(stack|pile|place|put|build|make|"
      r"raise)\b.{0,40}\b(pillars?|columns?|towers?|corners?|walls?|floors?|platforms?|outlines?|borders?|pens?|"
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),
@@ -123,9 +129,13 @@ def player_hint(text, names, allowed):
     return None, named[0]
 
 
+NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+           "ten": 10, "twelve": 12, "twenty": 20}
+
+
 def action_hint(text, allowed):
     """The tool a clear request asks for, if it's allowed; else None."""
-    t = (text or "").lower()
+    t = re.sub(r"\b(%s)\b" % "|".join(NUMBERS), lambda m: str(NUMBERS[m.group(1)]), (text or "").lower())
     for rx, tool in _hints:
         if tool in allowed and rx.search(t):
             return tool

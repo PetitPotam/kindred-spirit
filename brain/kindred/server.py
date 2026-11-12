@@ -1822,6 +1822,8 @@ class Brain:
                     force = intents.player_hint(text, [p.get("name", "") for p in self.snapshot.get("players") or []],
                                                 offered)[0]
 
+                self.offered = offered  # (what she may do for them: not the list from your last answer)
+
                 async def for_them(name, args):  # (gifts, effects and protection go to them, not to the player)
                     if name in ("give_item", "give_effect", "protect") and not (args or {}).get("to"):
                         args = dict(args or {}, to=who)

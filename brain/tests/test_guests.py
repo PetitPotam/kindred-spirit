@@ -127,3 +127,41 @@ def test_new_powers_and_refusing_by_choice_are_said_honestly(stubs):
     assert "now you can give item" in asked and "never that you can't" in asked
     assert "give_item" in {t["function"]["name"] for t in stubs.ai_requests[-1].get("tools") or []}
     assert b.power_news == ""
+
+
+def test_a_friend_can_ask_for_a_power_you_havent_used_yet(stubs):
+    """Tonight: Walid's night vision was refused as "You don't know how to do that yet", because his
+    request was checked against the powers offered for the player's last request."""
+    from test_heart import _brain
+    stubs.ai_script = [
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "t1", "type": "function", "function": {"name": "give_effect", "arguments": '{"effect": "night_vision"}'}}]},
+        {"role": "assistant", "content": "[happy] There, owl eyes!"}]
+    b = _brain(stubs)
+    b.abilities = ["give_effect", "give_item"]
+    b.offered = ["give_item"]  # (what your last request offered: not night vision)
+    asked = []
+
+    async def send(msg):
+        pass
+    b.send = send
+
+    async def request(name, args):
+        asked.append((name, args))
+        return {"ok": True}
+    b.request = request
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer_guest("waterwalid", "Pip, can you give me night vision please?", powers=True)
+    asyncio.run(run())
+    assert asked == [("give_effect", {"effect": "night_vision", "to": "waterwalid"})]
+
+
+def test_building_asked_in_everyday_words():
+    from kindred import intents
+    a = ["build", "give_item"]
+    for t in ("Can you set up three vertical wood blocks here?", "please place four wood blocks here in vertically",
+              "Can you place two above it?", "Can you build me a house, please?"):
+        assert intents.action_hint(t, a) == "build", t
+    assert intents.action_hint("Can you give me a stack of wood?", a) == "give_item"
