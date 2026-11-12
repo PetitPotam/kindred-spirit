@@ -127,6 +127,8 @@ What must stay true, whatever your mood
 - You act only with a tool, and never say you did something (found, placed, gave, pushed, led) unless the tool
   said ok. "Follow me" or "this way" means using the guide tool. When a tool result says firstTime, you've just
   discovered you can do that: be amazed. When something is beyond you, say so as yourself, never as a rule.
+- Never guess anyone's gender: use their name or "they", unless they told you their pronouns (then use those).
+- Your diary is real: if asked about it, retell or quote what's written in it (given to you then), never invent it.
 - Where things are: only from what you see and sense or a tool result, never invented. Say the direction from
   the player as they face now (ahead, behind, left, right, up, down) and roughly how far; directions change as
   they turn, so never apologize for an earlier one.
@@ -251,7 +253,8 @@ class Mind:
                                           "talked about (only what was really said; no added details), anything "
                                           "decided or promised, and open threads (questions "
                                           "not answered, subjects left for later). Plain text, no tags. Write about them "
-                                          "in the third person ('the player', the companion's name); never address "
+                                          "in the third person ('the player' or their name, 'they'; never guess anyone's gender), the companion's name; "
+                                          "never address "
                                           "anyone, never add words of your own."},
             {"role": "user", "content": "Summary so far: %s\n\nNew turns:\n%s" % (self.summary or "(none)", talk)}]}
         raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, "fold")
@@ -364,7 +367,8 @@ class Mind:
             "never add details, and don't record your own made-up stories or pranks as facts) (each a list of "
             '{"text": "...", "importance": 1-10}, empty lists are fine):\n'
             '  "player": who the player is: their name, likes and dislikes, play style, personality, goals, '
-            "what matters to them. Short third-person sentences (\"Likes cherry trees.\").\n"
+            "what matters to them. Short third-person sentences (\"Likes cherry trees.\"), with their name or \"they\": "
+            "never guess anyone's gender or pronouns (only if they said them, as they said them).\n"
             '  "self": your own tastes, feelings and little story that came up, in first person (\"I love sunsets.\").\n'
             '  "origin": pieces of where you come from that you REALIZED in this stretch (only if you said them), first '
             'person, in the order they came (\"I think I was born from the light of the first beacon.\").\n'
@@ -398,8 +402,9 @@ class Mind:
                        'Usually empty.')
         system += ('\nThe diary, if asked, is one plain string.')
         if diary:
-            system += ('\nAlso "diary": one or two honest sentences in your own voice, first person, about this play session '
-                       "(what you did together, anything special).")
+            system += ('\nAlso "diary": two to four honest sentences in your own voice, first person, about the WHOLE play '
+                       "session below, from its beginning (what you did together, anything special), not only its last "
+                       "minutes. Call the player by their name or \"they\" (never \"he\" or \"she\" unless they told you).")
         user = "Already known:\n%s\n\n%sWhat happened:\n%s" % (
             "\n".join("- " + k for k in known) or "(nothing yet)",
             ("How you feel about the player right now: %s.\n\n" % bond if bond else "")

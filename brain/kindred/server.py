@@ -211,6 +211,7 @@ class Brain:
         self.prev_health = None
         self.last_protect = self.last_guard = -1e9
         self.speaking_to = None      # a friend she's answering (session log: who each line was for)
+        self.diary_at, self.diary_from = clock(), 0  # her last diary entry: when, and up to which session event
         self.recent_gifts = {}       # (tool, what, to) -> when: never the same gift again unasked
         self.notified = []
         self.idle_since = clock()
@@ -1046,21 +1047,55 @@ class Brain:
         seen = [a for a in named if a.get("seen", True)] or named  # what she sees first, else what's just out of sight
         return min(seen, key=lambda a: a.get("distance", 99)) if seen else None
 
+    def session_story(self, since=0, max_chars=7000):
+        """The whole session (from the session log, not just the last turns), as lines for her diary: who said what,
+        what she did and for whom, what hurt or warmed her. Long sessions are thinned evenly, never cut to the end."""
+        lines = []
+        for e in self.session.events[since:]:
+            k, t = e.get("kind"), int(e.get("t", 0) // 60)
+            if k == "you":
+                lines.append("[%dmin] Player: %s" % (t, e.get("text", "")))
+            elif k == "guest":
+                lines.append("[%dmin] %s (a friend): %s" % (t, e.get("who", "a friend"), e.get("text", "")))
+            elif k == "pip":
+                lines.append("[%dmin] You%s: %s" % (t, "" if e.get("to") in (None, "player") else " (to %s)" % e["to"],
+                                                    e.get("text", "")))
+            elif k == "tool" and e.get("ok"):
+                lines.append("[%dmin] (you used %s%s)" % (t, e.get("name"), "" if e.get("who") in (None, "player")
+                                                         else " for %s" % e["who"]))
+            elif k == "touch":
+                lines.append("[%dmin] (%s %s you)" % (t, e.get("who"), e.get("what")))
+            elif k == "alert":
+                lines.append("[%dmin] (danger: %s)" % (t, e.get("text", "")))
+        text = "\n".join(lines)
+        if len(text) > max_chars and lines:  # keep the beginning, the middle and the end alike
+            step = len(text) / max_chars
+            lines = [ln for i, ln in enumerate(lines) if int(i % max(1, round(step))) == 0]
+            text = "\n".join(lines)[:max_chars]
+        return text
+
     async def reflect(self, session_end=False):
         """Learning: the AI looks back at what happened and keeps what's worth knowing for good."""
         talk = self.memory.exchanges
         history = list(self.mind.history[-16:])
         if talk < 2 and not session_end:
             return
-        if not history:
+        if not history and not session_end:
             return
         transcript = "\n".join("%s: %s" % ("Player" if m["role"] == "user" else "You", m["content"]) for m in history)
+        # her diary: from the whole session (at the end), and now and then during a long one (every 40 minutes)
+        long_play = self.session.started and self.clock() - self.diary_at > 40 * 60 and len(self.session.events) > 60
+        story = self.session_story(self.diary_from) if (session_end or long_play) else ""
+        if story:
+            transcript = story
+        if not transcript:
+            return
         try:
             known = await self.memory.known_for(transcript[-1500:])
             rel, now = self.heart.rel, self.clock()
             ledger = "\n".join("#%d %s %s, %s (%s)" % (i["id"], i["kind"], ('"%s"' % i["words"]) if i["words"] else "",
                                                         i["intent"], i["state"]) for i in rel.s["incidents"][-8:])
-            lessons = await self.mind.reflect(transcript, known, diary=session_end and talk >= 2,
+            lessons = await self.mind.reflect(transcript, known, diary=bool(story) and (talk >= 2 or len(story) > 400),
                                               bond="%s; %s" % (self.heart.level(), rel.summary(now)), ledger=ledger)
             if lessons.get("beliefs") is not None and ledger:
                 rel.set_beliefs(lessons.get("beliefs"), now)
@@ -1068,6 +1103,8 @@ class Brain:
                 if isinstance(r, dict) and rel.reappraise(int(r.get("id", -1)), str(r.get("intent", "")), now):
                     log.info("reappraised incident %s as %s", r.get("id"), r.get("intent"))
             added = await self.memory.learn(lessons)
+            if story and lessons.get("diary"):
+                self.diary_at, self.diary_from = self.clock(), len(self.session.events)
             found = len(lessons.get("origin") or [])
             if found:  # a piece of where she comes from: it settles her doubts a little
                 self.heart.shaken(-0.3 * found)
@@ -1092,6 +1129,7 @@ class Brain:
         msg = msg or {}
         if name == "join":
             self.session.start(msg.get("world") or "unknown")
+            self.diary_at, self.diary_from = self.clock(), 0
             self.in_world = True
             self.last_talk = self.clock()
             try:
@@ -1830,6 +1868,17 @@ class Brain:
                         note += self.heart.first_reply_note(force)
                         self.start_awakening(force, text)
                     force = None
+                said_pronouns = intents.pronouns_said(text)
+                if said_pronouns:  # "I am a him, not a her": kept for good, replacing any guess
+                    name = player_name(self.mind.recalled or "") or (self.snapshot or {}).get("playerName") or "The player"
+                    await self.safe(self.memory.remember("%s's pronouns are %s (they said so)." % (name, said_pronouns),
+                                                         "player", 9))
+                    note += " They just told you their pronouns: %s. Use them from now on; a short, simple 'got it'." \
+                        % said_pronouns
+                if intents.DIARY.search(text):  # her real diary, so she never makes one up
+                    entries = await self.safe(self.memory.diary(3)) or []
+                    note += (" Your diary, newest first (retell or quote it, in your voice; don't invent other entries): "
+                             + " | ".join(entries)) if entries else " Your diary is still empty: say so, simply."
                 note += await self.world_answer(text)  # how the world works: what it remembers, or listen
                 offered = self.heart.offered_tools(self.abilities, force or (asked if note_cross else None))
                 if moving and not intents.LEADING.search(text):  # (the AI can't turn "follow me" into leading either)
