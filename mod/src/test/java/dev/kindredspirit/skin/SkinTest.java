@@ -83,4 +83,12 @@ class SkinTest {
         assertEquals(0.86, cube.front(0, 0), 1e-6);
         assertTrue(cube.front(0.6, 0) > ball.front(0.6, 0), "a cube's face stays flat further out");
     }
+
+    @Test
+    void sprout() {
+        assertFalse(parse("{}").hasSprout(), "no leaves unless asked");
+        assertEquals(0x7BD389, parse("{\"sprout\": \"#7BD389\"}").sprout());
+        assertEquals(Skin.MOOD_SPROUT, parse("{\"sprout\": \"mood\"}").sprout());
+        assertEquals(Skin.NO_SPROUT, parse("{\"sprout\": \"none\"}").sprout());
+    }
 }

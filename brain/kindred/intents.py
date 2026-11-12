@@ -30,6 +30,7 @@ RULES = [
     (r"\b(jump|hop|bounce)\b", {"emote": "hop"}, "hop"),
     (r"\b(dance|wiggle)\b", {"emote": "wiggle"}, "wiggle"),
     (r"\bnod\b", {"emote": "nod"}, "nod"),
+    (r"\bwink\b", {"emote": "tease"}, "wink"),
     (r"\bshake your head\b", {"emote": "shake"}, "shake its head"),
     (r"\b(go to sleep|take a nap|nap time|sleep now)\b", {"emote": "doze"}, "doze off"),
 ]

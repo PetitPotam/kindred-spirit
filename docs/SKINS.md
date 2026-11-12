@@ -50,6 +50,7 @@ optional:
 | `wings` | `true` / `false` | two pairs of fluttering wings on its back (on by default for fairies; any shape can have them) |
 | `wingColor` | `"#RRGGBB"` or `"mood"` | `mood`: the wings take a pastel version of its mood color |
 | `wingOpacity` | 0.05 – 1 | how see-through the wings are |
+| `sprout` | `"none"`, `"#RRGGBB"` or `"mood"` | two little leaves on a stem on top of its head, swaying as it moves. `mood`: fresh green, leaning toward its mood color |
 
 A JSON without a texture is fine too: `{"shape": "cube", "tint": "#7FB3FF"}` is a blue cube.
 
@@ -70,5 +71,15 @@ as a built-in one replace it.
 | `starry` | a glowing wisp with a starry-night texture |
 | `fairy` | a pink fairy whose wings show its mood |
 | `pixie` | a green fairy with sky-blue wings |
+| `sprout` | the slime with a little sprout on its head: a forest spirit |
+
+## Her face
+
+The drawn face follows her mood, eased so it never snaps: a smile when happy, calm or excited (wide,
+sparkly eyes when excited), a frown and worried brows when sad or worried (teary shine when sad), a
+small "o" and wide eyes when scared, one eye bigger and one brow up when curious, a soft "u" for
+closed eyes when she dozes, "^ ^" when she's delighted, and a wink with a lopsided grin when she
+teases (the `tease` gesture, which she sometimes does when you hold her gaze). The eyes, mouth and
+cheeks colors come from the skin; `"face": false` turns all of it off for textures with their own face.
 
 The built-in textures are drawn by `scripts/make_art.py`: a good place to see how a texture maps.
