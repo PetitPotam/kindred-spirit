@@ -1,0 +1,17 @@
+# Wayfinding: she follows you into a house through its door (not over the roof), and stays inside.
+world House Test
+wait 200
+cmd time set day
+cmd fill ~6 ~-1 ~-3 ~12 ~4 ~3 oak_planks hollow
+cmd fill ~6 ~ ~ ~6 ~1 ~ air
+wait 40
+cmd tp @s ~9 ~ ~ 90 0
+wait 30
+screenshot house-0
+wait 90
+lookat
+screenshot house-1
+wait 100
+lookat
+screenshot house-2
+quit

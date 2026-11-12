@@ -127,6 +127,13 @@ public final class Companion {
             BlockPos pos = BlockPos.containing(x, y, z);
             return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
         });
+        if (life.blinked) { // no way through a wall: she popped over to you
+            life.blinked = false;
+            for (int i = 0; i < 8; i++) {
+                level.addParticle(ParticleTypes.POOF, life.x + (Math.random() - 0.5) * 0.4, life.y + (Math.random() - 0.5) * 0.4,
+                        life.z + (Math.random() - 0.5) * 0.4, 0, 0.03, 0);
+            }
+        }
         // a puff when she leaves and when she comes back
         if (life.hidden() != wasHidden) {
             wasHidden = life.hidden();

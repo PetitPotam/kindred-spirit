@@ -95,11 +95,7 @@ public final class SharedPip {
         // far from where she really is (she stayed, or visited something): there in a blink
         if (state.has("x") && !"HIDE".equals(mode)) {
             double dx = num("x") - life.x, dy = num("y") - life.y, dz = num("z") - life.z;
-            if (dx * dx + dy * dy + dz * dz > 6 * 6) {
-                life.x = num("x");
-                life.y = num("y");
-                life.z = num("z");
-            }
+            if (dx * dx + dy * dy + dz * dz > 6 * 6) life.placeAt(num("x"), num("y"), num("z"));
         }
     }
 

@@ -378,6 +378,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
     <section class="tab on" id="tab-live">
       <div class="grid">
         <div class="card c12" id="hero"></div>
+        <div class="card c12" id="friends-card" style="display:none"><h2>Friends here <span class="sub">your LAN world</span></h2><div id="friends"></div></div>
         <div class="card c4"><h2>Her heart <span class="sub">five feelings about you</span></h2><div id="bond"></div></div>
         <div class="card c4"><h2>Mood <span class="sub">how good she feels, how stirred up</span></h2><div id="mood"></div></div>
         <div class="card c4"><h2>Powers</h2><div id="powers"></div></div>
@@ -638,6 +639,34 @@ function between(R) {
     <div class="c4"><div class="h2">What she's come to believe</div>${bel || `<div class="small muted">Nothing settled yet.</div>`}</div>
     <div class="c4"><div class="h2">Why her feelings moved <span class="sub">latest first</span></div>${log || `<div class="small muted">Nothing yet.</div>`}</div></div>`;
 }
+// friends on your LAN world: who's here, whom she stays with, what they may ask (shown when someone's there)
+function friendsCard(d, gameOn) {
+  const snap = d.snapshot || {}, fr = d.friends || {}, others = snap.players || [];
+  const show = gameOn && (others.length || fr.follow);
+  $("friends-card").style.display = show ? "" : "none";
+  if (!show || $("friends-card").contains(document.activeElement)) return; // (not while you're choosing)
+  const names = others.map((o) => o.name);
+  if (fr.follow && !names.includes(fr.follow)) names.push(fr.follow);
+  const people = others.map((o) => `<div class="list-item"><span class="ic">🧑</span><div><b>${esc(o.name)}</b>
+      <div class="small muted">${Math.round(o.distance)} blocks ${esc(String(o.direction || "").replace("-", " "))} of you · ${o.seen === false ? "out of her sight" : "she can see them"}${snap.following === o.name ? " · she's beside them" : ""}</div></div></div>`).join("")
+    || `<div class="small muted">Nobody else is here right now.</div>`;
+  const opt = (v, label) => `<option value="${esc(v)}" ${String(fr.follow || "") === v ? "selected" : ""}>${esc(label)}</option>`;
+  $("friends").innerHTML = `${people}
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px">
+      <label>She stays with <select id="fr-follow">${opt("", "you")}${names.map((n) => opt(n, n)).join("")}</select></label>
+      <label><input type="checkbox" id="fr-guests" ${fr.lanGuests !== false ? "checked" : ""}> They see her and talk to her</label>
+      <label><input type="checkbox" id="fr-powers" ${fr.lanGuestPowers !== false ? "checked" : ""}> They may ask for her powers</label>
+    </div>
+    <div class="small muted" style="margin-top:6px">Gifts, effects, finding and leading, within her power and style. Nothing they say changes her bond with you.</div>`;
+  const change = async (path, value, said) => {
+    try { await post("/api/settings", {changes: [{where: "mod", path, value}]}); toast(said); }
+    catch (e) { toast("Not changed: " + e.message); }
+  };
+  $("fr-follow").onchange = (e) => change("follow", e.target.value, e.target.value ? "She'll stay with " + e.target.value : "She'll come back to you");
+  $("fr-guests").onchange = (e) => change("lanGuests", e.target.checked, e.target.checked ? "Friends see her again" : "Friends no longer see her");
+  $("fr-powers").onchange = (e) => change("lanGuestPowers", e.target.checked, e.target.checked ? "Friends may ask for her powers" : "Friends can only talk with her");
+}
+
 async function live() {
   const d = await get("/api/live");
   const b = d.brain, h = d.health, g = h.gateway || {};
@@ -670,6 +699,7 @@ async function live() {
         <span class="chip plain">talked ${ago(b.seconds_since_talk)} ago</span>
         ${gameOn ? `<span class="chip good">in ${esc((b.world || "").replace(/^(sp|sim):/, ""))}</span>` : `<span class="chip plain">not in a world</span>`}
       </div></div></div>`;
+  friendsCard(d, gameOn);
   $("bond").innerHTML = feelings(H.relationship);
   const bt = between(H.relationship);
   $("between-card").style.display = bt ? "" : "none";
