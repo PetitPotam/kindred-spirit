@@ -96,7 +96,7 @@ public final class KindredConfig {
         return cfg;
     }
 
-    private long written = -1, seen = -1;
+    private transient long written = -1, seen = -1; // (when the file was written and read: not settings)
 
     /** Changed by someone else (the dashboard)? Then take the new values, in place. True if it did. */
     public boolean reloadIfChanged() {

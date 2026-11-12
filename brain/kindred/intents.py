@@ -71,7 +71,8 @@ ACTION_HINTS = [
     (r"\b(place|put|set( up)?|stack|lay)\b.{0,30}\b(\d+|some|a few|more)\b.{0,20}\b(blocks?|logs?|planks?|wood|"
      r"stones?|cobble\w*|bricks?|dirt|glass)\b|\b(place|put|stack|set)\b.{0,40}\b(vertical(ly)?|on top( of)?|above (it|"
      r"that|this|them)|upwards?|on the ground|in a (row|line|column))\b", "build"),
-    (r"\bbuild\b.{0,15}\b(house|hut|shelter|walls?|tower|room|pen|fence|floor|platform|pillar)\b", "build"),
+    (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\bbuild\b.{0,15}\b(house|hut|"
+     r"shelter|walls?|tower|room|pen|fence|floor|platform|pillar)\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(stack|pile|place|put|build|make|"
      r"raise)\b.{0,40}\b(pillars?|columns?|towers?|corners?|walls?|floors?|platforms?|outlines?|borders?|pens?|"
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),
