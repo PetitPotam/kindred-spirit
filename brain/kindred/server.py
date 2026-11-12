@@ -1324,8 +1324,9 @@ class Brain:
         for _ in range(tries):
             if not self.in_world or self.ws is None:
                 return False
-            if not self.talk_lock.locked() and self.clock() - self.last_talk >= self.quiet_gap:
-                return True
+            if (not self.talk_lock.locked() and self.clock() - self.last_talk >= self.quiet_gap and not self.inbox
+                    and self.clock() - self.player_talked >= (self.quiet_gap + 5 if self.quiet_gap else 0)):
+                return True  # (not while you're talking or she owes you an answer)
             await asyncio.sleep(2)
         return self.in_world and self.ws is not None
 

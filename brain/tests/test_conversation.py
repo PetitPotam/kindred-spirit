@@ -196,3 +196,25 @@ def test_a_claimed_action_is_held_until_a_tool_really_ran():
     st.hold = False
     st.finish("[happy][kind] There, a torch! Better?")
     assert got == ["There, a torch!", "Better?"]
+
+
+def test_a_failed_tool_doesnt_excuse_saying_it_worked(stubs):
+    """'Follow me!' after a guide that said no is a claim: she's asked again, honestly."""
+    import asyncio
+    import json as _json
+    from kindred.mind import Mind
+    stubs.ai_script = [
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "g1", "type": "function", "function": {"name": "guide", "arguments": "{}"}}]},
+        {"role": "assistant", "content": "[excited][kind] Follow me, follow me! It's very tall."},
+        {"role": "assistant", "content": "[calm][kind] Hm, I can't tell where it is from here."}]
+    cfg = make_cfg(stubs.port)
+    m = Mind(cfg)
+
+    async def run_tool(name, args):
+        return {"ok": False, "error": "Guide where? Find or locate something first."}
+    from kindred import tools as T
+    text, mood, gesture = asyncio.run(m.reply({}, "lead the way", tools=[T.ABILITY_TOOLS["guide"]], run_tool=run_tool))
+    assert "can't tell" in text and "Follow me" not in text
+    assert "no tool ran" in _json.dumps(stubs.ai_requests[-1]["messages"][-1]) or "didn't" in _json.dumps(
+        stubs.ai_requests[-1]["messages"][-1])
