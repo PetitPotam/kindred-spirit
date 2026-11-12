@@ -294,3 +294,14 @@ def test_two_bases_never_overwrite_each_other_and_first_means_first():
         moved = await m.name_place("base", at(40, 40), replace=True)
         assert moved["x"] == 40, "moved when they said so"
     asyncio.run(run())
+
+
+def test_a_single_lesson_isnt_saved_letter_by_letter():
+    async def run():
+        m = memory()
+        await m.open_world("sp:A")
+        await m.learn({"habit": "Likes to build at night.", "player": {"text": "Name is Alex.", "importance": 8}})
+        habits = (await m.store.call("list", kinds=["habit"], world="sp:A"))["results"]
+        players = (await m.store.call("list", kinds=["player"], world="sp:A"))["results"]
+        assert [h["text"] for h in habits] == ["Likes to build at night."] and players[0]["text"] == "Name is Alex."
+    asyncio.run(run())

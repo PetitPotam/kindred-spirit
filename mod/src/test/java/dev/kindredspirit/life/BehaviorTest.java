@@ -90,6 +90,25 @@ public class BehaviorTest {
     }
 
     @Test
+    void whenYouFightSheStepsBehindYourShoulderAndComesBackAfter() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        run(b, s, 3, Behavior.Activity.IDLE);
+        assertTrue(b.z > 1.2, "normally a little in front of you: " + b.z);
+        // you swing your sword over and over at something in front of you
+        double end = s.now + 2;
+        while (s.now < end) {
+            b.playerSwings(s.now);
+            run(b, s, 0.25, Behavior.Activity.IDLE);
+        }
+        assertTrue(b.z < 0.2, "out of your swing, beside or behind your shoulder: " + b.z);
+        assertTrue(Math.abs(b.x) > 0.9, "and to the side: " + b.x);
+        assertTrue(b.keepingClear());
+        run(b, s, 10, Behavior.Activity.IDLE);
+        assertTrue(b.z > 1.0 && !b.keepingClear(), "back at her usual spot when it's over: " + b.z);
+    }
+
+    @Test
     void neverParksInTheMiddleOfYourView() {
         Behavior b = new Behavior(0, 0, 1.9, 0.2, 1); // asked to sit dead centre
         for (double now = 0; now < 60; now += 0.37) { // whatever the wander noise is doing

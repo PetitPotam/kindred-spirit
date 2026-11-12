@@ -31,6 +31,8 @@ DEFAULTS = {
         "alerts": True,
         "greet_on_join": True,
         "small_talk_minutes": 4,
+        "instinct_lines_after": 45,    # seconds after joining before her AI writes her instinct lines (0: never)
+        "fill_silence_after": 1.4,     # a "Hmm..." when an answer takes longer than this (0: never)
     },
     "heart": {
         "same_companion_in_every_world": False,  # False: each world has its own companion, who starts fresh
