@@ -165,3 +165,24 @@ def test_building_asked_in_everyday_words():
               "Can you place two above it?", "Can you build me a house, please?"):
         assert intents.action_hint(t, a) == "build", t
     assert intents.action_hint("Can you give me a stack of wood?", a) == "give_item"
+
+
+def test_lead_the_way_goes_where_she_just_found_even_in_a_friends_world(stubs):
+    """Tonight in Walid's world: locate found the plains (in his game), then every "lead the way" failed
+    with "Guide where?", because the last thing found was remembered in his game, not yours."""
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.last_found = {"x": 174, "y": 71, "z": -76}
+    b.last_player_text = "lead the way please"
+    assert asyncio.run(b.guide_target({"to": "last"})) == {"x": 174, "y": 71, "z": -76}
+    assert asyncio.run(b.guide_target({"x": 174, "z": -76})) == {"x": 174, "y": 71, "z": -76}
+    assert asyncio.run(b.guide_target({"x": 900, "z": 900})) == {}, "made-up coordinates aren't where she found"
+
+
+def test_when_her_tries_run_out_she_still_answers_in_words(stubs):
+    from kindred.mind import Mind
+    stubs.ai_script = [{"role": "assistant", "content": ""},
+                       {"role": "assistant", "content": "[sad][neutral] I can't find the way there, sorry."}]
+    m = Mind(make_cfg(stubs.port))
+    text, mood, _ = asyncio.run(m.reply(snap(), "lead the way"))
+    assert text == "I can't find the way there, sorry." and mood == "sad"

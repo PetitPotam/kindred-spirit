@@ -436,6 +436,10 @@ class Brain:
         if m:  # the way to unlock it is for the player, as a hint in chat: never in her mouth
             await self.send({"type": "notice", "text": "Tip: %s lets %s do this" % (m.group(1), self.cfg["name"])})
             result["error"] = result["error"].replace(m.group(0), "").strip()
+        if name in ("find_ore", "locate", "find_block") and result.get("ok") and "x" in result and result.get("found", True):
+            self.last_found = {k: result[k] for k in ("x", "y", "z") if k in result}  # (where "lead the way" goes)
+        if name in ("find_animal", "find_player") and result.get("ok"):
+            self.last_found = None  # (someone walking: the game follows them itself)
         if name in ("find_ore", "locate") and result.get("ok") and "x" in result and result.get("found", True):
             what = result.get("ore") or result.get("what") or args.get("ore") or args.get("what") or "something"
             if name == "find_ore":
@@ -981,6 +985,12 @@ class Brain:
         said_numbers = bool(re.search(r"-?\d{2,}", getattr(self, "last_player_text", "")))
         if "x" in args and "z" in args and said_numbers:
             return {k: args[k] for k in ("x", "y", "z") if k in args}
+        # what she just found or located, from here (in a friend's world the game that found it is theirs,
+        # so "the last thing found" isn't known to yours): coordinates she was given count too
+        last = getattr(self, "last_found", None)
+        if last and (not ("x" in args and "z" in args)
+                     or abs(float(args["x"]) - last["x"]) <= 3 and abs(float(args["z"]) - last["z"]) <= 3):
+            return dict(last)
         return {}  # the mod then uses the last thing found or located
 
     def place_words(self, meta):
