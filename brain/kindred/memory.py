@@ -344,6 +344,9 @@ class Memory:
         if extra:
             lines.append("Memories that come to mind: " + " | ".join(m["text"] + rel(m["meta"]) for m in extra))
         s = self.stats or {}
+        if s.get("came_from"):  # imported: the same companion, who came along from another world
+            lines.append("You and the player go back a long way: you came with them from another world (%s). This "
+                         "is not your first day together." % s["came_from"])
         if s.get("first_met"):
             lines.append("You have played together %d time%s in this world since %s (about %d minutes in all)." % (
                 s["sessions"], "" if s["sessions"] == 1 else "s",
@@ -489,6 +492,16 @@ def worlds_cli(store, argv):
         mine.update({k: heart[k] for k in ("bond", "discovered", "asked", "requests") if k in heart})
         store._call("doc", {"key": "world:%s:heart" % dst, "value": mine})
         print("Her bond (%d) and the powers she discovered there came along too." % round(heart.get("bond", 30)))
+    before = store._call("doc", {"key": "world:%s:stats" % src}).get("value") or {}
+    if os.environ.get("KINDRED_GAME_CONNECTED") != "1":  # (the game holds them while it's connected)
+        stats = store._call("doc", {"key": "world:%s:stats" % dst}).get("value") or {
+            "first_met": None, "last_seen": None, "sessions": 0, "minutes": 0}
+        if before.get("sessions"):
+            met = [t for t in (stats.get("first_met"), before.get("first_met")) if t]
+            stats.update(first_met=min(met) if met else None, sessions=stats.get("sessions", 0) + before["sessions"],
+                         minutes=stats.get("minutes", 0) + before.get("minutes", 0))
+        stats["came_from"] = src.split(":", 1)[-1]
+        store._call("doc", {"key": "world:%s:stats" % dst, "value": stats})
     return 0
 
 

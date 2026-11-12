@@ -21,6 +21,20 @@ LINES = {
     "q_spin": "Pip! Can you do a spin?",
     "q_stay": "Pip, stay here.",
     "q_come": "Okay, come here!",
+    # the tour (tour-script.txt)
+    "t_hello": "Hi! I'm Sam. Who are you?",
+    "t_see": "What can you see around us?",
+    "t_diamonds": "Pip, are there any diamonds around here?",
+    "t_remember": "Pip, what do you remember about our adventures?",
+    "t_origin": "Do you know where you come from now?",
+    "t_where": "Where are the sheep?",
+    "t_lead": "Lead the way, I'll follow you!",
+    "t_chop": "Can you chop this tree for me?",
+    "t_help": "Help! Protect me!",
+    "t_iron": "How do I build an iron farm?",
+    "t_sorry": "Oops, sorry Pip! That was an accident.",
+    "t_torch": "It's so dark. Can you give me some light?",
+    "t_torch2": "Okay, now can you place a torch for me?",
 }
 
 
@@ -54,8 +68,12 @@ def to_16k(wav_bytes):
 
 
 if __name__ == "__main__":
+    import sys
     os.makedirs(OUT, exist_ok=True)
+    only = sys.argv[1] if len(sys.argv) > 1 else ""  # e.g. "t_": only the tour's lines
     for name, text in LINES.items():
+        if not name.startswith(only):
+            continue
         hq = speak(text)
         with open(os.path.join(OUT, name + "_hq.wav"), "wb") as fh:
             fh.write(hq)

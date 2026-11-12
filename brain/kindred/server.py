@@ -67,6 +67,9 @@ def sentences(text, min_chars=25, first_max=0):
     return out
 
 
+HANDS = ("protect", "place_torch", "harvest", "give_item", "set_time", "set_weather")  # powers that touch the world
+
+
 def player_name(memories):
     """The player's name from what she remembers ("The player's name is Alex"), never the name they gave her."""
     m = re.search(r"(?:player's name is|player is called|player's called|name of the player is) ([A-Z][\w-]+)",
@@ -309,9 +312,16 @@ class Brain:
             {"advisor": "You can only look, sense and lead the way; you can't touch or change anything.",
              "helper": "You can help with your hands when asked, but nothing too big.",
              "allpowerful": "Your power is great: even the sun and the sky listen to you."}.get(msg.get("power"), ""),
+            "" if msg.get("power") == "advisor" else
             " You can only use what really exists (the player's own torches): you can't make things appear out of "
             "nothing." if msg.get("style") == "grounded" else " Your magic can make things appear.",
             known, "" if self.singleplayer else " Here your magic can't change the world itself.")
+        cant = [a.replace("_", " ") for a in HANDS if a not in self.abilities]
+        if cant:  # (when she's set to only look and lead, or magic is off: say so, don't make up a reason)
+            self.mind.powers += (" Right now these are beyond you: %s. If the player asks for one, say simply and "
+                                 "honestly that it's beyond you right now%s; never invent another reason (not torches, "
+                                 "not being tired)." % (", ".join(cant), " (right now you can only look, sense and "
+                                                         "lead the way)" if msg.get("power") == "advisor" else ""))
         if msg.get("glow") and self.singleplayer:
             self.mind.powers += " You glow softly: in the dark your light shows the way around you."
         log.info("abilities: %s", ", ".join(self.abilities))
@@ -657,6 +667,18 @@ class Brain:
             out = await m.store.call("add", kind=r["kind"], text=r["text"], world=m.world_id, importance=r["importance"],
                                      meta=dict(r.get("meta") or {}, imported_from=src), dedupe=0.88)
             copied += 0 if out.get("merged") else 1
+        # how long you've known each other comes along too (she isn't meeting you for the first time)
+        before = (await m.store.call("doc", key="world:%s:stats" % src)).get("value") or {}
+        st = m.stats or {}
+        if before.get("sessions"):
+            met = [t for t in (st.get("first_met"), before.get("first_met")) if t]
+            st.update(first_met=min(met) if met else None, sessions=st.get("sessions", 0) + before["sessions"],
+                      minutes=st.get("minutes", 0) + before.get("minutes", 0))
+        st["came_from"] = src.split(":", 1)[-1]
+        m.stats = st
+        await m._save_stats()
+        self.happened("you remembered your whole journey with the player from another world (%s): you go back a long "
+                      "way" % st["came_from"], self.clock())
         theirs = (await m.store.call("doc", key="world:%s:heart" % src)).get("value") or {}
         extra = ""
         if theirs:  # the brain holds this world's heart, so it can take hers in right now
@@ -667,6 +689,7 @@ class Brain:
                 st.setdefault("asked", {})[k] = max(st["asked"].get(k, 0), v)
             await self.heart.save()
             await self.bond_update(0.6, "imported")  # (shows the heart meter)
+            asyncio.create_task(self.write_lines())  # who she is changed: her instincts in her new words
             extra = " Bond now %d (%s); powers: %s." % (round(self.heart.bond), self.heart.level(),
                                                        ", ".join(st["discovered"]) or "none")
         log.info("imported %d memories from %s", copied, src)
@@ -685,6 +708,8 @@ class Brain:
         self.heart.state = self.heart.fresh()
         self.mind.history, self.mind.summary, self.mind.to_fold = [], "", []
         self.awakening, self.recent_player, self.her_offer = {}, [], None
+        self.instinct.load(None)  # (her own words were part of who she was)
+        self.alerts.pools = {}
         await m.open_world(world)
         self.since = await m.start_session()
         await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(), "change": 0})

@@ -131,6 +131,8 @@ def parse_reply(text):
             gesture = g2.group(1).lower()
             text = text[g2.end():]
     text = re.sub(r"\[[a-z_]+\]|\{[a-z_]+\}", "", text)  # stray tags mid-text
+    # a tool call written out as text ("listen_more(what='iron farm')", "(what='iron farm')"): never spoken
+    text = re.sub(r"\b[a-z]+_[a-z_]+\s*\([^)]*\)|\(\s*\w+\s*=[^)]*\)", "", text)
     text = re.sub(r"[*_`#]+", "", text)               # markdown
     text = re.sub(r"\s+", " ", text).strip()
     return text, mood, gesture
@@ -139,7 +141,9 @@ def parse_reply(text):
 # "I'm placing a torch", "I pushed them away", "follow me!": things only a tool can make true
 CLAIM = re.compile(r"\b(i'?ve (just )?|i have (just )?|i just |i )(placed|put down|pushed|lit|gave|made it|changed|"
                    r"cleared|set up|found)\b|\bi(?:'?m| am) (placing|pushing|lighting|leading|giving|putting|trying to place|"
-                   r"trying to push|trying to light)\b|\b(follow me|right this way|this way)\b|\bhere'?s (a|your) torch\b",
+                   r"trying to push|trying to light)\b|\b(follow me|right this way|this way)\b|\bhere'?s (a|your) torch\b|"
+                   r"\b(let me|i'?ll|i will) (place|put|push|light|chop|cut|mine|dig|break|give|make|lead|take you|"
+                   r"set|change|plant|build)\b",
                    re.I)
 
 

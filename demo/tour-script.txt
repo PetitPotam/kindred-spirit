@@ -1,0 +1,355 @@
+# The tour: Pip's journey with a player, from strangers to old friends, and everything she can do.
+# Filmed by the sandbox game itself on a floating meadow built at the start. From the mod folder,
+# with the brain running (scripts/start.sh):
+#   ../brain/.venv/bin/python ../demo/seed_journey.py      (her memories "weeks later", made up)
+#   ../brain/.venv/bin/python ../demo/make_voices.py t_    (the player's lines)
+#   ./gradlew runClient -PdevScript=../demo/tour-script.txt -PvideoSize=960x540
+#   ../demo/.venv/bin/python ../demo/make_video.py tour
+# Each "mark X" ... "mark X_end" is a chapter; "caption" puts a note at the bottom of the edit.
+# Pip's answers are live (real speech-to-text and AI), so every take is a little different.
+# part 1 is filmed in its own world (a first meeting); part 2 in another, later play session, where she
+# remembers a longer journey (prepared by seed_journey.py) brought in with /kindred memory import.
+world kindred-tour-meet
+wait 300
+video
+cmd gamemode spectator
+cmd difficulty easy
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd gamerule doWeatherCycle false
+cmd gamerule doFireTick false
+cmd weather clear
+cmd time set 1000
+cmd forceload add 2960 2960 3040 3048
+cmd tp @s 3000 165 3000 0 30
+wait 120
+
+# the stage: a floating meadow, a sheep pen, trees, flowers and a little lava pool
+cmd fill 2970 148 2976 3030 149 3040 minecraft:grass_block
+cmd fill 2970 150 2976 3030 157 3040 minecraft:air
+cmd fill 2970 158 2976 3030 165 3040 minecraft:air
+cmd kill @e[type=!minecraft:player]
+cmd place feature minecraft:oak 3005 150 3008
+cmd place feature minecraft:birch 2976 150 3012
+cmd place feature minecraft:oak 3018 150 3026
+cmd place feature minecraft:birch 2984 150 2992
+cmd setblock 2996 150 3004 minecraft:poppy
+cmd setblock 3003 150 3002 minecraft:dandelion
+cmd setblock 2994 150 3010 minecraft:cornflower
+cmd setblock 3001 150 3014 minecraft:lily_of_the_valley
+cmd setblock 3008 150 3016 minecraft:oxeye_daisy
+cmd setblock 2992 150 3006 minecraft:allium
+cmd setblock 2999 150 3018 minecraft:pink_tulip
+cmd fill 2984 150 3021 2991 150 3021 minecraft:oak_fence
+cmd fill 2984 150 3028 2991 150 3028 minecraft:oak_fence
+cmd fill 2984 150 3021 2984 150 3028 minecraft:oak_fence
+cmd fill 2991 150 3021 2991 150 3028 minecraft:oak_fence
+cmd summon minecraft:sheep 2987 150 3024 {Color:0}
+cmd summon minecraft:sheep 2989 150 3025 {Color:6}
+cmd summon minecraft:sheep 2987 150 3026 {Color:3}
+cmd fill 3020 149 2996 3021 149 2997 minecraft:lava
+cmd tp @s 3000.5 150 3000.5 0 5
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+cmd effect give @s minecraft:saturation infinite 1 true
+cmd give @s minecraft:iron_sword
+cmd give @s minecraft:torch 16
+wait 20
+type /kindred reset confirm
+type /kindred power helper
+type /kindred style grounded
+skin fairy
+act {"move": "follow"}
+wait 300
+record start tour
+
+# ---------------------------------------------------------------- part 1: strangers
+mark meet
+camera front
+wait 20
+voice ../../demo/out/voices/t_hello.wav
+wait 260
+mark meet_end
+
+camera first
+mark see
+turn -40 2 1.5
+wait 20
+voice ../../demo/out/voices/t_see.wav
+wait 240
+mark see_end
+
+mark discover
+turn 0 5 1
+wait 10
+voice ../../demo/out/voices/t_diamonds.wav
+wait 60
+caption She doesn't know her powers yet: she discovers them with you, one by one
+wait 340
+mark discover_end
+
+leave
+wait 100
+
+# weeks later, another world and another day: her memories of the journey, brought in like a player would
+world kindred-tour
+wait 300
+video
+cmd gamemode spectator
+cmd difficulty easy
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd gamerule doWeatherCycle false
+cmd gamerule doFireTick false
+cmd weather clear
+cmd time set 1000
+cmd forceload add 2960 2960 3040 3048
+cmd tp @s 3000 165 3000 0 30
+wait 120
+
+# the stage: a floating meadow, a sheep pen, trees, flowers and a little lava pool
+cmd fill 2970 148 2976 3030 149 3040 minecraft:grass_block
+cmd fill 2970 150 2976 3030 157 3040 minecraft:air
+cmd fill 2970 158 2976 3030 165 3040 minecraft:air
+cmd kill @e[type=!minecraft:player]
+cmd place feature minecraft:oak 3005 150 3008
+cmd place feature minecraft:birch 2976 150 3012
+cmd place feature minecraft:oak 3018 150 3026
+cmd place feature minecraft:birch 2984 150 2992
+cmd setblock 2996 150 3004 minecraft:poppy
+cmd setblock 3003 150 3002 minecraft:dandelion
+cmd setblock 2994 150 3010 minecraft:cornflower
+cmd setblock 3001 150 3014 minecraft:lily_of_the_valley
+cmd setblock 3008 150 3016 minecraft:oxeye_daisy
+cmd setblock 2992 150 3006 minecraft:allium
+cmd setblock 2999 150 3018 minecraft:pink_tulip
+cmd fill 2984 150 3021 2991 150 3021 minecraft:oak_fence
+cmd fill 2984 150 3028 2991 150 3028 minecraft:oak_fence
+cmd fill 2984 150 3021 2984 150 3028 minecraft:oak_fence
+cmd fill 2991 150 3021 2991 150 3028 minecraft:oak_fence
+cmd summon minecraft:sheep 2987 150 3024 {Color:0}
+cmd summon minecraft:sheep 2989 150 3025 {Color:6}
+cmd summon minecraft:sheep 2987 150 3026 {Color:3}
+cmd fill 3020 149 2996 3021 149 2997 minecraft:lava
+cmd tp @s 3000.5 150 3000.5 0 5
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+cmd effect give @s minecraft:saturation infinite 1 true
+cmd give @s minecraft:iron_sword
+cmd give @s minecraft:torch 16
+wait 20
+type /kindred reset confirm
+type /kindred power helper
+type /kindred style grounded
+skin fairy
+act {"move": "follow"}
+type /kindred memory import journey
+wait 600
+
+
+# ---------------------------------------------------------------- part 2: old friends
+mark remember
+turn 15 4 1
+voice ../../demo/out/voices/t_remember.wav
+wait 320
+mark remember_end
+
+mark origin
+voice ../../demo/out/voices/t_origin.wav
+wait 300
+mark origin_end
+
+mark find
+look 0 5
+voice ../../demo/out/voices/t_where.wav
+wait 240
+mark find_end
+
+mark guide
+voice ../../demo/out/voices/t_lead.wav
+wait 70
+turnto companion 0.8
+wait 18
+walk 2
+wait 45
+turn -90 5 0.8
+wait 18
+walk 1.5
+caption Walk the wrong way and she calls you back
+wait 70
+turnto companion 0.8
+wait 18
+walk 3
+wait 62
+turnto companion 0.5
+wait 12
+walk 3
+wait 62
+turnto companion 0.5
+wait 12
+walk 1.5
+wait 120
+mark guide_end
+
+# her helping hands
+cmd tp @s 3001.5 150 3003.5 -37 12
+wait 40
+mark chop
+voice ../../demo/out/voices/t_chop.wav
+wait 280
+mark chop_end
+
+# she watches your back
+cmd kill @e[type=minecraft:item]
+cmd tp @s 3000.5 150 3000.5 0 5
+wait 40
+mark danger
+cmd summon minecraft:creeper 3000.5 150 2996.5 {NoAI:1b}
+wait 70
+turn 180 8 1.0
+wait 60
+cmd kill @e[type=minecraft:creeper]
+cmd tp @s 3020.5 150 2988.5 0 15
+wait 20
+walk 1.2
+wait 90
+mark danger_end
+
+cmd time set 12800
+cmd tp @s 3000.5 150 3000.5 0 5
+wait 60
+mark protect
+cmd summon minecraft:zombie 3000.5 150 3007.5
+cmd summon minecraft:zombie 3003.5 150 3008.5
+wait 10
+voice ../../demo/out/voices/t_help.wav
+wait 40
+caption She can't hurt monsters, but she pushes them away from you
+wait 200
+mark protect_end
+cmd kill @e[type=minecraft:zombie]
+
+cmd summon minecraft:zombie 3000.5 150 3003 {NoAI:1b,Invulnerable:1b,PersistenceRequired:1b}
+camera back
+look 0 8
+wait 60
+mark fight
+caption When you fight, she moves behind your shoulder, out of your swing
+wait 10
+press attack
+wait 9
+press attack
+wait 9
+press attack
+wait 9
+press attack
+wait 9
+press attack
+wait 9
+press attack
+wait 9
+press attack
+wait 9
+press attack
+wait 9
+press attack
+wait 120
+mark fight_end
+cmd kill @e[type=minecraft:zombie]
+camera first
+cmd time set 1000
+wait 40
+
+# she knows the world
+cmd kill @e[type=minecraft:item]
+mark know
+voice ../../demo/out/voices/t_iron.wav
+wait 60
+caption She listens to what the world remembers (a Minecraft knowledge base on your computer)
+wait 500
+mark know_end
+
+# she has feelings
+cmd kill @e[type=minecraft:item]
+mark feelings
+turnto companion 0.5
+wait 14
+press attack
+wait 80
+voice ../../demo/out/voices/t_sorry.wav
+wait 200
+turnto companion 0.4
+wait 10
+sneak on
+wait 3
+sneak off
+wait 70
+mark feelings_end
+
+mark spam
+caption You can also just type in chat
+type i love you
+wait 8
+type i love you
+wait 8
+type i love you
+wait 8
+type i love you
+wait 8
+type i love you
+wait 8
+type i love you
+wait 40
+caption Spam her and sweet words lose their effect: she gets annoyed
+wait 240
+mark spam_end
+
+# your rules
+cmd kill @e[type=minecraft:item]
+cmd time set 14500
+act {"move": "come", "seconds": 6}
+wait 60
+mark modes
+type /kindred power advisor
+caption Your rules: /kindred power advisor (talks, finds, guides) · helper · allpowerful
+wait 10
+voice ../../demo/out/voices/t_torch.wav
+wait 220
+type /kindred power helper
+caption helper: she can act when you ask. grounded style: only with what you really have
+wait 10
+voice ../../demo/out/voices/t_torch2.wav
+wait 240
+mark modes_end
+
+mark night
+act {"move": "come", "seconds": 8}
+track companion 4
+wait 100
+mark night_end
+
+cmd time set 1000
+wait 40
+mark skins
+act {"move": "come", "seconds": 14}
+wait 20
+skin slime
+wait 28
+skin slime_cube
+wait 28
+skin strawberry
+wait 28
+skin wisp
+wait 28
+skin starry
+wait 28
+skin pixie
+wait 28
+skin fairy
+wait 40
+mark skins_end
+record stop
+wait 10
+quit

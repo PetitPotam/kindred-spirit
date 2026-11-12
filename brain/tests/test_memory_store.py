@@ -69,3 +69,27 @@ def test_a_full_reset_also_clears_the_bond_and_conversations():
     s.doc("world:sp:A:history", [{"role": "user", "content": "hi"}])
     assert s.clear_docs() == 2
     assert s.doc("heart") is None and s.doc("world:sp:A:history") is None
+
+
+def test_reading_while_another_thread_writes():
+    import threading
+    s = store()
+    errors = []
+
+    def write():
+        for i in range(150):
+            s.add("player", "Fact number %d about the player." % i, world="sp:A", importance=5)
+
+    def read():
+        try:
+            for _ in range(150):
+                s.list(kinds=["player"], world="sp:A", limit=20)
+                s.doc("world:sp:A:heart")
+        except Exception as e:  # (an unlocked shared connection mixes up rows here)
+            errors.append(e)
+    threads = [threading.Thread(target=write)] + [threading.Thread(target=read) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
