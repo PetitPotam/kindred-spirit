@@ -39,6 +39,18 @@ LOW_HEALTH_DANGER = [
 ]
 
 
+LAVA_LINES = [
+    "Lava {where}! Careful!",
+    "Watch out, lava {where}!",
+    "Hot hot hot! Lava {where}!",
+]
+DROP_LINES = [
+    "Careful, a big drop {where}!",
+    "Whoa, watch your step, it goes way down {where}!",
+]
+DROP_LAVA_LINES = ["Stop! There's a drop {where}, and lava at the bottom!"]
+
+
 class Alerts:
     CREEPER_RANGE = 8.0
     CREEPER_COOLDOWN = 20.0
@@ -46,6 +58,8 @@ class Alerts:
     HEALTH_REARM = 12.0        # warn again only after healing back above 6 hearts...
     LOW_HEALTH_REMIND = 90.0   # ...or after this long still low
     MIN_GAP = 3.0              # never two warnings closer than this
+    LAVA_COOLDOWN = 15.0
+    DROP_COOLDOWN = 45.0       # (standing at an edge to build shouldn't nag)
 
     def __init__(self, rng=None):
         self.rng = rng or random.Random()
@@ -60,7 +74,7 @@ class Alerts:
         health = s.get("health", 20)
         if health >= self.HEALTH_REARM:
             self.health_armed = True
-        found = self._creeper(s, now) or self._low_health(s, now)
+        found = self._creeper(s, now) or self._lava(s, now) or self._low_health(s, now) or self._drop(s, now)
         if found and now - self.last_any >= self.MIN_GAP:
             self.last[found.kind] = now
             self.last_any = now
@@ -81,14 +95,29 @@ class Alerts:
         text = self.rng.choice(CREEPER_LINES).format(where=where_words(c.get("direction")))
         return Alert("creeper", text[0].upper() + text[1:], "scared")
 
+    def _lava(self, s, now):
+        h = next((h for h in s.get("hazards") or [] if h.get("kind") in ("lava", "drop_lava")), None)
+        if not h or not self._ready("lava", self.LAVA_COOLDOWN, now):
+            return None
+        pool = DROP_LAVA_LINES if h["kind"] == "drop_lava" else LAVA_LINES
+        where = "right next to you" if h.get("distance", 9) <= 1 else where_words(h.get("direction"))
+        text = self.rng.choice(pool).format(where=where)
+        return Alert("lava", text, "scared")
+
+    def _drop(self, s, now):
+        h = next((h for h in s.get("hazards") or [] if h.get("kind") == "drop" and h.get("depth", 0) >= 8), None)
+        if not h or not self._ready("drop", self.DROP_COOLDOWN, now):
+            return None
+        return Alert("drop", self.rng.choice(DROP_LINES).format(where=where_words(h.get("direction"))), "worried")
+
     def _low_health(self, s, now):
         health = s.get("health", 20)
         if health > self.LOW_HEALTH:
             return None
         if not self.health_armed and not self._ready("low_health", self.LOW_HEALTH_REMIND, now):
             return None
-        hearts = health / 2
-        hearts_text = ("%d" % hearts) if hearts == int(hearts) else ("%.1f" % hearts)
+        hearts = health / 2  # in words she'd say: "about 2", "barely 1"
+        hearts_text = ("barely 1" if hearts <= 1 else "about %d" % round(hearts)) if hearts != int(hearts) else "%d" % hearts
         close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= 12]
         pool = LOW_HEALTH_DANGER if close else LOW_HEALTH_HUNGRY if s.get("food", 20) < 18 else LOW_HEALTH_FED
         return Alert("low_health", self.rng.choice(pool).format(hearts=hearts_text), "worried")

@@ -1,0 +1,13 @@
+# Is there a light block where she floats at night? (the fill command reports how many it replaced)
+world kindred-features
+wait 200
+cmd time set 18000
+look 90 0
+wait 80
+cmd fill ~-4 ~-1 ~-4 ~4 ~4 ~4 minecraft:air replace minecraft:light
+wait 20
+cmd time set 1000
+wait 60
+cmd fill ~-4 ~-1 ~-4 ~4 ~4 ~4 minecraft:air replace minecraft:light
+wait 20
+quit

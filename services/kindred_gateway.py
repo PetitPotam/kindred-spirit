@@ -75,6 +75,9 @@ DEFAULT_STATE = {
     "access_key": "",
     # ---- AI (chat) ----
     "upstream": "gemini",
+    # another AI for some kinds of call: {"reflect": "claude"} = learn with Claude, talk with the main one
+    # (kinds: reply, own, reflect, fold). `use ai claude --for reflect`; `--for reflect --clear` to undo.
+    "by_kind": {},
     "paused": False,
     "model": "",
     "temperature": None,
@@ -614,14 +617,14 @@ class Handler(BaseHTTPRequestHandler):
         req = json.loads(raw or b"{}")
         msgs = req.get("messages") or []
         player = next((text_of(m.get("content")) for m in reversed(msgs) if m.get("role") == "user"), "")
-        name = state.get("upstream") or "gemini"
+        kind = self.headers.get("X-Kindred-Kind") or "reply"  # reply, own, reflect, fold (from the brain)
+        name = pick_upstream(state, kind)
         if name not in state["upstreams"]:
             raise LookupError("unknown AI provider %r" % name)
         up = state["upstreams"][name]
         paused = state.get("paused")
         hint = "" if paused else state.get("hint_next", "")
         req = shape(req, dict(DEFAULT_STATE, upstreams=state["upstreams"]) if paused else state, name, hint)
-        kind = self.headers.get("X-Kindred-Kind") or "reply"  # reply, own, reflect, fold (from the brain)
         by_kind = (up.get("by_kind") or {}).get(kind) or {}
         if by_kind.get("model") and not state.get("model") and up.get("type") not in ("claude_cli", "cli"):
             req["model"] = by_kind["model"]
@@ -845,6 +848,12 @@ def check():
     return 0 if ok else 1
 
 
+def pick_upstream(state, kind):
+    """Which AI answers this kind of call: its own choice in by_kind, else the main one."""
+    name = (state.get("by_kind") or {}).get(kind)
+    return name if name in state["upstreams"] else state.get("upstream") or "gemini"
+
+
 def control(req):
     """Change the special instructions: {"op": persona|fact|hint|model|temp|pause|resume|status,
     "text": "...", "clear": bool}. Returns what they are now."""
@@ -883,8 +892,24 @@ def main(argv):
     elif cmd == "check":
         return check()
     elif cmd == "use":
+        kind = args[args.index("--for") + 1] if "--for" in args and args.index("--for") + 1 < len(args) else None
+        clear = clear or "--clear" in args
+        args = [a for i, a in enumerate(args) if a not in ("--for", "--clear") and (i == 0 or args[i - 1] != "--for")]
+        if kind:  # one kind of call to another AI: use ai claude --for reflect
+            if kind not in ("reply", "own", "reflect", "fold"):
+                print("kinds: reply (answering you), own (things she says on her own), reflect (learning), fold (summaries)")
+                return 2
+            state = load()
+            name = args[1] if len(args) == 2 else ""
+            if name and name not in state["upstreams"]:
+                print("unknown AI provider; choose one of: " + ", ".join(state["upstreams"]))
+                return 2
+            change(lambda s: s.setdefault("by_kind", {}).__setitem__(kind, name) if name and not clear
+                   else s.setdefault("by_kind", {}).pop(kind, None))
+            print("%s calls now use %s" % (kind, name if name and not clear else "the main AI (%s)" % load()["upstream"]))
+            return 0
         if len(args) != 2:
-            print("usage: use ai|stt|tts|embeddings|memory PROVIDER")
+            print("usage: use ai|stt|tts|embeddings|memory PROVIDER   (or: use ai PROVIDER --for reflect)")
             return 2
         part, name = args
         state = load()

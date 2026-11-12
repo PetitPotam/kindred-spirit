@@ -87,6 +87,7 @@ public final class Actions {
                 case GUIDE, STOP_GUIDE -> done(ok()); // handled by the companion itself
                 case PROTECT -> onServer(mc, s -> protect(s, mc.player));
                 case PLACE_TORCH -> onServer(mc, s -> placeTorch(s, mc.player, style));
+                case HARVEST -> onServer(mc, s -> harvest(s, mc.player));
                 case GIVE_ITEM -> onServer(mc, s -> give(s, mc.player, str(args, "item", ""), num(args, "count", 1)));
                 case SET_TIME -> onServer(mc, s -> setTime(s, str(args, "time", "day")));
                 case SET_WEATHER -> onServer(mc, s -> setWeather(s, str(args, "weather", "clear")));
@@ -353,6 +354,64 @@ public final class Actions {
         String height = up > 2 ? ", " + up + " blocks up" : up < -2 ? ", " + (-up) + " blocks down" : ", at your level";
         r.addProperty("where", Math.round(Math.sqrt(dx * dx + dz * dz)) + " blocks away, " + dir + " ("
                 + Places.compass(dx, dz) + ")" + height);
+        return r;
+    }
+
+    /**
+     * Breaks what the player is looking at (within 6 blocks): a whole tree if it's a log, else that one
+     * block. What it drops goes into their inventory, as if mined with the item in their hand (in
+     * grounded style no better tool than yours: stone by hand crumbles to nothing). Never unbreakable
+     * blocks, never anything that holds items (chests, furnaces...).
+     */
+    static JsonObject harvest(MinecraftServer server, LocalPlayer p) {
+        ServerPlayer sp = serverPlayer(server, p);
+        ServerLevel level = sp.serverLevel();
+        net.minecraft.world.phys.HitResult hit = sp.pick(6, 1f, false);
+        if (!(hit instanceof net.minecraft.world.phys.BlockHitResult bh) || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            return error("The player isn't looking at a block or a tree close enough (6 blocks).");
+        }
+        BlockPos start = bh.getBlockPos();
+        net.minecraft.world.level.block.state.BlockState first = level.getBlockState(start);
+        if (first.getDestroySpeed(level, start) < 0 || level.getBlockEntity(start) != null || first.isAir()) {
+            return error("That one won't budge (or it holds things).");
+        }
+        java.util.List<BlockPos> todo = new java.util.ArrayList<>();
+        boolean tree = first.is(net.minecraft.tags.BlockTags.LOGS);
+        if (tree) { // the whole trunk and branches: connected logs, up from where you look, at most 96
+            java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>(java.util.List.of(start));
+            java.util.Set<BlockPos> seen = new java.util.HashSet<>(q);
+            while (!q.isEmpty() && todo.size() < 96) {
+                BlockPos b = q.poll();
+                todo.add(b);
+                for (BlockPos n : BlockPos.betweenClosed(b.offset(-1, 0, -1), b.offset(1, 1, 1))) {
+                    BlockPos m = n.immutable();
+                    if (m.getY() >= start.getY() && !seen.contains(m) && level.getBlockState(m).is(net.minecraft.tags.BlockTags.LOGS)) {
+                        seen.add(m);
+                        q.add(m);
+                    }
+                }
+            }
+        } else {
+            todo.add(start);
+        }
+        ItemStack tool = sp.getMainHandItem();
+        int broken = 0;
+        java.util.Map<String, Integer> got = new java.util.LinkedHashMap<>();
+        for (BlockPos b : todo) {
+            net.minecraft.world.level.block.state.BlockState st = level.getBlockState(b);
+            for (ItemStack drop : Block.getDrops(st, level, b, level.getBlockEntity(b), sp, tool)) {
+                got.merge(BuiltInRegistries.ITEM.getKey(drop.getItem()).getPath(), drop.getCount(), Integer::sum);
+                if (!sp.getInventory().add(drop)) sp.drop(drop, false);
+            }
+            level.destroyBlock(b, false, sp);
+            broken++;
+        }
+        JsonObject r = ok();
+        r.addProperty("broken", broken);
+        r.addProperty("what", tree ? "a tree (" + broken + " logs)" : BuiltInRegistries.BLOCK.getKey(first.getBlock()).getPath());
+        StringBuilder items = new StringBuilder();
+        got.forEach((k, v) -> items.append(items.length() > 0 ? ", " : "").append(v).append(" ").append(k.replace('_', ' ')));
+        r.addProperty("gaveThePlayer", items.length() > 0 ? items.toString() : "nothing (it crumbled: the right tool is needed)");
         return r;
     }
 

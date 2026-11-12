@@ -26,7 +26,7 @@ public final class Abilities {
         // advice: reads the world, changes nothing
         FIND_ORE(false), FIND_ANIMAL(false), LOCATE(false), GUIDE(false), STOP_GUIDE(false),
         // acts in the world when you ask
-        PROTECT(true), PLACE_TORCH(true),
+        PROTECT(true), PLACE_TORCH(true), HARVEST(true),
         // makes things appear
         GIVE_ITEM(true),
         // changes the whole world
@@ -47,7 +47,7 @@ public final class Abilities {
     public static boolean allowed(Ability a, Power p, Style s) {
         return switch (a) {
             case FIND_ORE, FIND_ANIMAL, LOCATE, GUIDE, STOP_GUIDE -> true;
-            case PROTECT, PLACE_TORCH -> p != Power.ADVISOR;
+            case PROTECT, PLACE_TORCH, HARVEST -> p != Power.ADVISOR;
             case GIVE_ITEM -> p != Power.ADVISOR && s == Style.MAGIC;
             case SET_TIME, SET_WEATHER -> p == Power.ALLPOWERFUL;
         };

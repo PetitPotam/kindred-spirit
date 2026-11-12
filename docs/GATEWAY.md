@@ -104,7 +104,21 @@ the prompt) and `{prompt}` (without it, the prompt goes to the tool's standard i
 guide, protect...) are asked for as a JSON answer and read back from it. Each call starts the tool,
 so expect a few seconds per reply, and it counts against that subscription's own usage limits.
 
-`by_kind` works for every AI provider, for example a stronger Gemini model only for learning:
+### A different AI for each kind of call
+
+Each kind of call can go to another AI entirely: for example Gemini for her quick replies and your
+Claude subscription for learning, where quality matters more than speed:
+
+```bash
+$G use ai gemini                     # the main AI: answering you, things she says on her own
+$G use ai claude --for reflect       # learning from what happened
+$G use ai --for reflect --clear      # back to the main AI
+```
+
+Kinds: `reply` (answering you), `own` (things she says on her own), `reflect` (learning), `fold`
+(summarizing older conversation). The dashboard shows which AI answered each call.
+
+Within one provider, `by_kind` can also change the model, for example a stronger Gemini model only for learning:
 `"gemini": {"by_kind": {"reflect": {"model": "gemini-3.1-flash"}}}`.
 
 ## Special instructions

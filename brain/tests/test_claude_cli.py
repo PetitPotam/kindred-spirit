@@ -115,3 +115,10 @@ else:
     r = gw.any_cli_chat(up, chat({"role": "user", "content": "find a cow"}, tools=["find_animal"]), "reply")
     call = r["choices"][0]["message"]["tool_calls"][0]["function"]
     assert call["name"] == "find_animal" and json.loads(call["arguments"]) == {"animal": "cow"}
+
+
+def test_each_kind_of_call_can_use_another_ai():
+    state = gw.deep_merge(gw.DEFAULT_STATE, {"upstream": "gemini", "by_kind": {"reflect": "claude", "fold": "nope"}})
+    assert gw.pick_upstream(state, "reply") == "gemini"
+    assert gw.pick_upstream(state, "reflect") == "claude"
+    assert gw.pick_upstream(state, "fold") == "gemini", "an unknown provider falls back to the main AI"
