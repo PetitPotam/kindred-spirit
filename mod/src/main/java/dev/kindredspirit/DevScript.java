@@ -42,6 +42,9 @@ import java.util.Deque;
  *   skin ID             wear this skin
  *   emote NAME          play a gesture (nod, spin, hop, shy...)
  *   act JSON            as if the brain sent {"move": "stay"} and the like
+ *   brain JSON          as if the brain sent this message, e.g. {"type": "say", "text": "Hi!", "mood": "happy"},
+ *                       {"type": "mood", "mood": "sad"}, {"type": "bond", "value": 40, "level": "friend", "change": 0.6}
+ *                       (to film or check her looks with no brain running)
  *   lookat companion    turn the player to look straight at the companion
  *   sneak on|off        hold or release sneak (sneaking while looking at it pets it)
  *   press attack|use    press the attack (left click) or use (right click) key for a moment
@@ -219,6 +222,7 @@ public final class DevScript {
             case "skin" -> mc.player.connection.sendCommand("kindred skin " + arg.trim());
             case "emote" -> KindredSpiritClient.get().applyAct(JsonParser.parseString("{\"emote\":\"" + arg.trim() + "\"}").getAsJsonObject());
             case "act" -> KindredSpiritClient.get().applyAct(JsonParser.parseString(arg).getAsJsonObject());
+            case "brain" -> KindredSpiritClient.get().devBrainMessage(JsonParser.parseString(arg).getAsJsonObject());
             case "lookat" -> {
                 Behavior life = KindredSpiritClient.get().companion().life;
                 Vec3 eye = mc.player.getEyePosition();
