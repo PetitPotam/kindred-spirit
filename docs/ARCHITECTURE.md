@@ -106,6 +106,9 @@ flowchart LR
 | System 1 → System 2 | The conversation to reflect on; a power she hasn't discovered yet; "listen more" about how something works | Every few exchanges and at the end of a session; when you ask |
 | System 2 → System 0 | Her instinct lines, written in her own voice and checked | After joining, when your bond changes level, after an import |
 | System 2 → System 1 | Who she's become lately (checked); a power waking up ("I can sense ores now!"); a piece of her origin; what the world remembers | In the background; at most every 20 minutes for the portrait |
+| Memory → System 1 (through System 0) | The memories that match your words (keywords and meaning), her places, her heart, picked by code and put in her prompt | Before every answer |
+| System 0 → memory | An episode of each exchange ("the player said... / I said..."), places she found with locate or find ore, her heart, conversation history and stats | After every exchange; as things happen |
+| System 1 → memory | What she decides to keep live, with her tools: remember, forget, name a place, set a reminder, a standing request | During the conversation, when it comes up |
 | System 2 → memory | What's worth keeping (about you, about her, tastes, core memories, diary), merged with what she knew | After each reflection |
 | Heart ↔ all | Feelings from events and from how you treat her; her bond shapes how System 1 talks, whether System 0 may prank or sulk, and when System 2 rewrites her | Continuously |
 
