@@ -97,6 +97,25 @@ public final class Snapshot {
     }
 
     public static JsonObject build(Minecraft mc, int scanRadius) {
+        return build(mc, scanRadius, null);
+    }
+
+    /** Can she see it from where she floats? A clear line from her to its eyes, within 40 blocks. */
+    static boolean sees(Minecraft mc, Vec3 her, Entity e) {
+        if (her == null) return true; // (no body yet: the old way)
+        Vec3 to = e.getEyePosition();
+        if (her.distanceToSqr(to) > 40 * 40) return false;
+        HitResult r = mc.level.clip(new net.minecraft.world.level.ClipContext(her, to,
+                net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                mc.player));
+        return r.getType() == HitResult.Type.MISS;
+    }
+
+    /**
+     * @param her where she floats (null before she appears): what she sees is what has a clear line
+     *            of sight from her, not everything around you
+     */
+    public static JsonObject build(Minecraft mc, int scanRadius, Vec3 her) {
         LocalPlayer p = mc.player;
         JsonObject o = new JsonObject();
         o.addProperty("type", "snapshot");
@@ -186,19 +205,25 @@ public final class Snapshot {
             mo.addProperty("distance", round1(m.distanceTo(p)));
             mo.addProperty("direction", Direction8.relative(p.getYRot(), m.getX() - p.getX(), m.getZ() - p.getZ()));
             mo.addProperty("above", round1(m.getY() - p.getY()));
+            mo.addProperty("seen", sees(mc, her, m)); // (warnings still come for unseen ones: she senses danger)
             hostiles.add(mo);
         }
         o.add("hostiles", hostiles);
 
-        // animals and villagers nearby: babies, your pets, species she hasn't met yet
+        // animals and villagers: the ones she can see (up to 40 blocks, nothing in the way), and the
+        // ones close by that she can't see right now (marked unseen: behind a wall, a hill...)
         java.util.List<net.minecraft.world.entity.LivingEntity> near = mc.level.getEntitiesOfClass(
-                net.minecraft.world.entity.LivingEntity.class, p.getBoundingBox().inflate(32),
+                net.minecraft.world.entity.LivingEntity.class, p.getBoundingBox().inflate(her == null ? 32 : 40),
                 e -> e.isAlive() && (e instanceof net.minecraft.world.entity.animal.Animal
                         || e instanceof net.minecraft.world.entity.npc.AbstractVillager));
         near.sort(Comparator.comparingDouble(e -> e.distanceToSqr(p)));
         JsonArray animals = new JsonArray();
-        for (net.minecraft.world.entity.LivingEntity e : near.subList(0, Math.min(20, near.size()))) {
+        for (net.minecraft.world.entity.LivingEntity e : near) {
+            if (animals.size() >= 20) break;
+            boolean seen = sees(mc, her, e);
+            if (!seen && e.distanceTo(p) > 32) continue;
             JsonObject ao = new JsonObject();
+            ao.addProperty("seen", seen);
             ao.addProperty("id", e.getId());
             ao.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
             ao.addProperty("distance", round1(e.distanceTo(p)));
@@ -211,6 +236,20 @@ public final class Snapshot {
         }
         o.add("animals", animals);
         o.add("hazards", hazards(mc, p));
+
+        // what she feels where she floats: rain or snow on her, the cold or the heat, the light
+        BlockPos at = her == null ? pos : BlockPos.containing(her);
+        net.minecraft.world.level.biome.Biome biome = mc.level.getBiome(at).value();
+        JsonObject feel = new JsonObject();
+        feel.addProperty("temperature", round1(biome.getBaseTemperature()));
+        if (mc.level.isRaining() && mc.level.canSeeSky(at)) {
+            net.minecraft.world.level.biome.Biome.Precipitation pr = biome.getPrecipitationAt(at);
+            if (pr != net.minecraft.world.level.biome.Biome.Precipitation.NONE) {
+                feel.addProperty("falling", pr == net.minecraft.world.level.biome.Biome.Precipitation.SNOW ? "snow" : "rain");
+            }
+        }
+        feel.addProperty("light", mc.level.getMaxLocalRawBrightness(at));
+        o.add("feel", feel);
         return o;
     }
 

@@ -169,6 +169,20 @@ little scenes (a first hello, "you're useless", "sing something", "I lost everyt
 to the real AI and counts her tics (your name, questions, "Oh...", long lines). Compare labels in
 `~/.kindred-spirit/logs/bench-*.json`; `BENCH_MODEL=... BENCH_EFFORT=minimal` tries another model.
 
+**Her senses.** She perceives the world from where she floats, not as a radar:
+- *Sight*: animals and villagers with a clear line of sight from her (up to 40 blocks); one behind
+  a wall or a hill isn't seen. Danger is different: she still *senses* hostile mobs out of sight,
+  so warnings never miss.
+- *Hearing*: the sounds around you by the names the game gives them for subtitles ("Zombie
+  groans", "Cow moos", "Lava pops"), within earshot, with where they came from; your own
+  footsteps and work right next to you aren't news. A new, interesting sound from something she
+  can't see may catch her attention ("You hear that?"), at most every four minutes.
+- *Feeling*: rain or snow falling on her, the cold or the heat of the place.
+- *Watching you*: what you just did, counted ("broke 3 oak log", "placed a torch", "got 4 oak
+  planks", "ate a bread", "hit a zombie").
+- *New and familiar*: something she's never seen or heard stands out (it's mentioned first, as new);
+  the same cows all day stop being news, and feel new again after a long while away (`senses.py`).
+
 **Her instincts, in her own words.** Her instant reactions can't wait for an AI ("Ow!", "Creeper
 behind you!", "We're here!"), but fixed sentences repeat and don't sound like her. So a little
 while after you join (45 s, `behaviour.instinct_lines_after`), her thinking AI writes a handful of

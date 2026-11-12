@@ -34,11 +34,12 @@ from websockets.exceptions import ConnectionClosed
 
 from . import config, intents, tools, voice
 from . import heart as intents_heart
-from .describe import describe
+from .describe import describe, where_words
 from . import knowledge as kb
 from .understand import Understand
 from . import becoming as becoming_mod
 from . import instinct as instinct_mod
+from .senses import Novelty
 from .mind import post_json
 from .heart import Heart
 from .memory import GatewayMemory, Memory
@@ -168,6 +169,11 @@ def estimate_seconds(text):
 IMPORTED_KINDS = ("player", "self", "habit", "origin", "taste", "core")  # what an import brings: who you are, who she is, your habits
 
 # moments worth waiting for a pause in the conversation, rather than skipping
+# sounds worth turning her head for (by the names the world gives them): creatures, caves, water, fire...
+INTERESTING = re.compile(r"groan|hiss|growl|rattl|ambien|cave|roar|scream|shriek|crackl|pops|bubbl|howl|creak|chime|"
+                         r"music|sing|moo|bleat|baa|oink|cluck|neigh|purr|meow|bark|buzz|drip|flow|thunder|bell|"
+                         r"whisper|moan|sniff|squeak|croak|warden|ghast|wail", re.I)
+
 WORTH_WAITING = ("baby", "tamed", "first_meet", "killed_villager", "kill_spree", "death", "advancement", "lore_place")
 
 
@@ -217,7 +223,8 @@ class Brain:
         self.kb = kb.Knowledge(cfg)
         self.understand = Understand(cfg)  # System 0's understanding (local embeddings)
         self.instinct = instinct_mod.Instinct()  # System 0's own words, written by System 2 (per world)
-        self.lines_written_at, self.last_filler, self.becoming_at = -1e9, -1e9, -1e9  # what the world remembers (services/knowledge)
+        self.lines_written_at, self.last_filler, self.becoming_at = -1e9, -1e9, -1e9
+        self.novelty = Novelty()  # what's new to her and what she's used to (senses.py)  # what the world remembers (services/knowledge)
         self.listening = set()       # questions she's listening to the world about right now
         self.reading = None          # the guide she was last told about (listen_more goes on from there)
         # one voice, coordinated (see say): what she's saying now, and what an interruption left unsaid
@@ -486,7 +493,7 @@ class Brain:
         now = self.clock()
         if not self.in_world or self.ws is None or self.talk_lock.locked() or now - self.last_notice < gap:
             return
-        if now - self.noticed.get(event, -1e9) < (600 if event in ("mining", "building") else 0):
+        if now - self.noticed.get(event, -1e9) < {"mining": 600, "building": 600, "heard": 240}.get(event, 0):
             return
         instruction = self.heart.notice(event, detail, self.snapshot)
         if not instruction:
@@ -872,8 +879,9 @@ class Brain:
         """The nearest animal in view whose kind the text names ("sheeps" counts as sheep)."""
         words = set(re.findall(r"[a-z]+", text.lower()))
         words |= {w[:-1] for w in words if w.endswith("s")} | {w[:-2] for w in words if w.endswith("es")}
-        seen = [a for a in self.snapshot.get("animals") or []
-                if a.get("type", "").replace("minecraft:", "").replace("_", " ").split()[-1] in words]
+        named = [a for a in self.snapshot.get("animals") or []
+                 if a.get("type", "").replace("minecraft:", "").replace("_", " ").split()[-1] in words]
+        seen = [a for a in named if a.get("seen", True)] or named  # what she sees first, else what's just out of sight
         return min(seen, key=lambda a: a.get("distance", 99)) if seen else None
 
     async def reflect(self, session_end=False):
@@ -1007,6 +1015,7 @@ class Brain:
         self.recent = [(t, x) for t, x in self.recent if now - t < 90] + [(now, what)]
 
     async def on_snapshot(self, s):
+        self.novelty.annotate(s, self.clock())
         self.snapshot = s
         self.snapshot_at = self.clock()
         self.save_snapshot(s)
@@ -1055,6 +1064,19 @@ class Brain:
             self.kills = []
             asyncio.create_task(self.notice("kill_spree", max(set(same), key=same.count) if same else kind))
 
+    def listen(self, s):
+        """A new, interesting sound from something she can't see catches her attention ("did you hear that?")."""
+        seen = {a.get("type", "").split(":")[-1].replace("_", " ") for a in s.get("animals") or [] if a.get("seen", True)}
+        seen |= {m.get("type", "").split(":")[-1].replace("_", " ") for m in s.get("hostiles") or [] if m.get("seen", True)}
+        for h in s.get("sounds") or []:
+            what = h.get("what", "")
+            if (h.get("new") and h.get("distance", 0) >= 5 and INTERESTING.search(what)
+                    and not any(k and k in what.lower() for k in seen)):
+                where = "%d blocks %s%s" % (h.get("distance", 0), where_words(h.get("direction")),
+                                            ", below" if h.get("above", 0) < -3 else ", above" if h.get("above", 0) > 3 else "")
+                asyncio.create_task(self.notice("heard", "%s (%s)" % (what, where)))
+                return
+
     def watch_animals(self, s, now):
         """Babies being born, new pets, species she meets for the first time, and visiting your pets."""
         animals = s.get("animals") or []
@@ -1070,7 +1092,7 @@ class Brain:
             if a.get("tamed") and str(aid) not in self.heart.state.setdefault("pets", []):
                 self.heart.state["pets"].append(str(aid))
                 asyncio.create_task(self.visit_and_notice("tamed", a))
-            elif kind not in self.heart.state["seen_species"] and a.get("distance", 99) < 10:
+            elif kind not in self.heart.state["seen_species"] and a.get("distance", 99) < 10 and a.get("seen", True):
                 self.heart.state["seen_species"].append(kind)
                 asyncio.create_task(self.visit_and_notice("first_meet", a))
         pets = [a for a in animals if a.get("tamed") and a.get("distance", 99) < 12]
@@ -1120,6 +1142,7 @@ class Brain:
         self.prev_health = health
         self.prev_where = (w.get("x"), w.get("z")) if w.get("x") is not None else self.prev_where
         self.watch_animals(s, now)
+        self.listen(s)
         if (s.get("brokenRecently") or 0) >= 20:
             asyncio.create_task(self.notice("mining"))
         if (s.get("placedRecently") or 0) >= 15:

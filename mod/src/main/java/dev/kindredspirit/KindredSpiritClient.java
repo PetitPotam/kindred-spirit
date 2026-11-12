@@ -309,6 +309,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     || entity instanceof net.minecraft.world.entity.monster.Enemy)) {
                 attacked.put(entity.getId(), System.currentTimeMillis());
             }
+            if (world.isClientSide && entity instanceof net.minecraft.world.entity.LivingEntity) {
+                youDid.add(System.currentTimeMillis(), "hit",
+                        words(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString()));
+            }
             return net.minecraft.world.InteractionResult.PASS;
         });
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
@@ -324,6 +328,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
             inWorld = true;
             joinedAt = System.currentTimeMillis();
+            lastInventory = null;
+            if (!hearingOn) { // the sound system exists by now
+                mc.getSoundManager().addListener(hearing);
+                hearingOn = true;
+            }
             lastHealth = -1;
             sendAbilities(); // the hello came from the title screen: now we know if it's singleplayer
             event("join");
@@ -417,8 +426,15 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (now >= nextSnapshot || (urgent && now - lastUrgentSnapshot > 400)) {
             if (urgent) lastUrgentSnapshot = now;
             nextSnapshot = now + quality.level().snapshotMs;
-            JsonObject snap = Snapshot.build(mc, quality.level().scanRadius);
+            dev.kindredspirit.life.Behavior life = companion.life;
+            JsonObject snap = Snapshot.build(mc, quality.level().scanRadius,
+                    life.hidden() ? null : new net.minecraft.world.phys.Vec3(life.x, life.y, life.z));
             long nowMs = System.currentTimeMillis();
+            snap.add("sounds", hearing.recent(mc.player, 8000));
+            watchInventory(snap, nowMs);
+            com.google.gson.JsonArray did = new com.google.gson.JsonArray();
+            for (String d : youDid.summary(nowMs, 30000)) did.add(d);
+            snap.add("youDid", did);
             breaks.removeIf(t -> nowMs - t > 60000);
             places.removeIf(t -> nowMs - t > 60000);
             snap.addProperty("brokenRecently", breaks.size());
@@ -638,14 +654,52 @@ public final class KindredSpiritClient implements ClientModInitializer {
     // ------------------------------------------------------------------ what she notices
 
     private final java.util.List<Long> breaks = new java.util.ArrayList<>(), places = new java.util.ArrayList<>();
+    // her senses: what she hears, and what she watched you do (see senses/)
+    private final dev.kindredspirit.senses.Hearing hearing = new dev.kindredspirit.senses.Hearing();
+    private boolean hearingOn;
+    private final dev.kindredspirit.senses.Recent youDid = new dev.kindredspirit.senses.Recent(120000, 6);
+    private java.util.Map<String, Integer> lastInventory;
     private java.util.Set<String> items = null;
     private long itemsCheckedAt;
     private BlockPos pendingPlace;
     private net.minecraft.world.level.block.Block pendingBlock;
     private int pendingTicks;
 
-    public void blockBroken() {
+    /** What you got or used since the last snapshot ("got 4 oak planks", "ate a bread"). */
+    private void watchInventory(JsonObject snap, long now) {
+        java.util.Map<String, Integer> inv = new java.util.HashMap<>();
+        if (snap.has("inventory")) {
+            for (var e : snap.getAsJsonObject("inventory").entrySet()) inv.put(e.getKey(), e.getValue().getAsInt());
+        }
+        if (lastInventory != null) {
+            for (var e : inv.entrySet()) {
+                int gained = e.getValue() - lastInventory.getOrDefault(e.getKey(), 0);
+                if (gained > 0) youDid.add(now, "got", words(e.getKey()), gained);
+            }
+            for (var e : lastInventory.entrySet()) {
+                int lost = e.getValue() - inv.getOrDefault(e.getKey(), 0);
+                if (lost <= 0) continue;
+                String what = words(e.getKey());
+                if (youDid.did(now, "placed", what, 5000)) continue; // (already told as placed)
+                net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                        net.minecraft.resources.ResourceLocation.parse(e.getKey()));
+                boolean food = item.components().has(net.minecraft.core.component.DataComponents.FOOD);
+                youDid.add(now, food ? "ate" : "used", what, lost);
+            }
+        }
+        lastInventory = inv;
+    }
+
+    public void blockBroken(String block) {
         breaks.add(System.currentTimeMillis());
+        youDid.add(System.currentTimeMillis(), "broke", words(block));
+    }
+
+    /** "minecraft:oak_log" -> "oak log" */
+    static String words(String id) {
+        if (id == null) return "";
+        int c = id.indexOf(':');
+        return (c >= 0 && id.startsWith("minecraft:") ? id.substring(c + 1) : id).replace('_', ' ');
     }
 
     public void advancement(String title) {
@@ -718,6 +772,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 dev.kindredspirit.act.Pranks.lastPlaced = pendingPlace;
                 dev.kindredspirit.act.Pranks.lastPlacedAt = System.currentTimeMillis();
                 places.add(System.currentTimeMillis());
+                youDid.add(System.currentTimeMillis(), "placed",
+                        words(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(pendingBlock).toString()));
             }
             pendingPlace = null;
         }

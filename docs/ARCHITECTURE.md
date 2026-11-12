@@ -59,6 +59,56 @@ fast enough for its job and no more expensive than it needs to be.
 System 2 can change how the other two behave, but only through checked outputs (see *Guards*):
 it writes System 0's instinct lines in her own voice, and System 1's *who she's become lately*.
 
+### How the three systems talk to each other
+
+They aren't a pipeline: each one feeds the others, and her heart and memory sit in the middle,
+read and written by all three.
+
+```mermaid
+flowchart LR
+  body(["Her body (mod)<br/>senses, moves, acts"])
+  s0["System 0<br/>instinct"]
+  s1["System 1<br/>conversation"]
+  s2["System 2<br/>thinking"]
+  heart[("Heart<br/>bond, mood, pride,<br/>doubt, spam, powers")]
+  mem[("Memory<br/>what she knows,<br/>per world")]
+
+  body -- "snapshots: sight, hearing, feeling, what you did;<br/>events: hit, petted, death, arrived" --> s0
+  s0 -- "acts now: stay, come, look at you, gestures;<br/>speaks every line (coordinator)" --> body
+  s0 -- "what you meant (the request kind),<br/>what it already did, what she noticed" --> s1
+  s0 -- "lines said on instinct, with why<br/>(so a reply to them makes sense)" --> s1
+  s1 -- "sentences to speak, as they're written" --> s0
+  s1 -- "tools: guide, protect, torch, chop, find" --> body
+  s1 -- "the conversation, every few exchanges<br/>and when you leave" --> s2
+  s1 -- "a power she doesn't know yet:<br/>'I'll try!'" --> s2
+  s1 -- "listen more: how something works" --> s2
+  s2 -- "her instinct lines, in her own voice (checked)" --> s0
+  s2 -- "who she's become lately (checked);<br/>a power waking up; a piece of her story" --> s1
+  s2 -- "learned facts, tastes, core memories, diary" --> mem
+  mem -- "what comes to mind for this message" --> s1
+  mem -- "what she remembers, to reflect on" --> s2
+  s0 -- "hits, petting, spam, danger, kind words" --> heart
+  s1 -- "how you just treated her (the regard tag)" --> heart
+  heart -- "how she feels about you right now" --> s1
+  heart -- "bond level changed: rewrite her lines and portrait" --> s2
+  heart -- "may she prank, sulk, vanish?" --> s0
+```
+
+| From → to | What passes | When |
+|---|---|---|
+| Body → System 0 | Snapshot (what she sees, hears, feels; what you just did; hazards), events (hit, petted, death, arrived, wrong way) | Every second; events at once |
+| System 0 → body | Acts (stay, come, follow, look at you, gestures, guiding), and every spoken line | At once |
+| System 0 → System 1 | Your words with the request kind it recognised, what it already did ("you already did: stay here"), what she noticed | When you speak, or when something is worth a comment |
+| System 0 → System 1 | Lines said on instinct, with the reason ("Ow!" because you hit her), put in the conversation so her next answer fits | Each time she says one |
+| System 0 → System 1 | Nothing, on purpose, for danger: warnings are rules, never waiting for the AI | — |
+| System 1 → System 0 | Her answer, sentence by sentence; the coordinator decides when it's spoken and resumes it if a warning interrupts | While the AI is still writing |
+| System 1 → body | Tools (guide, protect, place a torch, chop, find an animal or block or ore) and their results | When an answer needs to act |
+| System 1 → System 2 | The conversation to reflect on; a power she hasn't discovered yet; "listen more" about how something works | Every few exchanges and at the end of a session; when you ask |
+| System 2 → System 0 | Her instinct lines, written in her own voice and checked | After joining, when your bond changes level, after an import |
+| System 2 → System 1 | Who she's become lately (checked); a power waking up ("I can sense ores now!"); a piece of her origin; what the world remembers | In the background; at most every 20 minutes for the portrait |
+| System 2 → memory | What's worth keeping (about you, about her, tastes, core memories, diary), merged with what she knew | After each reflection |
+| Heart ↔ all | Feelings from events and from how you treat her; her bond shapes how System 1 talks, whether System 0 may prank or sulk, and when System 2 rewrites her | Continuously |
+
 ### One moment, from your mouth to her voice
 
 ```mermaid
@@ -105,7 +155,7 @@ flowchart TB
   D["How she feels about you (heart)<br/>bond level, hurt, doubt, spam, what she may prank"] --> P
   E["What she can do (mod: power and style, discovered powers)"] --> P
   F["What the world remembers (knowledge base), when it matters"] --> P
-  G["What she sees and senses right now (snapshot, described)"] --> P
+  G["What she sees, hears and feels right now, and what you just did<br/>(snapshot, with what's new to her first)"] --> P
   H["Earlier in the conversation (summary) + the last turns"] --> P
   P(("System 1 answer"))
 ```
@@ -206,8 +256,8 @@ pays off most for little cost, because it's called rarely.
 
 Planned next (details in [ROADMAP.md](ROADMAP.md)):
 
-- **Real senses**: only what's in her view and line of sight, sounds she hears (the game already
-  names them for its subtitles), and a log of what you do.
+- **Building with you**: stacking and placing blocks from your inventory in patterns you ask for
+  ("a pillar 10 high on each corner").
 - **Seeking**: when you ask her to find something far away, she reaches out with effort and magic;
   precise when close, fuzzy when far, and beyond what's loaded she senses where such things *live*
   (biomes, structures) and sharpens as you get closer.

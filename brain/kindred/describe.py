@@ -78,7 +78,8 @@ def describe(s):
     mobs = s.get("hostiles") or []
     if mobs:
         lines.append("Hostile mobs near: " + "; ".join(
-            "%s %s blocks %s" % (nice(m.get("type")), int(m.get("distance", 0)), where_words(m.get("direction")))
+            "%s %s blocks %s%s" % (nice(m.get("type")), int(m.get("distance", 0)), where_words(m.get("direction")),
+                                   "" if m.get("seen", True) else " (out of sight: you sense it)")
             for m in mobs[:6]) + ".")
     else:
         lines.append("No hostile mobs nearby.")
@@ -86,22 +87,48 @@ def describe(s):
         kind = {"lava": "lava", "drop": "a drop of %s blocks" % h.get("depth"), "drop_water": "a drop of %s blocks "
                 "into water" % h.get("depth"), "drop_lava": "a drop of %s blocks into lava" % h.get("depth")}.get(h["kind"])
         lines.append("Danger ahead: %s, %s blocks %s." % (kind, h.get("distance"), where_words(h.get("direction"))))
-    animals = s.get("animals") or []
+    # what she sees: only what has a clear line of sight from her (new things first)
+    animals = [a for a in s.get("animals") or [] if a.get("seen", True)]
     if animals:  # grouped: "3 sheep, nearest 14 blocks ahead on your left"
         groups = {}
         for a in animals:
             groups.setdefault(nice(a.get("type")), []).append(a)
         parts = []
-        for kind, group in sorted(groups.items(), key=lambda g: min(a.get("distance", 99) for a in g[1]))[:6]:
+        order = sorted(groups.items(), key=lambda g: (not any(a.get("new") for a in g[1]),
+                                                       min(a.get("distance", 99) for a in g[1])))
+        for kind, group in order[:6]:
             near = min(group, key=lambda a: a.get("distance", 99))
             babies = sum(1 for a in group if a.get("baby"))
             pets = [a.get("name") or "a pet" for a in group if a.get("tamed")]
-            parts.append("%d %s%s, nearest %d blocks %s%s" % (
-                len(group), kind + ("s" if len(group) > 1 and not kind.endswith(("s", "sheep", "fish")) else ""), " (%d babies)" % babies if babies else "", int(near.get("distance", 0)),
-                where_words(near.get("direction")), " (your pet: %s)" % ", ".join(pets) if pets else ""))
-        lines.append("Animals within 32 blocks: " + "; ".join(parts) + ".")
+            parts.append("%d %s%s, nearest %d blocks %s%s%s" % (
+                len(group), kind + ("s" if len(group) > 1 and not kind.endswith(("s", "sheep", "fish")) else ""),
+                " (%d babies)" % babies if babies else "", int(near.get("distance", 0)),
+                where_words(near.get("direction")), " (your pet: %s)" % ", ".join(pets) if pets else "",
+                " (new to you!)" if any(a.get("new") for a in group) else ""))
+        lines.append("You see: " + "; ".join(parts) + ".")
     else:
-        lines.append("No animals within 32 blocks.")
+        lines.append("No animals in sight.")
+    sounds = s.get("sounds") or []
+    if sounds:  # by the names the world gives them, nearest of each kind
+        heard = sorted(sounds, key=lambda h: (not h.get("new"), h.get("distance", 99)))[:6]
+        lines.append("You hear: " + "; ".join("%s (%s%s)%s" % (
+            h.get("what"), "right here" if h.get("distance", 0) < 3 else "%d blocks %s" % (
+                h.get("distance", 0), where_words(h.get("direction"))),
+            ", below" if h.get("above", 0) < -3 else ", above" if h.get("above", 0) > 3 else "",
+            " new!" if h.get("new") else "") for h in heard) + ".")
+    feel = s.get("feel") or {}
+    felt = []
+    if feel.get("falling"):
+        felt.append("%s falling on you" % feel["falling"])
+    temp = feel.get("temperature")
+    if temp is not None:
+        felt.append("freezing cold" if temp < 0 else "chilly" if temp < 0.3 else "hot and dry" if temp >= 1.5 else "")
+    felt = [f for f in felt if f]
+    if felt:
+        lines.append("You feel: " + ", ".join(felt) + ".")
+    did = s.get("youDid") or []
+    if did:
+        lines.append("The player just: " + ", ".join(did) + ".")
     fx = s.get("effects") or []
     if fx:
         lines.append("Effects: " + ", ".join("%s %s (%ss)" % (nice(e.get("id")), e.get("level"), e.get("seconds"))

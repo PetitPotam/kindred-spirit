@@ -568,7 +568,10 @@ class Heart:
                     "Say what you feel, in one or two short sentences.%s" % (
                         detail, self.origin_moment("arriving in %s" % detail, self.clock())))
         if event == "death":
-            return "The player just died. Be worried and sweet about it in one short sentence."
+            return "The player just died. React the way you would, in one short line."
+        if event == "heard":
+            return ("You just heard %s, something you can't see, and it's new to you. React the way you would, in "
+                    "one short line: curious, spooked, or just pointing it out." % detail)
         if event == "mining":
             return "The player has been mining for a while. Say one little thing about it, or about what you see down here."
         if event == "building":

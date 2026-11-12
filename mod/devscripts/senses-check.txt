@@ -1,0 +1,29 @@
+# Her senses: a cow behind a wall (unseen), a sheep in view, a groan from out of sight, a block broken, bread given.
+world kindred-senses
+wait 220
+cmd gamemode creative
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -12 198 -12 12 198 24 minecraft:grass_block
+cmd fill -12 199 -12 12 210 24 minecraft:air
+cmd fill -12 199 8 12 205 8 minecraft:stone
+cmd summon minecraft:cow 0 199 14 {NoAI:1b}
+cmd summon minecraft:sheep 4 199 4 {NoAI:1b}
+cmd setblock 0 199 3 minecraft:oak_log
+cmd tp @s 0.5 199 0.5 0 20
+act {"move": "follow"}
+wait 120
+cmd playsound minecraft:entity.zombie.ambient hostile @a 0 199 16 2
+wait 10
+look 0 25
+press attack
+wait 10
+cmd give @s minecraft:bread 3
+wait 30
+screenshot senses-01
+wait 40
+quit
