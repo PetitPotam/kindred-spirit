@@ -54,4 +54,12 @@ The **Settings** tab can change every setting, each shown with its default (↺ 
 - **The gateway**: the AI for her conversation and for her deeper thinking, the Gemini model and
   thinking for her replies, her Kokoro voice, speed and pitch, and speech-to-text, for the next call.
 
-Types and choices are checked; changes are accepted only from the dashboard's own page.
+Numbers have sliders, her skin is picked from the skins there are (the mod's and yours), her Kokoro
+voice and the Gemini model come with suggestions (a voice can also be a blend like
+`bf_lily*0.7+bf_emma*0.3`). Types and choices are checked; changes are accepted only from the
+dashboard's own page.
+
+**Profiles** keep whole sets of settings to switch between and compare: "Save current as" (e.g.
+"calm Pip", "chaotic Pip"), "Use" applies one (only what differs changes), and "Compare" shows a
+table of the differences between two profiles, your current settings, or the defaults. They're
+kept in `~/.kindred-spirit/profiles/`.
