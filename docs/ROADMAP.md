@@ -155,6 +155,10 @@ Bigger, for System 0, 1 and 2 working together:
 Decision pending: `sprout` as her default skin (today `slime`).
 
 ## Phase 4: Expertise and understanding
+- **Building from blueprints** ([research and plan](research/blueprints.md)): started, a reader for
+  vanilla structure `.nbt`, Sponge `.schem` and Litematica `.litematic` files (turning, the front by
+  the door, build order, material list, saving). Next: in-game blueprints and building them, a house
+  generator ("a cozy cottage for three"), a ghost preview, "remember this house", understanding builds.
 - Recipes and items (minecraft-data), wiki knowledge search.
 - Expert modes: survival, redstone, builder, speedrun.
 - Activity understanding (building, redstone, farming, mining) and a session journal.
