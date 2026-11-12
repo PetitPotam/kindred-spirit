@@ -71,6 +71,48 @@ Where the field has moved on, and what last night's problems point to:
    that follows whoever she's with, knowing who's addressed, and answering people in parallel are less
    charted; worth documenting as we go.
 
+## Lessons from the MineCollab paper (Mindcraft)
+
+White, Nottingham et al., *Collaborating Action by Action: A Multi-agent LLM Framework for Embodied
+Reasoning* (2025), the paper behind Mindcraft. Agents play as players through **47 parameterized
+high-level commands** on Mineflayer (`!givePlayer("randy", "oak log", 4)` instead of many low-level
+steps), with code generation as a fallback. Their benchmark, **MineCollab**, has cooking, crafting and
+construction tasks (blueprints split across agents), each with a goal, starting inventories and a
+timeout; crafting and cooking score 1 or 0, construction by an edit distance to the blueprint.
+
+Their results (2-5 agents per task, test set): Claude 3.5 Sonnet best at 0.47 crafting / 0.64 cooking
+/ 0.36 construction; GPT-4o 0.17 / 0.40 / 0.31; Llama 3.3 70B 0.16 / 0.36 / 0.19. Even the best model
+"struggle[s] to place more than 40% of the total blocks" of a blueprint. Success falls from up to 90%
+to under 30% going from two to five agents, and drops by over 15% when agents must spell out detailed
+plans to each other. A small model (Llama 3 8B) fine-tuned on successful runs reaches the level of the
+70B model and GPT-4o on crafting and construction. Agents often undo each other's work.
+
+What it means for Pip:
+1. **Ask for what you need, don't receive everything.** Their agents query the world (`!nearbyBlocks`,
+   `!craftable`) instead of getting it pushed, "reducing noisy information and context lengths". Pip
+   gets a full description of her senses with every message (part of the 6,400 tokens). Give her a
+   short core and query tools for the rest: the context-engineering direction above.
+2. **High-level, parameterized actions** are the right level (as Minecraft commands as her powers will
+   be), with **few-shot examples retrieved by similarity** to the conversation instead of ever-longer
+   tool descriptions.
+3. **Don't let the AI place blueprints block by block.** Language models are poor at it (under 40% of
+   blocks). The AI chooses what and where; deterministic code builds it (`/fill`, schematic placement):
+   exactly the blueprints plan.
+4. **Several people: share state, not words.** Coordination breaks with more participants and with
+   long explanations. Keep who has what, who asked what and what's already done in structured state
+   (per-person hearts, the activity log, places), not in her talk.
+5. **Never undo the player's work.** Pip's building and chopping must respect what players built (the
+   building sites in her memory of places can mark it).
+6. **Pause talk while acting**: their conversation manager slows dialogue while agents are busy, like
+   her speech coordinator; talker-first should speak once, then act.
+7. **Measure like they do**: tasks with a goal, a starting inventory and a timeout, and an edit
+   distance for builds, for her jobs and blueprints.
+8. **Later, a small local model of her own**: fine-tuning on her successful sessions (the session logs
+   are that data) could make a small model as good as large ones for her tools, privately and cheaply.
+   Not now; the logs should be kept with that in mind.
+9. **Keep what must be reliable in code.** Even the best models succeed less than two times in three;
+   warnings, safety and anything she must never get wrong stay in System 0.
+
 ## Sources
 
 - Sumers, Yao, Narasimhan, Griffiths. *Cognitive Architectures for Language Agents* (CoALA), 2023. https://arxiv.org/abs/2309.02427
@@ -83,6 +125,7 @@ Where the field has moved on, and what last night's problems point to:
 - Yao et al. *ReAct*, 2022. https://arxiv.org/abs/2210.03629
 - Wang et al. *Voyager*, 2023. https://arxiv.org/abs/2305.16291
 - Wang et al. *JARVIS-1*, 2023. https://arxiv.org/abs/2311.05997
-- Mindcraft (Minecraft LLM agents with commands). https://github.com/kolbytn/mindcraft
+- Mindcraft (Minecraft LLM agents with commands). https://github.com/mindcraft-bots/mindcraft
+- White, Nottingham et al. *Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning* (MineCollab), 2025. https://arxiv.org/abs/2504.17950
 - Défossez et al. *Moshi: a speech-text foundation model for real-time dialogue*, 2024. https://arxiv.org/abs/2410.00037
 - Ortony, Clore & Collins. *The Cognitive Structure of Emotions*, 1988 (the OCC appraisal model).
