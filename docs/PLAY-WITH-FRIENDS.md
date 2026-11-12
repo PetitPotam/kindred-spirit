@@ -35,8 +35,10 @@ Both go in your mods folder: press `Win + R`, type `%APPDATA%\.minecraft\mods` a
      ```
    - Copy `mod\build\libs\kindred-spirit-0.1.0-preview+1.21.1.jar` into your `mods` folder.
 
-   Use the same version as the host: whenever they update the mod, `git pull` and build again (or
-   ask for their new file), and replace the old one.
+   Use the same version as the host: whenever they update the mod, get the new one. With the
+   repository, one command does it all (pull, build, replace the jar, and fetch Fabric API if it's
+   missing), with Minecraft closed: double-click `scripts\update-pip-windows.cmd`, or in PowerShell
+   `powershell -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1`.
 
 ## 3. Play
 

@@ -30,8 +30,17 @@ the Kindred mod jar built from this repository. The full guide for the person is
    - the Kindred jar from step 2 (replace any older Kindred jar).
 5. They start the **fabric-loader-1.21.1** installation and join the host's LAN world from Multiplayer.
 
-Keep their Kindred jar the same version as the host's: after the host updates, `git pull` and build
-again, then replace the jar in `mods`. In game they talk to Pip in chat: "Pip, ...".
+**Steps 2 and 4 in one command** (after Git, Java 21 and Fabric are set up), and the way to update
+whenever the host pushes changes (Minecraft closed):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1
+```
+
+It pulls, builds the mod (tests skipped), replaces the Kindred jar in `%APPDATA%\.minecraft\mods`, and
+downloads Fabric API for 1.21.1 from Modrinth if it's missing. `scripts\update-pip-windows.cmd` does the
+same on a double-click; a desktop shortcut to it is handy. Keep their Kindred jar the same version as the
+host's: update after every push. In game they talk to Pip in chat: "Pip, ...".
 
 Don't set up `brain/` or `services/` on the friend's PC unless they explicitly want their own Pip (the
 brain's scripts are written for macOS). Never commit or push from the friend's machine unless asked.
