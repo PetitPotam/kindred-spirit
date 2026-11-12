@@ -36,6 +36,7 @@ from . import config, intents, tools, voice
 from . import heart as intents_heart
 from .describe import describe
 from . import knowledge as kb
+from .understand import Understand
 from .heart import Heart
 from .memory import GatewayMemory, Memory
 from .alerts import Alerts
@@ -168,7 +169,8 @@ class Brain:
         self.line = 0
         self.last_pet_reply = -1e9
         self.tipped = {}             # power -> when the player last got a settings tip for it
-        self.kb = kb.Knowledge(cfg)  # what the world remembers (services/knowledge)
+        self.kb = kb.Knowledge(cfg)
+        self.understand = Understand(cfg)  # System 0's understanding (local embeddings)  # what the world remembers (services/knowledge)
         self.listening = set()       # questions she's listening to the world about right now
         self.reading = None          # the guide she was last told about (listen_more goes on from there)
         # one voice, coordinated (see say): what she's saying now, and what an interruption left unsaid
@@ -1310,9 +1312,13 @@ class Brain:
                 elif intents.YES.match(text) and self.her_offer and self.clock() - self.her_offer[1] < 60:
                     force = self.her_offer[0]  # "yes please" to "should I light it up for you?"
                 self.her_offer = None
-                force = force or intents.action_hint(text, self.abilities + ["set_reminder", "name_place", "remember",
-                                                                              "standing_request"]) \
+                talk_tools = ["set_reminder", "name_place", "remember", "standing_request"]
+                force = force or intents.action_hint(text, self.abilities + talk_tools) \
                     or intents.hint_in_context(text, self.recent_player, self.abilities)
+                if not force and len(text) < 160:  # System 0: what you mean, whatever words you use
+                    force = await asyncio.to_thread(self.understand.hint, text, self.abilities + talk_tools)
+                    if force:
+                        log.info("understood as %s: %s", force, text)
                 wanted = intents.action_hint(text, list(tools.ABILITY_TOOLS))
                 if wanted and wanted not in self.abilities and self.clock() - self.tipped.get(wanted, -1e9) > 600:
                     self.tipped[wanted] = self.clock()  # her power or style doesn't allow it: a hint for you
