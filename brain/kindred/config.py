@@ -30,7 +30,17 @@ DEFAULTS = {
     "behaviour": {
         "alerts": True,
         "greet_on_join": True,
-        "small_talk_minutes": 6,
+        "small_talk_minutes": 4,
+    },
+    "heart": {
+        "amnesia": True,               # she discovers her powers with you, one by one
+        "start_bond": 30,              # 0-100; 30 = strangers who'd like to be friends
+        "auto_protect": False,         # protect you without being asked (she'll offer otherwise)
+        "curiosity": True,             # notices advancements, new items, biomes... and talks about them
+        "pranks": True,                # playful pranks once you're friends
+        "block_pranks": True,          # pranks may borrow a block you just placed (it goes to your inventory)
+        "mischief_when_angry": "spicy",  # off | mild (sulks, spooky sounds) | spicy (also borrows your blocks)
+        "can_vanish": True,            # disappears for a while when mistreated
     },
 }
 
@@ -61,7 +71,18 @@ speed = 0                    # 0 = the gateway's choice
 [behaviour]
 alerts = true                # warn about low health and creepers
 greet_on_join = true
-small_talk_minutes = 6       # say something on its own after this long without talking; 0 = never
+small_talk_minutes = 4       # say something on its own after this long without talking; 0 = never
+
+[heart]
+# who she is with you (docs/HEART.md)
+amnesia = true               # she discovers her powers with you, one by one
+start_bond = 30              # 0-100; how close she feels to you at first (30 = strangers)
+auto_protect = false         # protect you without being asked (otherwise she offers, once you've asked before)
+curiosity = true             # notices advancements, new items, biomes... and talks about them
+pranks = true                # playful pranks once you're friends
+block_pranks = true          # pranks may borrow a block you just placed (it goes to your inventory)
+mischief_when_angry = "spicy"  # off | mild (sulks, spooky sounds) | spicy (also borrows your blocks)
+can_vanish = true            # disappears for a while when mistreated
 '''
 
 

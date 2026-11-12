@@ -10,7 +10,8 @@ You don't need to know Minecraft modding: half of the project is Python.
   player asked for, done the way a player or command would, and it can be switched off.
 - **Light by default.** It runs beside a game, often on a laptop: nothing heavy on the render
   thread, no allocations per frame in hot paths, and new background work should be adjustable.
-- **Cozy.** No horror, romance or creepy behaviour from the companion.
+- **Cozy, with a personality.** No horror, romance or creepy behaviour. She can be cheeky, sulky or
+  annoyed (see docs/HEART.md), but never cruel, and her mischief never destroys anything.
 - **Be kind** in issues and reviews. We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
 
 ## Layout
@@ -36,6 +37,7 @@ brain/      Python 3.11+ "brain"
   kindred/server.py            WebSocket server and the conversation flow
   kindred/mind.py              prompt, the tool loop, reflection (learning)
   kindred/memory.py            what to keep, recall for each message, reminders
+  kindred/heart.py             her bond, discovered powers, standing requests, curiosity, pranks
   kindred/tools.py             the tools the AI may use (filtered by power and style)
   kindred/alerts.py            danger rules (add new alerts here)
   kindred/describe.py          snapshot -> text for the AI

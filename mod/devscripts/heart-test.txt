@@ -1,0 +1,61 @@
+# Her heart: being mean, hitting her (she vanishes), apologizing, standing requests, noticing, pranks.
+world kindred-heart
+wait 220
+cmd gamemode survival
+cmd difficulty easy
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd time set 1000
+cmd weather clear
+cmd kill @e[type=!minecraft:player]
+cmd clear @s
+cmd kindred power helper
+look 0 5
+wait 140
+chat Hi! What's your name, little one?
+wait 160
+screenshot heart-01-first-talk
+chat You're useless and annoying.
+wait 160
+screenshot heart-02-after-mean
+track companion 4
+wait 30
+press attack
+wait 15
+press attack
+wait 15
+press attack
+wait 80
+screenshot heart-03-vanished
+wait 3200
+screenshot heart-04-back
+chat I'm sorry Pip, I didn't mean it. You're wonderful.
+wait 160
+screenshot heart-05-forgiven
+chat Can you always protect me from monsters?
+wait 180
+cmd summon minecraft:zombie ~2 ~ ~3 {NoAI:1b}
+cmd summon minecraft:zombie ~-2 ~ ~3 {NoAI:1b}
+wait 80
+screenshot heart-06-auto-protect
+cmd kill @e[type=minecraft:zombie]
+chat Please tell me whenever we're near diamonds.
+wait 180
+cmd setblock ~3 ~-2 ~4 minecraft:diamond_ore
+wait 420
+cmd advancement grant @s only minecraft:story/mine_stone
+wait 200
+cmd item replace entity @s hotbar.0 with minecraft:oak_planks 4
+look 0 55
+wait 10
+press use
+wait 30
+do steal_block
+wait 30
+screenshot heart-07-block-borrowed
+chat Hey, put my block back!
+wait 160
+screenshot heart-08-block-back
+do prank_sound {"sound": "creeper"}
+wait 60
+quit

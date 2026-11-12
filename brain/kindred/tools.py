@@ -56,6 +56,11 @@ MEMORY_TOOLS = [
         {"text": {"type": "string", "description": "what to remind them of"}, "when": {"type": "string"}},
         ["text", "when"]),
     _fn("cancel_reminder", "Cancel reminders that mention something.", {"about": {"type": "string"}}, ["about"]),
+    _fn("standing_request", "The player wants you to do something every time, on your own: 'always protect me' "
+        "(what=protect) or 'tell me when we're near diamonds' (what=notify_ore, detail=the ore). Or stop one.",
+        {"what": {"type": "string", "enum": ["protect", "notify_ore"]},
+         "detail": {"type": "string", "description": "for notify_ore: which ore"},
+         "stop": {"type": "boolean", "description": "true to stop doing it"}}, ["what"]),
     _fn("forget", "Forget facts or named places that mention something, when the player asks you to forget.",
         {"about": {"type": "string"}}, ["about"]),
     _fn("name_place", "Remember where the player is standing under a name, when they say things like "

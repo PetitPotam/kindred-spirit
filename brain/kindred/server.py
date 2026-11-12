@@ -32,6 +32,8 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
 from . import config, intents, tools, voice
+from . import heart as intents_heart
+from .heart import Heart
 from .memory import GatewayMemory, Memory
 from .alerts import Alerts, ambient_mood
 from .mind import AIError, Mind
@@ -64,6 +66,16 @@ class Brain:
         self.pending = {}
         self.next_id = 0
         self.since = None
+        self.heart = Heart(cfg, self.memory)
+        self.heart_loaded = False
+        self.last_notice = -1e9
+        self.noticed = {}
+        self.prev_biome = None
+        self.prev_health = None
+        self.last_protect = -1e9
+        self.notified = []
+        self.idle_since = clock()
+        self.last_pos = None
         self.alerts = alerts or Alerts()
         self.clock = clock
         self.ws = None
@@ -181,6 +193,17 @@ class Brain:
                         "inMinutes": round((m["due"] - time.time()) / 60) if m.get("due") else None}
             if name == "cancel_reminder":
                 return {"ok": True, "cancelled": await self.memory.cancel_reminder(args.get("about", ""))}
+            if name == "standing_request":
+                what = args.get("what", "")
+                if args.get("stop"):
+                    n = self.heart.drop_request(what)
+                    await self.heart.save()
+                    return {"ok": True, "stopped": n}
+                if what == "protect" and "protect" not in self.abilities:
+                    return {"ok": False, "error": "You can't protect them with your current power."}
+                self.heart.add_request(what, args.get("detail", ""))
+                await self.heart.save()
+                return {"ok": True, "willDoItEveryTime": what}
         except MemoryError as e:
             return {"ok": False, "error": str(e)}
         if name not in self.abilities:
@@ -197,7 +220,99 @@ class Brain:
         if result.get("ok"):
             await self.safe(self.memory.episode("I used %s %s: %s" % (name, json.dumps(args), result.get("where")
                                                                        or json.dumps(result)[:160]), 4))
+            if self.heart.discovered(name) and self.heart.amnesia():
+                result["firstTime"] = True
+                await self.safe(self.memory.remember("I discovered I can %s." % name.replace("_", " "), "self", 8))
+            await self.heart.save()
         return result
+
+    # ------------------------------------------------------------------ her heart
+
+    async def bond_update(self, delta, why=""):
+        if abs(delta) < 0.5:
+            return
+        log.info("bond %+.1f (%s) -> %.0f %s", delta, why, self.heart.bond, self.heart.level())
+        await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(),
+                         "change": round(delta, 1)})
+        await self.send({"type": "act", "closeness": self.heart.closeness()})
+        await self.heart.save()
+
+    async def vanish(self, seconds, line):
+        log.info("vanishing for %d s", seconds)
+        await self.say(line, "sad", instant=True)
+        await asyncio.sleep(2.5)
+        await self.send({"type": "act", "move": "hide", "seconds": seconds})
+
+        async def back():
+            await asyncio.sleep(seconds + 1)
+            if self.ws is not None and self.in_world:
+                await self.say(random.choice(intents_heart.BACK_LINES), "calm", instant=True)
+        asyncio.create_task(back())
+
+    async def notice(self, event, detail=""):
+        """Something happened that she might want to talk about."""
+        now = self.clock()
+        if not self.in_world or self.ws is None or self.talk_lock.locked() or now - self.last_notice < 30:
+            return
+        if now - self.noticed.get(event, -1e9) < (600 if event in ("mining", "building") else 0):
+            return
+        instruction = self.heart.notice(event, detail, self.snapshot)
+        if not instruction:
+            return
+        self.last_notice = self.noticed[event] = now
+        async with self.talk_lock:
+            self.mind.heart = self.heart.guidance()
+            try:
+                text, mood, gesture = await self.mind.initiative(self.snapshot, instruction)
+            except AIError as e:
+                log.warning("could not comment: %s", e)
+                return
+        self.last_talk = self.clock()
+        log.info("noticed %s (%s): %s", event, detail, text)
+        await self.say(text, mood or "curious", emote=gesture)
+
+    async def heart_loop(self, every=15.0):
+        """Her own rhythm: forgiving with time, standing requests, little pranks."""
+        while True:
+            await asyncio.sleep(every)
+            if not self.in_world or self.ws is None:
+                continue
+            try:
+                await self.heart_beat(every)
+            except Exception:  # her heart must keep beating whatever happens
+                log.exception("heart loop")
+
+    async def heart_beat(self, every):
+        """One beat: forgive a little, watch for what was asked, maybe a prank."""
+        now = self.clock()
+        await self.bond_update(self.heart.drift(every / 60), "time")
+        s = self.snapshot
+        # "tell me when we're near diamonds"
+        req = self.heart.wants("notify_ore")
+        if req and "find_ore" in self.abilities and not self.talk_lock.locked():
+            res = await self.request("find_ore", {"ore": req.get("detail") or "diamond"})
+            log.debug("watching for %s: %s", req.get("detail"), res)
+            if res.get("ok") and res.get("found"):
+                spot = (res["x"] // 8, res["y"] // 8, res["z"] // 8)
+                if spot not in self.notified:
+                    self.notified.append(spot)
+                    log.info("found %s for a standing request", res.get("ore"))
+                    await self.say("Psst! %s, %s!" % (res.get("ore", "ore").replace("_", " ").capitalize(),
+                                                      res.get("where", "close by")), "excited", instant=True)
+                    return
+        # pranks (friends) and mischief (when she's angry)
+        idle = now - self.idle_since
+        mining = (s.get("brokenRecently") or 0) >= 6
+        placed = (s.get("lastPlacedAgo", 9999) < 10) and self.singleplayer
+        prank = self.heart.prank(s, idle, mining, placed, now)
+        if prank and not self.talk_lock.locked():
+            res = await self.request(prank["action"], prank["args"])
+            if res.get("ok"):
+                log.info("prank: %s", prank["action"])
+                await asyncio.sleep(1.8)
+                await self.say(prank["line"], "excited" if not self.heart.angry() else "sad", instant=True,
+                               emote="wiggle")
+                await self.safe(self.memory.episode("I pranked the player (%s)." % prank["action"], 4))
 
     async def safe(self, coro):
         """Memory is a bonus: if the store is unreachable, carry on without it."""
@@ -256,6 +371,11 @@ class Brain:
         if name == "join":
             self.in_world = True
             self.last_talk = self.clock()
+            if not self.heart_loaded:
+                await self.heart.load()
+                self.heart_loaded = True
+            await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(), "change": 0})
+            await self.send({"type": "act", "closeness": self.heart.closeness()})
             try:
                 await self.memory.open_world(msg.get("world") or "unknown")
                 self.mind.history = list(await self.memory.history())
@@ -273,8 +393,19 @@ class Brain:
         elif name == "arrived":
             asyncio.create_task(self.say(random.choice(intents.ARRIVED_LINES), "excited", instant=True))
             await self.safe(self.memory.episode("We arrived where I was leading the player.", 4))
+        elif name == "hit":
+            delta, line, vanish = self.heart.on_hit()
+            await self.bond_update(delta, "hit")
+            if vanish:
+                asyncio.create_task(self.vanish(vanish, line))
+            else:
+                await self.say(line, "sad", instant=True)
+            await self.safe(self.memory.episode("The player hit me.", 5))
+        elif name in ("advancement", "new_item"):
+            asyncio.create_task(self.notice(name, msg.get("detail", "")))
         elif name == "petted":
             log.info("petted")
+            await self.bond_update(self.heart.on_pet(), "petted")
             await self.set_mood("happy", hold=20)
             # answer a pet now and then, not every time: it should feel like a reaction, not a script
             if self.clock() - self.last_pet_reply > 60 and not self.talk_lock.locked():
@@ -305,6 +436,7 @@ class Brain:
         self.snapshot = s
         self.snapshot_at = self.clock()
         self.save_snapshot(s)
+        await self.heart_watch(s)
         if "health" in s:
             self.in_world = True
         now = self.clock()
@@ -331,6 +463,48 @@ class Brain:
             os.replace(path + ".tmp", path)
         except OSError:
             pass
+
+    async def heart_watch(self, s):
+        """What she notices in each snapshot: places, deaths, busy hands, and danger she can help with."""
+        if "health" not in s:
+            return
+        now = self.clock()
+        w = s.get("where") or {}
+        pos = (w.get("x"), w.get("y"), w.get("z"), round(w.get("yaw", 0) / 20))
+        if pos != self.last_pos:
+            self.idle_since = now
+            self.last_pos = pos
+        biome = w.get("biome")
+        if self.prev_biome and biome and biome != self.prev_biome:
+            asyncio.create_task(self.notice("biome", biome))
+        self.prev_biome = biome or self.prev_biome
+        health = s.get("health", 20)
+        if self.prev_health is not None and self.prev_health > 0 and health <= 0:
+            asyncio.create_task(self.notice("death"))
+        self.prev_health = health
+        if (s.get("brokenRecently") or 0) >= 20:
+            asyncio.create_task(self.notice("mining"))
+        if (s.get("placedRecently") or 0) >= 15:
+            asyncio.create_task(self.notice("building"))
+        # danger she can help with: by standing request, or by offering if she helped before
+        close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= 6]
+        if close and "protect" in self.abilities and s.get("gamemode") not in ("creative", "spectator"):
+            # (in the background: the game's answer arrives through this same message loop)
+            if self.heart.wants("protect"):
+                if now - self.last_protect > 6:
+                    self.last_protect = now
+                    asyncio.create_task(self.auto_protect())
+            else:
+                text = self.heart.offer("protect", now)
+                if text:
+                    asyncio.create_task(self.say(text, "worried", instant=True))
+
+    async def auto_protect(self):
+        res = await self.request("protect", {})
+        log.info("auto-protect: %s", res)
+        if res.get("ok") and res.get("pushedAway") and random.random() < 0.5:
+            await self.say(random.choice(["Shoo! Leave them alone!", "Back off!", "Not my friend!"]), "scared",
+                           instant=True)
 
     async def set_mood(self, mood, hold=0.0):
         if hold:
@@ -386,13 +560,25 @@ class Brain:
             await self.send(dict(act, type="act"))
         if acts:
             log.info("acting on: %s", "; ".join(done))
+        if intents.PUT_BACK.search(text):  # "put my block back": undo a prank
+            res = await self.request("return_block", {})
+            log.info("put the block back: %s", res)
+            done.append("put the block you borrowed back where it was" if res.get("ok") else
+                        "tried to put a block back, but: %s" % res.get("error", "nothing to put back"))
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
             try:
                 self.last_player_text = text
-                force = intents.action_hint(text, self.abilities + ["set_reminder", "name_place", "remember"])
+                force = None
+                offer = self.heart.take_offer(self.clock()) if intents.YES.match(text) else None
+                if offer and offer["what"] in self.abilities:
+                    force = offer["what"]  # "yes" to "want me to push them away?"
+                force = force or intents.action_hint(text, self.abilities + ["set_reminder", "name_place", "remember",
+                                                                              "standing_request"])
+                offered = self.heart.offered_tools(self.abilities, force)
+                self.mind.heart = (self.heart.guidance() + "\n" + self.heart.discovery_note(self.abilities)).strip()
                 reply, mood, gesture = await self.mind.reply(self.snapshot, text, done,
-                                                             tools.for_abilities(self.abilities), self.run_tool, force)
+                                                             tools.for_abilities(offered), self.run_tool, force)
             except AIError as e:
                 log.error("AI error: %s", e)
                 await self.send({"type": "notice", "text": "AI gateway problem: %s" % str(e)[:120]})
@@ -407,6 +593,11 @@ class Brain:
                 asyncio.create_task(self.reflect())
             await self.say(reply, mood or "happy", emote=gesture)
             self.last_talk = self.clock()
+        # how they treated her changes the bond (and, when it's really bad, she leaves for a while)
+        regard = self.mind.last_regard
+        await self.bond_update(self.heart.on_regard(regard), regard)
+        if regard == "mean" and self.heart.bond < 12 and self.heart.p.get("can_vanish", True):
+            await self.vanish(120, random.choice(intents_heart.VANISH_LINES))
 
     async def on_voice(self, msg):
         await self.send({"type": "state", "state": "thinking"})
@@ -463,11 +654,12 @@ class Brain:
                 continue  # busy fighting: not the moment
             self.last_talk = self.clock()
             async with self.talk_lock:
+                instruction = self.heart.musing()
+                if not instruction:
+                    continue  # she's upset: she keeps to herself
+                self.mind.heart = self.heart.guidance()
                 try:
-                    text, mood, gesture = await self.mind.initiative(
-                        self.snapshot, "You have been quiet for a while. Say one short, friendly thing about what "
-                                       "the player is doing or where they are: a tip, a question, or something you "
-                                       "would like to see together. Don't repeat yourself.")
+                    text, mood, gesture = await self.mind.initiative(self.snapshot, instruction + " Don't repeat yourself.")
                 except AIError as e:
                     log.error("AI error during small talk: %s", e)
                     continue
@@ -481,4 +673,4 @@ async def run(cfg, token):
                      ping_interval=20, ping_timeout=20):
         log.info("%s's brain is listening on ws://%s:%d (gateway: %s, model %s)", cfg["name"], host, port,
                  cfg["gateway"]["url"], cfg["ai"]["model"] or "the gateway's")
-        await asyncio.gather(brain.small_talk_loop(), brain.reminder_loop())
+        await asyncio.gather(brain.small_talk_loop(), brain.reminder_loop(), brain.heart_loop())

@@ -55,7 +55,14 @@ Left: highlight ores and mobs, light aura, enchanted gifts.
 - Long-term memory, named places, "remembers what it has seen".
 - Power modes (Advisor, All-powerful) and action style (Grounded radius, Magic).
 
-## Phase 3: Its mind (and how you see it)
+## Phase 3: Its mind (and how you see it), in progress
+
+Done: her personality (whimsical, curious, her own little world), the bond meter with what raises
+and lowers it, earning trust from a starting bond, discovering her powers (amnesia), standing
+requests and offers, curiosity about advancements, items, biomes, mining and building, proposing
+little goals when close, pranks, mischief when angry, vanishing when mistreated ([HEART.md](HEART.md)).
+Left: memory fragments that unlock with milestones, favours before big help, profiles.
+
 - A companion screen with a rotating 3D preview: skin, size, name, personality.
 - A radial command wheel on one key (optional): stay, come, follow, look, gestures, skins.
 - Personality presets, custom instructions, profiles.

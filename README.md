@@ -44,7 +44,9 @@ from scratch for Fabric.
 | Typed chat | `/kindred <message>` (or `/ks`) |
 | It understands your game | health, hunger, armor, effects, inventory, position, biome, time, weather, what you look at, nearby hostile mobs with direction |
 | Danger warnings | creeper within 8 blocks, health at 3 hearts or less: instant subtitle, voice right after, with cooldowns |
-| It helps | finds ores near you, locates any structure or biome, **leads the way** there, pushes monsters away, places a torch; in magic style it gives items, all-powerful also changes time and weather |
+| She has a heart | a whimsical character with a **bond meter**: kindness brings her closer and makes her open up, propose plans and play pranks; hitting her or being mean makes her keep her distance, sulk, or vanish for a while. She forgives quickly ([how](docs/HEART.md)) |
+| She discovers her powers | she doesn't know what she can do until you ask; the first time something works she's amazed, and she remembers |
+| She helps | finds ores, locates any structure or biome, **leads the way** there, pushes monsters away, places a torch; magic style gives items, all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
 | It remembers and learns | who you are, what you like, your habits, your places, its own little personality, a diary of your sessions; reminders ("in 10 minutes", "at night", "next time we play") ([how](docs/MEMORY.md)) |
 | Personality | greets you, small talk when it's been quiet a while (configurable), moods |
 | Subtitles | above the slime, optional captions and a log in your chat (only on your screen) |
@@ -180,10 +182,10 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 | `/kindred power advisor\|helper\|allpowerful` · `/kindred style grounded\|magic` | what it may do (see above) |
 | sneak while looking at it | pet it |
 
-Talking works too: "stay here", "come here", "follow me", "go to my left", "look at me", "look at that",
-"do a spin", "dance". It acts at once, before the AI answers. And ask for help: "any diamonds
-near me?", "where's the nearest village? take me there", "push them away", "place a torch",
-"this is my base", "remind me in 10 minutes to check the furnace".
+Mostly, you just talk to her, and discover what she can do along the way (that's the point, so
+this list is for the curious): "stay here", "come here", "look at me", "do a spin", "any diamonds
+near me?", "where's the nearest village? take me there", "push them away", "always protect me",
+"this is my base", "remind me in 10 minutes to check the furnace", "put my block back".
 
 ## Settings
 
@@ -201,6 +203,7 @@ near me?", "where's the nearest village? take me there", "push them away", "plac
   ```
   Keys go in `~/.kindred-spirit/secrets.env` (readable only by you).
 - **Memory:** `brain/.venv/bin/python -m kindred.memory` shows what it remembers ([how it works](docs/MEMORY.md)).
+- **Her heart** (discovery, bond, pranks, mischief when angry, vanishing...): `[heart]` in brain.toml ([docs/HEART.md](docs/HEART.md)).
 - Voices: `tts_voice` in brain.toml, e.g. `af_heart`, `af_bella`, `am_puck`, `bf_emma` (54 Kokoro voices).
 - Looks: `skin` in kindredspirit.json, or `/kindred skin <name>`. Make your own: [docs/SKINS.md](docs/SKINS.md).
 

@@ -56,6 +56,8 @@ def match(text):
 # Clear requests for an action: the AI is then required to use that tool (when allowed), so it
 # can't just *say* it placed a torch without doing it.
 ACTION_HINTS = [
+    (r"\b(always|every time|whenever)\b.{0,40}\b(protect|defend|help|tell|warn|notify|let me know)\b|"
+     r"\b(protect|defend|tell|warn|notify) me (always|every time|whenever)\b|\blet me know when\b", "standing_request"),
     (r"\b(place|put|light|drop)\b.{0,30}\btorch|\btorch\b.{0,20}\b(here|down|please)", "place_torch"),
     (r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b", "protect"),
     (r"\b(give|gimme|get) me\b|\bcan i (have|get)\b", "give_item"),
@@ -78,6 +80,10 @@ def action_hint(text, allowed):
         if tool in allowed and rx.search(t):
             return tool
     return None
+
+
+YES = re.compile(r"^\s*(yes|yeah|yep|yup|sure|please|ok(ay)?|go ahead|do it|help( me)?)\b", re.I)
+PUT_BACK = re.compile(r"\b(put|give|bring) (it|that|my block|the block|them) back\b|\bwhere(?:'s| is| did) my block\b", re.I)
 
 
 ARRIVED_LINES = [

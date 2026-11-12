@@ -31,7 +31,7 @@ import java.util.Random;
 public final class Behavior {
     public enum Activity { IDLE, LISTENING, THINKING, SPEAKING }
 
-    public enum Mode { FOLLOW, STAY, COME, GUIDE }
+    public enum Mode { FOLLOW, STAY, COME, GUIDE, HIDE }
 
     public enum Side { RIGHT, LEFT, ABOVE }
 
@@ -131,6 +131,13 @@ public final class Behavior {
     /** Set when a guided trip ends at the target; the game clears it after telling the brain. */
     public boolean arrived;
     static final double ARRIVE = 5;
+    /** How close she feels to you (0 = keeps far away, 1 = snuggles up); set from her bond. */
+    public double closeness = 0.5;
+    private final double[] distScale = {1, 0};
+    /** 1 = here, 0 = gone (she vanished for a while); eased, so she puffs away and back. */
+    public double presence = 1;
+    private final double[] presenceState = {1, 0};
+    private double hideUntil;
 
     private GazeKind gaze = GazeKind.SHARED, pendingGaze;
     private double gx, gy, gz, pgx, pgy, pgz;  // POINT target, or DIRECTION as a unit vector
@@ -183,6 +190,25 @@ public final class Behavior {
             comeUntil = now + seconds;
         }
         wake(now);
+    }
+
+    /**
+     * How far she floats compared with normal, from how close she feels: 1 at a neutral 0.5,
+     * down to 0.75 (snuggled up) when she adores you, up to 2.2 (keeping her distance) when hurt.
+     */
+    public static double distanceScale(double closeness) {
+        double c = Smooth.clamp(closeness, 0, 1);
+        return c >= 0.5 ? 1.0 - (c - 0.5) * 0.5 : 1.0 + (0.5 - c) * 2.4;
+    }
+
+    /** She leaves for a while (she was mistreated) and comes back by herself. */
+    public void hide(double seconds, double now) {
+        mode = Mode.HIDE;
+        hideUntil = now + seconds;
+    }
+
+    public boolean hidden() {
+        return mode == Mode.HIDE;
     }
 
     /** Lead the player to a place: it floats ahead, looks back, and celebrates on arrival. */
@@ -256,6 +282,10 @@ public final class Behavior {
         }
 
         if (mode == Mode.COME && now > comeUntil) mode = Mode.FOLLOW;
+        if (mode == Mode.HIDE && now > hideUntil) {
+            mode = Mode.FOLLOW;
+            play(Emote.SHY, now); // back, a little shy
+        }
         if (mode == Mode.GUIDE) {
             double dx = guideX - s.ex, dz = guideZ - s.ez;
             guideDistance = Math.sqrt(dx * dx + dz * dz);
@@ -406,7 +436,7 @@ public final class Behavior {
     }
 
     /** Is the player's crosshair on the companion? A ray against a slightly generous sphere. */
-    boolean playerLooksAtMe(Senses s) {
+    public boolean playerLooksAtMe(Senses s) {
         double dx = x - s.ex, dy = y - s.ey, dz = z - s.ez;
         double along = dx * s.lx + dy * s.ly + dz * s.lz;
         if (along <= 0.3 || along > 16) return false;
@@ -438,6 +468,10 @@ public final class Behavior {
             tz = stayZ + Smooth.noise(now * 0.2, 9) * 0.08;
             return new double[]{tx, ty, tz};
         }
+        if (mode == Mode.HIDE) { // far behind you and up, while she's gone
+            double yaw = Math.toRadians(yawDeg);
+            return new double[]{ex + Math.sin(yaw) * 14, ey + 4, ez - Math.cos(yaw) * 14};
+        }
         if (mode == Mode.GUIDE) { // a few blocks ahead, on the way to the target, a bit above eye level
             double dx = guideX - ex, dz = guideZ - ez, d = Math.sqrt(dx * dx + dz * dz);
             double ahead = Math.min(2.8, Math.max(0.8, d - 1));
@@ -459,6 +493,8 @@ public final class Behavior {
             }
             double amp = wanderAmp[0];
             amp *= Math.max(0, settings.drift);
+            r *= distScale[0]; // closer when she feels close to you, further when she's hurt
+            f *= Math.max(1, distScale[0] * 0.85);
             r += Smooth.noise(now * 0.13, 1) * amp;
             u += Smooth.noise(now * 0.17, 2) * amp * 0.45;
             f += Smooth.noise(now * 0.11, 3) * amp * 0.6;
@@ -500,6 +536,8 @@ public final class Behavior {
         clock = now;
         // wander wider while you stand still, come close again when you move
         Smooth.damp(wanderAmp, exploring ? 1.6 : 0.22, exploring ? 3.0 : 0.8, dt, 2);
+        Smooth.damp(distScale, distanceScale(closeness), 1.5, dt, 1);
+        presence = Smooth.clamp(Smooth.damp(presenceState, mode == Mode.HIDE ? 0 : 1, 0.25, dt, 6), 0, 1);
         double[] t = target(ex, ey, ez, followYaw(yawDeg, dt), lx, ly, lz, now);
         t[1] += Smooth.damp(avoid, avoidLift, 0.4, dt, 4);
 

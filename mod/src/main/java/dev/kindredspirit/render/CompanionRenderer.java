@@ -59,11 +59,12 @@ public final class CompanionRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (buffers == null || pose == null || mc.level == null) return;
         Behavior b = c.life;
+        if (b.presence < 0.02) return; // gone for now
         Emote.Pose g = b.pose;
         Skin skin = c.skin;
         Camera cam = ctx.camera();
         Vec3 cp = cam.getPosition();
-        float r = RADIUS * cfg.size * skin.size();
+        float r = (float) (RADIUS * cfg.size * skin.size() * b.presence);
 
         double bx = b.x + b.shiver, by = b.y + b.lift + g.lift, bz = b.z;
         int light = LevelRenderer.getLightColor(mc.level, BlockPos.containing(bx, by, bz));
