@@ -112,7 +112,15 @@ public final class FrameRecorder {
     }
 
     /** What someone said, for captions in the edit. */
+    private static volatile int pipLines;
+
+    /** How many lines the companion has said since the game started (for scripts that wait for her). */
+    public static int pipLines() {
+        return pipLines;
+    }
+
     public static void line(String who, String text) {
+        if ("pip".equals(who)) pipLines++;
         FrameRecorder r = active;
         if (r != null) r.event("line", who, null, text);
     }

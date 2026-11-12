@@ -10,6 +10,9 @@ def cfg():
 def test_mood_tag_is_split_off():
     assert parse_reply("[curious] Ooh, a cave!") == ("Ooh, a cave!", "curious", None)
     assert parse_reply("No tag here.") == ("No tag here.", None, None)
+    assert parse_reply("[curious] Let me listen. (what='iron farm')")[0] == "Let me listen."
+    assert parse_reply("[happy] Okay! listen_more(what='next') Here we go.")[0] == "Okay! Here we go."
+    assert parse_reply("[happy] I love sunsets (and sunrises).")[0] == "I love sunsets (and sunrises).", "not real words"
     assert parse_reply("[grumpy] Hmph.") == ("Hmph.", None, None)
     assert parse_reply("[happy] **Yay** [excited] twice") == ("Yay twice", "happy", None)
 

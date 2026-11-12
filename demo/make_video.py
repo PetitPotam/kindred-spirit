@@ -3,7 +3,8 @@
 captions of what is said, a title and an end card, crossfades, the voices back in place, and
 music that dips under speech. Output: demo/out/kindred-spirit-demo.mp4 (+ a short preview GIF).
 
-    .venv/bin/python make_video.py        (pillow, numpy, ffmpeg; see demo-script.txt for the filming)
+    .venv/bin/python make_video.py        the short demo (demo-script.txt)
+    .venv/bin/python make_video.py tour   the full tour (tour-script.txt) -> demo/out/kindred-spirit-tour.mp4
 """
 import json
 import os
@@ -17,9 +18,10 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-REC = os.path.join(ROOT, "mod", "run", "recordings", "demo")
+CUT = sys.argv[1] if len(sys.argv) > 1 else "demo"
+REC = os.path.join(ROOT, "mod", "run", "recordings", CUT)
 OUT = os.path.join(HERE, "out")
-TMP = os.path.join(OUT, "work")
+TMP = os.path.join(OUT, "work" if CUT == "demo" else "work-" + CUT)
 W, H, FPS = 1920, 1080, 30
 XF = 0.5                      # crossfade between chapters, seconds
 SR = 48000
@@ -40,6 +42,40 @@ CHAPTERS = [
     ("fairy", "New: fairies", "with fluttering wings", "#E6B8FF"),
     ("night", "Glows at night", "", "#6E8CE6"),
 ]
+TOUR = [
+    ("meet", "Meet Pip", "a little spirit who floats beside you, a stranger at first", "#7ADC6E"),
+    ("see", "She sees your world", "and answers out loud", "#6EC8DC"),
+    ("discover", "She discovers her powers", "she doesn't know what she can do yet", "#FFB347"),
+    ("remember", "Weeks later, she remembers", "your adventures, your name, what you love", "#E6B8FF"),
+    ("origin", "Her own story", "she finds where she comes from while you play", "#AA8CFF"),
+    ("find", "She finds things", "animals, flowers, ores, places", "#7ADC6E"),
+    ("guide", "Lead the way", "she floats ahead and waits for you", "#6EC8DC"),
+    ("chop", "Helping hands", "she chops, mines and lights the way", "#FFB347"),
+    ("danger", "She watches your back", "creepers, lava, big drops: instant warnings", "#F05A78"),
+    ("protect", "She protects you", "", "#F05A78"),
+    ("fight", "Out of your way", "", "#FF9EC4"),
+    ("know", "She knows the world", "answers from a Minecraft knowledge base", "#6E8CE6"),
+    ("feelings", "She has feelings", "hit her by accident, say sorry, pet her", "#FF9EC4"),
+    ("spam", "Be nice", "", "#FFB347"),
+    ("modes", "Your rules", "how much power she has, and how", "#AA8CFF"),
+    ("night", "Glows at night", "", "#6E8CE6"),
+    ("skins", "Make her yours", "pick a skin, or draw your own", "#FF9EC4"),
+]
+CUTS = {
+    "demo": {"chapters": CHAPTERS, "title_at": "fairy", "end_at": "night", "out": "kindred-spirit-demo.mp4",
+             "title": [("a cute AI companion for Minecraft", 56, "Semibold", (240, 236, 255)),
+                       ("talk to it · it talks back · it never changes your world", 34, "Medium", (206, 200, 236))],
+             "fine": ["Recorded live in a test world. Pip's answers are real AI replies (Gemini 3.1 Flash-Lite) "
+                      "spoken by a local Kokoro voice; the player's voice is synthesized."]},
+    "tour": {"chapters": TOUR, "title_at": "guide", "end_at": "night", "out": "kindred-spirit-tour.mp4",
+             "title": [("Pip's journey: a living AI companion for Minecraft", 52, "Semibold", (240, 236, 255)),
+                       ("she talks, remembers, helps, has feelings, and grows with you", 34, "Medium",
+                        (206, 200, 236))],
+             "fine": ["Recorded live in a test world. Pip's answers are real AI replies (Gemini 3.1 Flash-Lite; her "
+                      "deeper thinking on Claude), spoken by a local Kokoro voice. The player's voice is synthesized.",
+                      "\"Weeks later\" starts from prepared memories of a made-up player (demo/seed_journey.py), "
+                      "imported the way a player brings her to a new world."]},
+}
 
 
 # ------------------------------------------------------------------ helpers
@@ -133,6 +169,20 @@ def dialogue_card(who, text, path):
     img.save(path)
 
 
+def caption_card(text, path):
+    """A note under the chapter title (what's going on, a setting's name)."""
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    ft = font(32, "Semibold")
+    lines = textwrap.wrap(text, 70)
+    tw = max(d.textlength(l, font=ft) for l in lines)
+    x, y, bw, bh = 56, 200, int(tw + 56), 26 + 44 * len(lines)
+    rounded(d, (x, y, x + bw, y + bh), 24, (255, 236, 160, 225))
+    for i, l in enumerate(lines):
+        d.text((x + 28, y + 14 + 44 * i), l, font=ft, fill=(40, 32, 20))
+    img.save(path)
+
+
 def card(background, path, title, lines, fine=None, icon=True):
     bg = background.resize((W, H)).filter(ImageFilter.GaussianBlur(22))
     bg = Image.blend(bg, Image.new("RGB", (W, H), (30, 24, 60)), 0.45).convert("RGBA")
@@ -156,8 +206,8 @@ def card(background, path, title, lines, fine=None, icon=True):
     for text, size, weight, color in lines:
         d.text((W // 2, y), text, font=font(size, weight), fill=color, anchor="mt")
         y += int(size * 1.45)
-    if fine:
-        d.text((W // 2, H - 70), fine, font=font(25, "Regular"), fill=(200, 196, 224), anchor="mb")
+    for k, text in enumerate(reversed(fine or [])):
+        d.text((W // 2, H - 60 - 38 * k), text, font=font(25, "Regular"), fill=(200, 196, 224), anchor="mb")
     bg.convert("RGB").save(path)
 
 
@@ -171,20 +221,21 @@ def main():
     players = [(e["t"], e["file"]) for e in events if e["type"] == "player"]
     pips = [(e["t"], os.path.join(REC, e["file"])) for e in events if e["type"] == "pip"]
     lines = [(e["t"], e["text"]) for e in events if e["type"] == "line" and e.get("name") == "pip"]
+    typed = [(e["t"], e["text"]) for e in events if e["type"] == "line" and e.get("name") == "you"]
+    captions = [(e["t"], e["text"]) for e in events if e["type"] == "line" and e.get("name") == "caption"]
+    cut = CUTS[CUT]
 
     pieces, timeline_sounds = [], []  # timeline_sounds: (piece index, local time, wav path)
 
     # title card on a blurred frame of the fairy chapter
     still = os.path.join(TMP, "still.png")
-    t_still = marks.get("fairy", marks["meet"]) + 1.5
+    t_still = marks.get(cut["title_at"], marks["meet"]) + 1.5
     run(["ffmpeg", "-y", "-v", "error", "-ss", str(t_still), "-i", video, "-frames:v", "1", still])
     bg = Image.open(still).convert("RGB")
-    card(bg, os.path.join(TMP, "title.png"), "Kindred Spirit",
-         [("a cute AI companion for Minecraft", 56, "Semibold", (240, 236, 255)),
-          ("talk to it · it talks back · it never changes your world", 34, "Medium", (206, 200, 236))])
+    card(bg, os.path.join(TMP, "title.png"), "Kindred Spirit", cut["title"])
     pieces.append(still_clip(os.path.join(TMP, "title.png"), 4.0, "title"))
 
-    for i, (name, title, sub, color) in enumerate(CHAPTERS, start=1):
+    for i, (name, title, sub, color) in enumerate(cut["chapters"], start=1):
         if name not in marks or name + "_end" not in marks:
             print("skipping chapter", name, "(no marks)")
             continue
@@ -209,6 +260,18 @@ def main():
                 dialogue_card("player", text, p)
                 overlays.append((p, tau, min(end, dur - 0.2)))
             timeline_sounds.append((len(pieces), tau, f))
+        # what the player typed in chat, and the notes about what's going on
+        for k, (tau, text) in enumerate([(t - ts, x) for t, x in typed if ts <= t < te]):
+            nxt = [s for s, _ in spoken if s > tau] + [t - ts for t, _ in typed if t - ts > tau]
+            p = os.path.join(TMP, "typed-%d-%d.png" % (i, k))
+            dialogue_card("player", text, p)
+            overlays.append((p, tau, min(tau + 3.0, (min(nxt) - 0.05) if nxt else dur, dur - 0.2)))
+        notes = [(t - ts, x) for t, x in captions if ts - 0.5 <= t < te]
+        for k, (tau, text) in enumerate(notes):
+            p = os.path.join(TMP, "note-%d-%d.png" % (i, k))
+            caption_card(text, p)
+            end = notes[k + 1][0] - 0.05 if k + 1 < len(notes) else dur - 0.2
+            overlays.append((p, max(0.5, tau), end))
         # what Pip says (its voice may come in several sentence clips)
         for k, (tau, text) in enumerate(spoken):
             nxt = [s for s, _ in spoken if s > tau] + [s for s, _ in said if s > tau]
@@ -224,15 +287,14 @@ def main():
         pieces.append(chapter_clip(video, ts, dur, overlays, name))
 
     end_still = os.path.join(TMP, "end-still.png")
-    run(["ffmpeg", "-y", "-v", "error", "-ss", str(marks.get("night", marks["meet"]) + 2), "-i", video,
+    run(["ffmpeg", "-y", "-v", "error", "-ss", str(marks.get(cut["end_at"], marks["meet"]) + 2), "-i", video,
          "-frames:v", "1", end_still])
     card(Image.open(end_still).convert("RGB"), os.path.join(TMP, "end.png"), "Kindred Spirit",
          [("Open source (MIT) · contributors welcome", 50, "Semibold", (240, 236, 255)),
           ("Fabric 1.21.1 · client-side, nothing added to your world", 34, "Medium", (206, 200, 236)),
           ("local voice (Whisper + Kokoro) · bring your own AI", 34, "Medium", (206, 200, 236)),
           (REPO, 40, "Bold", (160, 236, 170))],
-         fine="Recorded live in a test world. Pip's answers are real AI replies (Gemini 3.1 Flash-Lite) "
-              "spoken by a local Kokoro voice; the player's voice is synthesized.")
+         fine=cut["fine"])
     pieces.append(still_clip(os.path.join(TMP, "end.png"), 6.5, "end"))
 
     # join with crossfades
@@ -263,7 +325,7 @@ def main():
         if i < 0 or i >= n:
             continue
         s = s[: n - i]
-        voice[i:i + len(s)] += s * (0.95 if "q_" in os.path.basename(f) else 1.0)
+        voice[i:i + len(s)] += s * (0.95 if os.path.basename(f)[:2] in ("q_", "t_") else 1.0)
     music_path = os.path.join(TMP, "music.wav")
     with wave.open(music_path, "wb") as w:
         m = make_music(total + 0.5)
@@ -298,7 +360,7 @@ def main():
         w.setframerate(SR)
         w.writeframes((mix * 32767).astype("<i2").tobytes())
 
-    final = os.path.join(OUT, "kindred-spirit-demo.mp4")
+    final = os.path.join(OUT, cut["out"])
     # -14 LUFS: the loudness phones and video sites expect
     run(["ffmpeg", "-y", "-v", "error", "-i", silent, "-i", mix_path, "-c:v", "copy",
          "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "192k",
@@ -308,7 +370,7 @@ def main():
     # a short, light preview for the README: the skins and the fairy
     k = [i for i, p in enumerate(pieces) if p.endswith("skins.mp4")]
     if k:
-        gif = os.path.join(OUT, "demo-preview.gif")
+        gif = os.path.join(OUT, "demo-preview.gif" if CUT == "demo" else CUT + "-preview.gif")
         st = starts[k[0]] + 0.6
         run(["ffmpeg", "-y", "-v", "error", "-ss", "%.2f" % st, "-t", "10.5", "-i", final, "-vf",
              "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4",

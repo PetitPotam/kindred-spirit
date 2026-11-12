@@ -97,3 +97,39 @@ def test_the_players_name_not_the_one_they_gave_her():
     who = "About yourself: I like the name Kindred that the player gave me. Others called Bob.\nAbout the player: The player's name is Tam."
     assert player_name(who) == "Tam"
     assert player_name("About yourself: I like the name Kindred that the player gave me.") == ""
+
+
+def test_she_knows_what_is_beyond_her_right_now(stubs):  # noqa: F811
+    from kindred.alerts import Alerts as A
+    from kindred.server import Brain
+    b = Brain(make_cfg(stubs.port), TOKEN, alerts=A())
+    b.set_abilities({"abilities": ["find_ore", "guide"], "power": "advisor", "style": "grounded", "singleplayer": True})
+    assert "place torch" in b.mind.powers and "never invent another reason" in b.mind.powers
+    b.set_abilities({"abilities": ["guide", "protect", "place_torch", "harvest", "give_item", "set_time",
+                                   "set_weather"], "power": "allpowerful", "style": "magic", "singleplayer": True})
+    assert "beyond you" not in b.mind.powers
+
+
+def test_imported_she_isnt_meeting_you_for_the_first_time(stubs):  # noqa: F811
+    from gateway_stub import memory as local_memory
+    mem = local_memory()
+    mem.store.strict = mem.per_world = True
+
+    async def setup():
+        await mem.open_world("sp:Old")
+        await mem.remember("The player's name is Sam.")
+        await mem.store.call("doc", key="world:sp:Old:stats", value={"first_met": 1.7e9, "last_seen": 1.71e9,
+                                                                      "sessions": 9, "minutes": 600})
+        await mem.store.call("doc", key="world:sp:Old:heart", value={"bond": 80, "discovered": ["guide"]})
+    asyncio.run(setup())
+
+    async def scenario(url):
+        async with connect(url, additional_headers={"Authorization": "Bearer " + TOKEN}) as ws:
+            await ws.send(json.dumps({"type": "event", "event": "join", "world": "sp:New"}))
+            await asyncio.sleep(0.5)
+            await ws.send(json.dumps({"type": "admin", "command": "import", "text": "old"}))
+            await asyncio.sleep(0.8)
+            return await mem.context({}, "what do you remember?")
+    ctx = asyncio.run(with_brain(make_cfg(stubs.port), scenario, memory=mem))
+    assert "go back a long way" in ctx and "Sam" in ctx
+    assert "played together 10 times" in ctx, "her 9 sessions there and this one"

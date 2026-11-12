@@ -46,6 +46,17 @@ create table if not exists docs (key text primary key, value text, updated real)
 HALF_LIFE_DAYS = 7.0
 
 
+class _Rows:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def fetchall(self):
+        return self.rows
+
+    def fetchone(self):
+        return self.rows[0] if self.rows else None
+
+
 def _pack(vec):
     return struct.pack("<%df" % len(vec), *vec)
 
@@ -77,13 +88,19 @@ class Store:
         self.path = path
         self.embed = embed
         self.model_name = model_name
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()  # one connection shared by the server's threads: reads too
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
         self.db.commit()
 
     # ------------------------------------------------------------------ writing
+
+    def _q(self, sql, vals=()):
+        """A read, under the lock: sharing the connection unlocked mixes up rows between threads
+        ("tuple index out of range" while an import was writing)."""
+        with self.lock:
+            return _Rows(self.db.execute(sql, vals).fetchall())
 
     def _vector(self, text, query=False):
         if not self.embed:
@@ -159,7 +176,7 @@ class Store:
     # ------------------------------------------------------------------ reading
 
     def get(self, mid):
-        r = self.db.execute("select * from memories where id = ?", (mid,)).fetchone()
+        r = self._q("select * from memories where id = ?", (mid,)).fetchone()
         return self._row(r) if r else None
 
     def _row(self, r):
@@ -183,7 +200,7 @@ class Store:
     def list(self, kinds=None, world=None, limit=50, order="recent", all_worlds=False, strict=False):
         where, vals = self._filter(kinds, world, all_worlds, strict)
         by = {"recent": "updated desc", "important": "importance desc, updated desc", "oldest": "created asc"}.get(order, "updated desc")
-        rows = self.db.execute("select * from memories %s order by %s limit ?" % (
+        rows = self._q("select * from memories %s order by %s limit ?" % (
             ("where " + " and ".join(where)) if where else "", by), vals + [int(limit)]).fetchall()
         return [self._row(r) for r in rows]
 
@@ -192,7 +209,7 @@ class Store:
         """The memories that matter for this query, best first, each with a score."""
         now = now or time.time()
         where, vals = self._filter(kinds, world, all_worlds, strict)
-        rows = self.db.execute("select * from memories %s" % (("where " + " and ".join(where)) if where else ""),
+        rows = self._q("select * from memories %s" % (("where " + " and ".join(where)) if where else ""),
                                vals).fetchall()
         if not rows:
             return []
@@ -201,7 +218,7 @@ class Store:
         fq = _fts_query(query)
         if fq:
             try:
-                hits = self.db.execute("select rowid from memories_fts where memories_fts match ? order by rank limit 50",
+                hits = self._q("select rowid from memories_fts where memories_fts match ? order by rank limit 50",
                                        (fq,)).fetchall()
                 for i, h in enumerate(hits):
                     kw[h[0]] = 1.0 - i / max(1, len(hits))
@@ -249,7 +266,7 @@ class Store:
         """After switching embedding model: give old memories the new kind of vector."""
         if not self.embed:
             return 0
-        rows = self.db.execute("select id, text from memories where emb_model is null or emb_model != ? limit ?",
+        rows = self._q("select id, text from memories where emb_model is null or emb_model != ? limit ?",
                                (self.model_name, batch)).fetchall()
         if not rows:
             return 0
@@ -266,7 +283,7 @@ class Store:
 
     def doc(self, key, value=None, now=None):
         if value is None:
-            r = self.db.execute("select value from docs where key = ?", (key,)).fetchone()
+            r = self._q("select value from docs where key = ?", (key,)).fetchone()
             return json.loads(r[0]) if r else None
         with self.lock:
             self.db.execute("insert into docs(key, value, updated) values (?,?,?) on conflict(key) do update set "
@@ -275,7 +292,7 @@ class Store:
         return value
 
     def docs(self, prefix=""):
-        rows = self.db.execute("select key, length(value), updated from docs where key like ? order by updated desc",
+        rows = self._q("select key, length(value), updated from docs where key like ? order by updated desc",
                                (prefix + "%",)).fetchall()
         return [{"key": r[0], "size": r[1], "updated": r[2]} for r in rows]
 
@@ -289,5 +306,5 @@ class Store:
         return n
 
     def stats(self):
-        rows = self.db.execute("select kind, count(*) from memories group by kind").fetchall()
+        rows = self._q("select kind, count(*) from memories group by kind").fetchall()
         return {"memories": {r[0]: r[1] for r in rows}, "path": self.path, "embedding_model": self.model_name or None}

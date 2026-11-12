@@ -34,6 +34,9 @@ import java.util.Deque;
  *   cmd COMMAND         run a game command, e.g. "cmd summon creeper ~ ~ ~-5 {NoAI:1b}"
  *   chat TEXT           type TEXT to the companion, as with /kindred TEXT
  *   type TEXT           type TEXT in the game's chat (plain chat goes through chatMode; /... is a command)
+ *   waitsay N           wait until she says something new (at most N ticks)
+ *   leave               save and quit to the title screen (then: world NAME)
+ *   caption TEXT        a note shown at the bottom of the edited video from here (until the next caption or chapter end)
  *   look YAW PITCH      turn the player
  *   camera first|back|front   switch the view (F5)
  *   skin ID             wear this skin
@@ -61,6 +64,7 @@ import java.util.Deque;
 public final class DevScript {
     private final Deque<String> lines = new ArrayDeque<>();
     private int waitTicks;
+    private int waitSayFrom = -1; // "waitsay": waiting until she says something new
     // smooth camera turn
     private float fromYaw, fromPitch, toYaw, toPitch;
     private long turnStart, turnNanos;
@@ -146,8 +150,13 @@ public final class DevScript {
             KindredSpiritClient.get().sendVoice(pendingVoice);
             pendingVoice = null;
         }
+        if (waitSayFrom >= 0 && FrameRecorder.pipLines() > waitSayFrom) { // she spoke: go on (a beat later)
+            waitSayFrom = -1;
+            waitTicks = Math.min(waitTicks, 1);
+        }
         if (waitTicks > 0) {
             waitTicks--;
+            if (waitTicks == 0) waitSayFrom = -1;
             return;
         }
         String line = lines.peek();
@@ -155,7 +164,8 @@ public final class DevScript {
         String[] parts = line.split(" ", 2);
         String cmd = parts[0], arg = parts.length > 1 ? parts[1] : "";
         // everything except "world" needs to be in a world
-        if (!cmd.equals("world") && !cmd.equals("quit") && (mc.player == null || mc.level == null)) return;
+        if (!cmd.equals("world") && !cmd.equals("quit") && !cmd.equals("wait") && !cmd.startsWith("#")
+                && (mc.player == null || mc.level == null)) return;
         // a first launch shows the accessibility welcome screen before the title screen
         if (cmd.equals("world") && !(mc.screen instanceof TitleScreen || mc.screen instanceof AccessibilityOnboardingScreen)) return;
         lines.poll();
@@ -174,12 +184,28 @@ public final class DevScript {
                 }
             }
             case "wait" -> waitTicks = Integer.parseInt(arg.trim());
+            case "waitsay" -> { // until she says something (at most N ticks)
+                waitSayFrom = FrameRecorder.pipLines();
+                waitTicks = Integer.parseInt(arg.trim());
+            }
+            case "leave" -> { // save and quit to the title screen (then "world" can open another one)
+                boolean local = mc.isLocalServer();
+                mc.level.disconnect();
+                mc.disconnect(local ? new net.minecraft.client.gui.screens.GenericMessageScreen(
+                        net.minecraft.network.chat.Component.literal("Saving...")) : new TitleScreen());
+                mc.setScreen(new TitleScreen());
+            }
             case "cmd" -> mc.player.connection.sendCommand(arg.startsWith("/") ? arg.substring(1) : arg);
-            case "chat" -> KindredSpiritClient.get().talk(arg);
+            case "chat" -> {
+                FrameRecorder.line("you", arg);
+                KindredSpiritClient.get().talk(arg);
+            }
             case "type" -> { // as if typed in the game's chat (plain chat, or /command)
+                FrameRecorder.line("you", arg);
                 if (arg.startsWith("/")) mc.player.connection.sendCommand(arg.substring(1));
                 else mc.player.connection.sendChat(arg);
             }
+            case "caption" -> FrameRecorder.line("caption", arg); // a note for the edit (shown at the bottom)
             case "look" -> {
                 String[] yp = arg.trim().split("\\s+");
                 mc.player.setYRot(Float.parseFloat(yp[0]));

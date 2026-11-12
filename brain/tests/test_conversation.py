@@ -35,6 +35,9 @@ def test_she_cant_claim_an_action_she_didnt_do(stubs):
     assert claims_action("[worried][kind] I am trying to place a torch to keep it away from us.")
     assert claims_action("[happy] {spin} Follow me, Tam! They are right this way.")
     assert not claims_action("[curious] I wonder where the sheep went. Should we look over there?")
+    assert claims_action("[calm] It is quite dark, isn't it? Let me place a torch for you.")
+    assert claims_action("[happy] I'll chop it down for you!")
+    assert not claims_action("[happy] I'll try! Let me think about it."), "a try or a thought isn't a claim"
     stubs.ai_script = [
         {"role": "assistant", "content": "[worried][kind] I'm placing a torch right now!"},
         {"role": "assistant", "content": "", "tool_calls": [
