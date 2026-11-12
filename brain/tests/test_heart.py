@@ -279,6 +279,7 @@ def _brain(stubs):
     cfg = make_cfg(stubs.port)
     b = Brain(cfg, TOKEN, alerts=Alerts(), memory=Memory(GatewayMemory(cfg["gateway"]["url"])))
     b.heart.load = _keep
+    b.seconds_to_say = lambda text: 0  # (lines take no time to say in tests)
     return b
 
 

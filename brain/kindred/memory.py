@@ -180,18 +180,60 @@ class Memory:
                                   contains=about, **({"world": self.world_id} if self.per_world else {}))
         return r.get("deleted", 0)
 
-    async def name_place(self, name, snapshot):
+    async def name_place(self, name, snapshot, replace=False):
+        """Remembers where the player stands under a name. A place with that name somewhere else is never
+        silently moved: returns {"exists": that place} unless replace=True (they said to move it)."""
         w = (snapshot or {}).get("where") or {}
         if "x" not in w:
             return None
         name = " ".join((name or "").split())[:40] or "this place"
         meta = {"name": name, "x": w["x"], "y": w["y"], "z": w["z"], "dimension": w.get("dimension", "minecraft:overworld")}
         for p in await self.places():
-            if p["meta"].get("name", "").lower() == name.lower():  # moved: same name, new spot
+            if p["meta"].get("name", "").lower() == name.lower():
+                far = abs(p["meta"].get("x", 0) - w["x"]) + abs(p["meta"].get("z", 0) - w["z"]) > 12
+                if far and not replace:
+                    return {"exists": dict(p["meta"])}
                 await self.store.call("update", id=p["id"], text="Place the player named '%s'" % name, meta=meta)
                 return meta
         await self.add("place", "Place the player named '%s'" % name, 7, meta)
         return meta
+
+    async def rename_place(self, old, new):
+        """"No, call it my pumpkin base": the place named `old` (the newest one) gets the name `new`."""
+        old, new = " ".join((old or "").split()).lower(), " ".join((new or "").split())[:40]
+        hits = [p for p in await self.places() if p["meta"].get("name", "").lower() == old]
+        if not hits or not new:
+            return None
+        p = max(hits, key=lambda h: h.get("created", 0))
+        meta = dict(p["meta"], name=new)
+        await self.store.call("update", id=p["id"], text="Place the player named '%s'" % new, meta=meta)
+        return meta
+
+    def pick_place(self, places, asked):
+        """Which named place they mean: the exact name, else the longest name inside what they said
+        ("pumpkin base" is not "base"), else a name containing it; "first/original/old" = the oldest,
+        "new/latest" = the newest."""
+        asked = " ".join((asked or "").lower().split())
+        oldest = bool(re.search(r"\b(first|original|old|oldest|initial)\b", asked))
+        newest = bool(re.search(r"\b(new|newest|latest|last|second)\b", asked))
+        bare = re.sub(r"\b(my|our|the|first|original|old|oldest|initial|new|newest|latest|last|second)\b", " ", asked)
+        bare = " ".join(bare.split())
+        named = [p for p in places if p["meta"].get("name")]
+        exact = [p for p in named if p["meta"]["name"].lower() == bare]
+        inside = sorted([p for p in named if p["meta"]["name"].lower() in bare], key=lambda p: -len(p["meta"]["name"]))
+        if inside:
+            longest = len(inside[0]["meta"]["name"])
+            inside = [p for p in inside if len(p["meta"]["name"]) == longest]
+        around = [p for p in named if bare and bare in p["meta"]["name"].lower()]
+        for group in (exact, inside, around):
+            if group:
+                if oldest or newest:
+                    return sorted(group, key=lambda p: p.get("created", 0))[0 if oldest else -1]
+                return group[0] if len(group) == 1 else sorted(group, key=lambda p: p.get("created", 0))[-1]
+        if (oldest or newest) and named:  # "my first base" with a base and a pumpkin base: by age
+            kind = [p for p in named if any(w in p["meta"]["name"].lower() for w in bare.split())] or named
+            return sorted(kind, key=lambda p: p.get("created", 0))[0 if oldest else -1]
+        return None
 
     async def found(self, what, x, y, z, dimension):
         for f in (await self.store.call("list", kinds=["found"], world=self.world_id, limit=60))["results"]:

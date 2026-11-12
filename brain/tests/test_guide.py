@@ -119,3 +119,27 @@ def test_chop_and_mine_requests():
     for said in ("break the tree for me", "chop this tree please", "mine this block", "can you get me some wood"):
         assert intents.action_hint(said, ["harvest", "give_item"]) == "harvest", said
     assert intents.action_hint("give me a sword", ["harvest", "give_item"]) == "give_item"
+
+
+def test_she_never_leads_somewhere_you_didnt_ask_for(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+
+    async def run():
+        await b.memory.open_world("sp:G")
+        await b.memory.name_place("base", snap())
+        b.last_player_text, b.recent_player = "can you lead me to the nearest flower, please?", []
+        wrong = await b.guide_target({"to": "base"})
+        b.last_player_text = "lead me back to my base"
+        right = await b.guide_target({"to": "base"})
+        return wrong, right
+    wrong, right = asyncio.run(run())
+    assert wrong.get("refuse"), "asked for a flower: not led to the base"
+    assert "x" in right, "her base, when that's what they asked for"
+
+
+def test_flowers_and_pumpkins_are_found_not_guessed():
+    allowed = ["find_block", "find_animal", "guide", "locate"]
+    assert intents.action_hint("Can you lead me to the nearest flower, please?", allowed) == "find_block"
+    assert intents.action_hint("where are the pumpkins", allowed) == "find_block"
+    assert intents.action_hint("take me to my pumpkin farm", allowed) == "guide", "a named place, not a pumpkin"

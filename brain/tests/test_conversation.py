@@ -114,3 +114,54 @@ def test_what_she_says_without_the_ai_is_in_its_memory_with_why(stubs):
     assert last["role"] == "assistant" and "the player hit you" in last["content"]
     msgs = b.mind.build_messages(snap(), "sorry, that was an accident")
     assert any("the player hit you" in m["content"] for m in msgs), "so 'sorry' makes sense to the AI"
+
+
+def _speaker(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.seconds_to_say = lambda text: len(text) / 100.0  # fast, but lines still take time
+    b.cfg["voice"]["enabled"] = True
+    said = []
+
+    async def send(msg):
+        if msg["type"] == "say":
+            said.append(msg["text"])
+    b.send = send
+    b._voice = lambda text, style="": asyncio.sleep(0, result="UklGRg==")
+    return b, said
+
+
+def test_one_voice_asides_wait_their_turn_warnings_interrupt_and_she_finishes(stubs):
+    b, said = _speaker(stubs)
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        answer = ("Iron golems appear when villagers feel scared, so you need beds and work stations for them. "
+                  "Then you add a zombie they can see, and a pit with lava under the spawning area.")
+        talking = asyncio.create_task(b.say(answer, "happy"))            # her answer (a reply)
+        await asyncio.sleep(0.05)
+        await b.say("The birch bark looks like paper.", "curious", prio="aside")   # a musing: not now
+        await asyncio.sleep(0.2)
+        await b.say("Creeper behind you! Run!", "scared", instant=True, why="a warning: creeper")
+        await talking
+        for _ in range(50):
+            if b.resume_task and b.resume_task.done():
+                break
+            await asyncio.sleep(0.05)
+    asyncio.run(run())
+    assert "The birch bark looks like paper." not in said, "an aside never talks over her"
+    assert said[1] == "Creeper behind you! Run!", "a warning interrupts at once"
+    assert said[-1].startswith(("Anyway", "So, where", "As I was saying")) and "lava" in said[-1], \
+        "she finishes what the warning interrupted"
+
+
+def test_when_you_start_talking_she_stops_and_remembers_what_she_didnt_say(stubs):
+    b, said = _speaker(stubs)
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.say("First, gather lots of cobblestone. Then build a tall tower with water at the top.", "happy")
+        await b.on_event("listening")
+    asyncio.run(run())
+    assert b.player_listening
+    assert "interrupted before finishing" in b.mind.history[-1]["content"], "so she can come back to it"

@@ -129,6 +129,16 @@ voice and what she says.
 
 ## How she talks
 
+**One voice, coordinated.** Everything she says goes through one coordinator: danger warnings may
+interrupt anything; her answers to you wait for the line she's saying to end; short reactions
+("Ow!", "We're here!") wait a moment or are dropped; asides (a musing, a comment about an animal)
+are dropped when she's talking, you just spoke, or an answer is on its way. If a warning
+interrupts an answer, she finishes it afterwards ("Anyway, as I was saying..."). When you press
+the talk key she stops at once, stays quiet while you hold it (her voice would reach your
+microphone), and what she didn't finish is kept so she can come back to it; anything of hers the
+microphone still picked up is removed from what she hears. Her subtitle appears as soon as she
+knows what to say, and her voice follows.
+
 - Short, spoken lines, whimsical and curious. Her voice (Kokoro, a blend of two young voices) is
   lively and quick when she's excited, softer when she's calm or sad, and she **whispers** secrets,
   spooky things and what she senses in the dark.
