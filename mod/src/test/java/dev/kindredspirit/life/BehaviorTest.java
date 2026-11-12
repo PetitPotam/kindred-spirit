@@ -108,6 +108,34 @@ public class BehaviorTest {
         assertTrue(b.z > 1.0 && !b.keepingClear(), "back at her usual spot when it's over: " + b.z);
     }
 
+    /** Runs with the world's blocks (a Solid) passed to every tick. */
+    static void runIn(Behavior b, Behavior.Senses s, double seconds, Behavior.Solid solid) {
+        double end = s.now + seconds;
+        while (s.now < end) {
+            b.tick(s, Behavior.Activity.IDLE, Mood.HAPPY, solid);
+            for (int i = 0; i < 3; i++) {
+                b.frame(s.ex, s.ey, s.ez, s.yawDeg, s.lx, s.ly, s.lz, s.now + i * FRAME, FRAME, Behavior.Activity.IDLE, Mood.HAPPY, 0, false);
+            }
+            s.now += TICK;
+        }
+    }
+
+    @Test
+    void herBodyNeverSinksIntoAWall() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        // a thick wall right where she likes to float (in front of you), from the ground to the sky
+        Behavior.Solid wall = (x, y, z) -> z >= 1.0 && z < 3.0;
+        runIn(b, s, 3, wall);
+        assertFalse(b.blocked(b.x, b.y, b.z), "outside the wall: z " + b.z);
+        // a block appears right where she is (you, or she, built it): she steps out of it
+        double bx = Math.floor(b.x), by = Math.floor(b.y), bz = Math.floor(b.z);
+        Behavior.Solid placed = (x, y, z) -> wall.at(x, y, z)
+                || (Math.floor(x) == bx && Math.floor(y) == by && Math.floor(z) == bz);
+        runIn(b, s, 0.2, placed);
+        assertFalse(b.blocked(b.x, b.y, b.z), "stepped out of the new block");
+    }
+
     @Test
     void neverParksInTheMiddleOfYourView() {
         Behavior b = new Behavior(0, 0, 1.9, 0.2, 1); // asked to sit dead centre

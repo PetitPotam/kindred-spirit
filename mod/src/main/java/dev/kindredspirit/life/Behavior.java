@@ -163,6 +163,7 @@ public final class Behavior {
     private double lastTurn = -100;
     private double exploreYaw;
     private double avoidLift;
+    private Solid solid; // the world's blocks, from the last tick (her body never sinks into them)
     private final double[] slotYaw = {Double.NaN, 0};
     private boolean catchingUp;
     static final double TURN_SETTLED = 4;
@@ -303,6 +304,7 @@ public final class Behavior {
     // ================================================================== decisions, 20 per second
 
     public void tick(Senses s, Activity act, Mood mood, Solid solid) {
+        this.solid = solid;
         double now = s.now;
 
         // Are you active? Moving, or turning to look somewhere else.
@@ -535,6 +537,33 @@ public final class Behavior {
         return perp2 < r * r;
     }
 
+    /** Does her body (a ball of her radius) overlap a solid block? */
+    boolean blocked(double bx, double by, double bz) {
+        if (solid == null) return false;
+        double r = radius * 0.85;
+        return solid.at(bx, by, bz) || solid.at(bx + r, by, bz) || solid.at(bx - r, by, bz)
+                || solid.at(bx, by + r, bz) || solid.at(bx, by - r, bz) || solid.at(bx, by, bz + r)
+                || solid.at(bx, by, bz - r);
+    }
+
+    /**
+     * The nearest free spot to (bx, by, bz) for her body: up first (she floats), then toward you,
+     * then sideways, then down; at worst just above your head, which is always free.
+     */
+    double[] free(double bx, double by, double bz, double ex, double ey, double ez) {
+        if (!blocked(bx, by, bz)) return new double[]{bx, by, bz};
+        double tx = ex - bx, ty = ey - by, tz = ez - bz, tl = Math.sqrt(tx * tx + ty * ty + tz * tz);
+        if (tl > 1e-6) { tx /= tl; ty /= tl; tz /= tl; }
+        double[][] dirs = {{0, 1, 0}, {tx, ty, tz}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}};
+        for (double step = 0.35; step <= 3.2; step += 0.35) {
+            for (double[] d : dirs) {
+                double cx = bx + d[0] * step, cy = by + d[1] * step, cz = bz + d[2] * step;
+                if (!blocked(cx, cy, cz)) return new double[]{cx, cy, cz};
+            }
+        }
+        return new double[]{ex, ey + 0.6, ez};
+    }
+
     /** If its spot is inside a block, float up until it is free (and come back down later). */
     private void avoidWalls(Senses s, Solid solid) {
         if (solid == null || !placed) return;
@@ -657,6 +686,8 @@ public final class Behavior {
         presence = Smooth.clamp(Smooth.damp(presenceState, mode == Mode.HIDE ? 0 : 1, 0.25, dt, 6), 0, 1);
         double[] t = target(ex, ey, ez, followYaw(yawDeg, dt), lx, ly, lz, now);
         t[1] += Smooth.damp(avoid, avoidLift, 0.4, dt, 4);
+        boolean bodily = solid != null && mode != Mode.HIDE;
+        if (bodily) t = free(t[0], t[1], t[2], ex, ey, ez); // her spot is never inside a block
 
         if (!placed || dist2(t[0], t[1], t[2], x, y, z) > 14 * 14) {
             px[0] = t[0]; py[0] = t[1]; pz[0] = t[2];
@@ -668,6 +699,13 @@ public final class Behavior {
         x = Smooth.damp(px, t[0], smooth, dt, 14);
         y = Smooth.damp(py, t[1], smooth * 0.8, dt, 14);
         z = Smooth.damp(pz, t[2], smooth, dt, 14);
+        if (bodily && blocked(x, y, z)) { // on her way she'd pass through a wall (or a block appeared on her): step out
+            double[] f = free(x, y, z, ex, ey, ez);
+            x = px[0] = f[0];
+            y = py[0] = f[1];
+            z = pz[0] = f[2];
+            px[1] = py[1] = pz[1] = 0;
+        }
 
         // lean into the direction it moves, like something with weight
         double vx = px[1], vz = pz[1];
