@@ -242,6 +242,11 @@ class Mind:
             '  "merge": pairs [old_id, kept_id] of already-known items (the #numbers below) that say the same thing, '
             "so only the better one is kept. Empty if none."
             % name)
+        system += ("\nAn item can also have \"temporary\": true when it is a passing state rather than lasting "
+                   "knowledge: a mood or worry right now, what they are busy with today, how they feel after "
+                   "something just happened (\"Alex is sad about losing their items\", \"I feel guilty about "
+                   "tonight\"). Those fade after a day or two. Lasting things (name, likes, personality, long-term "
+                   "goals, habits) are not temporary.")
         system += ('\nThe diary, if asked, is one plain string.')
         if diary:
             system += ('\nAlso "diary": one or two warm sentences in first person about this play session '

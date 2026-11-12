@@ -323,14 +323,15 @@ def memory_call(store, op, req):
         return {"id": mid, "merged": merged}
     if op == "search":
         return {"results": store.search(req.get("query", ""), req.get("kinds"), req.get("world"), req.get("k", 8),
-                                        all_worlds=bool(req.get("all_worlds")))}
+                                        all_worlds=bool(req.get("all_worlds")), strict=bool(req.get("strict")))}
     if op == "list":
         return {"results": store.list(req.get("kinds"), req.get("world"), req.get("limit", 50), req.get("order", "recent"),
-                                      all_worlds=bool(req.get("all_worlds")))}
+                                      all_worlds=bool(req.get("all_worlds")), strict=bool(req.get("strict")))}
     if op == "update":
         return {"ok": store.update(req["id"], req.get("text"), req.get("importance"), req.get("meta"))}
     if op == "delete":
-        return {"deleted": store.delete(req.get("id"), req.get("kinds"), req.get("world"), req.get("contains"))}
+        return {"deleted": store.delete(req.get("id"), req.get("kinds"), req.get("world"), req.get("contains"),
+                                        strict=bool(req.get("strict")))}
     if op == "doc":
         return {"value": store.doc(req["key"], req.get("value"))}
     if op == "clear_docs":

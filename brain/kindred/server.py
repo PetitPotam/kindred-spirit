@@ -70,8 +70,11 @@ class Brain:
         self.pending = {}
         self.next_id = 0
         self.since = None
+        self.memory.per_world = not cfg["heart"].get("same_companion_in_every_world", False)
+        if hasattr(self.memory.store, "strict"):
+            self.memory.store.strict = self.memory.per_world
         self.heart = Heart(cfg, self.memory)
-        self.heart_loaded = False
+        self.heart_loaded = False   # which heart is loaded (its key), or False
         self.last_notice = -1e9
         self.noticed = {}
         self.prev_biome = None
@@ -441,11 +444,6 @@ class Brain:
         if name == "join":
             self.in_world = True
             self.last_talk = self.clock()
-            if not self.heart_loaded:
-                await self.heart.load()
-                self.heart_loaded = True
-            await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(), "change": 0})
-            await self.send({"type": "act", "closeness": self.heart.closeness()})
             try:
                 await self.memory.open_world(msg.get("world") or "unknown")
                 self.mind.history = list(await self.memory.history())
@@ -454,6 +452,13 @@ class Brain:
             except MemoryError as e:
                 log.warning("%s (playing without memory)", e)
                 self.since = None
+            if self.heart_loaded != self.heart.key():  # another world: its own companion
+                self.awakening, self.recent_player, self.her_offer = {}, [], None
+                self.animals_seen, self.animals_since = {}, None
+            await self.heart.load()  # (always: memories may have been imported while you were away)
+            self.heart_loaded = self.heart.key()
+            await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(), "change": 0})
+            await self.send({"type": "act", "closeness": self.heart.closeness()})
             if self.cfg["behaviour"].get("greet_on_join") and (self.greet_task is None or self.greet_task.done()):
                 self.greet_task = asyncio.create_task(self.greet())
         elif name == "leave":

@@ -21,9 +21,12 @@ being said, ranked by meaning, keywords, recency and importance (the gateway doe
     python -m kindred.memory            show what it remembers
     python -m kindred.memory forget     forget every memory (asks first); keeps the bond and her powers
     python -m kindred.memory reset      a brand-new companion: memories, bond, powers, conversations
+    python -m kindred.memory worlds     your worlds and what she knows in each
+    python -m kindred.memory import FROM [TO]   bring what she knew about you from one world into another
 """
 import asyncio
 import json
+import os
 import math
 import re
 import sys
@@ -81,8 +84,11 @@ class GatewayMemory:
     def __init__(self, base, key=""):
         self.base = base.rstrip("/") + "/memory/"
         self.key = key
+        self.strict = False  # each world has its own companion: only this world's memories
 
     def _call(self, op, body):
+        if self.strict and body.get("world") and op in ("list", "search", "delete"):
+            body = dict(body, strict=True)
         req = urllib.request.Request(self.base + op, data=json.dumps(body).encode(), method="POST",
                                      headers={"Content-Type": "application/json"})
         if self.key:
@@ -102,6 +108,7 @@ class Memory:
         self.store = store
         self.clock = clock
         self.world_id = None
+        self.per_world = False   # True: each world has its own companion (see brain.toml [heart])
         self.stats = None
         self.session_start = None
         self.exchanges = 0
@@ -151,7 +158,7 @@ class Memory:
     # ------------------------------------------------------------------ keeping things
 
     async def add(self, kind, text, importance=5, meta=None, dedupe=None):
-        world = None if kind in GLOBAL_KINDS else self.world_id
+        world = None if kind in GLOBAL_KINDS and not self.per_world else self.world_id
         return await self.store.call("add", kind=kind, text=text, world=world, importance=importance,
                                      meta=meta or {}, dedupe=dedupe)
 
@@ -165,7 +172,7 @@ class Memory:
 
     async def forget(self, about):
         r = await self.store.call("delete", kinds=["player", "self", "habit", "world", "place", "found", "reminder"],
-                                  contains=about)
+                                  contains=about, **({"world": self.world_id} if self.per_world else {}))
         return r.get("deleted", 0)
 
     async def name_place(self, name, snapshot):
@@ -255,7 +262,9 @@ class Memory:
             lst("list", kinds=["place"], world=self.world_id, limit=8),
             lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary"],
                 world=self.world_id, k=8))
-        player, me, habits, reminders, places, recalled = (c["results"] for c in core)
+        now = self.clock()
+        player, me, habits, reminders, places, recalled = (
+            [m for m in c["results"] if (m.get("meta") or {}).get("expires", now + 1) > now] for c in core)
         seen = {m["id"] for group in (player, me, habits, reminders, places) for m in group}
         lines = []
         if player:
@@ -301,8 +310,13 @@ class Memory:
             for item in lessons.get(kind) or []:
                 text = item.get("text") if isinstance(item, dict) else str(item)
                 imp = item.get("importance", 6) if isinstance(item, dict) else 6
+                passing = isinstance(item, dict) and bool(item.get("temporary"))
                 if text and len(text) < 300:
-                    r = await self.add(kind, text, max(1, min(10, int(imp))), dedupe=0.86)
+                    # a passing feeling or situation fades after a day and a half, and never outranks
+                    # what lasts
+                    r = await self.add(kind, text, min(5, imp) if passing else max(1, min(10, int(imp))),
+                                       meta={"expires": self.clock() + PASSING} if passing else None,
+                                       dedupe=0.86)
                     added += 0 if r.get("merged") else 1
         diary = lessons.get("diary")
         if isinstance(diary, list):  # some models wrap it like the other lists
@@ -318,6 +332,59 @@ class Memory:
             except (TypeError, ValueError):
                 pass
         return added
+
+
+PASSING = 36 * 3600  # how long a passing feeling or situation stays in mind
+IMPORTED = ("player", "self", "habit")  # who you are, who she is, your habits: not places or events
+
+
+def worlds_cli(store, argv):
+    """worlds: each world and what she knows there.  import FROM [TO]: bring what she knew about you
+    (and, with the game closed, her bond and powers) from one world into another."""
+    rows = store._call("list", {"limit": 5000, "all_worlds": True, "order": "recent"})["results"]
+    worlds = []
+    for r in rows:  # most recently used first
+        if r["world"] and r["world"] not in worlds:
+            worlds.append(r["world"])
+
+    def find(name):
+        hits = [w for w in worlds if name.lower() == w.lower() or name.lower() in w.lower()]
+        return hits[0] if len(hits) == 1 else None
+
+    if argv[0] == "worlds":
+        if not worlds:
+            print("No worlds yet.")
+        for w in worlds:
+            mine = [r for r in rows if r["world"] == w]
+            about = [r["text"] for r in mine if r["kind"] == "player"][:2]
+            print("%-28s %3d memories%s" % (w.split(":", 1)[-1], len(mine),
+                                           ("   e.g. " + " / ".join(about)) if about else ""))
+        return 0
+    if len(argv) < 2:
+        print('Usage: scripts/memory.sh import "FROM WORLD" ["TO WORLD"]   (TO: the world you played last)')
+        return 1
+    src = find(argv[1])
+    dst = find(argv[2]) if len(argv) > 2 else next((w for w in worlds if w != src), None)
+    if not src or not dst or src == dst:
+        print("Which worlds? I know: %s" % ", ".join(w.split(":", 1)[-1] for w in worlds))
+        return 1
+    copied = 0
+    for r in store._call("list", {"kinds": list(IMPORTED), "world": src, "strict": True, "limit": 200})["results"]:
+        out = store._call("add", {"kind": r["kind"], "text": r["text"], "world": dst, "importance": r["importance"],
+                                  "meta": dict(r.get("meta") or {}, imported_from=src), "dedupe": 0.88})
+        copied += 0 if out.get("merged") else 1
+    print("Copied %d memories about you and her from %s into %s." % (copied, src.split(":", 1)[-1],
+                                                                    dst.split(":", 1)[-1]))
+    heart = store._call("doc", {"key": "world:%s:heart" % src}).get("value")
+    if heart and os.environ.get("KINDRED_GAME_CONNECTED") == "1":
+        print("Her bond and discovered powers were not copied: the game is connected. Quit it and import again "
+              "to bring those too.")
+    elif heart:
+        mine = store._call("doc", {"key": "world:%s:heart" % dst}).get("value") or {}
+        mine.update({k: heart[k] for k in ("bond", "discovered", "asked", "requests") if k in heart})
+        store._call("doc", {"key": "world:%s:heart" % dst, "value": mine})
+        print("Her bond (%d) and the powers she discovered there came along too." % round(heart.get("bond", 30)))
+    return 0
 
 
 def main(argv):
@@ -337,6 +404,8 @@ def main(argv):
             d = store._call("clear_docs", {})
             print("Reset: %s, %s. Next time you play, you'll meet a brand-new companion." % (n, d))
         return 0
+    if argv[:1] in (["worlds"], ["import"]):
+        return worlds_cli(store, argv)
     for kind in ("player", "self", "habit", "reminder", "world", "place", "found", "diary", "episode"):
         rows = store._call("list", {"kinds": [kind], "limit": 15, "order": "important", "all_worlds": True})["results"]
         if rows:

@@ -18,6 +18,10 @@ class Clock:
         return self.t
 
 
+async def _keep():
+    """(tests set her heart up by hand: joining the world must not load a saved one over it)"""
+
+
 def heart(**overrides):
     cfg = config.merge(config.DEFAULTS, {"heart": overrides})
     c = Clock()
@@ -177,7 +181,7 @@ def test_she_offers_help_and_yes_makes_her_do_it(stubs):
         from kindred.alerts import Alerts
         from websockets.asyncio.server import serve
         brain = Brain(cfg, TOKEN, alerts=Alerts(), memory=Memory(GatewayMemory(cfg["gateway"]["url"])))
-        brain.heart_loaded = True
+        brain.heart.load = _keep
         brain.heart.state["asked"]["protect"] = 1
         brain.heart.state["discovered"].append("protect")
         brain.heart.state["bond"] = 50
@@ -209,7 +213,7 @@ def test_auto_protect_never_blocks_the_conversation(stubs):
         from kindred.alerts import Alerts
         from websockets.asyncio.server import serve
         brain = Brain(cfg, TOKEN, alerts=Alerts(), memory=Memory(GatewayMemory(cfg["gateway"]["url"])))
-        brain.heart_loaded = True
+        brain.heart.load = _keep
         brain.heart.add_request("protect")
         async with serve(brain.handler, "127.0.0.1", 0, process_request=brain.check_auth) as srv:
             await scenario("ws://127.0.0.1:%d/" % srv.sockets[0].getsockname()[1])
@@ -274,7 +278,7 @@ def _brain(stubs):
     from kindred.alerts import Alerts
     cfg = make_cfg(stubs.port)
     b = Brain(cfg, TOKEN, alerts=Alerts(), memory=Memory(GatewayMemory(cfg["gateway"]["url"])))
-    b.heart_loaded = True
+    b.heart.load = _keep
     return b
 
 

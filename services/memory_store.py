@@ -105,8 +105,11 @@ class Store:
         if dedupe and vec:
             for hit in self.search(text, kinds=[kind], world=world, k=1, now=now, _vec=vec, touch=False):
                 if hit["similarity"] >= dedupe:
+                    merged = {**hit["meta"], **(meta or {})}
+                    if "expires" not in (meta or {}) or "expires" not in hit["meta"]:
+                        merged.pop("expires", None)  # lasting wins over passing, whichever came first
                     self.update(hit["id"], text=text, importance=max(importance, hit["importance"]),
-                                meta={**hit["meta"], **(meta or {})}, now=now, _vec=vec)
+                                meta=merged, now=now, _vec=vec)
                     return hit["id"], True
         with self.lock:
             cur = self.db.execute(
@@ -138,8 +141,8 @@ class Store:
             self.db.commit()
         return True
 
-    def delete(self, mid=None, kinds=None, world=None, contains=None):
-        where, vals = self._filter(kinds, world, all_worlds=world is None)
+    def delete(self, mid=None, kinds=None, world=None, contains=None, strict=False):
+        where, vals = self._filter(kinds, world, all_worlds=world is None, strict=strict)
         if mid is not None:
             where.append("id = ?")
             vals.append(mid)
@@ -165,28 +168,30 @@ class Store:
                 "created": r["created"], "updated": r["updated"], "uses": r["uses"]}
 
     @staticmethod
-    def _filter(kinds, world, all_worlds=False):
+    def _filter(kinds, world, all_worlds=False, strict=False):
         where, vals = [], []
         if kinds:
             where.append("kind in (%s)" % ",".join("?" * len(kinds)))
             vals += list(kinds)
         if not all_worlds:
-            # this world's memories plus the ones that belong everywhere (about you, about itself)
-            where.append("(world is null or world = ?)")
+            # this world's memories plus, unless strict (each world has its own companion), the ones
+            # that belong everywhere (about you, about itself)
+            where.append("world = ?" if strict else "(world is null or world = ?)")
             vals.append(world)
         return where, vals
 
-    def list(self, kinds=None, world=None, limit=50, order="recent", all_worlds=False):
-        where, vals = self._filter(kinds, world, all_worlds)
+    def list(self, kinds=None, world=None, limit=50, order="recent", all_worlds=False, strict=False):
+        where, vals = self._filter(kinds, world, all_worlds, strict)
         by = {"recent": "updated desc", "important": "importance desc, updated desc", "oldest": "created asc"}.get(order, "updated desc")
         rows = self.db.execute("select * from memories %s order by %s limit ?" % (
             ("where " + " and ".join(where)) if where else "", by), vals + [int(limit)]).fetchall()
         return [self._row(r) for r in rows]
 
-    def search(self, query, kinds=None, world=None, k=8, now=None, touch=True, _vec=None, all_worlds=False):
+    def search(self, query, kinds=None, world=None, k=8, now=None, touch=True, _vec=None, all_worlds=False,
+               strict=False):
         """The memories that matter for this query, best first, each with a score."""
         now = now or time.time()
-        where, vals = self._filter(kinds, world, all_worlds)
+        where, vals = self._filter(kinds, world, all_worlds, strict)
         rows = self.db.execute("select * from memories %s" % (("where " + " and ".join(where)) if where else ""),
                                vals).fetchall()
         if not rows:
