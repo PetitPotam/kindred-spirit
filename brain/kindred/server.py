@@ -85,10 +85,10 @@ def merge_messages(texts):
     return "(several messages, sent one after another)\n" + "\n".join(lines)
 
 
-IMPORTED_KINDS = ("player", "self", "habit")  # what an import brings: who you are, who she is, your habits
+IMPORTED_KINDS = ("player", "self", "habit", "origin")  # what an import brings: who you are, who she is, your habits
 
 # moments worth waiting for a pause in the conversation, rather than skipping
-WORTH_WAITING = ("baby", "tamed", "first_meet", "killed_villager", "kill_spree", "death", "advancement")
+WORTH_WAITING = ("baby", "tamed", "first_meet", "killed_villager", "kill_spree", "death", "advancement", "lore_place")
 
 
 class Brain:
@@ -316,6 +316,14 @@ class Brain:
         if abs(delta) < 0.5:
             return
         log.info("bond %+.1f (%s) -> %.0f %s", delta, why, self.heart.bond, self.heart.level())
+        level = self.heart.level()
+        if level in ("close", "best friend") and level not in self.heart.state.setdefault("levels_reached", []):
+            self.heart.state["levels_reached"].append(level)  # a milestone: it may reveal a piece of her story
+            moment = self.heart.origin_moment("you and the player just became %s" % (
+                "close" if level == "close" else "best friends"), self.clock())
+            if moment:
+                asyncio.create_task(self.speak_up("You feel how much closer you've grown to the player." + moment,
+                                                  "happy"))
         await self.send({"type": "bond", "value": round(self.heart.bond), "level": self.heart.level(),
                          "change": round(delta, 1)})
         await self.send({"type": "act", "closeness": self.heart.closeness()})
@@ -480,12 +488,12 @@ class Brain:
     async def reset_world(self):
         m, world = self.memory, self.memory.world_id
         if m.per_world:
-            n = (await m.store.call("delete", kinds=["player", "self", "habit", "world", "place", "found", "episode",
-                                                       "diary", "reminder"], world=world, contains=""))["deleted"]
+            n = (await m.store.call("delete", kinds=["player", "self", "origin", "habit", "world", "place", "found",
+                                                       "episode", "diary", "reminder"], world=world, contains=""))["deleted"]
             await m.store.call("clear_docs", prefix="world:%s:" % world)
         else:
-            n = (await m.store.call("delete", kinds=["player", "self", "habit", "world", "place", "found", "episode",
-                                                       "diary", "reminder"], contains=""))["deleted"]
+            n = (await m.store.call("delete", kinds=["player", "self", "origin", "habit", "world", "place", "found",
+                                                       "episode", "diary", "reminder"], contains=""))["deleted"]
             await m.store.call("clear_docs")
         self.heart.state = self.heart.fresh()
         self.mind.history, self.mind.summary, self.mind.to_fold = [], "", []
@@ -843,7 +851,8 @@ class Brain:
             self.last_pos = pos
         biome = w.get("biome")
         if self.prev_biome and biome and biome != self.prev_biome:
-            asyncio.create_task(self.notice("biome", biome))
+            place = self.heart.lore_place(biome, w.get("dimension"))  # a place from the old stories: the first time
+            asyncio.create_task(self.notice("lore_place", place) if place else self.notice("biome", biome))
         self.prev_biome = biome or self.prev_biome
         health = s.get("health", 20)
         prev = self.prev_health
@@ -937,7 +946,9 @@ class Brain:
             if not await self.quiet_moment():
                 return
             offered = self.heart.offered_tools(self.abilities, ability)
-            await self.speak_up(self.heart.reveal_note(ability, request, done), "excited", emote="hop",
+            note = self.heart.reveal_note(ability, request, done) + self.heart.origin_moment(
+                "a power of yours just woke up", self.clock(), chance=0.5)
+            await self.speak_up(note, "excited", emote="hop",
                                 tools_=tools.for_abilities(offered), force=ability)
         except Exception as e:  # a background thought must never take the brain down
             log.warning("awakening %s failed: %s", ability, e)

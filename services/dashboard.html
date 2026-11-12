@@ -341,8 +341,8 @@ async function voice() {
 
 // ---------------------------------------------------------------- memory
 let memData = null;
-const KINDS = ["player", "self", "habit", "world", "place", "found", "reminder", "diary", "episode"];
-const KIND_LABEL = {player: "about you", self: "about her", habit: "your habits", world: "the world", place: "places", found: "found", reminder: "reminders", diary: "diary", episode: "what happened"};
+const KINDS = ["player", "self", "origin", "habit", "world", "place", "found", "reminder", "diary", "episode"];
+const KIND_LABEL = {player: "about you", self: "about her", origin: "her story", habit: "your habits", world: "the world", place: "places", found: "found", reminder: "reminders", diary: "diary", episode: "what happened"};
 async function memoryTab() {
   memData = await get("/api/memory");
   const worlds = Object.keys(memData.worlds);

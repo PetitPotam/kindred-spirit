@@ -40,6 +40,22 @@ power just works.
 
 What she *could* do is still capped by `/kindred power` and `/kindred style` (see the README).
 
+## Where she comes from
+
+She doesn't know, and nobody wrote it: each world's Pip uncovers her own story with you. The clues
+are in Minecraft's own old stories (the ancient builders, the old stones, the ancient cities sleeping
+in the deep dark, strongholds and the End, beacons, the villagers' old ways) and in what you live
+together. Some moments may reveal one small new piece, at most one every 20 minutes:
+
+- a power of hers waking up;
+- your first time together in the deep dark, the Nether or the End ("something about it feels strangely
+  familiar");
+- your bond growing into close friends, then best friends.
+
+Each piece she realizes is kept as part of "where you come from" in that world, in the order she found
+it, so her story stays consistent and grows with how you play. Ask her about it any time: before she
+knows, she wonders with you. Importing a world's memories brings her story along.
+
 ## The bond
 
 A number from 0 to 100, shown as a small heart meter (top right) whenever it changes, and in

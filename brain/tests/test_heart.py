@@ -492,3 +492,15 @@ def test_a_power_is_discovered_only_when_it_does_something():
     assert did_something("protect", {"ok": True, "pushedAway": 2})
     assert not did_something("find_ore", {"ok": True, "found": False})
     assert did_something("find_animal", {"ok": True, "found": True}) and did_something("guide", {"ok": True})
+
+
+def test_moments_that_may_reveal_where_she_comes_from():
+    h, c = heart()
+    first = h.origin_moment("a power of yours just woke up", c.t)
+    assert "ONE small new piece" in first and "consistent with what you already know" in first
+    assert h.origin_moment("arriving in the End", c.t + 60) == "", "not every few minutes"
+    assert h.origin_moment("arriving in the End", c.t + 1300)
+    assert h.lore_place("minecraft:deep_dark", "minecraft:overworld") == "the deep dark, where the ancient cities sleep"
+    assert h.lore_place("minecraft:deep_dark", "minecraft:overworld") is None, "only the first time"
+    assert h.lore_place("minecraft:plains", "minecraft:overworld") is None
+    assert h.lore_place("minecraft:the_end", "minecraft:the_end") == "the End"
