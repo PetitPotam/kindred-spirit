@@ -47,19 +47,26 @@ ABILITY_TOOLS = {
                    "if they look at a log, else that one block. What drops goes into their inventory, as if mined "
                    "with what they hold. Use when they ask you to chop a tree, cut wood, mine or break a block. "
                    "Never for animals, chests or anything that holds things."),
-    "build": _fn("build", "Build with the player: place blocks in a shape, one by one, a few per second, starting "
-                 "at the spot they're looking at (or just in front of them) and going forward (the way they face) "
-                 "and to their right. In grounded style each block comes from their inventory (you place what they "
-                 "have). Shapes: pillar (a stack, 'height' high), corners (a pillar on each corner of a rectangle "
-                 "'width' x 'length', 'height' high), wall (a row 'width' long, 'height' high), floor ('width' x "
-                 "'length', flat), outline (the border of 'width' x 'length', 'height' high, like a pen or room). "
-                 "'stop' stops a build. One block where they look: a pillar of height 1. If the size they want isn't "
-                 "clear, ask before building. At most 256 blocks.",
-                 {"shape": {"type": "string", "enum": ["pillar", "corners", "wall", "floor", "outline", "stop"]},
-                  "block": {"type": "string", "description": "the block to use, e.g. cobblestone, oak_planks; empty = "
-                            "the block in their hand (or the one they have most of)"},
+    "build": _fn("build", "Build with the player, starting at the spot they're looking at (or just in front of them) "
+                 "and going forward (the way they face) and to their right. In grounded style each block comes from "
+                 "their inventory (you place what they have) and what you clear goes into it; in magic style it's free "
+                 "and fast. Shapes: place (ONE block or item where they look, placed properly: a campfire, a bed, a "
+                 "chest, a door, a lantern...), pillar (a stack, 'height' high), corners (a pillar on each corner of "
+                 "'width' x 'length'), wall (a row 'width' long, 'height' high), floor ('width' x 'length', flat), "
+                 "outline (the border of 'width' x 'length', 'height' high, like a pen), house (floor, walls, a door, a "
+                 "roof, sized for 'people'), portal (a nether portal: 10 obsidian, then lit), clear (everything in "
+                 "'width' x 'length' goes, from where they stand up, or above 'level'), flatten (clear, and fill holes "
+                 "in the ground at that level with 'block'). 'stop' stops. Use the block they named, in this or an "
+                 "earlier message. If what they want isn't one of these shapes, say you can't build that yet: never "
+                 "build something else and call it done. If the size isn't clear, ask first.",
+                 {"shape": {"type": "string", "enum": ["place", "pillar", "corners", "wall", "floor", "outline", "house",
+                                                       "portal", "clear", "flatten", "stop"]},
+                  "block": {"type": "string", "description": "the block or item, e.g. cobblestone, oak_planks, campfire, "
+                            "red_bed; empty = the one in their hand (or the one they have most of)"},
                   "height": {"type": "integer"}, "width": {"type": "integer", "description": "to their right"},
-                  "length": {"type": "integer", "description": "forward"}}, ["shape"]),
+                  "length": {"type": "integer", "description": "forward"},
+                  "people": {"type": "integer", "description": "house: how many it's for"},
+                  "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"}}, ["shape"]),
     "place_torch": _fn("place_torch", "Place a torch at or right next to the player's feet (in grounded style it "
                        "uses one of their torches)."),
     "give_item": _fn("give_item", "Make items appear in someone's inventory (magic): the player's, or another "

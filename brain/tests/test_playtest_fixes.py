@@ -112,3 +112,12 @@ def test_defending_her_is_recognised():  # (witnessing)
     for t in ("stop hitting pip", "leave her alone", "hey, be nice to her", "don't talk to her like that"):
         assert intents.DEFEND.search(t), t
     assert not intents.DEFEND.search("stop the rain")
+
+
+def test_the_block_they_named_stays_for_the_build():  # item 2
+    assert intents.block_named(["flatten everything with dirt", "yes, do it"]) == "dirt"
+    assert intents.block_named(["build a wall of cherry planks"]) == "cherry_planks"
+    assert intents.block_named(["hello there"]) == ""
+    from kindred.tools import ABILITY_TOOLS
+    shapes = ABILITY_TOOLS["build"]["function"]["parameters"]["properties"]["shape"]["enum"]
+    assert {"place", "house", "portal", "clear", "flatten"} <= set(shapes)

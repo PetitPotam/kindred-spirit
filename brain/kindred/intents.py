@@ -196,6 +196,31 @@ def hint_in_context(text, earlier, allowed):
     return None
 
 
+# a block they named ("with dirt", "cherry planks"): kept for the build that follows, even a message later
+_WOODS = "oak|spruce|birch|jungle|acacia|dark oak|mangrove|cherry|bamboo|crimson|warped"
+BLOCK_WORD = re.compile(r"\b((?:%s) (?:planks?|logs?|wood|slabs?|stairs)|(?:stone |mossy |cracked )?(?:stone )?bricks?|"
+                        r"cobblestone|cobble|smooth stone|stone|deepslate|dirt|grass block|sand(?:stone)?|red sand|gravel|glass|"
+                        r"(?:white|black|red|blue|green|yellow|orange|pink|purple|cyan|lime|gray|light blue|magenta|brown) "
+                        r"(?:wool|concrete|terracotta|glass)|wool|concrete|terracotta|obsidian|andesite|granite|diorite|"
+                        r"tuff|calcite|clay|mud bricks?|quartz|prismarine|blackstone|netherrack|snow block|ice|planks?|logs?)\b"
+                        % _WOODS, re.I)
+
+
+def block_named(texts):
+    """The block they named most recently (newest message first), as an id: "cherry planks" -> cherry_planks."""
+    for t in reversed([x for x in texts if x]):
+        found = BLOCK_WORD.findall(t)
+        if found:
+            w = found[-1].lower().strip()
+            w = {"cobble": "cobblestone", "plank": "planks", "log": "logs", "brick": "bricks"}.get(w, w)
+            if re.fullmatch(r"(%s) (plank|log|slab|stair)" % _WOODS, w):
+                w += "s"
+            w = re.sub(r"\b(planks|logs|slabs|stairs)\b", lambda m: {"planks": "planks", "logs": "log", "slabs": "slab",
+                                                                      "stairs": "stairs"}[m.group(1)], w)
+            return w.replace(" ", "_")
+    return ""
+
+
 # the player stepping in for her ("stop hitting Pip", "leave her alone", "be nice to her")
 DEFEND = re.compile(r"\b(stop|quit|don'?t|do not|no)\b.{0,12}\b(hit(ting)?|hurt(ing)?|punch(ing)?|attack(ing)?|"
                     r"bully(ing)?|being mean|being rude|insult(ing)?|tease|teasing|picking on)\b|\bleave (her|pip|it|them)"
