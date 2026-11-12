@@ -36,7 +36,7 @@ import urllib.request
 
 from . import config
 
-GLOBAL_KINDS = ("player", "self", "habit", "reminder", "origin")
+GLOBAL_KINDS = ("player", "self", "habit", "reminder", "origin", "taste", "core")
 
 
 def ago(seconds):
@@ -116,6 +116,7 @@ class Memory:
         self.stats = None
         self.session_start = None
         self.exchanges = 0
+        self.self_known = 0
         self.since_reflection = 0
 
     # ------------------------------------------------------------------ sessions
@@ -262,16 +263,19 @@ class Memory:
             lst("list", kinds=["player"], world=self.world_id, limit=8, order="important"),
             lst("list", kinds=["self"], world=self.world_id, limit=5, order="important"),
             lst("list", kinds=["origin"], world=self.world_id, limit=8, order="oldest"),
+            lst("list", kinds=["taste"], world=self.world_id, limit=10, order="recent"),
+            lst("list", kinds=["core"], world=self.world_id, limit=5, order="important"),
             lst("list", kinds=["habit"], world=self.world_id, limit=4, order="important"),
             lst("list", kinds=["reminder"], world=self.world_id, limit=6),
             lst("list", kinds=["place"], world=self.world_id, limit=8),
             lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary"],
                 world=self.world_id, k=8))
         now = self.clock()
-        player, me, origin, habits, reminders, places, recalled = (
+        player, me, origin, tastes, cores, habits, reminders, places, recalled = (
             [m for m in c["results"] if m.get("text") and (m.get("meta") or {}).get("expires", now + 1) > now]
             for c in core)
-        seen = {m["id"] for group in (player, me, origin, habits, reminders, places) for m in group}
+        seen = {m["id"] for group in (player, me, origin, tastes, cores, habits, reminders, places) for m in group}
+        self.self_known = len(origin) + len(me)  # (how much she knows about herself: her doubts depend on it)
         lines = []
         if player:
             lines.append("About the player: " + " ".join(m["text"].rstrip(".") + "." for m in player))
@@ -280,6 +284,14 @@ class Memory:
         lines.append("Where you come from: " + (" ".join(m["text"].rstrip(".") + "." for m in origin) +
                                                 " Beyond that, it's still a mystery." if origin else
                                                 "you don't know yet; it's a mystery you'll uncover together."))
+        if tastes:
+            lines.append("Your tastes (they can change): " + "; ".join(m["text"] for m in tastes) + ".")
+        if cores:
+            lines.append("Moments that shaped you: " + " ".join(
+                m["text"].rstrip(".") + (" (it still hurts)." if (m.get("meta") or {}).get("pain") and not
+                                         (m.get("meta") or {}).get("healed") else
+                                         " (you've made peace with it)." if (m.get("meta") or {}).get("healed") else ".")
+                for m in cores))
         if habits:
             lines.append("The player's habits: " + " ".join(m["text"].rstrip(".") + "." for m in habits))
         if places:
@@ -307,10 +319,48 @@ class Memory:
 
     # ------------------------------------------------------------------ learning (reflection)
 
+    async def learn_self(self, lessons):
+        """Her tastes (one per thing, and she can change her mind), her core memories, and the hurts she
+        made peace with."""
+        added = 0
+        for t in lessons.get("tastes") or []:
+            if not isinstance(t, dict) or not t.get("about") or t.get("feeling") not in ("love", "like", "dislike", "hate"):
+                continue
+            about = str(t["about"]).strip().lower()[:60]
+            text = "I %s %s%s" % (t["feeling"], about, (" (%s)" % t["why"].rstrip(".")) if t.get("why") else "")
+            old = [m for m in (await self.store.call("list", kinds=["taste"], world=self.world_id, limit=200))["results"]
+                   if (m.get("meta") or {}).get("about") == about]
+            meta = {"about": about, "feeling": t["feeling"]}
+            if old:  # she changed her mind (or felt it again): one opinion per thing, with what it was before
+                was = old[0]["meta"].get("feeling")
+                if was != t["feeling"]:
+                    meta["was"] = was
+                await self.store.call("update", id=old[0]["id"], text=text, meta=meta, importance=7)
+            else:
+                await self.add("taste", text, 6, meta=meta)
+                added += 1
+        for c in (lessons.get("core") or [])[:1]:
+            if isinstance(c, dict) and c.get("text") and len(c["text"]) < 300:
+                await self.add("core", c["text"], 10, meta={"feeling": c.get("feeling", ""), "pain": bool(c.get("pain"))},
+                               dedupe=0.9)
+                added += 1
+        for mid in lessons.get("healed") or []:
+            try:
+                rows = (await self.store.call("list", kinds=["core"], world=self.world_id, limit=50))["results"]
+                row = next((r for r in rows if r["id"] == int(mid)), None)
+                if row:
+                    await self.store.call("update", id=row["id"], meta=dict(row.get("meta") or {}, healed=True))
+            except (TypeError, ValueError):
+                pass
+        return added
+
     async def known_for(self, text):
-        hits = (await self.store.call("search", query=text, kinds=["player", "self", "habit", "world"],
+        hits = (await self.store.call("search", query=text, kinds=["player", "self", "habit", "world", "taste"],
                                       world=self.world_id, k=15))["results"]
-        return ["#%d %s" % (h["id"], h["text"]) for h in hits]
+        cores = (await self.store.call("list", kinds=["core"], world=self.world_id, limit=10))["results"]
+        return ["#%d %s" % (h["id"], h["text"]) for h in hits] + [
+            "#%d (a core memory%s) %s" % (c["id"], ", still painful" if (c.get("meta") or {}).get("pain") and not
+                                          (c.get("meta") or {}).get("healed") else "", c["text"]) for c in cores]
 
     async def learn(self, lessons):
         """Applies what reflection found: new knowledge, merged with what it already knew."""
@@ -327,6 +377,7 @@ class Memory:
                                        meta={"expires": self.clock() + PASSING} if passing else None,
                                        dedupe=0.86)
                     added += 0 if r.get("merged") else 1
+        added += await self.learn_self(lessons)
         diary = lessons.get("diary")
         if isinstance(diary, list):  # some models wrap it like the other lists
             diary = " ".join(d.get("text", "") if isinstance(d, dict) else str(d) for d in diary)
@@ -344,7 +395,7 @@ class Memory:
 
 
 PASSING = 36 * 3600  # how long a passing feeling or situation stays in mind
-IMPORTED = ("player", "self", "habit", "origin")  # who you are, who she is, your habits: not places or events
+IMPORTED = ("player", "self", "habit", "origin", "taste", "core")  # who you are, who she is, your habits: not places or events
 
 
 def worlds_cli(store, argv):
@@ -408,14 +459,15 @@ def main(argv):
     if argv[:1] == ["reset"]:  # (scripts/memory.sh reset stops the brain first, then starts it again)
         if input("Reset your companion completely: every memory, the bond, discovered powers and "
                  "conversations? Type yes: ").strip().lower() == "yes":
-            n = store._call("delete", {"kinds": ["player", "self", "origin", "habit", "world", "place", "found",
+            n = store._call("delete", {"kinds": ["player", "self", "origin", "taste", "core", "habit", "world", "place", "found",
                                                  "episode", "diary", "reminder"], "contains": ""})
             d = store._call("clear_docs", {})
             print("Reset: %s, %s. Next time you play, you'll meet a brand-new companion." % (n, d))
         return 0
     if argv[:1] in (["worlds"], ["import"]):
         return worlds_cli(store, argv)
-    for kind in ("player", "self", "origin", "habit", "reminder", "world", "place", "found", "diary", "episode"):
+    for kind in ("player", "self", "origin", "core", "taste", "habit", "reminder", "world", "place", "found", "diary",
+                 "episode"):
         rows = store._call("list", {"kinds": [kind], "limit": 15, "order": "important", "all_worlds": True})["results"]
         if rows:
             print("\n%s:" % kind)

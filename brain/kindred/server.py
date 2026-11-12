@@ -86,7 +86,7 @@ def merge_messages(texts):
     return "(several messages, sent one after another)\n" + "\n".join(lines)
 
 
-IMPORTED_KINDS = ("player", "self", "habit", "origin")  # what an import brings: who you are, who she is, your habits
+IMPORTED_KINDS = ("player", "self", "habit", "origin", "taste", "core")  # what an import brings: who you are, who she is, your habits
 
 # moments worth waiting for a pause in the conversation, rather than skipping
 WORTH_WAITING = ("baby", "tamed", "first_meet", "killed_villager", "kill_spree", "death", "advancement", "lore_place")
@@ -539,11 +539,11 @@ class Brain:
     async def reset_world(self):
         m, world = self.memory, self.memory.world_id
         if m.per_world:
-            n = (await m.store.call("delete", kinds=["player", "self", "origin", "habit", "world", "place", "found",
+            n = (await m.store.call("delete", kinds=["player", "self", "origin", "taste", "core", "habit", "world", "place", "found",
                                                        "episode", "diary", "reminder"], world=world, contains=""))["deleted"]
             await m.store.call("clear_docs", prefix="world:%s:" % world)
         else:
-            n = (await m.store.call("delete", kinds=["player", "self", "origin", "habit", "world", "place", "found",
+            n = (await m.store.call("delete", kinds=["player", "self", "origin", "taste", "core", "habit", "world", "place", "found",
                                                        "episode", "diary", "reminder"], contains=""))["deleted"]
             await m.store.call("clear_docs")
         self.heart.state = self.heart.fresh()
@@ -707,8 +707,12 @@ class Brain:
         transcript = "\n".join("%s: %s" % ("Player" if m["role"] == "user" else "You", m["content"]) for m in history)
         try:
             known = await self.memory.known_for(transcript[-1500:])
-            lessons = await self.mind.reflect(transcript, known, diary=session_end and talk >= 2)
+            lessons = await self.mind.reflect(transcript, known, diary=session_end and talk >= 2,
+                                              bond=self.heart.level())
             added = await self.memory.learn(lessons)
+            found = len(lessons.get("origin") or [])
+            if found:  # a piece of where she comes from: it settles her doubts a little
+                self.heart.shaken(-0.3 * found)
             self.memory.since_reflection = 0
             log.info("learned %d new things%s", added, "; diary: %s" % lessons.get("diary") if lessons.get("diary") else "")
         except (AIError, MemoryError) as e:
@@ -997,8 +1001,9 @@ class Brain:
             if not await self.quiet_moment():
                 return
             offered = self.heart.offered_tools(self.abilities, ability)
-            note = self.heart.reveal_note(ability, request, done) + self.heart.origin_moment(
-                "a power of yours just woke up", self.clock(), chance=0.5)
+            moment = self.heart.origin_moment("a power of yours just woke up", self.clock(), chance=0.5)
+            note = self.heart.reveal_note(ability, request, done) + (moment or (
+                " You may also wonder, briefly, what this says about what you are." if random.random() < 0.5 else ""))
             await self.speak_up(note, "excited", emote="hop",
                                 tools_=tools.for_abilities(offered), force=ability)
         except Exception as e:  # a background thought must never take the brain down
@@ -1143,6 +1148,7 @@ class Brain:
                 self.recent_player = (self.recent_player + [text])[-3:]
                 if self.heart.angry():
                     force = None  # when she's cross, whether to help is her choice
+                self.heart.known_self = getattr(self.memory, "self_known", 0)
                 for said in heard or [text]:  # (repeating the same words: less effect, then annoyance)
                     self.heart.hear(said)
                 note = self.favour_heard(text)

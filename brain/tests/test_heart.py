@@ -504,3 +504,29 @@ def test_moments_that_may_reveal_where_she_comes_from():
     assert h.lore_place("minecraft:deep_dark", "minecraft:overworld") is None, "only the first time"
     assert h.lore_place("minecraft:plains", "minecraft:overworld") is None
     assert h.lore_place("minecraft:the_end", "minecraft:the_end") == "the End"
+
+
+def test_being_asked_about_herself_shakes_her_more_when_she_knows_little():
+    h, c = heart()
+    h.known_self = 0
+    for _ in range(5):
+        h.hear("what are you? where do you come from?")
+        c.t += 20
+    assert h.doubt >= 0.7 and "existential crisis" in h.guidance("sad")
+    c.t += 3 * 3600
+    assert h.doubt < 0.1, "it fades: she isn't bothered by it on her own"
+    knows, c2 = heart()
+    knows.known_self = 6
+    for _ in range(5):
+        knows.hear("what are you?")
+    assert knows.doubt < 0.3, "knowing who she is steadies her"
+
+
+def test_a_pang_of_jealousy_when_you_talk_about_yourself_a_lot():
+    h, c = heart()
+    h.known_self = 1
+    for said in ("i am a teacher", "my family is big", "i love cherry trees", "i live by the sea"):
+        h.hear(said)
+        c.t += 30
+    assert "jealousy" in h.guidance("happy")
+    assert "jealousy" not in h.guidance("happy"), "once, not every time"

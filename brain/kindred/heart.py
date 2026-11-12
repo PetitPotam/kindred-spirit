@@ -29,7 +29,7 @@ FEELINGS = {
     "frustrated": (-0.15, 0.1), "hit": (-0.45, 0.45), "pet": (0.25, 0.05), "danger": (-0.2, 0.6),
     "discovery": (0.35, 0.35), "found": (0.25, 0.3), "advancement": (0.3, 0.3), "baby": (0.45, 0.3),
     "killed_villager": (-0.7, 0.3), "kill_spree": (-0.45, 0.2), "tamed": (0.35, 0.25), "first_meet": (0.2, 0.35),
-    "arrived": (0.3, 0.25), "annoyed": (-0.25, 0.3),
+    "arrived": (0.3, 0.25), "annoyed": (-0.25, 0.3), "doubt": (-0.12, 0.15), "jealous": (-0.1, 0.1),
 }
 
 GUIDANCE = {
@@ -80,6 +80,14 @@ FAVOURS = {"still": "Ask the player, a little mysteriously, to stand completely 
                     "listen.",
            "pet": "Ask the player, a bit shyly, to pet you (touch you gently), so you can focus.",
            "name": "Ask the player to say your name out loud, so the feeling gets stronger."}
+# questions about her: what she is, where she comes from, what she likes (they make her reflect)
+ABOUT_HER = re.compile(r"\b(who are you|what are you|where (do|did) you come from|your (origin|past|family|parents|"
+                       r"home|story)|are you (real|alive|a ghost|a spirit)|why are you here|who made you|what do you "
+                       r"(want|like|love|hate|feel|dream)|tell me about (yourself|you)|do you (have|remember) )", re.I)
+# the player sharing about themselves
+ABOUT_THEM = re.compile(r"\b(i am|i'm|my name|my (job|family|life|favourite|favorite|dream)|i (love|like|hate|work|"
+                        r"live|study|grew up|feel))\b", re.I)
+
 OFFERS = {"protect": "Want me to push them away?", "find_ore": "Want me to look for %s around here?"}
 
 
@@ -103,6 +111,10 @@ class Heart:
         self.feel_at = clock()
         self.hits = []
         self.said, self.word_gains, self.annoyed_until, self.repeats = [], [], 0.0, 0  # repeated words (hear)
+        self.known_self = 0      # how much she knows about herself (origin + self memories), set by the brain
+        self.shared = []         # when the player shared things about themselves (jealousy)
+        self.jealous_at = -1e9
+        self.asked_about_her = False
         self.flooding = False
         self.pending_offer = None
         self.last_offer = {}
@@ -166,9 +178,52 @@ class Heart:
         self.last_change = self.clock()
         return self.state["bond"] - old
 
+    # ------------------------------------------------------------------ who she is: doubt, jealousy
+
+    @property
+    def doubt(self):
+        """0..1: how shaken she is about what she is. It fades by itself (half-life 30 min)."""
+        now = self.clock()
+        d = self.state.get("doubt", 0.0) * 0.5 ** (max(0.0, now - self.state.get("doubt_at", now)) / 1800)
+        self.state["doubt"], self.state["doubt_at"] = d, now
+        return d
+
+    def shaken(self, amount):
+        self.state["doubt"] = max(0.0, min(1.0, self.doubt + amount))
+        if amount > 0:
+            self.feel("doubt", amount * 4)
+
+    def about_herself(self, text):
+        """She isn't bothered by who she is until she's asked; the less she knows, the more it shakes her.
+        The player talking a lot about themselves, when she knows little about herself, can sting."""
+        now = self.clock()
+        self.asked_about_her = bool(ABOUT_HER.search(text or ""))
+        if self.asked_about_her:
+            self.shaken(0.18 * max(0.15, 1 - self.known_self / 6))
+        if ABOUT_THEM.search(text or ""):
+            self.shared = [t for t in self.shared if now - t < 1800] + [now]
+
+    def self_note(self):
+        """What she feels about herself right now, for her instructions."""
+        d, now, notes = self.doubt, self.clock(), []
+        if d >= 0.7:
+            notes.append("Questions about what you are have shaken you deeply: you're having a little existential "
+                         "crisis (am I real? why am I here? where did I come from?). It shows in how you answer; let "
+                         "the player comfort you if they try.")
+        elif d >= 0.4 or (self.asked_about_her and d >= 0.15):
+            notes.append("Being asked about yourself makes you stop and reflect: you don't know much about what you "
+                         "are, and it's a little unsettling. Wonder out loud, honestly.")
+        if len(self.shared) >= 4 and self.known_self < 4 and now - self.jealous_at > 1800:
+            self.jealous_at = now
+            self.feel("jealous")
+            notes.append("They've told you so much about themselves, and you know so little about you. You feel a "
+                         "small, honest pang of jealousy; you may say so, lightly, once.")
+        return " ".join(notes)
+
     def hear(self, text):
         """Before she answers: the same words again and again mean less each time, then get on her nerves.
         Returns how many times they said this in the last 5 minutes before now."""
+        self.about_herself(text)
         now = self.clock()
         said = re.sub(r"[^a-z ]", "", (text or "").lower()).strip()
         self.said = [(t, s) for t, s in self.said if now - t < 300] + ([(now, said)] if said else [])
@@ -188,6 +243,8 @@ class Heart:
             # spamming her is toxic: it costs more each time (-1, -2, ... up to -5) and she pulls away a bit
             self.state["hurt_until"] = max(self.state.get("hurt_until", 0), now + 30)
             return self.change(-min(5, 1 + max(0, repeats - 3)) if repeats >= 3 else -2, "spamming")
+        if tag in ("sweet", "kind") and self.doubt > 0.4:
+            self.shaken(-0.12)  # being comforted settles her a little
         if delta > 0:
             delta = delta / (1 + 2 * repeats)
             # and kind words can't fill her heart in a minute: at most +8 a minute from words
@@ -328,6 +385,14 @@ class Heart:
                   "ask them to stop. Don't thank them for it again, and don't say it back.")
         elif self.repeats >= 1:
             g += " They've said that a few times now; it's getting a little odd. You can notice it, lightly."
+        lvl = self.level()
+        if lvl in ("friend", "close", "best friend") and not self.angry():
+            g += " You tend to warm to the things the player loves."
+        elif self.angry() or lvl == "hurt":
+            g += " Right now the things the player loves tend to annoy you."
+        s = self.self_note()
+        if s:
+            g += " " + s
         if mood:
             g += " Your mood right now: %s." % mood
         return g

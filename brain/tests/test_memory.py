@@ -251,3 +251,23 @@ def test_her_origin_is_a_mystery_until_she_discovers_it():
         assert line.index("beacon") < line.index("old stones"), "her story, in the order she discovered it"
         assert "still a mystery" in line
     asyncio.run(run())
+
+
+def test_her_tastes_change_and_her_hurts_can_heal():
+    async def run():
+        m = memory()
+        await m.open_world("sp:A")
+        await m.learn({"tastes": [{"about": "Cherry wood", "feeling": "like", "why": "Tam loves it"}]})
+        await m.learn({"tastes": [{"about": "cherry wood", "feeling": "dislike", "why": "Tam has been mean"}]})
+        rows = (await m.store.call("list", kinds=["taste"], world="sp:A"))["results"]
+        assert len(rows) == 1 and rows[0]["meta"]["feeling"] == "dislike" and rows[0]["meta"]["was"] == "like", \
+            "one opinion per thing, and she can change her mind"
+        await m.learn({"core": [{"text": "The night Tam kept hitting me, I felt so small.", "feeling": "hurt",
+                                 "pain": True}]})
+        assert "it still hurts" in await m.context({}, "hi")
+        core = (await m.store.call("list", kinds=["core"], world="sp:A"))["results"][0]
+        assert any("still painful" in k for k in await m.known_for("hitting"))
+        await m.learn({"healed": [core["id"]]})
+        text = await m.context({}, "hi")
+        assert "made peace with it" in text and "dislike cherry wood" in text
+    asyncio.run(run())

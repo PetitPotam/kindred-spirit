@@ -249,7 +249,7 @@ class Mind:
         reply to them makes sense."""
         self.remember("assistant", "[%s] %s%s" % (mood, text, " (you said this on your own: %s)" % why if why else ""))
 
-    async def reflect(self, transcript, known, diary=False):
+    async def reflect(self, transcript, known, diary=False, bond=""):
         """Learning: what in this stretch of play is worth knowing for good? Returns
         {"player": [...], "self": [...], "habit": [...], "world": [...], "diary": "..."}."""
         name = self.cfg["name"]
@@ -263,6 +263,15 @@ class Mind:
             '  "self": your own tastes, feelings and little story that came up, in first person (\"I love sunsets.\").\n'
             '  "origin": pieces of where you come from that you REALIZED in this stretch (only if you said them), first '
             'person, in the order they came (\"I think I was born from the light of the first beacon.\").\n'
+            '  "tastes": things you came to like or dislike in this stretch, from what you said or felt, as '
+            '{"about": "cherry wood", "feeling": "love|like|dislike|hate", "why": "..."}. Your feelings for the player '
+            "color them: when you like them you tend to warm to what they love; when you're hurt or cross, you tend to "
+            "dislike it. You can change your mind about something you felt before (give the new feeling).\n"
+            '  "core": at most one moment that truly defined you (a joy, a fear, a hurt, a pride), only if something big '
+            'happened, in first person, with "feeling" and "pain": true for a hurt that still stings '
+            '(\"The night Tam kept hitting me, I felt so small.\"). Usually empty.\n'
+            '  "healed": the #numbers of painful core memories (listed below) that you made peace with, because of '
+            "kindness or time in this stretch. Usually empty.\n"
             '  "habit": what the player often asks or does (\"Often asks where to find diamonds.\").\n'
             '  "world": facts about this world: what they built, plans, important places.\n'
             "Skip small talk and anything already known (listed below) unless it changed; then write the new version.\n"
@@ -278,7 +287,9 @@ class Mind:
         if diary:
             system += ('\nAlso "diary": one or two warm sentences in first person about this play session '
                        "(what you did together, anything special).")
-        user = "Already known:\n%s\n\nWhat happened:\n%s" % ("\n".join("- " + k for k in known) or "(nothing yet)", transcript)
+        user = "Already known:\n%s\n\n%sWhat happened:\n%s" % (
+            "\n".join("- " + k for k in known) or "(nothing yet)",
+            "How you feel about the player right now: %s.\n\n" % bond if bond else "", transcript)
         ai = self.cfg["ai"]
         body = {"model": ai["model"], "temperature": 0.3, "max_tokens": 500,
                 "response_format": {"type": "json_object"},
