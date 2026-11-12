@@ -69,7 +69,7 @@ LABELS = {
     "heart.temperament": "Temperament",
     "skin": "Skin", "power": "What she may do", "style": "How she does it", "allowPranks": "Pranks allowed in game",
     "allowMoodWeather": "Her moods may change the weather", "glow": "Her glow lights the dark", "guideArrow": "Arrow while she leads",
-    "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her", "lanGuestPowers": "Friends may ask for her powers", "sharedPip": "In a friend's world: their Pip or your own",
+    "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her", "lanGuestPowers": "Friends may ask for her powers", "follow": "Whom she stays with on LAN ('' = you)", "sharedPip": "In a friend's world: their Pip or your own",
     "quality": "Quality", "worldSubtitles": "Subtitles above her", "hudCaptions": "Captions on the screen",
     "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
     "voiceVolume": "Her voice volume", "offsetRight": "Floats to your right (blocks)", "offsetForward": "Floats ahead (blocks)",
@@ -245,7 +245,9 @@ def editable():
     mp = mod_path()
     mod = read_json(mp) if mp else None
     mod_defaults = read_json(os.path.join(os.path.dirname(mp), "kindredspirit.defaults.json")) if mp else None
-    for path, value in _leaves(mod or {}):
+    known = dict(mod_defaults or {})
+    known.update(mod or {})  # (a setting new in this version of the mod is changeable before the game saves it)
+    for path, value in _leaves(known):
         if path in MOD_HIDDEN:
             continue
         choices = CHOICES.get(("mod", path))
@@ -782,8 +784,10 @@ class Handler(BaseHTTPRequestHandler):
                 with open(PAGE, "rb") as fh:
                     return self.send(200, fh.read(), "text/html")
             if url.path == "/api/live":
+                mod = read_json(mod_path() or "") or {}
                 return self.send(200, {"brain": read_json(os.path.join(LOGS, "brain-state.json")),
                                        "snapshot": read_json(os.path.join(LOGS, "last-snapshot.json")),
+                                       "friends": {k: mod.get(k) for k in ("lanGuests", "lanGuestPowers", "follow")},
                                        "health": health()})
             if url.path == "/api/events":
                 return self.send(200, {"events": events(int(q.get("limit", 400)))})

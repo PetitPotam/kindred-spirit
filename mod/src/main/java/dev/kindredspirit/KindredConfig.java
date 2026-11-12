@@ -43,6 +43,8 @@ public final class KindredConfig {
     /** Joining a friend's world where their Pip lives: "host" = you see and share their Pip (one Pip, their
      *  AI and voice; you talk to her in chat), "own" = your own Pip and brain, as at home. */
     public String sharedPip = "host";
+    /** Whom she floats beside on a LAN world: "" = you, or a friend's name (/kindred follow, the dashboard). */
+    public String follow = "";
     public String brainHost = "127.0.0.1";
     public int brainPort = 47811;
     /** Empty = ~/.kindred-spirit/token, shared with the brain. */

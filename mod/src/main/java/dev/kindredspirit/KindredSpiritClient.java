@@ -429,6 +429,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
             String skin = cfg.skin;
             if (skins.has(skin) && !skin.equals(companion.skin.id())) companion.skin = skins.get(skin);
             sendAbilities(); // power and style
+            if (!java.util.Objects.equals(cfg.follow, followApplied) && !sharing) { // the dashboard's "she stays with"
+                JsonObject r = follow(cfg.follow);
+                if (r.get("ok").getAsBoolean()) notice(r.get("now").getAsString(), 4000);
+            }
             LOG.info("settings changed outside the game: applied");
         }
         boolean share = "host".equalsIgnoreCase(cfg.sharedPip) && mc.getSingleplayerServer() == null && shared.active(now);
@@ -563,6 +567,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (who == null || who.isBlank() || who.matches("(?i)me|you|player|back|myself|" + java.util.regex.Pattern.quote(
                 mc.player == null ? "me" : mc.player.getGameProfile().getName()))) {
             companion.follow = null;
+            remember("");
             r.addProperty("ok", true);
             r.addProperty("now", displayName + " floats beside you again.");
             return r;
@@ -577,11 +582,23 @@ public final class KindredSpiritClient implements ClientModInitializer {
             return r;
         }
         companion.follow = them.getUUID();
+        remember(them.getGameProfile().getName());
         r.addProperty("ok", true);
         r.addProperty("now", displayName + " floats beside " + them.getGameProfile().getName() + " now (/kindred follow me to call her back).");
         r.addProperty("following", them.getGameProfile().getName());
         return r;
     }
+
+    /** Whom she follows, in the settings (the dashboard shows it and can change it). */
+    private void remember(String name) {
+        followApplied = name;
+        if (!name.equals(cfg.follow)) {
+            cfg.follow = name;
+            cfg.save();
+        }
+    }
+
+    private String followApplied = "";
 
     private String[] followable() {
         Minecraft mc = Minecraft.getInstance();

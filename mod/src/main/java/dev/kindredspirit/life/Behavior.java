@@ -564,21 +564,143 @@ public final class Behavior {
     }
 
     /**
-     * The nearest free spot to (bx, by, bz) for her body: up first (she floats), then toward you,
-     * then sideways, then down; at worst just above your head, which is always free.
+     * The nearest spot to (bx, by, bz) where her body is free AND she can see you (nothing solid in
+     * between): toward you first, then sideways, up, down. Indoors that keeps her in the room with you,
+     * not on the roof above the nearest free air. At worst: right in front of your face, always free.
      */
     double[] free(double bx, double by, double bz, double ex, double ey, double ez) {
-        if (!blocked(bx, by, bz)) return new double[]{bx, by, bz};
+        if (!blocked(bx, by, bz) && clear(ex, ey, ez, bx, by, bz)) return new double[]{bx, by, bz};
         double tx = ex - bx, ty = ey - by, tz = ez - bz, tl = Math.sqrt(tx * tx + ty * ty + tz * tz);
         if (tl > 1e-6) { tx /= tl; ty /= tl; tz /= tl; }
-        double[][] dirs = {{0, 1, 0}, {tx, ty, tz}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}};
+        double[][] dirs = {{tx, ty, tz}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0}};
         for (double step = 0.35; step <= 3.2; step += 0.35) {
             for (double[] d : dirs) {
                 double cx = bx + d[0] * step, cy = by + d[1] * step, cz = bz + d[2] * step;
-                if (!blocked(cx, cy, cz)) return new double[]{cx, cy, cz};
+                if (!blocked(cx, cy, cz) && clear(ex, ey, ez, cx, cy, cz)) return new double[]{cx, cy, cz};
             }
         }
-        return new double[]{ex, ey + 0.6, ez};
+        for (double up : new double[]{0.25, 0, -0.3}) { // in front of your face, a little up (your own space)
+            double cx = ex + lastLookX * 0.55, cy = ey + up, cz = ez + lastLookZ * 0.55;
+            if (!blocked(cx, cy, cz)) return new double[]{cx, cy, cz};
+        }
+        return new double[]{ex, ey, ez};
+    }
+
+    /** Put her somewhere at once (a friend's game catching up with the host's Pip; tests). */
+    public void placeAt(double nx, double ny, double nz) {
+        x = px[0] = nx;
+        y = py[0] = ny;
+        z = pz[0] = nz;
+        px[1] = py[1] = pz[1] = 0;
+        placed = true;
+        way.clear();
+    }
+
+    /** Nothing solid on the straight line between two points (a wall, a ceiling)? */
+    boolean clear(double ax, double ay, double az, double bx, double by, double bz) {
+        if (solid == null) return true;
+        double dx = bx - ax, dy = by - ay, dz = bz - az, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        int n = (int) Math.ceil(len / 0.3);
+        for (int i = 1; i < n; i++) {
+            double f = (double) i / n;
+            if (solid.at(ax + dx * f, ay + dy * f, az + dz * f)) return false;
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------ finding her way to you
+
+    /** The way around a wall to her spot: block centers through open air, nearest first. */
+    private final java.util.ArrayDeque<double[]> way = new java.util.ArrayDeque<>();
+    private double wayAt = -1;
+    /** She had no way through (a closed room, a wall too long): she vanished and reappeared beside you. */
+    public boolean blinked;
+
+    /**
+     * A way through open air from (fx, fy, fz) to (tx, ty, tz): a breadth-first search over the blocks
+     * around (at most 20 blocks away, 6000 blocks looked at), straightened where she can fly direct.
+     * Empty when there's none.
+     */
+    java.util.List<double[]> findWay(double fx, double fy, double fz, double tx, double ty, double tz) {
+        java.util.List<double[]> out = new java.util.ArrayList<>();
+        if (solid == null) return out;
+        int sx = (int) Math.floor(fx), sy = (int) Math.floor(fy), sz = (int) Math.floor(fz);
+        int gx = (int) Math.floor(tx), gy = (int) Math.floor(ty), gz = (int) Math.floor(tz);
+        if (Math.abs(gx - sx) > 20 || Math.abs(gy - sy) > 20 || Math.abs(gz - sz) > 20) return out;
+        java.util.Map<Long, Long> from = new java.util.HashMap<>();
+        java.util.ArrayDeque<int[]> q = new java.util.ArrayDeque<>();
+        long start = key(sx, sy, sz), goal = key(gx, gy, gz);
+        from.put(start, start);
+        q.add(new int[]{sx, sy, sz});
+        int[][] steps = {{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0}};
+        boolean found = false;
+        while (!q.isEmpty() && from.size() < 6000) {
+            int[] c = q.poll();
+            if (key(c[0], c[1], c[2]) == goal) {
+                found = true;
+                break;
+            }
+            for (int[] d : steps) {
+                int nx = c[0] + d[0], ny = c[1] + d[1], nz = c[2] + d[2];
+                long k = key(nx, ny, nz);
+                if (from.containsKey(k) || Math.abs(nx - sx) > 22 || Math.abs(nz - sz) > 22 || Math.abs(ny - sy) > 22) continue;
+                if (k != goal && solid.at(nx + 0.5, ny + 0.5, nz + 0.5)) continue;
+                from.put(k, key(c[0], c[1], c[2]));
+                q.add(new int[]{nx, ny, nz});
+            }
+        }
+        if (!found) return out;
+        java.util.ArrayDeque<double[]> cells = new java.util.ArrayDeque<>();
+        for (long k = goal; k != start; k = from.get(k)) cells.addFirst(center(k));
+        cells.addLast(new double[]{tx, ty, tz});
+        // straighten: from each point, jump to the furthest one she can fly to directly
+        double[] at = {fx, fy, fz};
+        java.util.List<double[]> pts = new java.util.ArrayList<>(cells);
+        int i = 0;
+        while (i < pts.size()) {
+            int j = pts.size() - 1;
+            while (j > i && !clear(at[0], at[1], at[2], pts.get(j)[0], pts.get(j)[1], pts.get(j)[2])) j--;
+            at = pts.get(j);
+            out.add(at);
+            i = j + 1;
+        }
+        return out;
+    }
+
+    private static long key(int x, int y, int z) {
+        return ((long) (x & 0x1FFFFF) << 42) | ((long) (y & 0x1FFFFF) << 21) | (z & 0x1FFFFF);
+    }
+
+    private static double[] center(long k) {
+        int x = (int) (k >> 42 & 0x1FFFFF), y = (int) (k >> 21 & 0x1FFFFF), z = (int) (k & 0x1FFFFF);
+        if (x >= 1 << 20) x -= 1 << 21;
+        if (y >= 1 << 20) y -= 1 << 21;
+        if (z >= 1 << 20) z -= 1 << 21;
+        return new double[]{x + 0.5, y + 0.5, z + 0.5};
+    }
+
+    /** Where to head this frame: her spot, or the next point of the way around a wall to it. */
+    private double[] headFor(double[] t, double now) {
+        if (solid == null || clear(x, y, z, t[0], t[1], t[2])) {
+            way.clear();
+            return t;
+        }
+        double[] last = way.peekLast();
+        if (way.isEmpty() || now >= wayAt || last == null || dist2(last[0], last[1], last[2], t[0], t[1], t[2]) > 2.5 * 2.5) {
+            way.clear();
+            way.addAll(findWay(x, y, z, t[0], t[1], t[2]));
+            wayAt = now + 0.75;
+            if (way.isEmpty()) { // no way through: she vanishes and reappears beside you
+                x = px[0] = t[0];
+                y = py[0] = t[1];
+                z = pz[0] = t[2];
+                px[1] = py[1] = pz[1] = 0;
+                blinked = true;
+                return t;
+            }
+        }
+        while (way.size() > 1 && dist2(way.peek()[0], way.peek()[1], way.peek()[2], x, y, z) < 0.6 * 0.6) way.poll();
+        return way.peek();
     }
 
     /** If its spot is inside a block, float up until it is free (and come back down later). */
@@ -586,8 +708,8 @@ public final class Behavior {
         if (solid == null || !placed) return;
         double yaw = Double.isNaN(slotYaw[0]) ? s.yawDeg : slotYaw[0];
         double[] t = target(s.ex, s.ey, s.ez, yaw, s.lx, s.ly, s.lz, s.now);
-        if (solid.at(t[0], t[1] + avoidLift, t[2])) {
-            avoidLift = Math.min(2.0, avoidLift + 0.5);
+        if (solid.at(t[0], t[1] + avoidLift, t[2]) && clear(s.ex, s.ey, s.ez, t[0], t[1] + avoidLift + 0.5, t[2])) {
+            avoidLift = Math.min(2.0, avoidLift + 0.5); // (over a low wall: yes; up through a ceiling: no)
         } else if (avoidLift > 0 && !solid.at(t[0], t[1] + avoidLift - 0.5, t[2])) {
             avoidLift = Math.max(0, avoidLift - 0.25);
         }
@@ -711,6 +833,7 @@ public final class Behavior {
             px[1] = py[1] = pz[1] = 0;
             placed = true;
         }
+        if (bodily) t = headFor(t, now); // around walls, not through them (or over the roof)
         double smooth = mode == Mode.GUIDE ? GUIDE_SMOOTH : mode == Mode.COME ? 0.35
                 : (emote == Emote.DOZE || mood == Mood.SLEEPY) ? 0.9 : 0.5;
         x = Smooth.damp(px, t[0], smooth, dt, 14);

@@ -297,17 +297,60 @@ public class BehaviorTest {
     }
 
     @Test
-    void floatsOverWalls() {
+    void aWallInFrontKeepsHerOnYourSideInSight() {
         Behavior b = companion();
         Behavior.Senses s = player();
         run(b, s, 2, Behavior.Activity.IDLE);
         Behavior.Solid wall = (x, y, z) -> z > 1.0 && y < 2.5;
-        for (int i = 0; i < 40; i++) {
-            b.tick(s, Behavior.Activity.IDLE, Mood.HAPPY, wall);
-            b.frame(s.ex, s.ey, s.ez, s.yawDeg, s.lx, s.ly, s.lz, s.now, TICK, Behavior.Activity.IDLE, Mood.HAPPY, 0, false);
-            s.now += TICK;
+        runIn(b, s, 2, wall);
+        assertFalse(b.blocked(b.x, b.y, b.z), "not inside the wall");
+        assertTrue(b.clear(s.ex, s.ey, s.ez, b.x, b.y, b.z), "where you can see her: " + b.x + " " + b.y + " " + b.z);
+    }
+
+    /** A small house around you: walls at x = +-3 and z = +-3, floor at y < 0, ceiling at y >= 3. */
+    static final Behavior.Solid HOUSE = (x, y, z) -> y < 0 || (y >= 3 && y < 4)
+            || ((Math.abs(x) >= 3 && Math.abs(x) < 4 || Math.abs(z) >= 3 && Math.abs(z) < 4) && y < 4
+                && !(z <= -3 && z > -4 && Math.abs(x) < 1 && y < 2)); // a door in the wall behind you
+
+    @Test
+    void indoorsSheStaysInTheRoomNotOnTheRoof() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        runIn(b, s, 4, HOUSE);
+        assertTrue(b.y < 3, "under the ceiling, in the room: y " + b.y);
+        assertTrue(Math.abs(b.x) < 3 && Math.abs(b.z) < 3, "inside the walls: " + b.x + " " + b.z);
+    }
+
+    @Test
+    void fromOutsideSheComesInThroughTheDoor() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        runIn(b, s, 1, (x, y, z) -> y < 0);
+        // she's outside, past the back wall, when you walk in (the house appears around you)
+        b.x = 0.5; b.y = 1.5; b.z = -7;
+        b.placeAt(b.x, b.y, b.z);
+        double highest = -9;
+        boolean wentIn = false;
+        double end = s.now + 8;
+        while (s.now < end) {
+            runIn(b, s, 0.1, HOUSE);
+            highest = Math.max(highest, b.y);
+            assertFalse(b.blocked(b.x, b.y, b.z), "never inside the walls: " + b.x + " " + b.y + " " + b.z);
+            if (Math.abs(b.x) < 3 && Math.abs(b.z) < 3 && b.y < 3) wentIn = true;
         }
-        assertTrue(b.y >= 2.4, "rose above the wall: " + b.y);
+        assertTrue(wentIn, "came in: " + b.x + " " + b.y + " " + b.z);
+        assertTrue(highest < 3.5, "through the door, not over the roof: highest " + highest);
+    }
+
+    @Test
+    void aClosedRoomAndSheBlinksToYou() {
+        Behavior b = companion();
+        Behavior.Senses s = player();
+        Behavior.Solid closed = (x, y, z) -> HOUSE.at(x, y, z) || (z <= -3 && z > -4 && y < 4);
+        runIn(b, s, 1, (x, y, z) -> y < 0);
+        b.placeAt(0.5, 1.5, -7);
+        runIn(b, s, 1, closed);
+        assertTrue(Math.abs(b.x) < 3 && Math.abs(b.z) < 3 && b.y < 3, "beside you: " + b.x + " " + b.y + " " + b.z);
     }
 
     @Test
