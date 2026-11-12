@@ -337,7 +337,7 @@ def memory_call(store, op, req):
     if op == "docs":  # the saved documents (keys, sizes, when), for the dashboard
         return {"docs": store.docs(req.get("prefix", ""))}
     if op == "clear_docs":
-        return {"cleared": store.clear_docs()}
+        return {"cleared": store.clear_docs(req.get("prefix", ""))}
     if op == "stats":
         return store.stats()
     if op == "reembed":
@@ -424,6 +424,8 @@ class Handler(BaseHTTPRequestHandler):
                                                             for i, v in enumerate(vecs)]})
             elif path.startswith("/memory/"):
                 self.memory(state, path[len("/memory/"):], raw)
+            elif path == "/control":  # the special instructions, from the game (/kindred persona ...)
+                self.reply(200, control(json.loads(raw or b"{}")))
             else:
                 self.err(404, "unknown path " + path)
         except LookupError as exc:
@@ -638,6 +640,30 @@ def check():
     except Exception as e:
         report("memory", False, str(e))
     return 0 if ok else 1
+
+
+def control(req):
+    """Change the special instructions: {"op": persona|fact|hint|model|temp|pause|resume|status,
+    "text": "...", "clear": bool}. Returns what they are now."""
+    op, text, clear = req.get("op", "status"), (req.get("text") or "").strip(), bool(req.get("clear"))
+    if op == "persona":
+        change(lambda s: s.__setitem__("persona", "" if clear else text))
+    elif op == "fact":
+        change(lambda s: s.__setitem__("facts", []) if clear else s["facts"].append(text))
+    elif op == "hint":
+        change(lambda s: s.__setitem__("hint_next", "" if clear else text))
+    elif op == "model":
+        change(lambda s: s.__setitem__("model", "" if clear else text))
+    elif op == "temp":
+        change(lambda s: s.__setitem__("temperature", None if clear or not text else float(text)))
+    elif op in ("pause", "resume"):
+        change(lambda s: s.__setitem__("paused", op == "pause"))
+    elif op != "status":
+        raise LookupError("unknown control %r" % op)
+    s = load()
+    return {"persona": s.get("persona", ""), "facts": s.get("facts", []), "hint_next": s.get("hint_next", ""),
+            "model": s.get("model", ""), "temperature": s.get("temperature"), "paused": bool(s.get("paused")),
+            "ai": s.get("upstream")}
 
 
 def main(argv):

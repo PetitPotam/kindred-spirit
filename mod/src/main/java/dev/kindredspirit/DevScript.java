@@ -33,6 +33,7 @@ import java.util.Deque;
  *   wait TICKS          wait (20 ticks = 1 second)
  *   cmd COMMAND         run a game command, e.g. "cmd summon creeper ~ ~ ~-5 {NoAI:1b}"
  *   chat TEXT           type TEXT to the companion, as with /kindred TEXT
+ *   type TEXT           type TEXT in the game's chat (plain chat goes through chatMode; /... is a command)
  *   look YAW PITCH      turn the player
  *   camera first|back|front   switch the view (F5)
  *   skin ID             wear this skin
@@ -175,6 +176,10 @@ public final class DevScript {
             case "wait" -> waitTicks = Integer.parseInt(arg.trim());
             case "cmd" -> mc.player.connection.sendCommand(arg.startsWith("/") ? arg.substring(1) : arg);
             case "chat" -> KindredSpiritClient.get().talk(arg);
+            case "type" -> { // as if typed in the game's chat (plain chat, or /command)
+                if (arg.startsWith("/")) mc.player.connection.sendCommand(arg.substring(1));
+                else mc.player.connection.sendChat(arg);
+            }
             case "look" -> {
                 String[] yp = arg.trim().split("\\s+");
                 mc.player.setYRot(Float.parseFloat(yp[0]));

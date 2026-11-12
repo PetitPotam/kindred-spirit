@@ -1,0 +1,21 @@
+# Plain chat goes to her (chatMode auto, singleplayer), and the in-game memory commands answer in chat.
+world kindred-chat
+wait 220
+cmd time set 1000
+type hi Pip! my name is Alex and I love cherry wood
+wait 200
+type /kindred memory
+wait 60
+type /kindred memory worlds
+wait 60
+type /kindred instructions
+wait 60
+screenshot chat-01
+type /kindred reset
+wait 40
+type /kindred reset confirm
+wait 80
+type /kindred memory
+wait 60
+screenshot chat-02
+quit

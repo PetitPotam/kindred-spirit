@@ -28,6 +28,9 @@ public final class KindredConfig {
     public boolean guideArrow = true;
     /** While she leads the way: a faint trail of sparkles behind her. */
     public boolean guideTrail = true;
+    /** Which chat messages go to her: auto (everything in singleplayer, "Pip, ..." on servers), all,
+     *  name (only messages that start with her name) or command (only /kindred ...). */
+    public String chatMode = "auto";
     /** Show the little heart meter when your bond with her changes. */
     public boolean showBond = true;
     public String brainHost = "127.0.0.1";
