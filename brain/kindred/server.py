@@ -2130,9 +2130,15 @@ class Brain:
                 if force and force in intents.FAMILY:  # a clear request: its powers only (no healing, food or torches
                     keep = intents.FAMILY[force]       # nobody asked for: 14 times in one evening)
                     offered = [a for a in offered if a in keep or a not in tools.ABILITY_TOOLS]
-                if (moving or vouched) and not intents.LEADING.search(text):
+                if (moving or vouched) and not intents.LEADING.search(text) and not about:
                     # (the AI can't turn "follow me" into leading either; "do what Robin says" isn't "go to Robin")
                     offered = [a for a in offered if a not in ("guide", "follow_player")]
+                if force and force in tools.ABILITY_TOOLS and force not in offered:
+                    # a required tool must be among those offered (Gemini refuses the call otherwise: HTTP 400)
+                    if about and force in self.abilities:
+                        offered.append(force)
+                    else:
+                        force = None
                 self.offered = offered
                 fib = "" if force or (self.snapshot.get("hostiles") or []) else self.heart.fib(self.clock())
                 self.mind.allow_fib = bool(fib)
