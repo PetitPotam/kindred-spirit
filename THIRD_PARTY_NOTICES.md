@@ -17,17 +17,18 @@ playtests, the feedback, and the approval of every merge and download. Claude do
 
 - **What Claude wrote:** most of the code (the Fabric mod in Java, her brain and the local services in Python, the
   dashboard), the tests, the documentation, the research summaries in `docs/research/`, the scripts that draw her
-  skins and make the demo video and its music, the website (`web/`), and the commit messages. Commits carry no AI co-author line, at the
-  owner's request; this section is that disclosure instead.
+  skins and make the demo video and its music, the website (`web/`), the commit messages and the pull requests.
+  Most commits carry no AI co-author line (some newer ones do: `Co-Authored-By: Claude`), so this section is the
+  disclosure for all of them.
 - **Which model:** Claude Opus 5.5 (`claude-opus-5-5`), for the whole project so far. Some work ran in parallel
   Claude Code sessions in their own git worktrees (titled "Fable: ..." in the work history: those were asked to
   use Claude Fable 5.2 but, per the app's session records, ran on Claude Opus 5.5 too).
 - **How:** Claude Code's sessions and subagents, its web search and page reading for research (the sources are
   cited where they're used), its built-in browser to check the dashboard, and scripted test games of Minecraft
   for checks and the demo videos.
-- **Pip herself uses AI while you play:** her conversation is generated live by Google's Gemini; her deeper
-  thinking (learning, her diary, who she's becoming) by Anthropic's Claude through the Claude CLI; her voice by a
-  local speech model. What she says is AI-generated and can be wrong.
+- **Pip herself uses AI while you play:** her conversation is generated live by the AI the player chooses (Google's
+  Gemini by default); her deeper thinking (learning, her diary, who she's becoming) by the same AI, another one (such
+  as Anthropic's Claude) or none; her voice by a local speech model. What she says is AI-generated and can be wrong.
 - **Research summaries are AI-written** from the cited papers and pages; check the sources for anything that matters.
 
 ## In the mod (Java)
@@ -63,10 +64,10 @@ Her skins, textures and icon are original art made for this project (`scripts/ma
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-server`) | local speech-to-text: built from source and carried inside Kindred Spirit Setup (with its licence), or installed with Homebrew | MIT |
 | [Pillow](https://python-pillow.org) | the demo video's cards | MIT-CMU (HPND) |
 | [Python](https://www.python.org) and its standard library | her brain, the gateway, the dashboard (standard library only), the knowledge base | PSF License |
-| [python-build-standalone](https://github.com/astral-sh/python-build-standalone) (Astral) | the self-contained Python inside Kindred Spirit Setup, which also bundles websockets and NumPy with their licence files | PSF License for Python; the build scripts MPL-2.0; the libraries it links each under their own licence (listed in the archive) |
+| [python-build-standalone](https://github.com/astral-sh/python-build-standalone) (Astral) | the self-contained Python inside Kindred Spirit Setup (the Setup adds websockets and NumPy to it, each with its licence file) | PSF License for Python; the build scripts MPL-2.0; the libraries linked into it each under its own licence, among them OpenSSL (Apache-2.0), libffi (MIT), SQLite (public domain), XZ Utils and bzip2; NumPy's own licence file lists what its wheel bundles |
 | [FFmpeg](https://ffmpeg.org) | recording and editing the demo video (installed separately) | LGPL-2.1+ / GPL-2.0+ depending on the build |
 
-## Models (downloaded by `scripts/setup.sh` to your computer, never in this repository)
+## Models (downloaded to your computer by Kindred Spirit Setup or `scripts/setup.sh`, never in this repository)
 
 | Model | Used for | Licence |
 |---|---|---|
@@ -77,10 +78,11 @@ Her skins, textures and icon are original art made for this project (`scripts/ma
 
 ## AI services (through the gateway, with your own keys or subscription)
 
-Her conversation uses Google's [Gemini API](https://ai.google.dev) (Gemini 3 Flash and Flash-Lite) and
-her deeper thinking Anthropic's [Claude](https://www.anthropic.com) through the Claude CLI; the gateway can
-also use OpenAI, Groq, Mistral, OpenRouter or a local [Ollama](https://ollama.com). Each is used under its
-provider's terms, with the player's own account; nothing is shared between players.
+Her conversation uses the AI the player chooses: Google's [Gemini API](https://ai.google.dev) by default (Gemini 3
+Flash and Flash-Lite), or OpenAI, Groq, Mistral, OpenRouter or Anthropic's [Claude](https://www.anthropic.com) API with
+the player's key, a local [Ollama](https://ollama.com), or a subscription the player already has through its command-line
+tool (Claude Code, Codex, Gemini CLI). Her deeper thinking uses the same one, another one, or none. Each is used under
+its provider's terms, with the player's own account; nothing is shared between players.
 
 ## Knowledge and game data
 
