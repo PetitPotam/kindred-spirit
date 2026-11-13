@@ -83,7 +83,7 @@ LABELS = {
     "heart.temperament": "Temperament",
     "skin": "Skin", "power": "What she may do", "style": "How she does it", "allowPranks": "Pranks allowed in game",
     "allowMoodWeather": "Her moods may change the weather", "glow": "Her glow lights the dark", "guideArrow": "Arrow while she leads",
-    "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her", "lanGuestPowers": "Friends may ask for her powers", "follow": "Whom she stays with on LAN ('' = you)", "sharedPip": "In a friend's world: their Pip or your own", "lanVisitors": "A friend's Pip may use her powers in your world",
+    "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her", "lanGuestPowers": "Friends may ask for her powers", "follow": "Whom she stays with on LAN ('' = you)", "sharedPip": "In a friend's world: their Pip or your own", "lanVisitors": "A friend's Pip may use her powers in your world", "noBrainHint": "Say how to meet Pip when this computer has no brain",
     "quality": "Quality", "worldSubtitles": "Subtitles above her", "hudCaptions": "Captions on the screen",
     "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
     "voiceVolume": "Her voice volume", "offsetRight": "Floats to your right (blocks)", "offsetForward": "Floats ahead (blocks)",

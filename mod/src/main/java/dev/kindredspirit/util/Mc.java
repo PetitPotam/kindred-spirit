@@ -394,6 +394,24 @@ public final class Mc {
         *///?}
     }
 
+    /** Chat text that opens a web page when clicked (the game asks the player first). */
+    public static net.minecraft.network.chat.ClickEvent openUrlClick(String url) {
+        //? if >=1.21.5 {
+        return new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url));
+        //?} else {
+        /*return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.OPEN_URL, url);
+        *///?}
+    }
+
+    /** Chat text that runs one of the player's commands when clicked ("/kindred hint off"). */
+    public static net.minecraft.network.chat.ClickEvent runCommandClick(String command) {
+        //? if >=1.21.5 {
+        return new net.minecraft.network.chat.ClickEvent.RunCommand(command);
+        //?} else {
+        /*return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, command);
+        *///?}
+    }
+
     /** A line in the player's chat (only they see it). */
     public static void chat(Minecraft mc, Component line) {
         if (mc.gui == null) return;
