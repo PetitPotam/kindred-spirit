@@ -4,8 +4,10 @@ The voice helpers share the machine with Minecraft, which matters most on laptop
 at memory and CPU cores and picks the speech model size and how many threads the helpers may
 use. scripts/start.sh runs it as:  python -m kindred.hardware --env
 
-Override anything with KINDRED_PROFILE=low|medium|high.
+The Setup's choice ("profile" in ~/.kindred-spirit/setup.json: auto, low, medium or high) is used when
+set; KINDRED_PROFILE=low|medium|high overrides both.
 """
+import json
 import os
 import platform
 import subprocess
@@ -63,8 +65,23 @@ def detect():
     }
 
 
-def profile(hw):
+def chosen_profile():
+    """KINDRED_PROFILE, or what the player chose in the Setup; "auto" when neither says."""
     forced = os.environ.get("KINDRED_PROFILE", "").lower()
+    if forced in WHISPER_MODELS:
+        return forced
+    home = os.environ.get("KINDRED_HOME") or os.path.join(os.path.expanduser("~"), ".kindred-spirit")
+    try:
+        with open(os.path.join(home, "setup.json"), encoding="utf-8") as fh:
+            saved = str(json.load(fh).get("profile", "auto")).lower()
+    except (OSError, ValueError, AttributeError):
+        saved = "auto"
+    return saved if saved in WHISPER_MODELS else "auto"
+
+
+def profile(hw, choice=None):
+    """Settings for this computer: choice is low, medium, high or auto (None: the player's choice)."""
+    forced = chosen_profile() if choice is None else choice
     if forced in WHISPER_MODELS:
         level = forced
     elif hw["ram_gb"] >= 15 and (hw["apple_silicon"] or hw["fast_cores"] >= 6):

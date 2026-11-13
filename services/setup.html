@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kindred Spirit Setup</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 16C76 16 90 38 90 60S72 90 50 90 10 82 10 60 24 16 50 16Z' fill='%237ADC6E'/%3E%3Cellipse cx='38' cy='58' rx='5' ry='7' fill='%232b1b17'/%3E%3Cellipse cx='62' cy='58' rx='5' ry='7' fill='%232b1b17'/%3E%3C/svg%3E">
+<style>
+/* The same colors as the dashboard (services/dashboard.html), light then dark. */
+:root {
+  --bg: #f6f4fa; --panel: #ffffff; --panel-2: #faf8fd; --ink: #1f1b2b; --muted: #676180; --faint: #9a94ad;
+  --line: #e9e5f1; --line-2: #d9d3e6; --accent: #7055c8; --accent-ink: #ffffff; --accent-soft: #efeafc;
+  --good: #1f8556; --good-soft: #e1f3e9; --warn: #a3640b; --warn-soft: #fcf0d9; --bad: #c03a35; --bad-soft: #fbe5e3;
+  --code: #f4f2f8; --shadow: 0 1px 2px rgba(40, 25, 80, .05), 0 6px 20px rgba(40, 25, 80, .04);
+  --mood: #7ADC6E; --radius: 14px; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #110f17; --panel: #1a1723; --panel-2: #1f1b2a; --ink: #ece9f4; --muted: #a49eba; --faint: #6f6987;
+    --line: #2a2638; --line-2: #3a3550; --accent: #a68cf1; --accent-ink: #15111f; --accent-soft: #29223f;
+    --good: #5cc48b; --good-soft: #15291f; --warn: #e5ad55; --warn-soft: #33260f; --bad: #f0716a; --bad-soft: #391c1e;
+    --code: #15121d; --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #110f17; --panel: #1a1723; --panel-2: #1f1b2a; --ink: #ece9f4; --muted: #a49eba; --faint: #6f6987;
+  --line: #2a2638; --line-2: #3a3550; --accent: #a68cf1; --accent-ink: #15111f; --accent-soft: #29223f;
+  --good: #5cc48b; --good-soft: #15291f; --warn: #e5ad55; --warn-soft: #33260f; --bad: #f0716a; --bad-soft: #391c1e;
+  --code: #15121d; --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+a { color: var(--accent); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); } .small { font-size: 13px; } .good { color: var(--good); }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px 48px; }
+header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+header svg { width: 52px; height: 52px; flex: none; }
+header h1 { margin: 0; font-size: 22px; letter-spacing: .1px; }
+header p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+.intro { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
+.intro p { margin: 0 0 6px; } .intro p:last-child { margin: 0; }
+
+.grid { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
+ol.steps { list-style: none; margin: 0; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 16px; }
+ol.steps button { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 9px 10px; border-radius: 10px; cursor: pointer; text-align: left; color: var(--muted); }
+ol.steps button:hover { background: var(--code); color: var(--ink); }
+ol.steps button.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 12.5px; font-weight: 700; background: var(--code); color: var(--muted); flex: none; }
+.n.done { background: var(--good-soft); color: var(--good); }
+.n.problem { background: var(--bad-soft); color: var(--bad); }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); }
+.card h2 { margin: 0 0 4px; font-size: 20px; }
+.card .summary { color: var(--muted); font-size: 13.5px; margin-bottom: 12px; }
+.why { margin: 0 0 14px; }
+.rec { display: flex; gap: 10px; align-items: baseline; background: var(--accent-soft); border-radius: 10px; padding: 9px 12px; margin-bottom: 14px; }
+.rec b { color: var(--accent); white-space: nowrap; }
+table.facts { border-collapse: collapse; margin: 0 0 14px; font-size: 14px; }
+table.facts td { padding: 3px 18px 3px 0; vertical-align: top; }
+table.facts td:first-child { color: var(--muted); white-space: nowrap; }
+.choices { display: grid; gap: 8px; margin: 0 0 14px; }
+.choice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 10px; cursor: pointer; }
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choice input { margin-top: 4px; accent-color: var(--accent); }
+.choice .note { display: block; color: var(--muted); font-size: 13px; }
+.tag { font-size: 11.5px; font-weight: 700; color: var(--good); background: var(--good-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; }
+.btn { border: 1px solid var(--line-2); background: var(--panel); color: var(--ink); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.quiet { color: var(--muted); font-weight: 500; }
+.btn:disabled { opacity: .55; cursor: progress; }
+.spacer { flex: 1; }
+
+.result { margin-top: 16px; border-radius: 10px; padding: 10px 14px; border: 1px solid var(--line); background: var(--panel-2); }
+.result.ok { background: var(--good-soft); border-color: transparent; }
+.result.warn { background: var(--warn-soft); border-color: transparent; }
+.result.bad { background: var(--bad-soft); border-color: transparent; }
+.result .msg { font-weight: 600; }
+.result.ok .msg { color: var(--good); } .result.warn .msg { color: var(--warn); } .result.bad .msg { color: var(--bad); }
+details { margin-top: 6px; }
+details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+pre { font-family: var(--mono); font-size: 12px; background: var(--code); border-radius: 8px; padding: 10px; overflow: auto; max-height: 320px; white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; }
+.help { margin-top: 16px; }
+.help textarea { width: 100%; min-height: 220px; font-family: var(--mono); font-size: 12px; background: var(--code); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.links { margin-top: 12px; }
+footer { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.closed { text-align: center; padding: 60px 16px; }
+
+@media (max-width: 760px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  ol.steps { position: static; display: flex; overflow-x: auto; gap: 4px; }
+  ol.steps button { white-space: nowrap; }
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 16C76 16 90 38 90 60S72 90 50 90 10 82 10 60 24 16 50 16Z" fill="var(--mood)"/><ellipse cx="38" cy="58" rx="5" ry="7" fill="#2b1b17"/><ellipse cx="62" cy="58" rx="5" ry="7" fill="#2b1b17"/></svg>
+    <div>
+      <h1>Kindred Spirit Setup</h1>
+      <p id="sub">Getting Pip ready on this computer</p>
+    </div>
+  </header>
+
+  <div class="intro" id="intro">
+    <p><b>Hi!</b> This guide gets Pip, your companion in Minecraft, ready on this computer, one step at a time.
+      Each step says what it does and what we recommend. <b>Test it</b> checks that the step worked.
+      If something goes wrong, <b>Copy a help prompt</b> copies a message with the step, your system and the
+      exact error, ready to paste into ChatGPT, Claude or another assistant (keys and your name are left out).</p>
+    <p class="muted small">Everything stays on this computer. Your settings, keys and her memories live in
+      <code id="home">~/.kindred-spirit</code>. You can come back to these steps later from the dashboard.</p>
+  </div>
+
+  <div class="grid">
+    <ol class="steps" id="steps" aria-label="Steps"></ol>
+    <main id="main"><div class="card muted"><span class="spin"></span>Looking at this computer…</div></main>
+  </div>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+"use strict";
+let state = null, current = null, busy = false, choice = {}, results = {}, helpText = {};
+
+function h(tag, attrs, ...kids) {  // builds elements with textContent only: logs and errors are never read as HTML
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === false || v == null) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)} : {});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+  return data;
+}
+
+async function load() {
+  let changed;
+  try {
+    const fresh = await api("/api/setup/state");
+    changed = JSON.stringify(fresh) !== JSON.stringify(state);
+    state = fresh;
+  } catch (e) {
+    if (!state) document.getElementById("main").replaceChildren(h("div", {class: "card"}, "The Setup isn't answering: " + e.message));
+    return;
+  }
+  document.getElementById("sub").textContent = "Version " + state.version +
+    (state.mode === "app" ? "" : " · from the dashboard");
+  document.getElementById("home").textContent = state.home;
+  if (!current || !state.steps.some(s => s.id === current)) {
+    const next = state.steps.find(s => s.status !== "done");
+    current = (next || state.steps[state.steps.length - 1]).id;
+  }
+  if (!busy && changed) render();
+}
+
+function render() {
+  const list = document.getElementById("steps");
+  list.replaceChildren(...state.steps.map((s, i) => h("li", {}, h("button", {
+    class: s.id === current ? "on" : "", "aria-current": s.id === current ? "step" : false,
+    onclick: () => { current = s.id; render(); }
+  }, h("span", {class: "n " + (s.status || "")}, s.status === "done" ? "✓" : s.status === "problem" ? "!" : i + 1), s.title))));
+
+  const s = state.steps.find(x => x.id === current);
+  const i = state.steps.indexOf(s);
+  const card = h("div", {class: "card"},
+    h("h2", {}, s.title),
+    h("div", {class: "summary"}, s.summary || ""),
+    h("p", {class: "why"}, s.why),
+    s.default ? h("div", {class: "rec"}, h("b", {}, "We recommend"), h("span", {}, s.default)) : null,
+    s.facts && s.facts.length ? h("table", {class: "facts"}, h("tbody", {}, s.facts.map(([k, v]) => h("tr", {}, h("td", {}, k), h("td", {}, v))))) : null,
+    s.choices ? h("div", {class: "choices", role: "radiogroup"}, s.choices.map(c => h("label", {class: "choice"},
+      h("input", {type: "radio", name: "choice-" + s.id, value: c.value,
+                  checked: (choice[s.id] || s.chosen) === c.value, onchange: () => { choice[s.id] = c.value; }}),
+      h("span", {}, c.label, c.recommended ? h("span", {class: "tag"}, "recommended") : null, h("span", {class: "note"}, c.note || ""))))) : null,
+    h("div", {class: "buttons"},
+      (s.actions || []).map(a => h("button", {class: "btn" + (a.primary ? " primary" : ""), disabled: busy, onclick: () => run(s.id, a.id, a.label)}, a.label)),
+      h("button", {class: "btn", disabled: busy, onclick: () => run(s.id, "test", "Test it")}, "Test it"),
+      h("span", {class: "spacer"}),
+      h("button", {class: "btn quiet", onclick: () => copyHelp(s.id)}, "Copy a help prompt")),
+    resultBox(s.id),
+    helpBox(s.id),
+    s.links && s.links.length ? h("div", {class: "links"}, s.links.map(l => h("a", {href: l.url, target: "_blank", rel: "noopener"}, l.label + " ↗"))) : null,
+    h("div", {class: "buttons", style: "margin-top:18px"},
+      i > 0 ? h("button", {class: "btn quiet", onclick: () => { current = state.steps[i - 1].id; render(); }}, "← Back") : null,
+      h("span", {class: "spacer"}),
+      i < state.steps.length - 1 ? h("button", {class: "btn", onclick: () => { current = state.steps[i + 1].id; render(); }}, "Next step →") : null));
+  document.getElementById("main").replaceChildren(card);
+
+  const foot = document.getElementById("footer");
+  foot.replaceChildren(
+    h("span", {}, "Stuck? The guide: ", h("a", {href: state.guide, target: "_blank", rel: "noopener"}, "docs/SETUP.md")),
+    h("span", {class: "spacer"}),
+    state.mode === "app" ? h("button", {class: "btn quiet", onclick: quit}, "Close the Setup") : h("a", {href: "/"}, "← Back to the dashboard"));
+}
+
+function resultBox(id) {
+  const r = results[id];
+  if (!r) return null;
+  if (r.running) return h("div", {class: "result"}, h("span", {class: "spin"}), r.label + "…");
+  return h("div", {class: "result " + (r.ok ? (r.warn ? "warn" : "ok") : "bad"), role: "status"},
+    h("div", {class: "msg"}, (r.ok ? (r.warn ? "⚠ " : "✓ ") : "✗ ") + r.message),
+    r.details ? h("details", {open: !r.ok}, h("summary", {}, "Details"), h("pre", {}, r.details)) : null,
+    !r.ok ? h("div", {class: "small muted", style: "margin-top:6px"}, "Not sure what to do? Press “Copy a help prompt” and paste it into an AI assistant.") : null);
+}
+
+function helpBox(id) {
+  const t = helpText[id];
+  if (!t) return null;
+  return h("div", {class: "help"},
+    h("div", {class: "small " + (t.copied ? "good" : "muted")}, t.copied
+      ? "Copied. Paste it into ChatGPT, Claude or another assistant. This is exactly what it contains:"
+      : "Select it all and copy it (⌘A, ⌘C), then paste it into an AI assistant:"),
+    h("textarea", {readonly: true, "aria-label": "Help prompt"}, t.text));
+}
+
+async function run(id, action, label) {
+  if (busy) return;
+  busy = true;
+  results[id] = {running: true, label};
+  delete helpText[id];
+  render();
+  try {
+    const s = state.steps.find(x => x.id === id);
+    results[id] = await api("/api/setup/run", {step: id, action, choice: choice[id] || (s && s.chosen)});
+  } catch (e) {
+    results[id] = {ok: false, message: "The Setup didn't answer: " + e.message};
+  }
+  busy = false;
+  await load();
+  render();
+}
+
+async function copyHelp(id) {
+  const r = results[id];
+  let text;
+  try {
+    text = (await api("/api/setup/help", {step: id, error: r && !r.ok ? (r.message + "\n" + (r.details || "")).trim() : null})).prompt;
+  } catch (e) {
+    text = "I'm setting up Kindred Spirit (a Minecraft mod with an AI companion, Pip) and the Setup itself stopped answering: " + e.message;
+  }
+  let copied = false;
+  try { await navigator.clipboard.writeText(text); copied = true; } catch (e) { /* shown below to copy by hand */ }
+  helpText[id] = {text, copied};
+  render();
+}
+
+async function quit() {
+  try { await api("/api/setup/quit", {}); } catch (e) { /* already gone */ }
+  document.getElementById("app").replaceChildren(h("div", {class: "closed"},
+    h("h1", {}, "The Setup is closed."),
+    h("p", {class: "muted"}, "Pip keeps running in the background. To come back to these steps, open Kindred Spirit Setup again, or the dashboard.")));
+  clearInterval(timer);
+}
+
+load();
+const timer = setInterval(load, 5000);  // keeps the steps fresh, and tells the Setup this page is still open
+</script>
+</body>
+</html>

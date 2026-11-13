@@ -61,6 +61,7 @@ Her skins, textures and icon are original art made for this project (`scripts/ma
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-server`) | local speech-to-text (installed with Homebrew, not distributed) | MIT |
 | [Pillow](https://python-pillow.org) | the demo video's cards | MIT-CMU (HPND) |
 | [Python](https://www.python.org) and its standard library | her brain, the gateway, the dashboard (standard library only), the knowledge base | PSF License |
+| [python-build-standalone](https://github.com/astral-sh/python-build-standalone) (Astral) | the self-contained Python inside Kindred Spirit Setup, which also bundles websockets and NumPy with their licence files | PSF License for Python; the build scripts MPL-2.0; the libraries it links each under their own licence (listed in the archive) |
 | [FFmpeg](https://ffmpeg.org) | recording and editing the demo video (installed separately) | LGPL-2.1+ / GPL-2.0+ depending on the build |
 
 ## Models (downloaded by `scripts/setup.sh` to your computer, never in this repository)

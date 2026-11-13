@@ -14,6 +14,9 @@
 #   :47811 brain           the mod connects here                          (brain/kindred)
 #   :11440 dashboard       what she's doing, thinking and remembering: open http://127.0.0.1:11440
 #
+# The Setup app runs this from its installed copy with KINDRED_PYTHON (its own Python) and, in tests,
+# KINDRED_HOME and the KINDRED_*_PORT variables, so a test never meets the Pip you play with.
+#
 # The helpers run at low CPU priority with thread counts picked for this computer
 # (python -m kindred.hardware), so Minecraft keeps the CPU when both want it.
 set -uo pipefail
@@ -21,8 +24,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 KH="${KINDRED_HOME:-$HOME/.kindred-spirit}"
 LOGS="$KH/logs"; RUN="$KH/run"
 mkdir -p "$LOGS" "$RUN"
-BPY="$ROOT/brain/.venv/bin/python"
+BPY="${KINDRED_PYTHON:-$ROOT/brain/.venv/bin/python}"
 [[ -x "$BPY" ]] || { echo "Run scripts/setup.sh first."; exit 1; }
+GW_PORT="${KINDRED_GATEWAY_PORT:-11437}"; DASH_PORT="${KINDRED_DASHBOARD_PORT:-11440}"
+BRAIN_PORT="$(cd "$ROOT/brain" && "$BPY" -c 'from kindred import config; print(config.load()["server"]["port"])' 2>/dev/null || echo 47811)"
 set -a; eval "$(cd "$ROOT/brain" && "$BPY" -m kindred.hardware --env)"; set +a
 NICE="nice -n ${KINDRED_NICE:-10}"
 
@@ -72,19 +77,19 @@ elif [[ -x "$KH/embed/venv/bin/python" ]]; then
   echo "embeddings: starting (local, for memory)"
 else echo "embeddings: not set up (scripts/setup.sh); memory uses keyword search"; fi
 
-if up http://127.0.0.1:11437/health; then echo "gateway: already running"
+if up "http://127.0.0.1:$GW_PORT/health"; then echo "gateway: already running"
 else start gateway "$BPY" -I "$ROOT/services/kindred_gateway.py" serve; echo "gateway: started"; fi
 
-wait_up http://127.0.0.1:11437/health || echo "gateway did not come up: see $LOGS/gateway.out"
+wait_up "http://127.0.0.1:$GW_PORT/health" || echo "gateway did not come up: see $LOGS/gateway.out"
 
-if up http://127.0.0.1:11440/api/settings; then echo "dashboard: already running (http://127.0.0.1:11440)"
-else start dashboard "$BPY" -I "$ROOT/services/dashboard.py"; echo "dashboard: http://127.0.0.1:11440"; fi
+if up "http://127.0.0.1:$DASH_PORT/api/settings"; then echo "dashboard: already running (http://127.0.0.1:$DASH_PORT)"
+else start dashboard "$BPY" -I "$ROOT/services/dashboard.py"; echo "dashboard: http://127.0.0.1:$DASH_PORT"; fi
 grep -qE '^(GEMINI_API_KEY)=.+' "$KH/secrets.env" 2>/dev/null || [[ -n "${GEMINI_API_KEY:-}" ]] \
   || echo "note: no GEMINI_API_KEY in $KH/secrets.env (fine if you switched the gateway to another AI)"
 
 cd "$ROOT/brain"
 if [[ "${1:-}" == "--background" ]]; then
-  if (exec 3<>/dev/tcp/127.0.0.1/47811) 2>/dev/null; then echo "brain: already running"
+  if (exec 3<>/dev/tcp/127.0.0.1/"$BRAIN_PORT") 2>/dev/null; then echo "brain: already running"
   else rotate brain; nohup "$BPY" -m kindred >> "$LOGS/brain.out" 2>&1 & echo $! > "$RUN/brain.pid"; echo "brain: started"; fi
 else
   echo "brain: running here (Ctrl+C to stop)"

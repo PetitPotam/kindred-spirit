@@ -1,0 +1,31 @@
+KINDRED SPIRIT SETUP: OPENING IT THE FIRST TIME
+
+1. Drag "Kindred Spirit Setup" onto the Applications folder next to it.
+2. Open it from Applications (double-click).
+
+The first time, macOS will probably stop it and say that Apple could not verify it
+"is free of malware". That's normal for a free app from a small project: Apple only
+recognises apps whose makers pay for a yearly Apple Developer membership, and this one
+doesn't. The app is open source: anyone can read what it does on GitHub.
+
+To open it anyway, once:
+
+  macOS 15 (Sequoia) or newer:
+    - Press "Done" in the message (not "Move to Trash").
+    - Open System Settings > Privacy & Security.
+    - Scroll down to "Security". Next to "Kindred Spirit Setup was blocked...",
+      press "Open Anyway", then confirm with your password or Touch ID.
+    - Press "Open Anyway" once more in the message that appears.
+
+  macOS 12, 13 or 14:
+    - In Applications, hold Control and click "Kindred Spirit Setup" (or right-click it),
+      choose "Open", then "Open" again.
+
+After that it opens normally. It shows its guide in your web browser, at an address
+on this computer only (127.0.0.1).
+
+Only open a copy you downloaded from the project's GitHub releases page:
+https://github.com/PetitPotam/kindred-spirit/releases
+
+The full guide, with what to do if something goes wrong:
+https://github.com/PetitPotam/kindred-spirit/blob/main/docs/SETUP.md
