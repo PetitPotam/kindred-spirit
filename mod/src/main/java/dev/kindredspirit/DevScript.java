@@ -48,6 +48,7 @@ import java.util.Deque;
  *   lookat companion    turn the player to look straight at the companion
  *   sneak on|off        hold or release sneak (sneaking while looking at it pets it)
  *   press attack|use    press the attack (left click) or use (right click) key for a moment
+ *   press dashboard     press the key that opens her dashboard (it opens in your real browser)
  *   do ACTION [JSON]    run one of her actions directly (find_ore, prank_sound, steal_block...)
  *
  * For demo videos:
@@ -241,6 +242,10 @@ public final class DevScript {
             }
             case "sneak" -> mc.options.keyShift.setDown(arg.trim().equals("on"));
             case "press" -> {
+                if (arg.trim().equals("dashboard")) {
+                    net.minecraft.client.KeyMapping.click(KindredSpiritClient.get().dashboardKey().getDefaultKey());
+                    break;
+                }
                 pressed = arg.trim().equals("use") ? mc.options.keyUse : mc.options.keyAttack;
                 pressed.setDown(true);
                 net.minecraft.client.KeyMapping.click(pressed.getDefaultKey());
