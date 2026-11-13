@@ -14,6 +14,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: The tag is on main (a release comes from a merged release pull request)
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "Tag ${GITHUB_REF_NAME} isn't on main: releases come from a merged pull request (scripts/release.sh)."; exit 1; }
       - name: The tag matches the version in mod/gradle.properties
         run: |
           v=$(sed -n 's/^mod_version=//p' mod/gradle.properties)
