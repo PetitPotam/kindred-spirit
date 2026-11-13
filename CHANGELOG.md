@@ -58,6 +58,8 @@ Unreleased into the new version's section.
   Update Pip checks Java first and says what to install (#109).
 
 ### Changed
+- New issues get their area label automatically, and a bug report missing the computer and the logs gets a friendly
+  request for them; GitHub Copilot follows the project's rules and review checklist (#126).
 - The repository is checked by CodeQL (security analysis) and OpenSSF Scorecard too, and docs/MAINTAINING.md
   explains every check: when it runs, what it does and where to see it (#124).
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
