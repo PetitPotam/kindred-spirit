@@ -704,7 +704,25 @@ public final class KindredSpiritClient implements ClientModInitializer {
             long nowMs = System.currentTimeMillis();
             snap.add("sounds", hearing.recent(mc.player, 8000));
             var beside = companion.anchor(mc);
-            if (beside != mc.player) snap.addProperty("following", beside.getGameProfile().getName());
+            if (beside != mc.player) {
+                snap.addProperty("following", beside.getGameProfile().getName());
+                // the one she's with: how far from you, their health, and danger around THEM (her attention is there)
+                JsonObject with = new JsonObject();
+                with.addProperty("name", beside.getGameProfile().getName());
+                with.addProperty("distance", Math.round(beside.distanceTo(mc.player)));
+                with.addProperty("health", beside.getHealth());
+                with.addProperty("maxHealth", beside.getMaxHealth());
+                com.google.gson.JsonArray danger = new com.google.gson.JsonArray();
+                for (net.minecraft.world.entity.Mob m : mc.level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
+                        beside.getBoundingBox().inflate(10), m -> m instanceof net.minecraft.world.entity.monster.Enemy && m.isAlive())) {
+                    JsonObject mo = new JsonObject();
+                    mo.addProperty("type", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(m.getType()).toString());
+                    mo.addProperty("distance", Math.round(m.distanceTo(beside) * 10) / 10.0);
+                    danger.add(mo);
+                }
+                with.add("hostiles", danger);
+                snap.add("with", with);
+            }
             watchInventory(snap, nowMs);
             com.google.gson.JsonArray did = new com.google.gson.JsonArray();
             for (String d : youDid.summary(nowMs, 30000)) did.add(d);

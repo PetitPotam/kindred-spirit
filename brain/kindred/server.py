@@ -218,6 +218,7 @@ class Brain:
         self.last_wait = 0.0         # how long her last answer waited for the line she was saying
         self.guest_pending = {}      # friend -> what they said while she was busy (answered together)
         self.spot_said, self.friends_seen, self.prev_dim, self.prev_spot_pos = {}, {}, None, None
+        self.friend_warned = -1e9
         self.recent_gifts = {}       # (tool, what, to) -> when: never the same gift again unasked
         self.notified = []
         self.idle_since = clock()
@@ -593,6 +594,9 @@ class Brain:
         if event == "first_meet" and detail:  # a first, remembered where it was (even if she says nothing now)
             sp = detail.replace("minecraft:", "").replace("_", " ")
             self.remember_spot("first:" + sp, "where we met our first %s" % sp, None)
+        if not self.attending_player():  # beside a friend far away: what happens around the player isn't hers now
+            self.session.event("not_said", text="(noticed %s %s)" % (event, detail), reason="she's with a friend far away")
+            return
         waits = 30 if event in WORTH_WAITING else 0
         gap = 45 if event in WORTH_WAITING else 150  # (her own comments leave room: she isn't a radio)
 
@@ -1070,6 +1074,44 @@ class Brain:
                 "fibs": h.get("fibs"), "auto_protect": h.get("auto_protect"), "voice": self.cfg.get("voice", {}).get("enabled"),
                 "small_talk": b.get("small_talk_minutes"), "model": self.cfg.get("ai", {}).get("model") or "gateway's"}
 
+    def attending_player(self):
+        """Her attention follows whoever she's with (item 29). It's on the player she lives with, unless she floats
+        beside a friend far from them: then only if the player asked her to watch over them (standing protection) or
+        spoke to her in the last minute."""
+        s = self.snapshot or {}
+        w = s.get("with")
+        if not s.get("following") or not w or (w.get("distance") or 0) <= 24:
+            return True
+        return bool(self.heart.wants("protect")) or self.clock() - self.player_talked < 60
+
+    def near_player(self, who, within=24):
+        """Is this friend near the player she lives with (so the player is there to see what happens)?"""
+        return any(intents.same_person(p.get("name", ""), who) and p.get("distance", 99) <= within
+                   for p in (self.snapshot or {}).get("players") or [])
+
+    def warn_friend(self, s, now):
+        """Danger around the friend she's with (her attention is there): a shout for them, by name."""
+        w = s.get("with") or {}
+        name = w.get("name")
+        if not name or now - self.friend_warned < 15:
+            return
+        close = sorted(w.get("hostiles") or [], key=lambda m: m.get("distance", 99))
+        creeper = next((m for m in close if "creeper" in m.get("type", "") and m.get("distance", 99) <= 5), None)
+        line = ("%s, creeper!" % name if creeper else
+                "%s, behind you!" % name if close and close[0].get("distance", 99) <= 3 else
+                "%s, you're hurt! Careful!" % name if (w.get("health") or 20) <= 6 else None)
+        if line:
+            self.friend_warned = now
+            self.session.event("alert", what="friend", text=line, who=name)
+
+            async def go():
+                self.speaking_to = name
+                try:
+                    await self.say(line, "scared", instant=True, why="a warning: danger near %s" % name)
+                finally:
+                    self.speaking_to = None
+            asyncio.create_task(go())
+
     def remember_spot(self, what, label, at, who="player", feel=None, source="own"):
         """A place she keeps on her own (item 25): in her memory, and in the session log with who and where."""
         w = (self.snapshot or {}).get("where") or {}
@@ -1279,7 +1321,7 @@ class Brain:
         elif name in ("hit", "petted") and (msg or {}).get("by"):
             # a friend touched her (their game told the world's game, which told hers): her heart for THEM
             who = re.sub(r"[^\w .-]", "", str(msg["by"]))[:24] or "a friend"
-            change = self.heart.friend_touch(who, name)
+            change = self.heart.friend_touch(who, name, witnessed=self.near_player(who))
             self.session.event("touch", who=who, what=name)
             self.session.event("heart", who=who, why=name, change=round(sum(v for k, v in change.items() if k in ("a", "t")), 1),
                                stance=self.heart.friends.bonds(who).stance(self.clock()),
@@ -1376,7 +1418,10 @@ class Brain:
         if "health" in s:
             self.in_world = True
         now = self.clock()
-        if self.cfg["behaviour"].get("alerts", True):
+        attending = self.attending_player()
+        if self.cfg["behaviour"].get("alerts", True) and not attending:
+            self.warn_friend(s, now)  # (she's beside a friend far away: their danger, not yours)
+        if self.cfg["behaviour"].get("alerts", True) and attending:
             alert = self.alerts.check(s, now)
             if alert:
                 log.info("alert %s: %s", alert.kind, alert.text)
@@ -1516,7 +1561,7 @@ class Brain:
         # danger she can help with: by standing request, or by offering if she helped before
         reach = 10 if health <= 8 else 7  # when you're hurt, she keeps them further away
         archers = ("skeleton", "stray", "bogged", "pillager", "witch", "blaze", "breeze", "ghast")
-        close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= reach
+        close = [] if not self.attending_player() else [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= reach
                  or (m.get("distance", 99) <= 16 and m.get("type", "").replace("minecraft:", "") in archers)]
         self.guard_friends(now)
         if self.heart.friends.s.get("watch"):  # someone hurt her in front of you, a while ago: did you say anything?
@@ -2180,7 +2225,8 @@ class Brain:
                 self.speaking_to = None
                 return
             log.info("%s: %s | %s: [%s] %s", who, text, self.cfg["name"], mood, reply)
-            change = self.heart.friend_regard(who, self.mind.last_regard, text)  # her heart for THEM, not for you
+            change = self.heart.friend_regard(who, self.mind.last_regard, text,  # her heart for THEM, not for you
+                                              witnessed=self.near_player(who, 48))
             if change:
                 self.session.event("heart", who=who, why=self.mind.last_regard, change=round(
                     sum(v for k, v in change.items() if k in ("a", "t")), 1), stance=self.heart.friends.bonds(who).stance(
