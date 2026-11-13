@@ -245,3 +245,23 @@ def test_find_blueprints_by_words(tmp_path):
     assert find_blueprints("desert library", [str(tmp_path)])["matches"] == ["village_desert_library_1"]
     assert find_blueprints("ships", [str(tmp_path)])["matches"] == ["shipwreck_with_mast"]
     assert not find_blueprints("x", [str(tmp_path / "none")])["ok"]
+
+
+def test_old_enchanted_items_become_1_21_gives():
+    from kindred.server import modern_give
+    assert modern_give("command", {"command": "/give @s netherite_helmet{Enchantments:[{id:protection,lvl:4},"
+                                              "{id:unbreaking,lvl:3}]}"}, True)[1]["command"] == \
+        "/give @s netherite_helmet[enchantments={levels:{protection:4,unbreaking:3}}]"
+    assert modern_give("give_item", {"item": "netherite_hoe{Enchantments:[{id:efficiency,lvl:5}]}"}, True) == \
+        ("command", {"command": "/give @s netherite_hoe[enchantments={levels:{efficiency:5}}] 1"})
+    assert modern_give("give_item", {"item": "bread"}, True) == ("give_item", {"item": "bread"})
+
+
+def test_she_leads_only_when_asked(stubs):
+    """2026-11-13: on 'Hey, Pep' and 'Oh my God, I'm hurt' she set off for a base from the last session."""
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.abilities = ["guide"]
+    b.last_player_text = b.asking_text = "Oh my God, I'm hurt."
+    r = asyncio.run(b._run_tool("guide", {"to": "base"}))
+    assert r["ok"] is False and "Nobody asked" in r["error"]

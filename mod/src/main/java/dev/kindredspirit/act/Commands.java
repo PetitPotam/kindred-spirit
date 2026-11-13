@@ -31,9 +31,9 @@ public final class Commands {
 
     /** Harmless: anyone with magic (helper or all-powerful). */
     static final Set<String> HELPER = Set.of("particle", "playsound", "locate", "fill", "setblock", "clone", "give",
-            "enchant", "effect");
+            "enchant", "effect", "item");
     /** World-changing: all-powerful only. */
-    static final Set<String> ALL = Set.of("summon", "tp", "teleport", "time", "weather", "spawnpoint");
+    static final Set<String> ALL = Set.of("summon", "tp", "teleport", "time", "weather", "spawnpoint", "xp", "experience");
     static final Set<String> HARMFUL = Set.of("poison", "wither", "blindness", "nausea", "hunger", "weakness",
             "darkness", "mining_fatigue", "slowness", "levitation", "bad_omen", "unluck", "instant_damage");
     static final Set<String> NEVER_EFFECTS = Set.of("instant_damage");
@@ -82,7 +82,10 @@ public final class Commands {
             if (HARMFUL.contains(effect)) {
                 int secs = w.length > 4 && w[4].matches("\\d+") ? Integer.parseInt(w[4]) : 30;
                 int amp = w.length > 5 && w[5].matches("\\d+") ? Integer.parseInt(w[5]) : 0;
-                if (secs > 10 || amp > 0) return "A playful one only: at most 10 seconds, level 0 (" + effect + " " + secs + " " + amp + ").";
+                // for themselves, as they asked ("levitation for five minutes"): up to 5 minutes; on others, a prank
+                boolean self = w[2].equals("@s") || w[2].equals("@p");
+                if (self && (secs > 300 || amp > 1)) return "At most 5 minutes, level 1 (" + effect + " " + secs + " " + amp + ").";
+                if (!self && (secs > 10 || amp > 0)) return "A playful one only: at most 10 seconds, level 0 (" + effect + " " + secs + " " + amp + ").";
             }
         }
         if (name.equals("summon") && w.length > 1) {
