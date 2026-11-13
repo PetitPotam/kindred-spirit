@@ -9,6 +9,8 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+## [0.2.0-preview] - 2026-11-13
+
 ### Added
 - **Any shape, any size:** "a hollow sphere of glass, radius 4", "a star of gold 15 wide", "a stepped pyramid",
   "a heart standing up like a sign": circles, rings, ovals, triangles, stars, hearts, crosses, spirals, diamonds,
