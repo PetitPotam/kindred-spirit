@@ -70,7 +70,8 @@ POWER_NAMES = {"find_ore": "sense ores hidden underground", "find_animal": "feel
                "give_item": "make things appear out of nothing", "give_effect": "pour a little magic into someone",
                "find_player": "feel where someone is", "follow_player": "stay with someone", "set_time": "move the sun across the sky",
                "set_weather": "change the weather", "protect": "push monsters away",
-               "place_torch": "make light appear", "guide": "lead the way"}
+               "place_torch": "make light appear", "guide": "lead the way",
+               "build": "make blocks settle where you want them", "command": "speak the old words the world obeys"}
 SENSES = {"find_ore": "a faint humming under the ground, like little stars glittering in the rock",
           "find_animal": "tiny heartbeats all around, far away, like little drums in the grass",
           "harvest": "the wood and the stone hum, as if they'd come loose if you asked them nicely",
@@ -319,10 +320,10 @@ class Heart:
         if tag in ("sorry", "sorry_real"):
             self.state["sorries"] = [t for t in self.state.get("sorries", []) if now - t < 1800] + [now]
             return self._moved(lambda: rel.apologize(now, real=tag == "sorry_real", words=words))
-        if tag == "teasing":  # banter: kind between old friends, a brush-off between strangers
+        if tag == "teasing":  # banter: she's a teasing spirit herself; a joke never costs the bond (mean jokes are tagged rude)
             friends = rel.s["t"] >= 50 and rel.s["f"] >= 30
-            return self._moved(lambda: rel.impress("banter" if friends else "dismissive", now, words,
-                                                   why="teasing" + (" between friends" if friends else " from a stranger")))
+            return self._moved(lambda: rel.impress("banter", now, words, scale=1.0 if friends else 0.5,
+                                                   why="teasing" + (" between friends" if friends else ", playful")))
         event = REGARD_EVENTS.get(tag)
         if not event:
             return 0.0
@@ -604,10 +605,71 @@ class Heart:
         self.state["requests"] = [r for r in self.state["requests"] if r["what"] != what]
         return before - len(self.state["requests"])
 
+    # ------------------------------------------------------------------ the others: a heart for each friend
+
+    @property
+    def friends(self):
+        from . import friends as F
+        return F.Friends(self.state.setdefault("friends", {}), self.clock, self.rng)
+
+    def friend_names(self):
+        return self.friends.names()
+
+    def trusts_friend(self, name):
+        return self.friends.trusted(name)
+
+    def trust_friend(self, name, yes=True):
+        self.friends.trust(name, yes)
+
+    def friend_regard(self, name, tag, words="", witnessed=True):
+        """A friend's chat line, felt by her heart for them; mean ones in front of you, she watches what you do."""
+        change = self.friends.regard(name, tag, words)
+        if (tag or "").lower() in ("rude", "mean", "threat") and witnessed:
+            self.friends.witness(name, words)
+        return change
+
+    def friend_touch(self, name, what, witnessed=True):
+        """A friend hit or petted her; a hit with you there (near), she watches what you do."""
+        change = self.friends.touched(name, what)
+        if what == "hit" and witnessed:
+            self.friends.witness(name, "hit you")
+        return change
+
+    def stood_up_for_her(self):
+        """You said "leave her alone" (or the like) while she was watching: it counts, a little. Returns the delta."""
+        settled = self.friends.defended()
+        if not settled:
+            return 0.0
+        who = ", ".join(sorted({w["friend"] for w in settled}))
+        return self._moved(lambda: self.rel.impress("defended", self.clock(), why="you stood up for her (%s)" % who))
+
+    def said_nothing(self):
+        """Hurts by friends you didn't step in for, after the wait: a small dip in trust each. Returns the delta."""
+        late = self.friends.let_them()
+        total = 0.0
+        for w in late:
+            total += self._moved(lambda w=w: self.rel.impress(
+                "let_them", self.clock(), scale=0.7,
+                why="you said nothing when %s %s" % (w["friend"], w["what"] if w["what"].startswith("hit") else
+                                                    "said \"%s\"" % w["what"])))
+        return total
+
     def wants(self, what):
+        """A standing request for the player (protect: theirs, or "everyone" which includes them)."""
         if what == "protect" and self.p.get("auto_protect", False):
             return {"what": "protect"}
-        return next((r for r in self.state["requests"] if r["what"] == what), None)
+        return next((r for r in self.state["requests"] if r["what"] == what
+                     and (what != "protect" or r.get("detail", "") in ("", "everyone"))), None)
+
+    def guarded_friends(self, here):
+        """The friends here she keeps safe on her own (by name; "everyone" = all of them)."""
+        want = [r.get("detail", "") for r in self.state["requests"] if r["what"] == "protect" and r.get("detail")]
+        if not want:
+            return []
+        if "everyone" in want:
+            return [n for n in here if n]
+        from . import intents
+        return [n for n in here if n and any(intents.same_person(w, n) for w in want if w != "everyone")]
 
     def offer(self, what, now, detail=""):
         """Offer help she gave before, at most every 2 minutes per kind, never when she's upset."""

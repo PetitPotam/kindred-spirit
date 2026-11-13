@@ -80,7 +80,8 @@ public final class Companion {
 
     public enum Touch { NONE, PETTED, HIT }
 
-    private boolean attackWasDown, wasHidden;
+    private boolean attackWasDown, wasHidden, mySneakWas;
+    private final Behavior.Senses mine = new Behavior.Senses();
 
     /**
      * 20 times a second: tell the companion what is going on. The world scan (mobs, animals, items)
@@ -144,17 +145,43 @@ public final class Companion {
         }
         // hitting her: the attack key pressed with the crosshair right on her, and no mob, animal or
         // block in front of her (hitting a cow next to her is not hitting her)
+        // (always from YOUR eyes: in light mode her body follows the host, but the hand that hits her is yours)
         boolean attack = mc.options.keyAttack.isDown() && mc.screen == null;
+        Behavior.Senses me = s;
+        if (a != p) {
+            Vec3 myEye = p.getEyePosition(), myLook = p.getViewVector(1f);
+            me = mine;
+            me.ex = myEye.x; me.ey = myEye.y; me.ez = myEye.z;
+            me.lx = myLook.x; me.ly = myLook.y; me.lz = myLook.z;
+            me.now = s.now;
+        }
+        HitResult myHit = mc.hitResult;
+        Entity myTarget = mc.crosshairPickEntity;
+        if (myTarget != null && myTarget.getUUID().equals(dev.kindredspirit.guest.GuestBridge.hidden)) {
+            myTarget = null; // her own stand-in (for friends without the mod) floats where she is: it's not in the way
+            myHit = null;
+        }
         double inTheWay = Double.MAX_VALUE;
-        if (target != null) inTheWay = target.distanceTo(p) - 0.3;
-        else if (hit != null && hit.getType() == HitResult.Type.BLOCK) inTheWay = hit.getLocation().distanceTo(eye);
-        boolean struck = attack && !attackWasDown && !life.hidden() && life.aimedAt(s, inTheWay);
+        if (myTarget != null) inTheWay = myTarget.distanceTo(p) - 0.3;
+        else if (myHit != null && myHit.getType() == HitResult.Type.BLOCK) inTheWay = myHit.getLocation().distanceTo(p.getEyePosition());
+        boolean struck = attack && !attackWasDown && !life.hidden() && life.aimedAt(me, inTheWay);
+        if (attack && !attackWasDown && a != p && System.getProperty("kindredspirit.devScript") != null) {
+            double dx = life.x - me.ex, dy = life.y - me.ey, dz = life.z - me.ez;
+            KindredSpiritClient.LOG.info("touch check (dev): along {} dist {} inTheWay {} target {} hidden {} struck {}",
+                    String.format("%.2f", dx * me.lx + dy * me.ly + dz * me.lz), String.format("%.2f", Math.sqrt(dx * dx + dy * dy + dz * dz)),
+                    inTheWay == Double.MAX_VALUE ? "nothing" : String.format("%.2f", inTheWay), myTarget, life.hidden(), struck);
+        }
         if (attack && !struck) life.playerSwings(s.now); // fighting or digging: she gets out of the way
         attackWasDown = attack;
         if (struck) {
             life.play(dev.kindredspirit.life.Emote.STARTLE, s.now);
             level.addParticle(ParticleTypes.DAMAGE_INDICATOR, life.x, life.y + 0.3, life.z, 0, 0.1, 0);
             return Touch.HIT;
+        }
+        if (a != p) { // a friend's pat on the Pip they see (hers are noticed by the game she lives in)
+            boolean sneak = p.isShiftKeyDown();
+            if (sneak && !mySneakWas && !life.hidden() && life.aimedAt(me, Double.MAX_VALUE)) life.petted = true;
+            mySneakWas = sneak;
         }
         if (life.petted) {
             life.petted = false;

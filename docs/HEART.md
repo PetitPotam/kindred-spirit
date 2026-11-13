@@ -135,6 +135,24 @@ needs about three good sessions; time apart softens resentment but doesn't bring
 asks for a gesture at most once per hurt and repair is always possible without it; the five feelings
 are shown in the dashboard, not as in-game icons.
 
+## A heart for each person: friends
+
+She meets your friends on a LAN world, and she isn't the same with each of them
+(`brain/kindred/friends.py`).
+
+| | |
+|---|---|
+| **Who** | Each other player, by name (said roughly is fine: "walid" for waterwalid). You stay first: the bond, her stance and everything above are about you. |
+| **Feelings** | The same five as yours (affection, trust, respect, familiarity, resentment), the same appraisal (patterns weigh more, trust grows only from evidence), at 0.6 weight: she lives with you, they visit. Saved inside her heart, so across sessions (and a LAN world no longer becomes a "new world" each time its port changes). |
+| **What moves them** | Their chat lines to her (the AI's regard tag: kind, thanks, rude, mean, threat; teasing is banter), their hits and pats. A friend with the mod hitting the Pip on their screen, or one without it hitting her Allay stand-in, is reported by their game to the world's game and then to her, with their name. Two hits within 30 seconds are deliberate. |
+| **How she treats them** | Her feelings for a friend go into their turns in words ("You resent Sam: they've hurt you again and again. Prickly and short with them, never cruel."), and into yours when you name them. She answers a hit by name ("Ow! Walid! What was that for?"), colder once she doesn't like them. |
+| **Witnessing** | When a friend is rude, mean or threatening to her, or hits her, she watches what *you* do for 20 seconds. Standing up for her ("stop hitting Pip", "leave her alone", "be nice to her", "don't talk to her like that") raises your trust and affection a little ("you stood up for her"). Saying nothing is a small incident: a little trust lost, logged with why ("you said nothing when Sam said ..."). Small on purpose: you can't always see what happens in chat. |
+| **At your word** | "From now on, do what Walid says" (a nickname works when only one friend is here): she follows that friend or stays when they ask. "Stop listening to him" takes it back. |
+| **Seeing it** | The dashboard's Live page has a card per friend (their five feelings, her stance, open hurts); the session log says who on every line, tool, gift, effect, touch and heart change. |
+
+Tunable in `friends.py`: `WEIGHT` (0.6), `WITNESS_SECONDS` (20), and the events `defended` and
+`let_them` (added to `bonds.EVENTS`).
+
 ## The bond
 
 A number from 0 to 100, shown as a small heart meter (top right) whenever it changes, and in

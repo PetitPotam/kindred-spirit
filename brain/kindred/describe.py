@@ -42,6 +42,18 @@ def where_words(direction):
     }.get(direction, direction or "nearby")
 
 
+def _doing(o):
+    """What a friend you can see holds and does (only what the game says: never guess)."""
+    bits = []
+    if "holding" in o:
+        bits.append("holding " + (o["holding"].replace("_", " ") if o["holding"] else "nothing"))
+    if o.get("doing"):
+        bits.append(o["doing"])
+    if o.get("lately"):
+        bits.append("lately: " + o["lately"])
+    return " (%s)" % ", ".join(bits) if bits else ""
+
+
 def describe(s):
     if not s or "health" not in s:
         return "The player is not in a world right now."
@@ -112,7 +124,8 @@ def describe(s):
     if others:  # friends in your world (LAN): they see her too and can talk to her in chat
         lines.append("Other players here, friends of the player's (not the player you live beside): " + "; ".join(
             "%s, %d blocks %s%s" % (o.get("name", "someone"), int(o.get("distance", 0)), where_words(o.get("direction")),
-                                    "" if o.get("seen", True) else " (out of sight)") for o in others[:6]) + ".")
+                                    _doing(o) if o.get("seen", True) else " (out of sight)") for o in others[:6])
+            + ". You only know what a friend holds or does when it's written here: never guess it.")
     if s.get("following"):
         lines.append("You're floating beside %s for now (the player asked you to stay with them)." % s["following"])
     sounds = s.get("sounds") or []

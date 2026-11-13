@@ -1,0 +1,29 @@
+# Focused two-game check, friend side: hits her up close and says nothing more; asks for gifts for both, an effect.
+wait 1100
+join 127.0.0.1:25599
+wait 400
+lookat
+press attack
+wait 30
+lookat
+press attack
+wait 120
+lookat
+press attack
+wait 30
+lookat
+press attack
+wait 550
+type Pip, give us some bread, for both of us
+wait 400
+type Pip, give me levitation
+wait 300
+lookat
+sneak on
+wait 40
+sneak off
+wait 300
+type Pip, give me poison
+wait 400
+screenshot friends-guest-3
+quit

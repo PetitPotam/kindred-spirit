@@ -29,6 +29,8 @@ public final class Abilities {
         PROTECT(true), PLACE_TORCH(true), HARVEST(true), BUILD(true),
         // makes things appear
         GIVE_ITEM(true), GIVE_EFFECT(true),
+        // Minecraft's own commands, from an allowlist (see Commands)
+        COMMAND(true),
         // changes the whole world
         SET_TIME(true), SET_WEATHER(true);
 
@@ -48,7 +50,7 @@ public final class Abilities {
         return switch (a) {
             case FIND_ORE, FIND_ANIMAL, FIND_BLOCK, FIND_PLAYER, LOCATE, GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> true;
             case PROTECT, PLACE_TORCH, HARVEST, BUILD -> p != Power.ADVISOR;
-            case GIVE_ITEM, GIVE_EFFECT -> p != Power.ADVISOR && s == Style.MAGIC;
+            case GIVE_ITEM, GIVE_EFFECT, COMMAND -> p != Power.ADVISOR && s == Style.MAGIC;
             case SET_TIME, SET_WEATHER -> p == Power.ALLPOWERFUL;
         };
     }
@@ -61,7 +63,7 @@ public final class Abilities {
 
     /** Why it can't, in words the AI can pass on kindly. */
     public static String refusal(Ability a, Power p, Style s) {
-        if ((a == Ability.GIVE_ITEM || a == Ability.GIVE_EFFECT) && s == Style.GROUNDED && p != Power.ADVISOR) {
+        if ((a == Ability.GIVE_ITEM || a == Ability.GIVE_EFFECT || a == Ability.COMMAND) && s == Style.GROUNDED && p != Power.ADVISOR) {
             return "In grounded style I can't make things appear; I can only use what really exists. "
                     + "(The player can switch with /kindred style magic.)";
         }
