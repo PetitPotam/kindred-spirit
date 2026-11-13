@@ -92,7 +92,7 @@ ABILITY_TOOLS = {
                    "for. Never @e, @a or @r; ~ coordinates are from the player (~ ~ ~ = their feet, ^ ^ ^3 = 3 ahead).\n"
                    "  /fill <x1 y1 z1> <x2 y2 z2> <block> [hollow|outline|replace|keep|destroy]  e.g. /fill ~-8 ~ ~-8 ~8 ~10 ~8 "
                    "air (clear everything around, from their feet up), /fill ~-6 ~-1 ~-6 ~6 ~-1 ~6 dirt (flatten the ground), "
-                   "/fill ~2 ~ ~2 ~8 ~4 ~8 oak_planks hollow (a room)\n"
+                   "/fill ~2 ~ ~2 ~8 ~4 ~8 oak_planks hollow (a room), /fill ~-10 ~-3 ~-10 ~10 ~6 ~10 air replace fire (put out a fire)\n"
                    "  /setblock <x y z> <block>[states]  e.g. /setblock ^ ^ ^2 campfire\n"
                    "  /clone <x1 y1 z1> <x2 y2 z2> <x y z>   copy a build\n"
                    "  /give <player> <item> [count]  e.g. /give Robin golden_apple 2\n"
