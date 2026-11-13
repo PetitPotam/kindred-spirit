@@ -107,6 +107,10 @@ conversation) becomes an issue with labels and a milestone, and lands on the boa
 `Fixes #<number>`, so issues close themselves when merged. The milestones are the roadmap, in order:
 *Singleplayer polish*, *LAN with friends*, *First public release*, *Later: online servers*.
 
+**Internal notes stay private.** Issues here become public with the repository. What only the maintainer
+should see (legal questions, account and security settings, launch checklists, anything about the maintainer)
+goes to the private repository **PetitPotam/kindred-spirit-internal**, which shares the same (private) board.
+
 **Triage**, ideally within a few days: reproduce or ask (`needs-info`), label, set a priority, close
 duplicates with a link, and mark easy ones `good first issue` with a hint of where to start.
 
