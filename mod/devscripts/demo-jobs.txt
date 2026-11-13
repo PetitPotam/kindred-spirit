@@ -1,0 +1,92 @@
+# A short silent demo of her hands, jobs and blueprints in singleplayer (no brain needed: her actions run
+# directly and her lines are shown as subtitles). Records mod/run/recordings/jobs-demo (needs ffmpeg).
+#   ./gradlew runClient -PdevScript=devscripts/demo-jobs.txt -PvideoSize=960x540
+world kindred-jobs-demo
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd gamerule doImmediateRespawn true
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -24 194 -24 24 198 32 minecraft:stone
+cmd fill -24 199 -24 24 199 32 minecraft:grass_block
+cmd fill -24 200 -24 24 207 32 minecraft:air
+cmd fill -24 208 -24 24 216 32 minecraft:air
+cmd spawnpoint @s 0 200 0
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power helper
+type /kindred style grounded
+# a little stage: an iron vein in a stone outcrop, a tree, a crafting table
+cmd fill 4 200 -6 7 201 -3 minecraft:stone
+cmd setblock 4 200 -4 minecraft:iron_ore
+cmd setblock 4 201 -4 minecraft:iron_ore
+cmd setblock 4 201 -5 minecraft:iron_ore
+cmd setblock 5 200 -3 minecraft:iron_ore
+cmd fill -8 200 -7 -8 205 -7 minecraft:birch_log
+cmd fill -10 204 -9 -6 206 -5 minecraft:birch_leaves[persistent=true] keep
+cmd setblock 1 200 -4 minecraft:crafting_table
+act {"move": "follow"}
+video
+wait 60
+record start jobs-demo
+# 1. mining, with your own pickaxe, at its own speed
+cmd give @s minecraft:stone_pickaxe 1
+cmd tp @s 1.5 200 -0.5 -130 15
+wait 20
+mark mine
+brain {"type": "say", "text": "Iron! Let me help, with your pickaxe.", "mood": "excited"}
+wait 30
+do job {"kind": "mine", "what": "iron", "count": 4}
+wait 120
+brain {"type": "say", "text": "Four raw iron, in your pockets!", "mood": "happy"}
+wait 50
+mark mine_end
+# 2. chopping the tree you look at
+cmd give @s minecraft:iron_axe 1
+cmd tp @s -5.5 200 -3.5 145 -15
+wait 20
+mark chop
+brain {"type": "say", "text": "This birch? All of it!", "mood": "happy"}
+wait 25
+do job {"kind": "chop"}
+wait 60
+turn 145 20 2
+wait 30
+mark chop_end
+# 3. what am I missing? (crafting from your pockets)
+cmd tp @s 0.5 200 -1.5 180 20
+wait 10
+mark plan
+do craft_help {"item": "piston"}
+brain {"type": "say", "text": "For a piston: smelt your raw iron, and we still need four cobblestone and a redstone.", "mood": "curious"}
+wait 90
+mark plan_end
+# 4. a cozy cottage for three, rising with magic where you look
+type /kindred style magic
+cmd setblock 1 200 -4 minecraft:air
+cmd tp @s 0.5 200 2.5 0 38
+wait 20
+mark cottage
+brain {"type": "say", "text": "A cozy cottage for the three of us? Watch!", "mood": "excited"}
+wait 30
+do blueprint {"what": "cottage", "people": 3}
+wait 40
+turn 0 10 3
+wait 140
+act {"move": "stay"}
+cmd tp @s 0.5 202 -2.5 0 10
+wait 10
+brain {"type": "say", "text": "A bed each, a chest, a furnace, and a door facing you!", "mood": "happy"}
+turn 30 12 4
+wait 60
+turn -30 12 4
+wait 60
+mark cottage_end
+record stop
+wait 20
+quit

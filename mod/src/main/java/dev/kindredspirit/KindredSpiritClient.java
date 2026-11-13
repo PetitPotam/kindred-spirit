@@ -258,6 +258,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
         // her building works block by block on the (integrated) server
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
                 dev.kindredspirit.act.Builder::tick);
+        // jobs (mine, chop, collect, craft, your things back) through her hands, and building from a blueprint
+        dev.kindredspirit.job.Jobs.register();
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
+                dev.kindredspirit.act.BlueprintBuild::tick);
         // friends on your LAN world without the mod: they see a stand-in for her and can talk to her;
         // friends with the mod see her as you do (light mode: SharedPip), with no AI of their own
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playS2C().register(

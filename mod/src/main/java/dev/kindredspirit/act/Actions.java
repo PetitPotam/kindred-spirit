@@ -63,7 +63,7 @@ public final class Actions {
     private static final Map<java.util.UUID, java.util.Deque<Object[]>> did = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static void playerDid(net.minecraft.world.entity.player.Player p, String what) {
-        if (!(p instanceof ServerPlayer)) return;
+        if (!(p instanceof ServerPlayer) || p instanceof net.fabricmc.fabric.api.entity.FakePlayer) return; // (her hands aren't the player)
         var q = did.computeIfAbsent(p.getUUID(), k -> new java.util.concurrent.ConcurrentLinkedDeque<>());
         q.addLast(new Object[]{System.currentTimeMillis(), what});
         while (q.size() > 40) q.pollFirst();
@@ -145,8 +145,8 @@ public final class Actions {
                         return r;
                     });
                 }
-                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER, COMMAND ->
-                        onServer(mc, a, args, power, style);
+                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER, COMMAND,
+                     JOB, BLUEPRINT, CRAFT_HELP, TRADES -> onServer(mc, a, args, power, style);
                 case GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> done(ok()); // handled by the companion itself
             };
         } catch (RuntimeException e) {
@@ -320,6 +320,13 @@ public final class Actions {
                 case PLACE_TORCH -> placeTorch(target(s, sp, str(args, "for", "")), style);
                 case HARVEST -> harvest(target(s, sp, str(args, "for", "")));
                 case BUILD -> Builder.start(s, target(s, sp, str(args, "for", "")), args, style);
+                // jobs and blueprints (grounded through her hands, magic through the command powers), expertise
+                case JOB -> dev.kindredspirit.job.Jobs.action(target(s, sp, str(args, "for", "")), args, style == Abilities.Style.MAGIC);
+                case BLUEPRINT -> BlueprintBuild.start(s, target(s, sp, str(args, "for", "")), args, style,
+                        Abilities.power(str(args, "_power", "HELPER")));
+                case CRAFT_HELP -> dev.kindredspirit.job.Jobs.craftHelp(target(s, sp, str(args, "for", "")), str(args, "item", ""),
+                        num(args, "count", 1));
+                case TRADES -> dev.kindredspirit.job.Jobs.trades(target(s, sp, str(args, "for", "")));
                 case GIVE_ITEM -> give(target(s, sp, str(args, "to", "")), str(args, "item", ""), num(args, "count", 1));
                 case GIVE_EFFECT -> effect(target(s, sp, str(args, "to", "")), str(args, "effect", ""));
                 case SET_TIME -> setTime(s, str(args, "time", "day"));

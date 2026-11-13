@@ -25,8 +25,12 @@ public final class Abilities {
     public enum Ability {
         // advice: reads the world, changes nothing
         FIND_ORE(false), FIND_ANIMAL(false), FIND_BLOCK(false), FIND_PLAYER(false), LOCATE(false), GUIDE(false), STOP_GUIDE(false), FOLLOW_PLAYER(false),
+        // expertise: reads your pockets and the villagers' offers, changes nothing
+        CRAFT_HELP(false), TRADES(false),
         // acts in the world when you ask
         PROTECT(true), PLACE_TORCH(true), HARVEST(true), BUILD(true),
+        // jobs that take a while (mine, chop, collect, craft, get your things back) and building from a blueprint
+        JOB(true), BLUEPRINT(true),
         // makes things appear
         GIVE_ITEM(true), GIVE_EFFECT(true),
         // Minecraft's own commands, from an allowlist (see Commands)
@@ -48,8 +52,8 @@ public final class Abilities {
 
     public static boolean allowed(Ability a, Power p, Style s) {
         return switch (a) {
-            case FIND_ORE, FIND_ANIMAL, FIND_BLOCK, FIND_PLAYER, LOCATE, GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> true;
-            case PROTECT, PLACE_TORCH, HARVEST, BUILD -> p != Power.ADVISOR;
+            case FIND_ORE, FIND_ANIMAL, FIND_BLOCK, FIND_PLAYER, LOCATE, GUIDE, STOP_GUIDE, FOLLOW_PLAYER, CRAFT_HELP, TRADES -> true;
+            case PROTECT, PLACE_TORCH, HARVEST, BUILD, JOB, BLUEPRINT -> p != Power.ADVISOR;
             case GIVE_ITEM, GIVE_EFFECT, COMMAND -> p != Power.ADVISOR && s == Style.MAGIC;
             case SET_TIME, SET_WEATHER -> p == Power.ALLPOWERFUL;
         };

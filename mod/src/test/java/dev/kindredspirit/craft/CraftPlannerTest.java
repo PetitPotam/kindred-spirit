@@ -38,7 +38,15 @@ class CraftPlannerTest {
             Recipe.of("torch", 4, HAND, "coal|charcoal", "stick"),
             Recipe.of("charcoal", 1, FURNACE, "oak_log|birch_log"),
             Recipe.of("coal", 1, FURNACE, "coal_ore|deepslate_coal_ore"),
-            Recipe.of("iron_ingot", 1, FURNACE, "iron_ore|deepslate_iron_ore")));
+            Recipe.of("iron_ingot", 1, FURNACE, "iron_ore|deepslate_iron_ore"),
+            // as in the game: raw iron and redstone "craft" back from their own blocks, and redstone smelts from ore
+            Recipe.of("raw_iron", 9, HAND, "raw_iron_block"),
+            Recipe.of("raw_iron_block", 1, CRAFTING_TABLE, "raw_iron", "raw_iron", "raw_iron", "raw_iron", "raw_iron",
+                    "raw_iron", "raw_iron", "raw_iron", "raw_iron"),
+            Recipe.of("redstone", 9, HAND, "redstone_block"),
+            Recipe.of("redstone_block", 1, CRAFTING_TABLE, "redstone", "redstone", "redstone", "redstone", "redstone",
+                    "redstone", "redstone", "redstone", "redstone"),
+            Recipe.of("redstone", 1, FURNACE, "redstone_ore|deepslate_redstone_ore")));
 
     @Test
     void aPistonFromLogsAndRawIron() {
@@ -69,6 +77,31 @@ class CraftPlannerTest {
         assertEquals(Map.of("raw_iron", 1), ingot.missing());
         CraftPlanner.Plan withOre = P.plan("iron_ingot", 1, Map.of("iron_ore", 1));
         assertTrue(withOre.canMakeNow(), "but an ore block in the pockets is fine to smelt");
+    }
+
+    @Test
+    void thingsYouGatherAreNamedThemselves() {
+        // found in the sandbox: "what am I missing for a piston?" said "deepslate iron ore, redstone ore"
+        CraftPlanner.Plan p = P.plan("piston", 1, Map.of("oak_log", 1));
+        assertEquals(Map.of("cobblestone", 4, "raw_iron", 1, "redstone", 1), p.missing());
+        assertTrue(p.steps().stream().anyMatch(s -> s.recipe().result().equals("iron_ingot")), "smelt the raw iron");
+    }
+
+    @Test
+    void manyKindsOfPlanksStillFindTheOneYouCarry() {
+        // found in the sandbox demo: eleven kinds of planks and the game's recipes, birch logs in the pockets
+        String[] woods = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "bamboo", "crimson", "warped"};
+        java.util.List<Recipe> rs = new java.util.ArrayList<>();
+        String planks = String.join("|", java.util.Arrays.stream(woods).map(w -> w + "_planks").toList());
+        for (String w : woods) rs.add(Recipe.of(w + "_planks", 4, HAND, w + "_log"));
+        rs.add(Recipe.of("stick", 4, HAND, planks, planks));
+        rs.add(Recipe.of("piston", 1, CRAFTING_TABLE, planks, planks, planks, "cobblestone", "cobblestone", "cobblestone",
+                "cobblestone", "iron_ingot", "redstone"));
+        rs.add(Recipe.of("iron_ingot", 1, FURNACE, "raw_iron"));
+        CraftPlanner p = new CraftPlanner(rs);
+        CraftPlanner.Plan plan = p.plan("piston", 1, Map.of("birch_log", 6, "cobblestone", 4, "raw_iron", 1, "redstone", 1));
+        assertTrue(plan.canMakeNow(), "missing: " + plan.missing());
+        assertTrue(plan.steps().stream().anyMatch(st -> st.recipe().result().equals("birch_planks")));
     }
 
     @Test

@@ -82,6 +82,9 @@ ACTION_HINTS = [
      r"\b(and )?(everything|everyone|all of them|anything|all the monsters|all monsters|mobs)\b|"
      r"\b(follow|stay with|go with) and (protect|defend|guard)\b|\b(protect|defend|guard) and (follow|stay with)\b|"
      r"\b(look after|watch over|guard) (him|her|them|\w+) for (me|us)\b", "standing_request"),
+    # "get my things back" (from where I died): before protect's "get ... back"
+    (r"\b(get|bring|fetch|grab|collect|recover|pick up)\b.{0,25}\b(my|our) (stuff|things|items|loot|gear|"
+     r"inventory|drops)\b", "job"),
     (r"\b(place|put|set|drop)\b.{0,30}\b(campfire|bed|chest|barrel|door|crafting table|furnace|lantern|anvil|"
      r"enchanting table|bookshel(f|ves)|cauldron|bell|smoker|blast furnace|loom|composter|beacon|jukebox|"
      r"flower ?pot|ladder|sign|banner|trapdoor|fence gate)\b|\b(campfire|bed|chest|door)\b.{0,15}\b(here|there)\b",
@@ -102,8 +105,31 @@ ACTION_HINTS = [
     (r"\b(flatten|level( out)?|clear( out| away)?|remove|dig away|get rid of|squash)\b.{0,40}\b(ground|land|area|hill|"
      r"terrain|space|blocks?|everything|this|it|above|trees?|dirt|grass)\b|\bmake (it|this|the (ground|area|land)) "
      r"(flat|level)\b", "build"),
+    # a whole house: built from a blueprint (a cottage sized for them), not the old box house
+    (r"^(?!.*\b(i'?m|i am|we'?re|we are|i'?ll|i will|we'?ll|let me|i want to|i'?d like to|i'?m going to|i was)\b.{0,15}"
+     r"\b(build|make))(?!.*\bnice (house|home)\b).*\b(build|make|create|put up|raise)\b.{0,30}\b(a |an |our |my |us a |me a )?"
+     r"(\w+ ){0,2}(house|home|hut|cabin|shelter|cottage|lodge)\b", "blueprint"),
+    # how to make something from what you carry
+    # (about what they carry: "how do I make a piston?" stays a question for what the world remembers)
+    (r"\bwhat am i missing\b|\bwhat (else )?(do|would) (i|we) (still )?need (to (make|craft)|for (a|an|the|my|some) )|"
+     r"\bcan (i|we) (make|craft)\b|\bmissing for\b|\b(do )?(i|we) have enough (stuff |things |materials )?(to|for)\b",
+     "craft_help"),
+    (r"\b(trades?|trading)\b|\bwhat (does|do|can|will) (he|she|they|the villager|this villager|that villager|it) "
+     r"(sell|buy|offer|want)\b|\b(sell|buy)\b.{0,25}\b(villager|librarian|farmer|cleric|fletcher|mason|toolsmith|"
+     r"armou?rer|butcher|cartographer|shepherd|fisherman|leatherworker|weaponsmith)\b", "trades"),
+    # jobs that take a while: get back your things, mine some ore, pick up what's lying around, craft, chop trees
+    (r"^(?!.*\b(where|find|any|nearest|closest|look for|is there|are there)\b).*"
+     r"\b(mine|dig( up| out)?|get|collect|gather|fetch)\b( me| us)?( some| a few| \d+| all( the)?| the)?\b.{0,12}\b(iron|"
+     r"coal|copper|gold|diamonds?|redstone|lapis|emeralds?|quartz|ancient debris|ores?)\b(?!.{0,12}\b(near|around|where)\b)",
+     "job"),
+    (r"\b(pick up|collect|gather|grab)\b.{0,20}\b(the |all the |these |those )?(items|stuff|drops|things|everything|"
+     r"loot)\b", "job"),
+    (r"^(?!.*\b(how|what|why|when|which|can i|could i|should i)\b).*\bcraft\b( me| us)?\b.{0,20}\b\w+", "job"),
+    (r"\b(chop|cut|fell)\b.{0,20}\b(some|the|all|\d+|those|these)? ?trees\b|\b(get|bring|fetch) (me|us) (some |\d+ )?logs\b|"
+     r"\bchop\b.{0,30}\bbring\b", "job"),
     (r"\b(make|build|create|open|light)\b.{0,25}\b(nether )?portal\b", "build"),
-    (r"\b(build|make|create)\b.{0,25}\b(a |an |our |my )?(house|home|hut|cabin|shelter|cottage)\b", "build"),
+    (r"^(?!.*\b(i'?m|i am|we'?re|we are|i'?ll|i will|we'?ll|let me|i want to|i'?m going to)\b.{0,15}\b(build|make))"
+     r".*\b(build|make|create)\b.{0,25}\b(a |an |our |my )?(house|home|hut|cabin|shelter|cottage)\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\bbuild\b.{0,15}\b(house|hut|"
      r"shelter|walls?|tower|room|pen|fence|floor|platform|pillar)\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(stack|pile|place|put|build|make|"
@@ -337,9 +363,10 @@ MC_FIXES = [(re.compile(r"\b(under ?pair|under ?pearl|ender ?pair|end of pearl)s
 
 # a clear request's powers (its "family"): the others aren't offered that turn (unasked healing, food, torches)
 _SEEK_FAMILY = ("guide", "locate", "find_animal", "find_block", "find_ore", "find_player", "stop_guide", "follow_player")
-_MAKE = ("build", "command", "harvest", "place_torch")
+_MAKE = ("build", "command", "harvest", "place_torch", "job", "blueprint")
 _GIVE = ("give_item", "give_effect", "command")
-FAMILY = {**{t: _SEEK_FAMILY for t in _SEEK_FAMILY}, **{t: _MAKE for t in ("build", "harvest")}, **{t: _GIVE for t in _GIVE},
+FAMILY = {**{t: _SEEK_FAMILY for t in _SEEK_FAMILY}, **{t: _MAKE for t in ("build", "harvest", "job", "blueprint")},
+          **{t: _GIVE for t in _GIVE}, "craft_help": ("craft_help", "job"), "trades": ("trades",),
           "command": _MAKE + _GIVE, "protect": ("protect", "standing_request", "follow_player"),
           "place_torch": ("place_torch", "build", "command")}
 # asking for care: healing, food

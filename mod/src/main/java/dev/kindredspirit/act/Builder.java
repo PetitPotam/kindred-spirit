@@ -55,6 +55,9 @@ public final class Builder {
     static JsonObject start(MinecraftServer server, ServerPlayer sp, JsonObject args, Abilities.Style st) {
         String shapeName = Actions.str(args, "shape", "pillar");
         if (shapeName.equalsIgnoreCase("stop")) {
+            // "stop" stops all her work: a job (mining, chopping...) and a blueprint build too
+            if (dev.kindredspirit.job.Jobs.busy()) dev.kindredspirit.job.Jobs.stop();
+            if (BlueprintBuild.busy()) BlueprintBuild.stop();
             int left = queue.size();
             queue.clear();
             JsonObject r = Actions.ok();
