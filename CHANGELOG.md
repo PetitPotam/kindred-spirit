@@ -67,6 +67,8 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- The workflows pin every action to an exact commit and give each job only the permissions it needs, and releases
+  carry signed build provenance for every jar and Setup file (OpenSSF Scorecard, #152).
 - Install checks on every system, on GitHub's clean machines with no AI key: the Setup on Apple silicon and Intel
   Macs, her brain and Minecraft's side on macOS and Linux, a friend's install on Windows, and a real Minecraft client
   on Linux that says hi and hears her answer, for each Minecraft version (#104, #105). `scripts/test-install.sh` runs
