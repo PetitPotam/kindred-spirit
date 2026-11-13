@@ -53,6 +53,8 @@ These are not optional. A pull request that breaks one of them is closed.
     LAN with friends, First public release, Later: online servers). Before starting, look for the issue;
     a bug, idea or feature you notice along the way gets an issue (with your human's OK) with labels and a
     milestone, not a TODO in the code. Pull requests say `Fixes #<number>` so the issue closes when merged.
+    Issues in this repository are public: anything internal (legal, accounts, security settings, launch plans,
+    anything about the maintainer) goes to the private PetitPotam/kindred-spirit-internal instead.
 
 ## Working on the code
 
