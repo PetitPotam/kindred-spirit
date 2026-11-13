@@ -69,6 +69,8 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- Safe minimum versions for the demo video tool (Pillow 13.0.0) and the tests (pytest 9.0.3), which clears the 56
+  known vulnerabilities OpenSSF Scorecard reported; nothing players install was affected (#152).
 - Install checks on every system, on GitHub's clean machines with no AI key: the Setup on Apple silicon and Intel
   Macs, her brain and Minecraft's side on macOS and Linux, a friend's install on Windows, and a real Minecraft client
   on Linux that says hi and hears her answer, for each Minecraft version (#104, #105). `scripts/test-install.sh` runs
@@ -84,7 +86,11 @@ friends on LAN need only the mod.
 - Every change, release and website update reaches `main` through a pull request whose CI passed; a release is a
   "Release X" pull request, then its tag. One convention for branches, titles and issue links (CONTRIBUTING.md),
   checked on every pull request.
+- `scripts/release.sh` finds the JDK 25 by itself, as `scripts/test.sh` does, and builds before it changes anything, so
+  a failed build never leaves a half-made release branch; `--help` shows how it's used (#160).
 - The README and guides describe the Setup, 26.3, the K key and what hasn't been tried yet (#145).
+- THIRD_PARTY_NOTICES.md names the AI the player chooses and the libraries inside the Setup's Python, and says
+  which commits carry an AI co-author line; docs/SETUP.md lists the steps in the Setup's own order (#157).
 - Filming tools for the demo video (#144): the setting `hudWithHiddenGui` (off) and the dev-script step
   `ownhud on|off` keep her own HUD with F1; a recording's start event has the computer's clock (`wall`), `fps` and
   `size`, and a friend's line to her on LAN is recorded with `from`; `-PplayerName=` names the dev player and
