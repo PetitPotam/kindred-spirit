@@ -110,7 +110,7 @@ def test_jobs_run_in_the_background_and_report(server, tmp_path):
 
 def test_the_model_steps_come_after_her_ai(home):
     assert list(setup_steps.STEPS) == ["computer", "install", "start", "ai", "thinking", "instincts", "voice",
-                                       "hearing", "login"]
+                                       "hearing", "minecraft", "hello", "login"]
     for sid in ("instincts", "voice", "hearing"):
         s = setup_steps.STEPS[sid][0]()
         assert s["choices"][0]["recommended"] and s["default"] and len(s["why"]) > 60 and s["status"] == "todo"
