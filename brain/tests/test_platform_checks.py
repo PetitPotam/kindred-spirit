@@ -46,3 +46,13 @@ def test_the_install_check_script_parses():
     subprocess.run(["bash", "-n", os.path.join(REPO, "scripts", "test-install.sh")], check=True)
     usage = subprocess.run(["bash", os.path.join(REPO, "scripts", "test-install.sh"), "nonsense"], capture_output=True, text=True)
     assert usage.returncode == 2 and "setup-app" in usage.stdout
+
+
+def test_the_client_check_refuses_a_computer_with_a_pip(tmp_path):
+    """It uses the real ~/.kindred-spirit and port 47811, so only on a clean machine that says it is one."""
+    (tmp_path / ".kindred-spirit").mkdir()
+    env = {"HOME": str(tmp_path), "PATH": os.environ["PATH"], "KINDRED_TEST_CLEAN_MACHINE": "1"}
+    r = subprocess.run(["bash", os.path.join(REPO, "scripts", "test-install.sh"), "client"], env=env,
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 1 and "clean machine" in r.stdout
+    assert os.listdir(tmp_path / ".kindred-spirit") == []  # nothing written
