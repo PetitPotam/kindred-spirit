@@ -34,6 +34,7 @@ import time
 import urllib.error
 import urllib.request
 
+from . import facts
 from . import config
 
 GLOBAL_KINDS = ("player", "self", "habit", "reminder", "origin", "taste", "core")
@@ -113,6 +114,9 @@ NAME_FACT = re.compile(r"\b(calls? (me|him|her|them|the player)|called|nick ?nam
 PRONOUN_FACT = re.compile(r"\bpronouns?\b|\b(he/him|she/her|they/them)\b", re.I)
 # a gender the AI guessed ("Is female and still getting to know me"): never kept from reflection
 GUESSED_GENDER = re.compile(r"\b(is|seems|they'?re|he'?s|she'?s) (a |to be )?(female|male|girl|boy|woman|man|lady|guy)\b", re.I)
+
+
+TOOL_ECHO = re.compile(r"\s*I used [a-z_]+ [{(]")  # (an episode that only repeats a tool call and its result)
 
 
 def subject(fact):
@@ -433,14 +437,23 @@ class Memory:
             lst("list", kinds=["reminder"], world=self.world_id, limit=6),
             lst("list", kinds=["place"], world=self.world_id, limit=8),
             lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary", "spot"],
-                world=self.world_id, k=8))
+                world=self.world_id, k=8),
+            lst("list", kinds=["player"], world=self.world_id, limit=80, order="recent"))
         now = self.clock()
-        player, me, origin, tastes, cores, habits, reminders, places, recalled = (
+        player, me, origin, tastes, cores, habits, reminders, places, recalled, about_people = (
             [m for m in c["results"] if m.get("text") and (m.get("meta") or {}).get("expires", now + 1) > now]
             for c in core)
-        seen = {m["id"] for group in (player, me, origin, tastes, cores, habits, reminders, places) for m in group}
+        # who is called what, their pronouns, who they are to the player: one slot each, the latest wins (facts.py)
+        here = [p.get("name", "") for p in (snapshot or {}).get("players") or []]
+        people = facts.people(about_people, here, (snapshot or {}).get("playerName", ""))
+        if people:
+            player = [m for m in player if not facts.consumed(m["text"])]
+            seen_people = {m["id"] for m in about_people if facts.consumed(m["text"])}
+        else:
+            seen_people = set()
+        seen = {m["id"] for group in (player, me, origin, tastes, cores, habits, reminders, places) for m in group} | seen_people
         self.self_known = len(origin) + len(me)  # (how much she knows about herself: her doubts depend on it)
-        lines = []
+        lines = [people] if people else []
         if player:
             lines.append("About the player: " + " ".join(m["text"].rstrip(".") + "." for m in player))
         if me:
@@ -475,7 +488,16 @@ class Memory:
                              + "; ".join(m["text"] + rel(m["meta"]) for m in near) + ".")
         if reminders:
             lines.append("Reminders you hold: " + "; ".join("%s (%s)" % (m["text"], m["meta"].get("when", "")) for m in reminders) + ".")
-        extra = [m for m in recalled if m["id"] not in seen and m["score"] > 0.2][:6]
+        # what comes to mind: no echoes of her own tool calls ("I used follow_player {...}" five times in one
+        # prompt during the playtest: half of this part), and the same words only once
+        extra, said = [], set()
+        for m in recalled:
+            words = " ".join(m["text"].lower().split())
+            if m["id"] in seen or m["score"] <= 0.2 or TOOL_ECHO.match(m["text"]) or words in said:
+                continue
+            said.add(words)
+            extra.append(m)
+        extra = extra[:6]
         if extra:
             lines.append("Memories that come to mind: " + " | ".join(m["text"] + rel(m["meta"]) for m in extra))
         s = self.stats or {}

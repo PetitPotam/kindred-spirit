@@ -27,10 +27,18 @@ def test_follow_me_is_never_a_trip(stubs):  # items 1 and 19
     stubs.ai_script = [{"role": "assistant", "content": "[happy] Right behind you!"}]
     b, sent = _talk(stubs, "follow me")
     assert {"type": "act", "move": "follow"} in sent
+    assert stubs.ai_requests == [], "a plain 'follow me' is System 0's alone (talker.py): no AI, so no trip"
+    b, sent = _talk(stubs, "follow me, I want to show you something")
+    assert {"type": "act", "move": "follow"} in sent
     req = stubs.ai_requests[-1]
     assert "tool_choice" not in req or req["tool_choice"] in ("auto", None)
     offered = {t["function"]["name"] for t in req.get("tools") or []}
-    assert "guide" not in offered and "follow_player" not in offered
+    content = req["messages"][-1]["content"]
+    if "[Powers for this answer]" in content:  # (ai.stable_tools: every tool listed, what fits said and enforced)
+        fit = content.split("[Powers for this answer]")[-1].split("[Player]")[0]
+        assert "guide" not in fit and "follow player" not in fit
+    else:
+        assert "guide" not in offered and "follow_player" not in offered
 
 
 def test_follow_me_to_somewhere_still_leads():
