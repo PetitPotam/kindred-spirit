@@ -1058,6 +1058,12 @@ class Brain:
             for f in (found or {}).get("results", []):
                 if to in f["meta"].get("what", "").lower():
                     return {k: f["meta"][k] for k in ("x", "y", "z")}
+            # an animal she can see right now beats a remembered spot ("where are the sheep? lead the way"
+            # led to where they were first met, not to the sheep in sight), unless they ask to go back
+            seen = None if intents.BACK_TO_SPOT.search(getattr(self, "last_player_text", "")) else \
+                self.animal_named(to + " " + getattr(self, "last_player_text", ""))
+            if seen:
+                return {"entity": seen["id"]}
             spot = await self.safe(self.memory.find_spot(to + " " + getattr(self, "last_player_text", "")))
             if spot:  # a place she remembers on her own ("the first cow", "what I was building", "where I died")
                 self.session.event("place", what="guide", label=spot["text"], at=[spot["meta"].get(k) for k in "xyz"])
