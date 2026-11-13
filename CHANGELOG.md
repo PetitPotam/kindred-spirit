@@ -17,6 +17,10 @@ Unreleased into the new version's section.
 - Releases are uploaded to CurseForge too, from the same GitHub release, once the project exists there (its page is
   in docs/curseforge.md).
 
+### Fixed
+- Friends building the mod on Windows need Java 25, not Java 21 (the build tool requires it): the guides say so, and
+  Update Pip checks Java first and says what to install (#109).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.

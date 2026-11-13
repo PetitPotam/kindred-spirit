@@ -3,7 +3,7 @@
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1
 #
-# Needs: Git (signed in to GitHub), Java 21 (Temurin), Minecraft 1.21.1 with Fabric installed once.
+# Needs: Git (signed in to GitHub), Java 25 (Temurin, to build), Minecraft 1.21.1 with Fabric installed once.
 # Close Minecraft first: a running game keeps the old mod.
 
 $ErrorActionPreference = "Stop"
@@ -19,9 +19,19 @@ git reset --hard origin/main
 if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
 
 Write-Host "2/4  Building the mod (the first time takes a few minutes)..." -ForegroundColor Cyan
+# Loom, the build tool, needs Java 25: check first, so the message says what to install
+$java = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME "bin\java.exe" } else { "java" }
+$ErrorActionPreference = "Continue"  # (Java writes its version to stderr, which "Stop" would treat as an error)
+try { $javaVersion = (& $java -version 2>&1 | Out-String) } catch { $javaVersion = "" }
+$ErrorActionPreference = "Stop"
+$major = if ($javaVersion -match 'version "(\d+)') { [int]$Matches[1] } else { 0 }
+if ($major -lt 25) {
+    $have = if ($major -gt 0) { "Java $major" } else { "no Java" }
+    throw "Building the mod needs Java 25, and this PC has $have. Install it with: winget install EclipseAdoptium.Temurin.25.JDK (or from https://adoptium.net), then open a new PowerShell window and run this again."
+}
 Push-Location mod
 & .\gradlew.bat build -x test --quiet
-if ($LASTEXITCODE -ne 0) { Pop-Location; throw "The build failed: is Java 21 installed? (java -version)" }
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "The build failed: see the messages above." }
 Pop-Location
 $jar = Get-ChildItem "mod\build\libs\kindred-spirit-*.jar" | Where-Object { $_.Name -notlike "*-sources*" } |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
