@@ -45,6 +45,8 @@ Unreleased into the new version's section.
 - Installed only the mod? In your own world, one chat message now says that Pip needs her brain on this computer,
   with links to Kindred Spirit Setup and to playing with a friend who hosts her, and a "Don't show again"
   (`/kindred hint off`). Mod Menu's description and links say the same (#92).
+- The Setup updates everything together: it checks GitHub Releases, shows what's new, installs the new version of
+  her brain, the matching mod and the Setup itself, keeps your settings and memories, and can go back (#97).
 
 ### Fixed
 - The game tells her brain the mod's real version, not always 0.1.0 (#114).
