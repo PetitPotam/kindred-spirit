@@ -94,6 +94,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private volatile boolean brainHere = java.nio.file.Files.exists(
             Path.of(System.getProperty("user.home"), ".kindred-spirit", "brain.toml"));
     private int visitTicks;
+    /** #92: the "Pip needs her brain" hint, once per game, a few seconds into the player's own world. */
+    private boolean hintShown;
+    private int ticksInWorld;
     private final java.util.Map<String, java.util.concurrent.CompletableFuture<JsonObject>> visitPending =
             new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -387,6 +390,21 @@ public final class KindredSpiritClient implements ClientModInitializer {
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> {
             LiteralCommandNode<FabricClientCommandSource> root = dispatcher.register(ClientCommands.literal("kindred")
+                    .then(ClientCommands.literal("hint") // #92: the "Pip needs her brain" message
+                            .then(ClientCommands.literal("off").executes(c -> {
+                                cfg.noBrainHint = false;
+                                cfg.save();
+                                c.getSource().sendFeedback(Component.literal("It won't be shown again (/kindred hint on to bring it back)."));
+                                return 1;
+                            }))
+                            .then(ClientCommands.literal("on").executes(c -> {
+                                cfg.noBrainHint = true;
+                                hintShown = false;
+                                ticksInWorld = 0;
+                                cfg.save();
+                                c.getSource().sendFeedback(Component.literal("The \"Pip needs her brain\" message is back on."));
+                                return 1;
+                            })))
                     .then(ClientCommands.literal("reconnect").executes(c -> {
                         link.reconnectNow();
                         c.getSource().sendFeedback(Component.literal("Reconnecting to the Kindred brain..."));
@@ -582,6 +600,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
             inWorld = true;
+            ticksInWorld = 0;
             joinedAt = System.currentTimeMillis();
             lastInventory = null;
             if (!hearingOn) { // the sound system exists by now
@@ -741,6 +760,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
 
         while (dashboardKey.consumeClick()) openDashboard();
+        if (!hintShown && inWorld && dev.kindredspirit.util.NoBrainHint.due(brainHere, cfg.noBrainHint,
+                mc.getSingleplayerServer() != null, hintShown, ++ticksInWorld)) {
+            hintShown = true;
+            Mc.chat(mc, noBrainHint());
+        }
 
         // push-to-talk: hold the key, speak, release
         boolean held = talkKey.isDown() && Mc.screen(mc) == null;
@@ -1084,7 +1108,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         LOG.info("Connected to the Kindred brain");
         JsonObject hello = new JsonObject();
         hello.addProperty("type", "hello");
-        hello.addProperty("mod", "0.1.0");
+        hello.addProperty("mod", dev.kindredspirit.util.ModVersion.get()); // (#114: it said 0.1.0 whatever it was)
         hello.addProperty("minecraft", Mc.gameVersion());
         hello.addProperty("name", cfg.name);
         addAbilities(hello);
@@ -1539,6 +1563,21 @@ public final class KindredSpiritClient implements ClientModInitializer {
         Mc.openInBrowser(url);
         notice(link.connected() ? "Opening her dashboard in your browser\u2026"
                 : "Opening her dashboard\u2026 If it doesn't load, open Kindred Spirit Setup to wake her brain", 6000);
+    }
+
+    /** #92, in plain words: what Pip needs on this computer, where to get it, or play with a friend who hosts her. */
+    private Component noBrainHint() {
+        var link = (java.util.function.BiFunction<String, String, Component>) (text, url) -> Component.literal(text)
+                .withStyle(st -> st.withColor(ChatFormatting.AQUA).withUnderlined(true).withClickEvent(Mc.openUrlClick(url)));
+        return Component.empty()
+                .append(Component.literal("Kindred Spirit: ").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD))
+                .append(Component.literal("Pip needs her brain on this computer to come alive. ").withStyle(ChatFormatting.WHITE))
+                .append(link.apply("Get Kindred Spirit Setup", dev.kindredspirit.util.NoBrainHint.SETUP_GUIDE))
+                .append(Component.literal(" (macOS for now), or ").withStyle(ChatFormatting.GRAY))
+                .append(link.apply("play with a friend who hosts her", dev.kindredspirit.util.NoBrainHint.FRIENDS_GUIDE))
+                .append(Component.literal(" on a LAN world. ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal("[Don't show again]").withStyle(st -> st.withColor(ChatFormatting.DARK_GRAY)
+                        .withClickEvent(Mc.runCommandClick("/kindred hint off"))));
     }
 
     private void notice(String text, long ms) {

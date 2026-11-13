@@ -268,6 +268,7 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 | just type in chat | talk to her (on a server, start with her name); or `/kindred <text>`, `/ks <text>` |
 | `/kindred status` | brain connection, skin, mode, quality level, mood |
 | `/kindred reconnect` | after restarting the brain |
+| `/kindred hint off` / `on` | the "Pip needs her brain on this computer" message, shown once per game in your own world when her brain isn't set up here |
 | `/kindred skin <name>` · `/kindred skins` · `/kindred skins reload` | change its look, list skins, reload your skins folder |
 | `/kindred mode follow\|stay\|come` | follow you (default), wait here, come close for a moment |
 | `/kindred follow <player>` · `/kindred follow me` | on LAN: float beside a friend, or come back to you |

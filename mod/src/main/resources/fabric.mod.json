@@ -3,12 +3,14 @@
   "id": "kindredspirit",
   "version": "${version}",
   "name": "Kindred Spirit",
-  "description": "A cute AI companion that floats beside you, talks with you, and never changes your world. Client-side only.",
+  "description": "A cute AI companion that floats beside you, talks with you, and never changes your world. Client-side only. She needs her brain on your computer (Kindred Spirit Setup, macOS for now), or a friend who hosts her on a LAN world: see the homepage.",
   "authors": [
     "PetitPotam"
   ],
   "contact": {
-    "sources": "https://github.com/PetitPotam/kindred-spirit"
+    "homepage": "https://github.com/PetitPotam/kindred-spirit/blob/main/docs/SETUP.md",
+    "sources": "https://github.com/PetitPotam/kindred-spirit",
+    "issues": "https://github.com/PetitPotam/kindred-spirit/issues"
   },
   "license": "AGPL-3.0-only",
   "icon": "assets/kindredspirit/icon.png",
