@@ -1,0 +1,251 @@
+# The singleplayer showcase: what Pip can do and how she's used (with a word about LAN at the end).
+# Filmed by the sandbox game itself on a floating meadow built at the start. From the mod folder,
+# with the brain running (scripts/start.sh):
+#   ../brain/.venv/bin/python ../demo/make_voices.py s_    (the player's lines)
+#   ./gradlew runClient -PdevScript=../demo/showcase-script.txt -PvideoSize=960x540
+#   ../demo/.venv/bin/python ../demo/make_video.py showcase
+# Each "mark X" ... "mark X_end" is a chapter; "caption" puts a note at the bottom of the edit.
+# Pip's answers are live (real speech-to-text and AI), so every take is a little different.
+world kindred-showcase
+wait 300
+video
+cmd gamemode spectator
+cmd difficulty easy
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd gamerule doWeatherCycle false
+cmd gamerule doFireTick false
+cmd gamerule doImmediateRespawn true
+cmd weather clear
+cmd time set 1000
+cmd forceload add 2950 2950 3050 3060
+cmd tp @s 3000 175 3000 0 30
+wait 120
+
+# the stage: a floating meadow with room for a cottage, a sheep pen, trees, flowers, an iron outcrop
+cmd fill 2960 146 2958 3040 147 3050 minecraft:stone
+cmd fill 2960 148 2958 3040 149 3050 minecraft:grass_block
+cmd fill 2960 150 2958 3040 160 3050 minecraft:air
+cmd fill 2960 161 2958 3040 172 3050 minecraft:air
+cmd kill @e[type=!minecraft:player]
+cmd place feature minecraft:oak 3018 150 3026
+cmd place feature minecraft:birch 2976 150 3012
+cmd place feature minecraft:oak 2972 150 2990
+cmd fill 2992 150 3006 2992 154 3006 minecraft:birch_log
+cmd fill 2990 154 3004 2994 156 3008 minecraft:birch_leaves[persistent=true] keep
+cmd setblock 2996 150 3004 minecraft:poppy
+cmd setblock 3003 150 3006 minecraft:dandelion
+cmd setblock 2994 150 3014 minecraft:cornflower
+cmd setblock 3001 150 3016 minecraft:lily_of_the_valley
+cmd setblock 3008 150 3018 minecraft:oxeye_daisy
+cmd setblock 2999 150 3020 minecraft:pink_tulip
+cmd fill 2984 150 3026 2991 150 3026 minecraft:oak_fence
+cmd fill 2984 150 3033 2991 150 3033 minecraft:oak_fence
+cmd fill 2984 150 3026 2984 150 3033 minecraft:oak_fence
+cmd fill 2991 150 3026 2991 150 3033 minecraft:oak_fence
+cmd summon minecraft:sheep 2987 150 3029 {Color:0}
+cmd summon minecraft:sheep 2989 150 3030 {Color:6}
+cmd summon minecraft:sheep 2987 150 3031 {Color:3}
+cmd fill 3008 150 3004 3011 151 3007 minecraft:stone
+cmd setblock 3008 150 3005 minecraft:iron_ore
+cmd setblock 3008 151 3005 minecraft:iron_ore
+cmd setblock 3008 151 3006 minecraft:iron_ore
+cmd setblock 3009 151 3005 minecraft:iron_ore
+cmd setblock 3004 150 3008 minecraft:crafting_table
+cmd tp @s 3000.5 150 3000.5 0 5
+cmd spawnpoint @s 3000 150 3000
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+cmd effect give @s minecraft:saturation infinite 1 true
+cmd give @s minecraft:iron_sword
+wait 20
+type /kindred reset confirm
+type /kindred power allpowerful
+type /kindred style magic
+skin fairy
+act {"move": "follow"}
+wait 300
+record start showcase
+
+# ---------------------------------------------------------------- meeting her
+mark meet
+camera front
+wait 20
+voice ../../demo/out/voices/s_hello.wav
+wait 300
+mark meet_end
+camera first
+
+# ---------------------------------------------------------------- finding and leading
+mark find
+look 0 5
+voice ../../demo/out/voices/s_sheep.wav
+wait 80
+caption She sees only what's in her own line of sight, then floats ahead and waits for you
+turnto companion 0.8
+wait 18
+walk 2.5
+wait 50
+turnto companion 0.6
+wait 14
+walk 2.5
+wait 50
+turnto companion 0.6
+wait 14
+walk 2
+wait 140
+mark find_end
+
+# ---------------------------------------------------------------- helping hands
+cmd give @s minecraft:stone_pickaxe 1
+cmd item replace entity @s weapon.mainhand with minecraft:stone_pickaxe
+cmd tp @s 3005.5 150 3003.5 -60 15
+wait 40
+mark mine
+voice ../../demo/out/voices/s_mine.wav
+wait 60
+caption She mines with your own pickaxe, at its real speed, into your pockets
+wait 260
+mark mine_end
+
+cmd item replace entity @s weapon.mainhand with minecraft:iron_axe
+cmd tp @s 2994.5 150 3003.5 135 -10
+wait 40
+mark chop
+voice ../../demo/out/voices/s_chop.wav
+wait 240
+mark chop_end
+
+# ---------------------------------------------------------------- crafting help
+cmd tp @s 3002.5 150 3006.5 90 20
+wait 30
+mark plan
+voice ../../demo/out/voices/s_piston.wav
+wait 60
+caption She checks the game's own recipes against what's in your pockets
+wait 280
+mark plan_end
+
+# ---------------------------------------------------------------- building
+cmd tp @s 3000.5 150 2992.5 180 22
+wait 40
+mark cottage
+voice ../../demo/out/voices/s_cottage.wav
+wait 70
+caption With magic it rises in seconds; in grounded style she builds from your own blocks
+turn 180 12 4
+wait 200
+voice ../../demo/out/voices/s_name.wav
+wait 220
+mark cottage_end
+
+# ---------------------------------------------------------------- a little magic
+cmd item replace entity @s weapon.mainhand with minecraft:iron_sword
+cmd tp @s 3000.5 150 2994.5 0 5
+wait 30
+mark magic
+camera front
+voice ../../demo/out/voices/s_vision.wav
+wait 220
+voice ../../demo/out/voices/s_enchant.wav
+wait 220
+mark magic_end
+camera first
+
+# ---------------------------------------------------------------- she watches your back
+cmd tp @s 3000.5 150 3012.5 0 5
+wait 40
+mark danger
+cmd summon minecraft:creeper 3000.5 150 3008.5 {NoAI:1b}
+wait 70
+turn 180 8 1.0
+wait 80
+cmd kill @e[type=minecraft:creeper]
+cmd summon minecraft:zombie 3000.5 150 3018.5 {NoAI:0b}
+cmd summon minecraft:zombie 3003.5 150 3019.5
+wait 10
+turn 0 8 0.8
+voice ../../demo/out/voices/s_help.wav
+wait 40
+caption She can't hurt monsters, but she pushes them away from you
+wait 200
+mark danger_end
+cmd kill @e[type=minecraft:zombie]
+
+# ---------------------------------------------------------------- places she remembers
+cmd tp @s 3001.5 150 3040.5 180 5
+wait 40
+mark places
+voice ../../demo/out/voices/s_back.wav
+wait 60
+caption She remembers places on her own, with where they are: your builds, firsts, where you died
+turnto companion 0.8
+wait 18
+walk 3
+wait 60
+turnto companion 0.6
+wait 14
+walk 3
+wait 60
+turnto companion 0.6
+wait 14
+walk 3
+wait 60
+turnto companion 0.6
+wait 14
+walk 3
+wait 160
+mark places_end
+
+# ---------------------------------------------------------------- her heart
+cmd tp @s 3000.5 150 2996.5 0 5
+wait 40
+mark feelings
+turnto companion 0.5
+wait 14
+press attack
+wait 80
+voice ../../demo/out/voices/s_sorry.wav
+wait 200
+turnto companion 0.4
+wait 10
+sneak on
+wait 3
+sneak off
+wait 90
+mark feelings_end
+
+# ---------------------------------------------------------------- night
+cmd time set 18000
+cmd tp @s 3000.5 150 3010.5 180 10
+wait 60
+mark night
+voice ../../demo/out/voices/s_light.wav
+wait 140
+turnto companion 0.8
+wait 160
+mark night_end
+
+# ---------------------------------------------------------------- make her yours
+cmd time set 1000
+wait 20
+camera front
+mark skins
+wait 30
+skin slime
+wait 50
+skin sprout
+wait 50
+skin wisp
+wait 50
+skin starry
+wait 50
+skin fairy
+wait 60
+mark skins_end
+camera first
+wait 40
+record stop
+wait 40
+quit

@@ -1,0 +1,88 @@
+# Her jobs, crafting help, trading help and a cottage from a blueprint, through her real actions
+# ("do ACTION JSON" goes the same way as the brain's requests: Abilities, Actions, the world's game).
+# Singleplayer. Results in the game log: "dev action ..." and "blueprint ...".
+world kindred-wiring
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd gamerule doImmediateRespawn true
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -20 195 -20 20 198 30 minecraft:stone
+cmd fill -20 199 -20 20 199 30 minecraft:grass_block
+cmd fill -20 200 -20 20 207 30 minecraft:air
+cmd fill -20 208 -20 20 215 30 minecraft:air
+cmd spawnpoint @s 0 200 0
+cmd tp @s 0.5 200 0.5 180 10
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power helper
+type /kindred style grounded
+wait 20
+# 1. mining, grounded, with a stone pickaxe: an iron vein under the grass behind
+cmd setblock 2 198 -3 minecraft:iron_ore
+cmd setblock 3 198 -3 minecraft:iron_ore
+cmd setblock 3 197 -3 minecraft:iron_ore
+cmd give @s minecraft:stone_pickaxe 1
+do job {"kind": "mine", "what": "iron", "count": 3}
+wait 160
+do job {"kind": "status"}
+# 2. chop the tree they look at, with an axe, all its logs into the pockets
+cmd fill -4 200 -6 -4 204 -6 minecraft:oak_log
+cmd fill -6 203 -8 -2 204 -4 minecraft:oak_leaves[persistent=true] keep
+cmd clear @s
+cmd give @s minecraft:iron_axe 1
+cmd tp @s -3.5 200 -3.5 135 0
+wait 10
+do job {"kind": "chop"}
+wait 120
+do job {"kind": "status"}
+# 3. what am I missing for a piston? (5 logs now, no iron, no redstone)
+do craft_help {"item": "piston"}
+# 4. craft a furnace from cobblestone, with a crafting table near
+cmd give @s minecraft:cobblestone 8
+cmd setblock -2 200 -2 minecraft:crafting_table
+do job {"kind": "craft", "what": "furnace"}
+wait 10
+do job {"kind": "status"}
+# 5. die with things in the pockets, come back, get them back
+cmd tp @s 8.5 200 8.5 0 10
+cmd give @s minecraft:diamond 3
+cmd give @s minecraft:golden_apple 2
+wait 10
+cmd kill @s
+wait 40
+do job {"kind": "return_items"}
+wait 60
+do job {"kind": "status"}
+# 6. trading help next to a farmer
+cmd give @s minecraft:wheat 64
+cmd summon villager 0.5 200 -4.5 {NoAI:1b,VillagerData:{profession:"minecraft:farmer",level:2,type:"minecraft:plains"},Offers:{Recipes:[{buy:{id:"minecraft:wheat",count:20},sell:{id:"minecraft:emerald",count:1},maxUses:16},{buy:{id:"minecraft:emerald",count:1},sell:{id:"minecraft:bread",count:6},maxUses:16}]}}
+cmd tp @s 0.5 200 -2.5 180 10
+wait 10
+do trades {}
+cmd kill @e[type=minecraft:villager]
+# 7. a cozy cottage for three: grounded first (the material list), then magic
+cmd tp @s 0.5 200 0.5 0 40
+wait 20
+do blueprint {"what": "cottage", "people": 3}
+type /kindred style magic
+wait 10
+do blueprint {"what": "cottage", "people": 3}
+wait 260
+cmd tp @s 0.5 204 -6.5 0 15
+wait 30
+screenshot wiring-cottage-front
+cmd tp @s 12.5 206 6.5 90 20
+wait 20
+screenshot wiring-cottage-side
+# 8. not over what's built: the same spot again
+cmd tp @s 0.5 200 0.5 0 40
+wait 10
+do blueprint {"what": "cottage", "people": 3}
+wait 20
+quit
