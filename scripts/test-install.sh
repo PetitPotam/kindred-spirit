@@ -10,7 +10,12 @@
 #                                       folder: Fabric Loader, Fabric API, the mod and the launcher profile
 #   scripts/test-install.sh setup-app   macOS: build Kindred Spirit Setup for this Mac's chip and run its smoke
 #                                       test (setup/smoke_test.py)
-#   scripts/test-install.sh all         every check that applies to this system
+#   scripts/test-install.sh client      a real Minecraft client (the dev client, ./gradlew runClient) with Fabric,
+#                                       Fabric API and the mod opens a world, says hi, and she answers through her
+#                                       brain. Uses the default places (~/.kindred-spirit, port 47811), so it runs
+#                                       only on a clean machine (CI, a VM, Docker) with KINDRED_TEST_CLEAN_MACHINE=1,
+#                                       and refuses if a Pip is set up here. Linux needs xvfb. Not part of "all".
+#   scripts/test-install.sh all         every check that applies to this system (not "client")
 #
 # KINDRED_PYTHON=/path/to/python skips setup.sh in "brain" and uses that Python (a brain venv you already have),
 # so a local run doesn't create brain/.venv. Needs: bash, curl, Python 3.11+; Java (17+) and network for
@@ -132,10 +137,51 @@ check_setup_app() {
   return 0
 }
 
+check_client() {
+  step "A real Minecraft client reaches her brain (#105)"
+  if [[ -e "$HOME/.kindred-spirit" || -z "${KINDRED_TEST_CLEAN_MACHINE:-}" ]]; then
+    bad "this check uses the real ~/.kindred-spirit and port 47811: run it on a clean machine with KINDRED_TEST_CLEAN_MACHINE=1 (CI does)"
+    return
+  fi
+  for p in 11437 11440 47811 $AI; do free_port $p || { bad "port $p is in use"; return; }; done
+  KH="$HOME/.kindred-spirit"; mkdir -p "$KH"
+  printf '{"upstream": "fake", "upstreams": {"fake": {"base": "http://127.0.0.1:%d/v1", "key": "", "model": "fake"}},\n "stt": {"use": "none"}, "tts": {"use": "none"}, "embeddings": {"use": "none"}}\n' $AI > "$KH/gateway.json"
+  local py="${KINDRED_PYTHON:-}"
+  if [[ -z "$py" ]]; then
+    bash "$ROOT/scripts/setup.sh" --no-voice > "$WORK/setup.log" 2>&1 || { bad "scripts/setup.sh failed"; tail -30 "$WORK/setup.log"; return; }
+    py="$ROOT/brain/.venv/bin/python"; export KINDRED_PYTHON="$py"
+  fi
+  "$py" -I "$ROOT/brain/tools/fake_ai.py" --port $AI > "$WORK/fake_ai.log" 2>&1 & PIDS+=($!); disown
+  bash "$ROOT/scripts/start.sh" --background > "$WORK/start.log" 2>&1
+  local t
+  for t in $(seq 1 60); do ! free_port 47811 && break; sleep 0.5; done
+  if free_port 47811; then bad "her brain didn't start"; cat "$WORK/start.log"; return; fi
+  ok "her brain, the gateway and a stand-in AI are running"
+  printf '%s\n' "# scripts/test-install.sh client: open a world, say hi, wait for her answer, take a picture, quit" \
+    "world kindred-ci" "wait 300" "cmd gamerule doDaylightCycle false" "cmd time set 1000" \
+    "chat Hi Pip, are you there?" "waitsay 1200" "wait 60" "screenshot ci-answer" "wait 20" "quit" > "$WORK/client.txt"
+  local run=(./gradlew runClient --no-daemon --console=plain "-PdevScript=$WORK/client.txt")
+  if [[ "$(uname -s)" == Linux && -z "${DISPLAY:-}" ]]; then run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}"); fi
+  ( cd "$ROOT/mod" && "${run[@]}" ) > "$WORK/client.log" 2>&1
+  local code=$?
+  local game="$ROOT/mod/run/logs/latest.log" brainlog="$KH/logs/brain.log"
+  if [[ $code == 0 ]]; then ok "the game started and quit by itself"; else bad "the game exited with $code:"; tail -40 "$WORK/client.log"; fi
+  grep -q "kindredspirit" "$game" 2>/dev/null && ok "Fabric loaded the mod (with Fabric API)" || bad "the mod isn't in the game's log"
+  if ls "$ROOT"/mod/run/crash-reports/*.txt >/dev/null 2>&1; then bad "the game crashed:"; tail -40 "$(ls -t "$ROOT"/mod/run/crash-reports/*.txt | head -1)"; fi
+  grep -q "game connected" "$brainlog" 2>/dev/null && ok "the game connected to her brain" || bad "the game never connected to her brain"
+  grep -q "mod .* on Minecraft" "$brainlog" 2>/dev/null && ok "$(grep -o 'mod .* on Minecraft .*' "$brainlog" | head -1)"
+  if grep -q "you: Hi Pip.*test answer" "$brainlog" 2>/dev/null; then ok "she answered in the game: $(grep -o 'you: Hi Pip.*' "$brainlog" | head -1)"
+  else bad "she didn't answer the hi:"; tail -30 "$brainlog" 2>/dev/null; fi
+  [[ -n "${KINDRED_KEEP_SCREENSHOT:-}" ]] && cp "$ROOT"/mod/run/screenshots/ci-answer*.png "$WORK/client.log" "$game" "$KINDRED_KEEP_SCREENSHOT"/ 2>/dev/null
+  bash "$ROOT/scripts/stop.sh" >/dev/null 2>&1
+  return 0
+}
+
 case "${1:-all}" in
   brain) check_brain ;;
   minecraft) check_minecraft ;;
   setup-app) check_setup_app ;;
+  client) check_client ;;
   all) check_brain; check_minecraft; check_setup_app ;;
   *) sed -n '2,20p' "$0"; exit 2 ;;
 esac

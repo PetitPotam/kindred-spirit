@@ -12,7 +12,7 @@ macOS on Apple silicon and on Intel, Linux and Windows. They run on clean machin
 | **Her brain** with `scripts/setup.sh`, then the gateway, brain and dashboard answer, and she answers a chat from a pretend game | ✅ | ✅ | ✅ | not yet (#40) |
 | **Minecraft's side**: Fabric Loader, Fabric API, the mod and the launcher profile in a fresh Minecraft folder (`scripts/install_profile.py`) | ✅ | ✅ | ✅ | the friend's install instead ↓ |
 | **A friend's PC**: `scripts/update-pip-windows.ps1` builds the mod and puts it and Fabric API in a fresh mods folder | (no script yet) | (no script yet) | (no script yet) | ✅ |
-| **The game itself**: a real Minecraft client loads the mod and reaches her brain | not yet (#105) | not yet (#105) | not yet (#105) | not yet (#105) |
+| **The game itself**: a real Minecraft client with Fabric, Fabric API and the mod opens a world, says hi, and she answers through her brain | experiment (may fail: no GPU) | no | ✅ (virtual screen) | no (see below) |
 
 "Not yet" is said out loud in the results (a notice on the run), never skipped silently.
 
@@ -36,6 +36,27 @@ can try it.
 
 It isn't part of "CI passed", so it doesn't block merging. Look at it before merging anything that touches the
 install.
+
+### The game itself
+
+`scripts/test-install.sh client` starts the dev client (`./gradlew runClient`): Minecraft 1.21.1 with Fabric Loader,
+Fabric API and the mod, the same pieces a player installs, but from the build rather than the launcher. Then:
+
+1. it opens a test world and says "Hi Pip, are you there?";
+2. her brain (with the stand-in AI) answers;
+3. the check reads the game's and the brain's logs: the mod loaded, the game connected to her brain, and she
+   answered;
+4. it keeps a screenshot (the run's **Artifacts**).
+
+It uses the default places (`~/.kindred-spirit`, port 47811), as the mod does, so it only runs on a clean machine
+(`KINDRED_TEST_CLEAN_MACHINE=1`) and refuses if a Pip is set up there.
+
+- **Linux:** runs on a virtual screen (`xvfb`) with software OpenGL.
+- **macOS:** GitHub's Macs have no GPU, so it runs as an experiment that is allowed to fail.
+- **Windows:** GitHub's Windows machines have no OpenGL 3.2, which Minecraft needs. Mesa's software OpenGL for
+  Windows (the `mesa-dist-win` builds) could provide it; that's a later step.
+
+To run it for another Minecraft version later (#41), it only needs `./gradlew runClient` for that version.
 
 ## On your own computer
 
