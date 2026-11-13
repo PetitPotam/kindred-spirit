@@ -353,7 +353,8 @@ gateway's special instructions. Changes apply live. See [docs/DASHBOARD.md](docs
 - **Mod:** `config/kindredspirit.json` in the profile's game folder (`minecraft-kindred` for 1.21.1,
   `minecraft-kindred-26.3` for 26.3, next to your `minecraft` folder) (skin, quality, subtitles, captions, position, size,
   volume, the guide arrow and sparkle trail (`guideArrow`, `guideTrail`), friends on LAN (`lanGuests`,
-  `lanGuestPowers`, `lanVisitors`, `sharedPip`, `follow`), and the liveliness switches under `"life"`).
+  `lanGuestPowers`, `lanVisitors`, `sharedPip`, `follow`), her HUD with the game's hidden (`hudWithHiddenGui`, for
+  filming), and the liveliness switches under `"life"`).
 - **Everything above** is also editable on the dashboard's Settings page, live, with each default and profiles.
 - **AI, speech-to-text, voice, embeddings, memory storage:** all chosen in the gateway, live, no
   restart. The guide: **[docs/GATEWAY.md](docs/GATEWAY.md)**.

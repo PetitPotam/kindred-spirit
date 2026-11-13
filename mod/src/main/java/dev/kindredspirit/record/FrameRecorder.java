@@ -40,7 +40,7 @@ public final class FrameRecorder {
     private final WritableByteChannel out;
     private final Writer events;
     private final int width, height, frameBytes;
-    private final long start = System.nanoTime();
+    private final long start = System.nanoTime(), wall = System.currentTimeMillis(); // the same moment: t = 0
     private final BlockingQueue<ByteBuffer> free = new ArrayBlockingQueue<>(4), full = new ArrayBlockingQueue<>(4);
     private final Thread writer;
     private long written; // frames written so far
@@ -84,7 +84,7 @@ public final class FrameRecorder {
         try {
             active = new FrameRecorder(dir, t.width, t.height);
             KindredSpiritClient.LOG.info("Recording {}x{} to {}", t.width, t.height, dir);
-            active.event("start", null, null);
+            active.write(startJson(active.wall, t.width, t.height));
         } catch (IOException e) {
             KindredSpiritClient.LOG.error("Cannot record (is ffmpeg installed?): {}", e.toString());
         }
@@ -129,9 +129,14 @@ public final class FrameRecorder {
     }
 
     public static void line(String who, String text) {
+        line(who, text, null);
+    }
+
+    /** A line with the name of who said it, e.g. a friend on LAN ("friend", text, "Robin"). */
+    public static void line(String who, String text, String from) {
         if ("pip".equals(who)) pipLines++;
         FrameRecorder r = active;
-        if (r != null) r.event("line", who, null, text);
+        if (r != null) r.write(json(r.seconds(), "line", who, null, text, from));
     }
 
     public static void soundFile(String kind, Path wav) {
@@ -140,16 +145,38 @@ public final class FrameRecorder {
     }
 
     private void event(String type, String name, String file) {
-        event(type, name, file, null);
+        write(json(seconds(), type, name, file, null, null));
     }
 
-    private synchronized void event(String type, String name, String file, String text) {
+    private double seconds() {
+        return Math.round((System.nanoTime() - start) / 1e6) / 1000.0;
+    }
+
+    /** One line of events.jsonl: its time in the video, its type, and what's set of the rest. */
+    static JsonObject json(double t, String type, String name, String file, String text, String from) {
         JsonObject o = new JsonObject();
-        o.addProperty("t", Math.round((System.nanoTime() - start) / 1e6) / 1000.0);
+        o.addProperty("t", t);
         o.addProperty("type", type);
         if (name != null) o.addProperty("name", name);
         if (file != null) o.addProperty("file", file);
         if (text != null) o.addProperty("text", text);
+        if (from != null) o.addProperty("from", from);
+        return o;
+    }
+
+    /**
+     * The first event: the computer's clock (ms since 1970) at t = 0, so another recording made at the same
+     * time (the dashboard's) can be lined up: the wall clock at video time t is wall + t * 1000.
+     */
+    static JsonObject startJson(long wall, int width, int height) {
+        JsonObject o = json(0.0, "start", null, null, null, null);
+        o.addProperty("wall", wall);
+        o.addProperty("fps", FPS);
+        o.addProperty("size", width + "x" + height);
+        return o;
+    }
+
+    private synchronized void write(JsonObject o) {
         try {
             events.write(o + "\n");
             events.flush();

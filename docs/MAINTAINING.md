@@ -64,8 +64,9 @@ scripts/release.sh 0.3.0        # on an up-to-date main: opens the "Release 0.3.
 scripts/release.sh tag 0.3.0    # after that pull request is merged: tags it on main and pushes the tag
 ```
 
-The first step makes a `release/0.3.0` branch that sets `mod_version` and turns "Unreleased" into the version's
-changelog section, builds it, pushes it and opens its pull request. Merge it once CI passes. The second tags the
+The first step builds the mod and runs its tests on `main` as it is (with a JDK 25: `JAVA_HOME`, else the one macOS or
+Homebrew installed; if the build fails, nothing has changed), then makes a `release/0.3.0` branch that sets `mod_version` and turns "Unreleased" into the version's
+changelog section, pushes it and opens its pull request. Merge it once CI passes. The second tags the
 merged commit on `main`; the tag runs `.github/workflows/release.yml`, which refuses a tag that isn't on `main`,
 builds the jar again, makes the GitHub release with that changelog section, and uploads it to Modrinth and CurseForge. A version with a `-` (0.3.0-beta.1)
 is marked as a pre-release.

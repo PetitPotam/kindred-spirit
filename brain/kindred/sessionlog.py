@@ -1,6 +1,7 @@
 """A record of each play session, to look at afterwards (by you, or by whoever improves her).
 
-Every session in a world gets two files in ~/.kindred-spirit/logs/sessions/:
+Every session in a world gets two files in ~/.kindred-spirit/logs/sessions/ (in $KINDRED_HOME/logs/sessions when
+KINDRED_HOME is set, or in $KINDRED_SESSION_DIR):
 - <date>-<world>.jsonl: the timeline, one event per line (what you said, every line she said or
   didn't get to say and why, interruptions, tools and their results, warnings, how her heart moved,
   errors, how long her answers took);
@@ -13,7 +14,13 @@ import os
 import re
 import time
 
-DIR = os.environ.get("KINDRED_SESSION_DIR") or os.path.expanduser("~/.kindred-spirit/logs/sessions")
+def default_dir():
+    """KINDRED_SESSION_DIR, else logs/sessions in the brain's home folder (KINDRED_HOME, else ~/.kindred-spirit)."""
+    home = os.environ.get("KINDRED_HOME") or os.path.join(os.path.expanduser("~"), ".kindred-spirit")
+    return os.environ.get("KINDRED_SESSION_DIR") or os.path.join(home, "logs", "sessions")
+
+
+DIR = default_dir()
 
 
 ASKED_AGAIN = re.compile(r"\b(i (told|said|asked) you|again|not that|i said|no,? (i|not|that)|wrong|you didn'?t|why (are|did)n'?t "
@@ -88,7 +95,7 @@ CONTEXT_KINDS = {"you", "guest", "tool", "alert", "heart", "touch", "death", "hu
 
 class SessionLog:
     def __init__(self, directory=None, clock=time.time):
-        self.dir, self.clock = directory or os.environ.get("KINDRED_SESSION_DIR") or DIR, clock
+        self.dir, self.clock = directory or default_dir(), clock
         self.events, self.path, self.world, self.started = [], None, None, None
         self.context = None  # () -> {"at": [x, y, z], "dim", "biome", "hp", "food", "near", "mode"} (set by the brain)
 

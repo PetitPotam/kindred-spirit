@@ -11,6 +11,17 @@ set -eu
 cd "$(dirname "$0")/.."
 valid() { echo "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' || { echo "Not a version: $1 (X.Y.Z[-pre])"; exit 1; }; }
 
+case "${1:-}" in -h|--help|"") sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0;; esac
+
+java_home() { # a JDK 25 builds the mod: JAVA_HOME, else where macOS or Homebrew put it (as scripts/test.sh looks)
+  [ -n "${JAVA_HOME:-}" ] && { echo "$JAVA_HOME"; return; }
+  /usr/libexec/java_home -v 25 2>/dev/null && return
+  for d in /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home /usr/local/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home \
+           /usr/lib/jvm/temurin-25-jdk-amd64 /usr/lib/jvm/java-25-openjdk-amd64; do
+    [ -d "$d" ] && { echo "$d"; return; }
+  done
+}
+
 if [ "${1:-}" = tag ]; then
   v="${2:-}"; valid "$v"
   git fetch -q origin main --tags
@@ -33,12 +44,17 @@ git fetch -q origin main
 awk '/^## \[Unreleased\]/{on=1;next} on&&/^## /{exit} on&&/[^[:space:]]/{n++} END{exit n?0:1}' CHANGELOG.md \
   || { echo "CHANGELOG.md has nothing under Unreleased."; exit 1; }
 
+JAVA_HOME=$(java_home || true)
+[ -n "$JAVA_HOME" ] || { echo "No JDK 25 found to build the mod: install one (brew install openjdk@25) or set JAVA_HOME."; exit 1; }
+export JAVA_HOME
+# the build and its tests first, on main as it is: if they fail, nothing has changed yet
+(cd mod && ./gradlew build --no-daemon -q) || { echo "The build or its tests failed on main: nothing was changed."; exit 1; }
+
 git switch -q -c "release/$v"
 sed -i.bak "s/^mod_version=.*/mod_version=$v/" mod/gradle.properties && rm mod/gradle.properties.bak
 sed -i.bak "s/^## \[Unreleased\]$/## [Unreleased]\\
 \\
 ## [$v] - $(date +%Y-%m-%d)/" CHANGELOG.md && rm CHANGELOG.md.bak
-(cd mod && ./gradlew build --no-daemon -q)
 git add mod/gradle.properties CHANGELOG.md
 git commit -q -m "Release $v"
 git push -q -u origin "release/$v"
