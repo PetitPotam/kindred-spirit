@@ -96,10 +96,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5 # what the friend's guide asks for (AGENTS.md, docs/PLAY-WITH-FRIENDS.md)
+      - uses: actions/setup-java@v5 # what the friend's guide asks for: Java 25 (Loom, the build tool, needs it)
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
       - name: Update Pip (scripts/update-pip-windows.ps1) into a fresh Minecraft folder
         shell: powershell # Windows PowerShell 5.1, as on a friend's PC
         run: |

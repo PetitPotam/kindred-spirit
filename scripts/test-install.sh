@@ -73,6 +73,19 @@ EOF
   up "http://127.0.0.1:$GW/health" && ok "gateway answers (:$GW/health)" || bad "gateway doesn't answer"
   free_port $BRAIN && bad "her brain isn't listening on :$BRAIN" || ok "her brain listens (:$BRAIN)"
   up "http://127.0.0.1:$DASH/api/setup/hello" && ok "dashboard answers (:$DASH)" || bad "dashboard doesn't answer"
+  # her live dashboard, as the player opens it: the page and what its main tabs read
+  local what path want
+  while IFS='|' read -r what path want; do
+    if grep -qF "$want" <<<"$(curl -s --max-time 10 "http://127.0.0.1:$DASH$path")"; then ok "dashboard: $what ($path)"
+    else bad "dashboard: $what ($path) didn't answer as expected"; fi
+  done <<'PAGES'
+the page|/|Kindred Dashboard
+settings|/api/settings|"gateway"
+live (her heart and mood)|/api/live|"health"
+sessions|/api/sessions|"sessions"
+blueprints|/api/blueprints|{
+the Setup steps|/setup|Kindred Spirit Setup
+PAGES
   local said
   said="$(cd "$ROOT/brain" && "$py" tools/fake_game.py chat "Hi Pip, are you there?" --quiet --wait 40 2>&1)"
   if grep -q "SAY .*test answer" <<<"$said"; then ok "she answered a pretend game: $(grep -o 'SAY.*' <<<"$said" | head -1)"
