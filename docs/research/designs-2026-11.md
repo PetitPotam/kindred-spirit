@@ -160,7 +160,8 @@ talker-first it also holds back her own asides while a power runs.
 
 **Guards that come with it.** What System 0 does must never contradict the words: a guide request is
 refused when the words are "follow" (the playtest's worst bug, three times in a row), a torch when the
-words name another block. The eval's `brain` checks hold these whatever the AI does.
+words name another block, a protect when "get me back to the house" means "lead me home" (found by the
+eval set: the "get ... back" rule for pushing monsters away catches it). The eval's `brain` checks hold these whatever the AI does.
 
 **Measure.** Felt latency per message (message to her first word, and to the end of her answer line,
 which playtest-fixes logs per person), AI calls per answer (target: 1.1 from 1.66), and the
