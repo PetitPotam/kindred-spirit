@@ -68,6 +68,7 @@ def game_result(action, args, case):
         "give_effect": {"ok": True, "to": to, "effect": args.get("effect", ""), "seconds": 180},
         "protect": {"ok": True, "pushedAway": 0},
         "place_torch": {"ok": True, "placedAt": "230 65 -142", "usedYourTorch": False},
+        "command": {"ok": True, "command": "/" + str(args.get("command", "")).lstrip("/"), "result": "done"},
     }.get(action, {"ok": True})
 
 
@@ -182,7 +183,8 @@ async def play(case, gw, mode, cfg_extra, timeout=45):
 
 
 ABILITIES = ["find_ore", "find_animal", "find_block", "find_player", "locate", "guide", "stop_guide", "follow_player",
-             "protect", "place_torch", "harvest", "build", "give_item", "give_effect", "set_time", "set_weather"]
+             "protect", "place_torch", "harvest", "build", "give_item", "give_effect", "set_time", "set_weather",
+             "command"]  # (the mod's powers for "all-powerful, magic" since 2026-11-13: Minecraft commands too)
 
 
 def merge(base, extra):
@@ -203,8 +205,8 @@ def last_user_message(calls):
 
 def summarize_calls(calls):
     talk = [c for c in calls if c["kind"] in ("reply", "own", "")]
-    out = {"ai_calls": len(talk), "forced": [], "offered": [], "tokens_in": 0, "tokens_out": 0, "estimated": False,
-           "sections": {}}
+    out = {"ai_calls": len(talk), "forced": [], "offered": [], "tokens_in": 0, "tokens_out": 0, "cached_in": 0,
+           "estimated": False, "sections": {}}
     for i, c in enumerate(talk):
         req = c["request"]
         tc = req.get("tool_choice")
@@ -217,6 +219,7 @@ def summarize_calls(calls):
         if u.get("prompt_tokens"):
             out["tokens_in"] += u["prompt_tokens"]
             out["tokens_out"] += u.get("completion_tokens") or 0
+            out["cached_in"] += (u.get("prompt_tokens_details") or {}).get("cached_tokens") or u.get("cached_tokens") or 0
         else:
             out["estimated"] = True
             out["tokens_in"] += len(json.dumps(req.get("messages"))) // 4 + len(json.dumps(req.get("tools") or [])) // 4
@@ -454,8 +457,10 @@ def summarize(results, mode):
         toks = [r["trace"]["calls"]["tokens_in"] for r in results if r["trace"]["calls"]["ai_calls"]]
         out["latency"] = {"first_words_median": med(fw), "first_words_max": max(fw) if fw else None,
                           "last_line_median": med(tot)}
+        cached = sum(r["trace"]["calls"].get("cached_in", 0) for r in results)
         out["per_answer"] = {"ai_calls_mean": round(sum(calls) / len(calls), 2) if calls else None,
-                             "tokens_in_median": med(toks)}
+                             "tokens_in_median": med(toks),
+                             "cached_share": round(cached / max(1, sum(toks)), 2)}
     judged = [r["judge"] for r in results if r.get("judge")]
     if judged:
         keys = sorted({k for j in judged for k in j.get("rubric", {})})
@@ -482,8 +487,8 @@ def print_summary(s):
         print("ai checks    %s, cases passing %s" % (s["ai"]["checks"], s["ai"]["cases"]))
         print("first words: median %ss, max %ss; last line median %ss" % (
             s["latency"]["first_words_median"], s["latency"]["first_words_max"], s["latency"]["last_line_median"]))
-        print("per answer: %s AI calls, %s tokens in (median)" % (s["per_answer"]["ai_calls_mean"],
-                                                                  s["per_answer"]["tokens_in_median"]))
+        print("per answer: %s AI calls, %s tokens in (median), %s of tokens in served from the cache" % (
+            s["per_answer"]["ai_calls_mean"], s["per_answer"]["tokens_in_median"], s["per_answer"]["cached_share"]))
     if "judge" in s:
         print("judge: %s" % json.dumps(s["judge"]))
     if s["failing"]:

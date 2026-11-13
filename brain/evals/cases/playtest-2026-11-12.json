@@ -1434,6 +1434,17 @@
        "error": "There's no effect called slowness I can give (haste, night vision, speed, regeneration, strength, jump boost, fire resistance, water breathing, health, food)."
       }
      }
+    ],
+    "command": [
+     {
+      "when": {
+       "command": "slow"
+      },
+      "result": {
+       "ok": false,
+       "error": "That didn't work: no player was found"
+      }
+     }
     ]
    },
    "stub_ai": [
@@ -1555,6 +1566,17 @@
       "result": {
        "ok": false,
        "error": "There's no effect called levitation I can give (haste, night vision, speed, regeneration, strength, jump boost, fire resistance, water breathing, health, food)."
+      }
+     }
+    ],
+    "command": [
+     {
+      "when": {
+       "command": "."
+      },
+      "result": {
+       "ok": false,
+       "error": "That didn't work: no player was found"
       }
      }
     ]

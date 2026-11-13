@@ -16,13 +16,63 @@ def test_old_turns_are_folded_not_forgotten(stubs):
     for i in range(5):
         m.remember("user", "player line %d" % i)
         m.remember("assistant", "[happy] pip line %d" % i)
-    assert len(m.history) == 4 and len(m.to_fold) == 6
+    assert 2 <= len(m.history) <= 4 and len(m.history) + len(m.to_fold) == 10  # (the window moves in steps)
     assert asyncio.run(m.fold(every=6))
     assert "treehouse roof" in m.summary and m.to_fold == []
     sent = stubs.ai_requests[-1]["messages"][-1]["content"]
     assert "player line 0" in sent, "the turns that left the window are what gets folded"
-    system = m.build_messages(snap(), "where were we?")[0]["content"]
-    assert "Earlier in this conversation" in system and "treehouse roof" in system
+    msgs = m.build_messages(snap(), "where were we?")
+    assert "treehouse roof" not in msgs[0]["content"], "the system prompt is her character alone (cached)"
+    assert "Earlier in this conversation" in msgs[1]["content"] and "treehouse roof" in msgs[1]["content"]
+
+
+def test_the_stable_parts_come_first_and_stay_the_same(stubs):
+    """For the provider's prefix cache: her character, then one tool list on every call, then who she's
+    become and the summary, then the conversation, which moves in steps; what changes comes last."""
+    from kindred import tools
+    cfg = make_cfg(stubs.port)
+    cfg["ai"]["history_turns"] = 4
+    m = Mind(cfg)
+    m.becoming, m.summary = "I'm all fizzy lately.", "They built a treehouse."
+    m.all_tools = tools.for_abilities(["give_item", "guide"])
+    first = m.build_messages(snap(), "hi")
+    assert "fizzy" not in first[0]["content"] and "fizzy" in first[1]["content"]
+    m.becoming = "I'm sleepy lately."
+    assert m.build_messages(snap(), "hi")[0] == first[0], "a new portrait doesn't change the system prompt"
+    starts = []
+    for i in range(12):
+        m.remember("user", "line %d" % i)
+        m.remember("assistant", "[happy] answer %d" % i)
+        starts.append(m.history[0]["content"])
+    assert len(set(starts)) <= 6, "the window's start changes in steps, not every turn (24 lines: 12 starts before)"
+    assert all(x.startswith("line") for x in starts), "and it starts with what was said to her"
+    assert 2 <= len(m.history) <= 8
+    assert "[Powers for this answer]" in m.build_messages(snap(), "hi", allowed={"guide"})[-1]["content"]
+    assert "[Powers for this answer]" not in m.build_messages(snap(), "hi", allowed={"guide", "give_item"})[-1]["content"]
+
+
+def test_one_tool_list_on_every_call_and_only_the_fitting_ones_run(stubs):
+    from kindred import tools
+    stubs.ai_script = [
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "a", "type": "function", "function": {"name": "give_item", "arguments": '{"item": "apple"}'}}]},
+        {"role": "assistant", "content": "[happy] Okay, I'm right here."}]
+    cfg = make_cfg(stubs.port)
+    m = Mind(cfg)
+    m.all_tools = tools.for_abilities(["give_item", "guide", "follow_player"])
+    ran = []
+
+    async def run_tool(name, args):
+        ran.append(name)
+        return {"ok": True}
+    text, _, _ = asyncio.run(m.reply(snap(), "follow me", tools=[tools.ABILITY_TOOLS["follow_player"]], run_tool=run_tool))
+    assert ran == [], "an unasked gift is refused before it reaches the game"
+    names = [[t["function"]["name"] for t in r["tools"]] for r in stubs.ai_requests]
+    assert names[0] == names[1] == [t["function"]["name"] for t in m.all_tools], "the same list every round"
+    refused = [x for x in stubs.ai_requests[1]["messages"] if x.get("role") == "tool"]
+    assert "Not for this" in refused[0]["content"]
+    asyncio.run(m.initiative(snap(), "say hi"))
+    assert stubs.ai_requests[-1]["tool_choice"] == "none" and stubs.ai_requests[-1]["tools"], "her own lines: listed, not used"
 
 
 def test_frustration_and_whisper_tags():

@@ -366,6 +366,9 @@ class Brain:
                                                          "lead the way)" if msg.get("power") == "advisor" else ""))
         if msg.get("glow") and self.singleplayer:
             self.mind.powers += " You glow softly: in the dark your light shows the way around you."
+        # one tool list for every call (her powers in the mod's order, then memory): the start of each request
+        # stays the same, so the provider's cache serves it (mind._ask says which fit each answer)
+        self.mind.all_tools = tools.for_abilities(self.abilities)
         log.info("abilities: %s", ", ".join(self.abilities))
 
     async def request(self, action, args, timeout=25):
