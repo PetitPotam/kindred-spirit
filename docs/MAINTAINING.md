@@ -56,6 +56,12 @@ The script sets `mod_version`, turns "Unreleased" into the version's changelog s
 jar again and makes the GitHub release with that changelog section. A version with a `-` (0.3.0-beta.1)
 is marked as a pre-release.
 
+**Modrinth.** The same tag also publishes the version on Modrinth, once the project exists there: create it on
+modrinth.com (it starts as a **draft**, visible only to you and members you add; after Modrinth's review you can
+keep it **private** or **unlisted**, or list it), then add its ID as the Actions variable `MODRINTH_PROJECT_ID` and
+a personal access token (with permission to create versions) as the Actions secret `MODRINTH_TOKEN`. Without them
+the step is skipped. The page should say that the mod needs Pip's brain running on the host's computer.
+
 After a release, friends who play with the host update with **Update Pip** (`scripts/update-pip-windows.cmd`).
 
 **An urgent fix:** a `fix/...` branch from `main`, a pull request, merge, then a patch release.

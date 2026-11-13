@@ -232,8 +232,21 @@ def card(background, path, title, lines, fine=None, icon=True):
     for text, size, weight, color in lines:
         d.text((W // 2, y), text, font=font(size, weight), fill=color, anchor="mt")
         y += int(size * 1.45)
-    for k, text in enumerate(reversed(fine or [])):
-        d.text((W // 2, H - 60 - 38 * k), text, font=font(25, "Regular"), fill=(200, 196, 224), anchor="mb")
+    small = font(25, "Regular")
+    rows = []  # the fine print, wrapped to the frame (one long line used to run off both edges)
+    for text in fine or []:
+        row = ""
+        for word in text.split():
+            trial = (row + " " + word).strip()
+            if row and d.textlength(trial, font=small) > W - 200:
+                rows.append(row)
+                row = word
+            else:
+                row = trial
+        if row:
+            rows.append(row)
+    for k, text in enumerate(reversed(rows)):
+        d.text((W // 2, H - 60 - 36 * k), text, font=small, fill=(200, 196, 224), anchor="mb")
     bg.convert("RGB").save(path)
 
 
