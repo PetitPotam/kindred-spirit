@@ -12,13 +12,15 @@ Where things go:
   her settings, keys, memories and logs   ~/.kindred-spirit (KINDRED_HOME), as always
   the program (Python, brain, gateway)    ~/Library/Application Support/Kindred Spirit/versions/<version>,
                                           with "current" pointing at the one in use (KINDRED_APP_DIR)
-Nothing outside those two folders is touched by these steps.
+Nothing outside those two folders is touched, except the login item the player may choose (step "login":
+~/Library/LaunchAgents/io.github.petitpotam.kindredspirit.plist, removed when they choose otherwise).
 
 Standard library only, like the dashboard.
 """
 import json
 import os
 import platform
+import plistlib
 import re
 import shutil
 import socket
@@ -38,6 +40,7 @@ from kindred import hardware  # noqa: E402
 PAYLOAD = os.environ.get("KINDRED_SETUP_PAYLOAD") or ""  # the app's own copy: python/, kindred/, VERSION
 DASHBOARD_PORT = int(os.environ.get("KINDRED_DASHBOARD_PORT", "11440"))
 GUIDE_URL = "https://github.com/PetitPotam/kindred-spirit/blob/main/docs/SETUP.md"
+LOGIN_LABEL = "io.github.petitpotam.kindredspirit"  # the login item that wakes her (macOS LaunchAgent)
 NEEDS_GB = 3  # the program (~0.13 GB) and, later, her voice, hearing and memory models with room to spare
 PROFILES = {"low": "Light", "medium": "Balanced", "high": "Best"}
 
@@ -385,7 +388,7 @@ def step_start():
         "facts": facts,
         "actions": ([{"id": "start", "label": "Start", "primary": not all_up}, {"id": "stop", "label": "Stop"}]
                     if rt else []),
-        "links": ([{"label": "Open the dashboard", "url": "http://127.0.0.1:%d/" % DASHBOARD_PORT}] if up["dashboard"] else []),
+        "links": ([{"label": "Open her dashboard", "url": dashboard_url()}] if up["dashboard"] else []),
         "status": "done" if all_up else "todo",
         "summary": "Running." if all_up else ("Install her brain first." if not rt else "Not running."),
     }
@@ -410,7 +413,8 @@ def act_start(action, body):
         missing = ", ".join(k for k, v in up.items() if not v)
         return _result(False, "Started, but these aren't answering yet: %s." % (missing or "?"),
                        out + "\n\n" + log_tail("gateway.out", "brain.out", "dashboard.out"))
-    return _result(True, "She's awake: the gateway, her brain and the dashboard are running.", out)
+    save_state(woken=True)  # set up once: from now on, opening the app opens her dashboard
+    return _result(True, "She's awake: the gateway, her brain and her dashboard are running.", out)
 
 
 def test_start():
@@ -424,12 +428,123 @@ def test_start():
                    log_tail("gateway.out", "brain.out", "dashboard.out"))
 
 
+# ---------------------------------------------------------------------- waking her at login (opt-in)
+
+def launch_agents_dir():
+    return os.environ.get("KINDRED_LAUNCH_AGENTS_DIR") or os.path.join(os.path.expanduser("~"), "Library", "LaunchAgents")
+
+
+def login_item():
+    return os.path.join(launch_agents_dir(), LOGIN_LABEL + ".plist")
+
+
+def login_plist():
+    """What macOS runs at login: start.sh from the installed copy in use ("current", so updates follow), in the
+    background, with the same home and ports as now. It starts what isn't running and exits; the helpers stay."""
+    cur = os.path.join(app_dir(), "current")
+    return {
+        "Label": LOGIN_LABEL,
+        "ProgramArguments": ["/bin/bash", os.path.join(cur, "kindred", "scripts", "start.sh"), "--background"],
+        "EnvironmentVariables": {"KINDRED_PYTHON": os.path.join(cur, "python", "bin", "python3"), "KINDRED_HOME": gw.DIR,
+                                 "KINDRED_GATEWAY_PORT": str(gw.LISTEN_PORT), "KINDRED_DASHBOARD_PORT": str(DASHBOARD_PORT),
+                                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"},
+        "RunAtLoad": True,
+        "AbandonProcessGroup": True,  # start.sh exits; the helpers it started keep running
+        "StandardOutPath": os.path.join(gw.DIR, "logs", "login.out"),
+        "StandardErrorPath": os.path.join(gw.DIR, "logs", "login.out"),
+    }
+
+
+def step_login():
+    on = os.path.exists(login_item())
+    mac = sys.platform == "darwin"
+    return {
+        "id": "login", "title": "Every time you play",
+        "why": "Her brain, the gateway and her dashboard keep running until you restart or log out. To have them "
+               "ready every time, the Setup can wake her when you log in to your Mac: macOS then lists her under "
+               "System Settings > General > Login Items (as \"bash\", the small program that starts her). Otherwise, "
+               "open Kindred Spirit Setup before you play: once she's set up, it wakes her and opens her dashboard.",
+        "default": "Open Kindred Spirit Setup when you want to play (nothing runs at login).",
+        "facts": [["Wakes her at login", "yes" if on else "no"]],
+        "choices": [{"value": "app", "label": "When I open Kindred Spirit Setup", "recommended": True,
+                     "note": "Nothing runs until you want to play."},
+                    {"value": "login", "label": "When I log in to this Mac",
+                     "note": "Ready at once; she uses a little memory all the time." if mac else "macOS only, for now."}],
+        "chosen": "login" if on else "app",
+        "actions": [{"id": "choose", "label": "Use this", "primary": True}] if installed() else [],
+        "status": "done" if "login" in load_state() else "todo",
+        "summary": "Wakes when you log in." if on else "Wakes when you open the Setup.",
+    }
+
+
+def act_login(action, body):
+    if action != "choose":
+        raise SetupError("unknown action")
+    choice = str(body.get("choice") or "app")
+    if choice not in ("app", "login"):
+        raise SetupError("Choose one of the options.")
+    if choice == "login":
+        if sys.platform != "darwin":
+            raise SetupError("Waking her at login works on macOS only, for now.")
+        if not installed():
+            raise SetupError("Install her brain first.")
+        os.makedirs(launch_agents_dir(), exist_ok=True)
+        with open(login_item(), "wb") as fh:
+            plistlib.dump(login_plist(), fh)
+        msg = "From your next login, she wakes by herself."
+    else:
+        if os.path.exists(login_item()):
+            os.remove(login_item())
+        msg = "Nothing runs at login. Open Kindred Spirit Setup when you want to play."
+    save_state(login=choice)
+    return _result(True, msg)
+
+
+def test_login():
+    if not os.path.exists(login_item()):
+        return _result(True, "Nothing runs at login: open Kindred Spirit Setup when you want to play.")
+    try:
+        with open(login_item(), "rb") as fh:
+            item = plistlib.load(fh)
+    except (OSError, ValueError) as e:
+        return _result(False, "The login item can't be read: %s. Choose again." % e)
+    missing = [p for p in (item["ProgramArguments"][1], item["EnvironmentVariables"]["KINDRED_PYTHON"]) if not os.path.exists(p)]
+    if missing:
+        return _result(False, "The login item points to a program that isn't there any more. Install her brain again, "
+                       "then choose again.", "\n".join(tilde(m) for m in missing))
+    return _result(True, "She wakes when you log in.", tilde(login_item()))
+
+
 STEPS = {
     "computer": (step_computer, act_computer, test_computer),
     "install": (step_install, act_install, test_install),
     "start": (step_start, act_start, test_start),
+    "login": (step_login, act_login, test_login),
 }
-LOGS_FOR = {"computer": (), "install": ("setup.out",), "start": ("gateway.out", "brain.out", "dashboard.out")}
+LOGS_FOR = {"computer": (), "install": ("setup.out",), "start": ("gateway.out", "brain.out", "dashboard.out"),
+            "login": ("login.out",)}
+
+
+# ---------------------------------------------------------------------- her dashboard, and opening the app again
+
+def dashboard_url():
+    return "http://127.0.0.1:%d/" % DASHBOARD_PORT
+
+
+def ready():
+    """Set up once (installed, this Setup's version, woken at least once): opening the app goes to her dashboard."""
+    rt = installed()
+    mine = read_version(PAYLOAD) if PAYLOAD else None
+    return bool(rt and (not mine or rt["version"] == mine) and load_state().get("woken"))
+
+
+def open_target():
+    """Where opening the app lands: her dashboard once she's set up (waking her first if needed), else the steps."""
+    if not ready():
+        return "/setup"
+    if not all(running().values()) and not run("start", "start")["ok"]:
+        return "/setup"  # the "Wake her up" step shows what went wrong
+    return dashboard_url()
 
 
 def overview():
@@ -440,8 +555,10 @@ def overview():
         except Exception as e:  # one broken step must not hide the others
             steps.append({"id": sid, "title": sid, "why": "", "status": "problem", "summary": str(e), "actions": []})
     rt = installed()
+    up = http_ok(dashboard_url() + "api/setup/hello")
     return {"version": own_version(), "mode": "app" if PAYLOAD else "dashboard",
-            "installed": rt["version"] if rt else None, "home": tilde(gw.DIR), "guide": GUIDE_URL, "steps": steps}
+            "installed": rt["version"] if rt else None, "home": tilde(gw.DIR), "guide": GUIDE_URL, "steps": steps,
+            "dashboard": {"url": dashboard_url(), "running": up}}
 
 
 def run(step_id, action, body=None):

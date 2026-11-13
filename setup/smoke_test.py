@@ -12,6 +12,7 @@ Nothing real is touched: HOME and KINDRED_HOME point to a temporary folder and e
 11541, the gateway 11537, the dashboard 11540, the brain 47911), so a Pip already running on this computer
 is never met, stopped or replaced. Standard library only; macOS (hdiutil) for a .dmg.
 """
+import http.client
 import json
 import os
 import shutil
@@ -40,6 +41,15 @@ def call(path, body=None, timeout=120):
                                  headers={"Content-Type": "application/json"}, method="POST" if body is not None else "GET")
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read())
+
+
+def opened():
+    """Where opening the app lands (the launcher opens /open): the Location it redirects to."""
+    c = http.client.HTTPConnection("127.0.0.1", PORTS["setup"], timeout=60)
+    c.request("GET", "/open")
+    r = c.getresponse()
+    assert r.status == 302, r.status
+    return r.getheader("Location")
 
 
 def step(state, sid):
@@ -80,7 +90,8 @@ def main(argv):
         fh.write('[server]\nport = %d\n\n[gateway]\nurl = "http://127.0.0.1:%d/v1"\n' % (PORTS["brain"], PORTS["gateway"]))
     env = {"HOME": home, "KINDRED_HOME": kh, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "KINDRED_SETUP_NO_BROWSER": "1",
            "KINDRED_SETUP_PORT": str(PORTS["setup"]), "KINDRED_GATEWAY_PORT": str(PORTS["gateway"]),
-           "KINDRED_DASHBOARD_PORT": str(PORTS["dashboard"]), "TMPDIR": work}
+           "KINDRED_DASHBOARD_PORT": str(PORTS["dashboard"]), "TMPDIR": work,
+           "KINDRED_LAUNCH_AGENTS_DIR": os.path.join(work, "LaunchAgents")}  # never the real login items
     app = app_from(os.path.abspath(argv[0]), work)
     launcher = os.path.join(app, "Contents", "MacOS", "kindred-setup")
     ok = False
@@ -93,15 +104,29 @@ def main(argv):
         assert hello["setup"] is True, hello
         state = call("/api/setup/state")
         assert state["mode"] == "app" and state["installed"] is None, state
-        assert [s["id"] for s in state["steps"]][:3] == ["computer", "install", "start"], state["steps"]
+        assert [s["id"] for s in state["steps"]][:4] == ["computer", "install", "start", "login"], state["steps"]
+        assert opened() == "/setup", "before setup, opening the app shows the steps"
         for sid, action, extra in [("computer", "choose", {"choice": "auto"}), ("computer", "test", {}),
                                    ("install", "install", {}), ("install", "test", {}),
-                                   ("start", "start", {}), ("start", "test", {})]:
+                                   ("start", "start", {}), ("start", "test", {}),
+                                   ("login", "choose", {"choice": "login"}), ("login", "test", {}),
+                                   ("login", "choose", {"choice": "app"}), ("login", "test", {})]:
             t = time.time()
             r = call("/api/setup/run", dict(step=sid, action=action, **extra))
             say("%s / %s: %s (%.1f s)" % (sid, action, r["message"], time.time() - t))
             assert r["ok"], r
+            if (sid, action) == ("login", "test") and extra == {}:
+                item = os.path.join(work, "LaunchAgents", "io.github.petitpotam.kindredspirit.plist")
+                say("  login item %s" % ("written" if os.path.exists(item) else "removed"))
+        for path, want in [("/", "Kindred Dashboard"), ("/api/settings", '"gateway"'), ("/api/live", '"health"'),
+                           ("/api/sessions", '"sessions"'), ("/setup", "Kindred Spirit Setup")]:
+            with urllib.request.urlopen("http://127.0.0.1:%d%s" % (PORTS["dashboard"], path), timeout=20) as r:
+                assert want in r.read().decode(), path
+        say("her dashboard answers: its page, settings, live, sessions and the Setup steps")
+        assert opened() == "http://127.0.0.1:%d/" % PORTS["dashboard"], "once set up, opening the app opens her dashboard"
+        say("opening the app again goes to her dashboard")
         state = call("/api/setup/state")
+        assert state["dashboard"]["running"], state["dashboard"]
         assert all(s["status"] == "done" for s in state["steps"]), [(s["id"], s["status"]) for s in state["steps"]]
         assert os.path.islink(os.path.join(home, "Library", "Application Support", "Kindred Spirit", "current"))
         assert oct(os.stat(os.path.join(kh, "secrets.env")).st_mode & 0o777) == "0o600"
