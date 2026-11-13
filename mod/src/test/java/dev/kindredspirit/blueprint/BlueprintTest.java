@@ -257,6 +257,19 @@ class BlueprintTest {
     }
 
     @Test
+    void airInTheBottomLayerNeverDigsTheGround() {
+        // found in the sandbox: a Litematica circle (air in every empty cell) dug a 20 x 20 hole in the grass
+        Blueprint.Builder b = Blueprint.builder(3, 2, 3);
+        for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) { b.set(x, 0, z, BlockSpec.AIR); b.set(x, 1, z, BlockSpec.AIR); }
+        b.set(1, 0, 1, BlockSpec.of("stone"));
+        List<Placement.Step> steps = Placement.at(b.build(), 0, 64, 0, 0).steps(true);
+        assertEquals(1, steps.stream().filter(s -> s.kind() == Placement.Kind.BLOCK).count());
+        assertTrue(steps.stream().filter(s -> s.kind() == Placement.Kind.CLEAR).allMatch(s -> s.y() == 65),
+                "only above the ground layer is cleared");
+        assertEquals(9, steps.stream().filter(s -> s.kind() == Placement.Kind.CLEAR).count());
+    }
+
+    @Test
     void neighbouringRowsGoBackAndForth() {
         Blueprint.Builder b = Blueprint.builder(3, 1, 2);
         for (int z = 0; z < 2; z++) for (int x = 0; x < 3; x++) b.set(x, 0, z, BlockSpec.of("stone"));

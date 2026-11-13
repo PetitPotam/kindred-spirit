@@ -261,9 +261,9 @@ def test_find_blueprints_by_words(tmp_path):
               "igloo.nbt", "castle.schem", "notes.txt"):
         (tmp_path / n).write_text("x")
     r = find_blueprints("", [str(tmp_path)])
-    assert r["total"] == 5 and "village_desert" in r["kinds"] and "castle" in r["kinds"]
-    assert find_blueprints("desert library", [str(tmp_path)])["matches"] == ["village_desert_library_1"]
-    assert find_blueprints("ships", [str(tmp_path)])["matches"] == ["shipwreck_with_mast"]
+    assert r["total"] == 5 and r["kinds"] == {"not described yet": 5}, "(no catalogue yet: found by their names)"
+    assert [m["name"] for m in find_blueprints("desert library", [str(tmp_path)])["matches"]] == ["village_desert_library_1"]
+    assert [m["name"] for m in find_blueprints("ships", [str(tmp_path)])["matches"]] == ["shipwreck_with_mast"]
     assert not find_blueprints("x", [str(tmp_path / "none")])["ok"]
 
 

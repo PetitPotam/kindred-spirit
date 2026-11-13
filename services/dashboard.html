@@ -86,6 +86,11 @@ main { padding: 22px 28px 60px; max-width: 1320px; width: 100%; }
 @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
 /* ------------------------------------------------------------------ building blocks */
+.bp-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+.bp-card { display: flex; flex-direction: column; gap: 8px; }
+.bp-pics { display: flex; gap: 8px; align-items: flex-end; justify-content: center; background: var(--code); border-radius: 10px; padding: 10px; min-height: 120px; }
+.bp-pics img { image-rendering: pixelated; max-width: 48%; max-height: 150px; object-fit: contain; }
+.bp-say { font-family: var(--mono, ui-monospace, monospace); font-size: 12px; background: var(--code); padding: 4px 8px; border-radius: 8px; cursor: copy; }
 .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
 .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c5 { grid-column: span 5; } .c6 { grid-column: span 6; }
 .c7 { grid-column: span 7; } .c8 { grid-column: span 8; } .c12 { grid-column: 1 / -1; }
@@ -361,6 +366,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
       <div class="nav-group">Inside her head</div>
       <button data-tab="memory"><svg viewBox="0 0 24 24"><path d="M12 4l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 9.3l5-.7Z"/></svg>Memory</button>
       <button data-tab="knowledge"><svg viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0-2 2Z"/><path d="M5 20a2 2 0 0 0 2 1h12"/></svg>Knowledge</button>
+      <button data-tab="blueprints"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v9H4Z"/><path d="M10 20v-5h4v5"/></svg>Blueprints</button>
       <button data-tab="ai"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>AI calls</button>
       <button data-tab="voice"><svg viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>Speech &amp; voice</button>
       <div class="nav-group">Make her yours</div>
@@ -455,6 +461,21 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
       </div>
     </section>
 
+    <!-- ============================================================ blueprints -->
+    <section class="tab" id="tab-blueprints">
+      <div class="grid">
+        <div class="card c12">
+          <div class="toolbar"><label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+            <input type="search" id="bp-q" placeholder="a small desert house, something big, a ship..." aria-label="Search blueprints"></label>
+            <label class="btn" title="Add a .nbt, .schem or .litematic file to her blueprints folder">Add a file<input type="file" id="bp-file" accept=".nbt,.schem,.litematic" multiple hidden></label></div>
+          <div id="bp-cats" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"></div>
+          <div id="bp-note" class="note" style="margin-top:10px"></div>
+        </div>
+        <div class="c12" id="bp-list"></div>
+        <div class="card c12"><h2>Trash <span class="sub">removed files, kept here until you delete them yourself</span></h2><div id="bp-trash"></div></div>
+      </div>
+    </section>
+
     <!-- ============================================================ sessions -->
     <section class="tab" id="tab-sessions">
       <div class="split">
@@ -545,6 +566,7 @@ const PAGES = {
   sessions: ["Play sessions", "Each time you played: what was said, why, and what the AI saw."],
   memory: ["Memory", "What she remembers in each world, and what would come to her mind."],
   knowledge: ["What the world remembers", "The knowledge she draws on (to her, the old stones and the wind)."],
+  blueprints: ["Blueprints", "Buildings she can build from files: what each is, how big, and what to say to her."],
   ai: ["AI calls", "Every call to the AI: why, how long it took, how many tokens, what it cost."],
   voice: ["Speech & voice", "Hearing you, and making her voice."],
   settings: ["Settings", "Everything about her, each with its default. Changes apply without a restart."],
@@ -1386,9 +1408,88 @@ async function simTab() {
   document.querySelectorAll("[data-ev]").forEach((b) => (b.onclick = () => { if (sim.ws) { sim.ws.send(JSON.stringify({type: "event", event: b.dataset.ev})); simLog(`(you ${esc(b.textContent)})`, "sys"); } else $("sim-status").innerHTML = `<span class="warn">Connect first.</span>`; }));
 }
 
+// ---------------------------------------------------------------- blueprints
+const BP_CAT = {house: "Houses", workshop: "Workshops", farm: "Farms & pens", well: "Wells & squares", decoration: "Decorations",
+  portal: "Portals", ship: "Ships", tower: "Towers", castle: "Castles", shape: "Shapes", other: "Other"};
+let bpData = null, bpCat = "", bpSig = "";
+async function blueprintsTab() {
+  const d = await get("/api/blueprints");
+  const sig = JSON.stringify(d);
+  if (sig === bpSig) return; // (nothing changed: keep the scroll and the pictures)
+  bpSig = sig; bpData = d; bpRender();
+}
+function bpMatch(e, q) {
+  if (!q) return true;
+  const hay = [e.name, e.what, e.category, e.style, e.size, ...(e.tags || [])].join(" ").toLowerCase().replace(/_/g, " ");
+  return q.toLowerCase().split(/\s+/).filter((w) => w.length > 1 && !["a", "an", "the", "some"].includes(w))
+    .every((w) => hay.includes(w.replace(/s$/, "")));
+}
+function bpRender() {
+  const d = bpData || {dirs: []}, q = $("bp-q").value.trim();
+  const all = d.dirs.flatMap((f) => (f.entries || []).map((e) => ({...e, d: f.index})));
+  const counts = {};
+  all.forEach((e) => (counts[e.category] = (counts[e.category] || 0) + 1));
+  $("bp-cats").innerHTML = `<button class="btn sm ${bpCat ? "" : "primary"}" data-cat="">All ${all.length}</button>` +
+    Object.keys(BP_CAT).filter((c) => counts[c]).map((c) => `<button class="btn sm ${bpCat === c ? "primary" : ""}" data-cat="${c}">${BP_CAT[c]} ${counts[c]}</button>`).join("");
+  const newOnes = d.dirs.flatMap((f) => (f.new || []).map((n) => ({n, d: f.index})));
+  const errs = d.dirs.flatMap((f) => (f.errors || []));
+  const main = d.dirs[0] || {};
+  $("bp-note").innerHTML = `Her blueprints folder: <code>${esc(main.dir || "?")}</code>${main.exists ? "" : " (not there yet: adding a file creates it)"}.
+    The game describes and draws each file (catalogue.json, refreshed when the folder changes, while the game runs).
+    ${newOnes.length ? `<br><b>${newOnes.length} new</b>, not described yet: ${newOnes.map((x) => esc(x.n)).join(", ")}.` : ""}
+    ${errs.length ? `<br><span class="bad">Can't be read:</span> ${errs.map((e) => esc(e.file) + " (" + esc(e.error) + ")").join("; ")}` : ""}
+    ${main.sources ? `<details style="margin-top:6px"><summary class="muted">Where they come from (SOURCES.txt)</summary><pre>${esc(main.sources)}</pre></details>` : ""}`;
+  const shown = all.filter((e) => (!bpCat || e.category === bpCat) && bpMatch(e, q));
+  const byCat = {};
+  shown.forEach((e) => (byCat[e.category] = byCat[e.category] || []).push(e));
+  $("bp-list").innerHTML = Object.keys(BP_CAT).filter((c) => byCat[c]).map((c) => `<div class="card" style="margin-bottom:16px"><h2>${BP_CAT[c]} <span class="sub">${byCat[c].length}</span></h2>
+    <div class="bp-grid">${byCat[c].map(bpCard).join("")}</div></div>`).join("") ||
+    `<div class="card">${emptyState(all.length ? "Nothing fits that search" : "No blueprints described yet", all.length ? "Try other words, or All." : "Add a file, or start the game once so it describes the folder.")}</div>`;
+  $("bp-trash").innerHTML = d.dirs.flatMap((f) => (f.trash || []).map((n) => `<div class="mem"><div>${esc(n)}</div>
+    <div><button class="btn sm" data-restore="${esc(n)}" data-d="${f.index}">Put it back</button></div></div>`)).join("") || `<div class="muted small">Empty.</div>`;
+}
+function bpCard(e) {
+  const pic = (p) => p ? `<img alt="" loading="lazy" src="/api/blueprints/picture?d=${e.d}&f=${encodeURIComponent(p.split("/").pop())}">` : "";
+  const mats = (e.materials || []).slice(0, 4).map(([m, n]) => `${n} ${esc(m.replace(/_/g, " "))}`).join(", ");
+  const src = e.source ? esc(e.source.length > 90 ? e.source.slice(0, 90) + "…" : e.source) : "added by you";
+  return `<div class="card bp-card">
+    <div class="bp-pics" title="from above, and from the front">${pic(e.top)}${pic(e.front)}</div>
+    <div><b>${esc(e.what)}</b></div>
+    <div class="small muted">${e.width} × ${e.length}, ${e.height} high · ${fmt(e.blocks)} blocks · ${esc(e.size)}${e.beds ? ` · ${e.beds} bed${e.beds > 1 ? "s" : ""}` : ""}</div>
+    <div class="tiny muted">${mats}</div>
+    <div class="bp-say" title="Click to copy: say this to her" data-say="${esc(e.say)}">${esc(e.say)}</div>
+    <div class="tiny faint">${esc(e.file)} · ${src}</div>
+    <div><button class="btn sm danger" data-remove="${esc(e.file)}" data-d="${e.d}">Remove</button></div></div>`;
+}
+let bpTimer = null;
+$("bp-q").oninput = () => { clearTimeout(bpTimer); bpTimer = setTimeout(bpRender, 150); };
+$("bp-cats").onclick = (ev) => { const b = ev.target.closest("[data-cat]"); if (b) { bpCat = b.dataset.cat; bpRender(); } };
+$("tab-blueprints").onclick = async (ev) => {
+  const t = ev.target;
+  try {
+    if (t.dataset.say) { await navigator.clipboard.writeText(t.dataset.say).catch(() => {}); t.textContent = "Copied: " + t.dataset.say; return; }
+    if (t.dataset.remove) {
+      if (!confirm(`Move ${t.dataset.remove} to the trash? She won't build it any more (you can put it back).`)) return;
+      await post("/api/blueprints/remove", {d: Number(t.dataset.d), name: t.dataset.remove});
+    } else if (t.dataset.restore) {
+      await post("/api/blueprints/restore", {d: Number(t.dataset.d), name: t.dataset.restore});
+    } else return;
+    bpSig = ""; await blueprintsTab(); showErr(null);
+  } catch (e) { showErr(e); }
+};
+$("bp-file").onchange = async (ev) => {
+  try {
+    for (const f of ev.target.files) {
+      const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = no; r.readAsDataURL(f); });
+      await post("/api/blueprints/add", {d: 0, name: f.name, data});
+    }
+    ev.target.value = ""; bpSig = ""; await blueprintsTab(); showErr(null);
+  } catch (e) { showErr(e); }
+};
+
 // ---------------------------------------------------------------- tabs + refresh
-const LOAD = {live, talk, ai, voice, memory: memoryTab, knowledge: knowledgeTab, settings: settingsTab, sessions: sessionsTab, sim: simTab};
-const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, knowledge: 30000, settings: 30000, sessions: 20000, sim: 60000};
+const LOAD = {live, talk, ai, voice, memory: memoryTab, knowledge: knowledgeTab, blueprints: blueprintsTab, settings: settingsTab, sessions: sessionsTab, sim: simTab};
+const EVERY = {live: 2000, talk: 3000, ai: 5000, voice: 5000, memory: 20000, knowledge: 30000, blueprints: 30000, settings: 30000, sessions: 20000, sim: 60000};
 function go(t, push) {
   if (!LOAD[t]) t = "live";
   tab = t;
