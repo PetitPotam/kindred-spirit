@@ -47,8 +47,9 @@ doing, warns you when a creeper sneaks up, and grows closer to you the more you 
 ## Why I made Pip
 
 I've always liked Minecraft, but mostly from the other side of the screen: I'd rather watch YouTubers,
-speedrunners and streamers play it than play myself. Then, a long while after I got a MacBook Air of my own, my
-brother asked me to play with him, so I did.
+speedrunners and streamers play it than play myself. I'm more of a PS5 gamer. I used to love playing games on a
+computer, but I don't have a gaming PC or laptop any more, only my personal MacBook Air, and it had been a long time
+since I'd played Minecraft. Then my brother asked me to play with him, so I did, on that MacBook Air.
 
 That same day, Minecraft mod videos started showing up in my YouTube feed. I tried
 [Verity](https://www.curseforge.com/minecraft/mc-mods/verity-je), and what stayed with me was its companion:
