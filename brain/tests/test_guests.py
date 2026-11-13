@@ -179,6 +179,26 @@ def test_lead_the_way_goes_where_she_just_found_even_in_a_friends_world(stubs):
     assert asyncio.run(b.guide_target({"x": 900, "z": 900})) == {}, "made-up coordinates aren't where she found"
 
 
+def test_lead_to_the_flat_ground_she_just_found_not_a_remembered_house(stubs):
+    """Sandbox check: find_flat found ground at (370, 405) and guide was called with those coordinates and
+    to="flat ground for a house", but a remembered "house" spot won and she led 559 blocks the other way."""
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.last_found = {"x": 370, "y": 110, "z": 405}
+    b.last_player_text = "take me to a flat field, big enough for a house"
+
+    async def spot(text):
+        return {"text": "the house", "meta": {"x": 1, "y": 127, "z": 7}}
+    b.memory.find_spot = spot
+    assert asyncio.run(b.guide_target({"x": 370, "y": 110, "z": 405, "to": "flat ground for a house"})) == \
+        {"x": 370, "y": 110, "z": 405}
+    import time
+    b.found_at = time.monotonic()  # (found in this same answer: no coordinates needed)
+    assert asyncio.run(b.guide_target({"to": "flat ground for a house"})) == {"x": 370, "y": 110, "z": 405}
+    b.found_at = time.monotonic() - 600  # (found long ago: a place she remembers by name wins)
+    assert asyncio.run(b.guide_target({"to": "flat ground for a house"})) != {"x": 370, "y": 110, "z": 405}
+
+
 def test_when_her_tries_run_out_she_still_answers_in_words(stubs):
     from kindred.mind import Mind
     stubs.ai_script = [{"role": "assistant", "content": ""},

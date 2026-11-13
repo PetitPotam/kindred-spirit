@@ -144,6 +144,11 @@ ACTION_HINTS = [
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),
     (r"\b(chop|cut|fell|harvest|break|mine|dig out|knock down)\b.{0,25}\b(tree|trees|log|logs|wood|this|that|block|it|"
      r"stone|ore|rock)\b|\bget (me )?(some )?wood\b", "harvest"),
+    (r"\bflat\b.{0,20}\b(field|area|place|spot|land|ground|plain|plains|space|zone)\b|\b(field|area|place|spot|ground|"
+     r"land)\b.{0,15}\b(that'?s|is|which is)? ?flat\b|\bflat (one|enough)\b", "find_flat"),
+    (r"\bend portal\b|\bportal to the end\b", "build"),
+    (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(build|make|plant|set up|start|"
+     r"create)\b.{0,20}\b(farm|field of|crops?|wheat|carrots?|potato(es)?|beetroots?)\b|\bplant (some |the )?seeds\b", "build"),
     (r"\b(give|gimme|get|cast|put)\b.{0,25}\b(haste|night ?vision|speed|swiftness|regen(eration)?|fire resistance|"
      r"water breathing|jump boost|strength|resistance|slow falling|invisibility|effects?|health|hearts?)\b|"
      r"\bheal (me|him|her|us|them)\b|\b(fill|refill) (my|his|her) (health|hearts|hunger)\b", "give_effect"),

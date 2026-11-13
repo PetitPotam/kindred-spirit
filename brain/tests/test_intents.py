@@ -72,3 +72,18 @@ def test_a_trip_home_is_not_pushing_monsters_away_and_one_block_is_not_a_field()
     assert intents.action_hint("Can you remove this block for me please?", a) == "harvest"
     assert intents.action_hint("remove this block and everything around it", a) == "build"
     assert intents.action_hint("flatten the land above y 64", a) == "build"
+
+
+def test_flat_ground_end_portals_and_farms():
+    """From the 2026-11-13 singleplayer session: "take me to a flat plain field" went to locate (a biome),
+    and the end portal and the crop farm weren't recognised as building."""
+    a = ["find_flat", "build", "locate", "guide", "give_item", "harvest"]
+    assert intents.action_hint("Take me to a flat plain field, a flat plain field.", a) == "find_flat"
+    assert intents.action_hint("No, it is not flat. I need a flat plane field, please.", a) == "find_flat"
+    assert intents.action_hint("find a spot that's flat for my house", a) == "find_flat"
+    assert intents.action_hint("Can you create an end portal for me please?", a) == "build"
+    assert intents.action_hint("Can you build please a farm here?", a) == "build"
+    assert intents.action_hint("Pip, plant some seeds here", a) == "build"
+    assert intents.action_hint("could you make a wheat farm", a) == "build"
+    assert intents.action_hint("i'm going to make a farm", a) is None, "that's them farming"
+    assert intents.action_hint("Take me to a flat field", ["guide"]) != "find_flat", "not when she can't"

@@ -1,0 +1,50 @@
+# An end portal, a wheat farm and flat ground (from the 2026-11-13 singleplayer session).
+world kindred-farm-portal
+wait 220
+cmd gamemode spectator
+cmd gamerule doImmediateRespawn true
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -20 198 -20 20 198 30 minecraft:grass_block
+cmd fill -20 199 -20 20 215 30 minecraft:air
+cmd tp @s 0.5 199 0.5 0 35
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power allpowerful
+type /kindred style magic
+act {"move": "follow"}
+wait 100
+chat pip, can you build an end portal here?
+wait 300
+camera back
+look 0 40
+wait 20
+screenshot farm-01-end-portal
+camera first
+cmd tp @s 12.5 199 0.5 0 35
+wait 30
+chat could you make a wheat farm here please
+wait 360
+camera back
+look 0 40
+wait 20
+screenshot farm-02-wheat-farm
+camera first
+cmd gamemode spectator
+cmd tp @s 400.5 200 400.5 0 10
+wait 60
+cmd spreadplayers 400 400 0 2 false @s
+wait 40
+cmd gamemode survival
+wait 60
+chat take me to a flat field, big enough for a house
+wait 300
+screenshot farm-03-flat-field
+wait 20
+quit

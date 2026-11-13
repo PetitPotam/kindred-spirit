@@ -88,4 +88,32 @@ class BuildPlanTest {
         org.junit.jupiter.api.Assertions.assertEquals(BuildPlan.Shape.FLATTEN, BuildPlan.Shape.of("flatten"));
         org.junit.jupiter.api.Assertions.assertEquals(BuildPlan.Shape.PLACE, BuildPlan.Shape.of("place"));
     }
+
+    @Test
+    void anEndPortalIsTwelveFramesFacingInAroundNineOpenings() {
+        var steps = BuildPlan.steps(BuildPlan.Shape.END_PORTAL, 0, 64, 0, FX, FZ, 0, 0, 0, 1, Integer.MIN_VALUE);
+        assertEquals(12, steps.stream().filter(s -> s.kind() == 'E').count());
+        assertEquals(9, steps.stream().filter(s -> s.kind() == 'O').count());
+        assertEquals(BuildPlan.Shape.END_PORTAL, BuildPlan.Shape.of("end portal".replace(' ', '_')));
+        // the near frame faces forward (south), towards the middle
+        var near = steps.stream().filter(s -> s.kind() == 'E' && s.z() == 0).findFirst().orElseThrow();
+        assertEquals("0,1", near.block());
+        assertTrue(steps.stream().filter(s -> s.kind() == 'O').allMatch(s -> s.z() >= 1 && s.z() <= 3 && s.y() == 64));
+    }
+
+    @Test
+    void aFarmIsTilledAroundWaterWithCropsOnTop() {
+        var steps = BuildPlan.steps(BuildPlan.Shape.FARM, 0, 64, 0, FX, FZ, 0, 0, 0, 1, Integer.MIN_VALUE);
+        assertEquals(1, steps.stream().filter(s -> s.kind() == 'W').count(), "one water in a 9 x 9");
+        assertEquals(80, steps.stream().filter(s -> s.kind() == 'T').count());
+        assertEquals(80, steps.stream().filter(s -> s.kind() == 'C' && s.y() == 64).count());
+        assertTrue(steps.stream().filter(s -> s.kind() != 'C').allMatch(s -> s.y() == 63), "the ground is the layer below");
+        var big = BuildPlan.steps(BuildPlan.Shape.FARM, 0, 64, 0, FX, FZ, 12, 12, 0, 1, Integer.MIN_VALUE);
+        assertEquals(4, big.stream().filter(s -> s.kind() == 'W').count(), "a shorter last stretch gets its own water");
+        for (var s : big) if (s.kind() == 'T') { // every tilled block is within 4 of water
+            assertTrue(big.stream().filter(w -> w.kind() == 'W')
+                    .anyMatch(w -> Math.abs(w.x() - s.x()) <= 4 && Math.abs(w.z() - s.z()) <= 4), s.toString());
+        }
+        assertEquals(BuildPlan.Shape.FARM, BuildPlan.Shape.of("wheat_farm"));
+    }
 }

@@ -562,8 +562,9 @@ class Brain:
         if m:  # the way to unlock it is for the player, as a hint in chat: never in her mouth
             await self.send({"type": "notice", "text": "Tip: %s lets %s do this" % (m.group(1), self.cfg["name"])})
             result["error"] = result["error"].replace(m.group(0), "").strip()
-        if name in ("find_ore", "locate", "find_block") and result.get("ok") and "x" in result and result.get("found", True):
+        if name in ("find_ore", "locate", "find_block", "find_flat") and result.get("ok") and "x" in result and result.get("found", True):
             self.last_found = {k: result[k] for k in ("x", "y", "z") if k in result}  # (where "lead the way" goes)
+            self.found_at = time.monotonic()
         if name in ("find_animal", "find_player") and result.get("ok"):
             self.last_found = None  # (someone walking: the game follows them itself)
         if name in ("find_ore", "locate") and result.get("ok") and "x" in result and result.get("found", True):
@@ -1110,6 +1111,16 @@ class Brain:
         only if the player actually said numbers (models like to invent them)."""
         to = str(args.get("to") or "").strip().lower()
         asked = " ".join([getattr(self, "last_player_text", "")] + self.recent_player[-3:]).lower()
+        last = getattr(self, "last_found", None)
+        if last and "x" in args and "z" in args:
+            try:  # the very place she just found ("flat ground for a house"): not a remembered "house" elsewhere
+                if abs(float(args["x"]) - last["x"]) <= 3 and abs(float(args["z"]) - last["z"]) <= 3:
+                    return dict(last)
+            except (TypeError, ValueError):
+                pass
+        if last and time.monotonic() - getattr(self, "found_at", 0) < 20 \
+                and not intents.BACK_TO_SPOT.search(getattr(self, "last_player_text", "")):
+            return dict(last)  # found moments ago, in this same answer: lead there, whatever she calls it
         if to and to != "last":
             places = await self.safe(self.memory.places()) or []
             p = self.memory.pick_place(places, to + " " + " ".join(

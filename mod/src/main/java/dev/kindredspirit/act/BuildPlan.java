@@ -17,6 +17,8 @@ import java.util.Locale;
  *   <li>portal: a nether portal frame (obsidian, no corners), then lit</li>
  *   <li>clear: everything in an area goes, from a level up (trees, hills); flatten: the same, and holes
  *       in the ground at that level are filled</li>
+ *   <li>end_portal: twelve frames with their eyes around a 3 x 3 portal (magic only: frames can't be made)</li>
+ *   <li>farm: tilled ground with water (one source for each 9 x 9) and a crop planted on every tilled block</li>
  * </ul>
  */
 public final class BuildPlan {
@@ -29,7 +31,9 @@ public final class BuildPlan {
     public static final int MAX_HEIGHT = 64;
 
     /** B: place the block; F: place it only where there's nothing (filling holes); X: take away what's
-     *  there; D: a door (or nothing) in a doorway; L: light it (a portal); P: place an item like a player. */
+     *  there; D: a door (or nothing) in a doorway; L: light it (a portal); P: place an item like a player;
+     *  E: an end portal frame with its eye (block: "dx,dz", the way it faces); O: the end portal itself;
+     *  T: till the ground (farmland); W: water; C: a crop (block: wheat, carrots, potatoes, beetroots). */
     public record Step(int x, int y, int z, char kind, String block) {
         Step(int x, int y, int z, char kind) {
             this(x, y, z, kind, null);
@@ -37,7 +41,7 @@ public final class BuildPlan {
     }
 
     public enum Shape {
-        PILLAR, CORNERS, WALL, FLOOR, OUTLINE, PLACE, HOUSE, PORTAL, CLEAR, FLATTEN;
+        PILLAR, CORNERS, WALL, FLOOR, OUTLINE, PLACE, HOUSE, PORTAL, CLEAR, FLATTEN, END_PORTAL, FARM;
 
         public static Shape of(String s) {
             String k = s == null ? "" : s.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
@@ -50,6 +54,8 @@ public final class BuildPlan {
                 case "place", "one", "single", "block", "put", "item" -> PLACE;
                 case "house", "home", "hut", "cabin", "shelter", "cottage" -> HOUSE;
                 case "portal", "nether_portal" -> PORTAL;
+                case "end_portal", "end", "stronghold_portal" -> END_PORTAL;
+                case "farm", "crop_farm", "field", "crops", "garden", "wheat_farm", "farmland" -> FARM;
                 case "clear", "remove", "dig", "erase", "empty" -> CLEAR;
                 case "flatten", "level", "flat", "squash" -> FLATTEN;
                 default -> null;
@@ -64,7 +70,7 @@ public final class BuildPlan {
 
     /** The shapes she knows, in words, for an honest "I can't build that". */
     public static final String KNOWN = "a pillar, corners, a wall, a floor, an outline, one block or item where you look, "
-            + "a house, a nether portal, or clearing / flattening an area";
+            + "a house, a nether portal, an end portal, a crop farm, or clearing / flattening an area";
 
     /** As before: positions only (the simple shapes). */
     public static List<int[]> positions(Shape shape, int ox, int oy, int oz, int fx, int fz,
@@ -112,6 +118,25 @@ public final class BuildPlan {
                     }
                 }
                 out.add(at(ox, oy, oz, rx, rz, fx, fz, 1, 0, 1, 'L'));
+            }
+            case END_PORTAL -> { // ahead of you on the ground: frames around the 3 x 3 middle, facing in
+                for (int i = 1; i <= 3; i++) {
+                    out.add(at(ox, oy, oz, rx, rz, fx, fz, i, 0, 0, 'E', dir(fx, fz)));          // near side: faces forward
+                    out.add(at(ox, oy, oz, rx, rz, fx, fz, i, 4, 0, 'E', dir(-fx, -fz)));        // far side: faces back
+                    out.add(at(ox, oy, oz, rx, rz, fx, fz, 0, i, 0, 'E', dir(rx, rz)));          // left side: faces right
+                    out.add(at(ox, oy, oz, rx, rz, fx, fz, 4, i, 0, 'E', dir(-rx, -rz)));        // right side: faces left
+                }
+                for (int f = 1; f <= 3; f++) for (int r = 1; r <= 3; r++) out.add(at(ox, oy, oz, rx, rz, fx, fz, r, f, 0, 'O'));
+            }
+            case FARM -> { // the ground under the origin's level is tilled; water in the middle of each 9 x 9
+                int w = clamp(width > 1 ? width : 9, 3, 18), l = clamp(length > 1 ? length : 9, 3, 18);
+                for (int f = 0; f < l; f++) for (int r = 0; r < w; r++) {
+                    boolean water = middle(r, w) && middle(f, l);
+                    out.add(at(ox, oy, oz, rx, rz, fx, fz, r, f, -1, water ? 'W' : 'T'));
+                }
+                for (int f = 0; f < l; f++) for (int r = 0; r < w; r++) {
+                    if (!(middle(r, w) && middle(f, l))) out.add(at(ox, oy, oz, rx, rz, fx, fz, r, f, 0, 'C'));
+                }
             }
             case CLEAR, FLATTEN -> {
                 int w = clamp(width > 1 ? width : 8, 1, MAX_SIDE), l = clamp(length > 1 ? length : 8, 1, MAX_SIDE);
@@ -168,12 +193,22 @@ public final class BuildPlan {
         return c;
     }
 
+    /** A farm's water: the middle of every 9-wide stretch (and of a shorter last one), so the whole field stays wet. */
+    static boolean middle(int i, int n) {
+        int start = i / 9 * 9, size = Math.min(9, n - start);
+        return i - start == (size - 1) / 2;
+    }
+
     private static Step at(int ox, int oy, int oz, int rx, int rz, int fx, int fz, int r, int f, int y, char kind) {
         return at(ox, oy, oz, rx, rz, fx, fz, r, f, y, kind, null);
     }
 
     private static Step at(int ox, int oy, int oz, int rx, int rz, int fx, int fz, int r, int f, int y, char kind, String block) {
         return new Step(ox + r * rx + f * fx, oy + y, oz + r * rz + f * fz, kind, block);
+    }
+
+    private static String dir(int dx, int dz) {
+        return dx + "," + dz;
     }
 
     static int clamp(int v, int lo, int hi) {
