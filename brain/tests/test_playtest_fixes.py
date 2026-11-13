@@ -485,3 +485,56 @@ def test_she_never_invents_what_she_cant_sense_or_what_didnt_happen():
     from kindred.mind import system_prompt
     p = system_prompt("Pip", "")
     assert "you can't tell" in p and "say it didn't work" in p
+
+
+# ---------------------------------------------------------------- item 29: her attention follows whoever she's with
+
+def _snap_with(friend_distance, host_creeper=True, friend_creeper=True):
+    from fixtures import snap
+    s = snap()
+    s["health"] = 20
+    s["hostiles"] = [{"type": "minecraft:creeper", "distance": 2.5, "direction": "behind", "seen": True}] if host_creeper else []
+    s["following"] = "Robin"
+    s["with"] = {"name": "Robin", "distance": friend_distance, "health": 20, "maxHealth": 20,
+                 "hostiles": [{"type": "minecraft:creeper", "distance": 3}] if friend_creeper else []}
+    return s
+
+
+def test_beside_a_friend_far_away_she_warns_them_not_you(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    said = []
+
+    async def say(text, mood, **kw):
+        said.append((text, b.speaking_to))
+    b.say = say
+    b.player_talked = -1e9
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.on_snapshot(_snap_with(80))
+        await asyncio.sleep(0.01)
+    asyncio.run(run())
+    assert ("Robin, creeper!", "Robin") in said
+    assert not any("Robin" not in t for t, _ in said), "nothing about the creeper by you, far away"
+
+
+def test_beside_a_friend_nearby_or_asked_to_watch_you_she_still_warns_you(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.snapshot = _snap_with(10)
+    assert b.attending_player(), "the friend is near you: you're both hers to watch"
+    b.snapshot = _snap_with(80)
+    b.player_talked = -1e9
+    assert not b.attending_player()
+    b.heart.add_request("protect", "")
+    assert b.attending_player(), "you asked her to always watch over you"
+
+
+def test_a_friend_far_from_you_hurting_her_isnt_held_against_you(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.snapshot = {"players": [{"name": "Robin", "distance": 70}]}
+    assert not b.near_player("Robin")
+    b.heart.friend_touch("Robin", "hit", witnessed=b.near_player("Robin"))
+    assert b.heart.friends.watching() == [], "you weren't there to step in"

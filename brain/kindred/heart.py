@@ -620,16 +620,17 @@ class Heart:
     def trust_friend(self, name, yes=True):
         self.friends.trust(name, yes)
 
-    def friend_regard(self, name, tag, words=""):
+    def friend_regard(self, name, tag, words="", witnessed=True):
         """A friend's chat line, felt by her heart for them; mean ones in front of you, she watches what you do."""
         change = self.friends.regard(name, tag, words)
-        if (tag or "").lower() in ("rude", "mean", "threat"):
+        if (tag or "").lower() in ("rude", "mean", "threat") and witnessed:
             self.friends.witness(name, words)
         return change
 
-    def friend_touch(self, name, what):
+    def friend_touch(self, name, what, witnessed=True):
+        """A friend hit or petted her; a hit with you there (near), she watches what you do."""
         change = self.friends.touched(name, what)
-        if what == "hit":
+        if what == "hit" and witnessed:
             self.friends.witness(name, "hit you")
         return change
 
