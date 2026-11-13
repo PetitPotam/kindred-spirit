@@ -612,6 +612,17 @@ public final class KindredSpiritClient implements ClientModInitializer {
             visitingWorld = visit;
             LOG.info(visit ? "{} visits this world (its game has Kindred)" : "{} no longer visiting", displayName);
             Actions.remote = visit ? this::visitAct : null;
+            dev.kindredspirit.act.Glow.remote = visit ? (at, level) -> { // her glow, placed by the friend's game
+                JsonObject g = new JsonObject();
+                g.addProperty("kind", "glow");
+                if (at != null) {
+                    g.addProperty("x", at.getX());
+                    g.addProperty("y", at.getY());
+                    g.addProperty("z", at.getZ());
+                    g.addProperty("level", level);
+                }
+                sendVisit(g);
+            } : null;
             if (visit) notice(displayName + " comes along into this world: everyone here can see her and talk to her.", 6000);
             sendAbilities(); // (her powers work here now, through this world's game)
         }
@@ -1328,6 +1339,17 @@ public final class KindredSpiritClient implements ClientModInitializer {
      */
     public void applyAct(JsonObject msg) {
         Minecraft mc = Minecraft.getInstance();
+        if (msg.has("glow")) { // "light the way" (brighter, for a while), "stop glowing"
+            String g = str(msg, "glow");
+            long ms = (long) ((msg.has("seconds") ? msg.get("seconds").getAsDouble() : 180) * 1000);
+            if (g.equals("off")) {
+                dev.kindredspirit.act.Glow.offUntil = System.currentTimeMillis() + ms;
+                dev.kindredspirit.act.Glow.brightUntil = 0;
+            } else {
+                dev.kindredspirit.act.Glow.brightUntil = System.currentTimeMillis() + ms;
+                dev.kindredspirit.act.Glow.offUntil = 0;
+            }
+        }
         Behavior life = companion.life;
         double now = companion.now();
         double seconds = msg.has("seconds") ? msg.get("seconds").getAsDouble() : 4;

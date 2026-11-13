@@ -1074,6 +1074,12 @@ class Brain:
                 "fibs": h.get("fibs"), "auto_protect": h.get("auto_protect"), "voice": self.cfg.get("voice", {}).get("enabled"),
                 "small_talk": b.get("small_talk_minutes"), "model": self.cfg.get("ai", {}).get("model") or "gateway's"}
 
+    def people_names(self):
+        """Everyone she knows by name here: the player, friends near and met (for speech-to-text)."""
+        s = self.snapshot or {}
+        return [n for n in [s.get("playerName")] + [p.get("name") for p in s.get("players") or []]
+                + self.heart.friend_names() if n][:12]
+
     def attending_player(self):
         """Her attention follows whoever she's with (item 29). It's on the player she lives with, unless she floats
         beside a friend far from them: then only if the player asked her to watch over them (standing protection) or
@@ -2253,8 +2259,10 @@ class Brain:
         try:
             wav = base64.b64decode(msg.get("wav", ""))
             t0 = time.time()
-            text = await voice.transcribe(self.cfg, wav, prompt="%s. Minecraft." % self.cfg["name"])
+            people = self.people_names()
+            raw = await voice.transcribe(self.cfg, wav, prompt=intents.stt_prompt(self.cfg["name"], people))
             stt = time.time() - t0
+            text = intents.fix_names(raw, self.cfg["name"], people)
         except (ValueError, voice.VoiceError) as e:
             log.error("speech-to-text failed: %s", e)
             await self.send({"type": "notice", "text": "Speech-to-text problem: %s" % str(e)[:120]})
@@ -2267,7 +2275,8 @@ class Brain:
             await self.send({"type": "state", "state": "idle"})
             return
         mine = without_her_words(text, [t for w, t in self.recent_said if self.clock() - w < 90])
-        self.session.event("heard", raw=text, kept=mine if mine != text else None, stt=round(stt, 2),
+        self.session.event("heard", raw=raw, fixed=text if text != raw else None, kept=mine if mine != text else None,
+                           stt=round(stt, 2),
                            trip=round(trip, 2) if trip is not None else None, relay=bool(msg.get("relay")) or None)
         if not msg.get("relay"):
             self.voice_timing = {"released": arrived - (trip or 0.0), "trip": trip, "stt": stt, "text_at": time.time()}
