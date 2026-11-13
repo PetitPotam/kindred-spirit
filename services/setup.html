@@ -214,7 +214,8 @@ function render() {
   if (state.steps.every(x => x.status === "done") && i === state.steps.length - 1) card.append(h("div", {class: "done-card"},
     h("h3", {}, "All set: her brain is awake."),
     h("p", {}, "Her dashboard shows what she feels, remembers and builds while you play. To come back to it later, " +
-      "open Kindred Spirit Setup again: it wakes her if needed and opens her dashboard. These steps stay one click away."),
+      "press K in the game, or open Kindred Spirit Setup again: it wakes her if needed and opens her dashboard. " +
+      "These steps stay one click away."),
     h("a", {class: "btn primary", href: state.dashboard.url, target: "_blank", rel: "noopener"}, "Open her dashboard ↗")));
   document.getElementById("main").replaceChildren(card);
   document.getElementById("dash").replaceChildren(state.dashboard && state.dashboard.running

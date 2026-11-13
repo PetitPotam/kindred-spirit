@@ -14,6 +14,8 @@ Unreleased into the new version's section.
   gateway and the dashboard, and opens a guided page in your browser. Each step explains itself, recommends a
   default, has a "Test it" button and a "Copy a help prompt" button for any AI assistant. The steps so far: your
   computer, installing her brain, waking her up. Choosing her AI, her models and Minecraft come next (#82).
+- **K** in the game opens her dashboard in your browser, on the computer where her brain runs (change the key in
+  Controls → Kindred Spirit). On a friend's computer with only the mod, it says the dashboard is on the host's (#107).
 - Releases are uploaded to CurseForge too, from the same GitHub release, once the project exists there (its page is
   in docs/curseforge.md).
 

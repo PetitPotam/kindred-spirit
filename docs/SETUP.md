@@ -83,6 +83,7 @@ Her dashboard is a page on your Mac where you see what she feels, remembers and 
 conversations, past sessions, her memories, the buildings she knows, and her settings
 ([what's in it](DASHBOARD.md)). It starts and stops together with her brain, and only your Mac can open it.
 
+- **In the game, press K.**
 - **Once she's set up, open Kindred Spirit Setup**: it wakes her if she isn't running and opens her dashboard.
 - In the Setup's steps, **Open her dashboard** (top right) whenever she's running.
 - Or go straight to **http://127.0.0.1:11440** in your browser while she's running.

@@ -1,0 +1,11 @@
+# #107: K opens her dashboard in the browser (a tab opens in your real browser), with a notice in the game.
+world kindred-dashboard
+wait 220
+cmd time set 1000
+cmd weather clear
+wait 100
+press dashboard
+wait 10
+screenshot dashboard-01-notice
+wait 60
+quit
