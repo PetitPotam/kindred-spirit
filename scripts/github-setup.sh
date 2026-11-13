@@ -21,6 +21,9 @@ gh api -X PUT "repos/$repo/vulnerability-alerts" --silent || echo "  (Dependabot
 gh api -X PUT "repos/$repo/automated-security-fixes" --silent || echo "  (Dependabot security updates: failed)"
 gh api -X PUT "repos/$repo/private-vulnerability-reporting" --silent \
   || echo "  (private vulnerability reporting: only for public repositories; run this again once it's public)"
+echo "- code scanning: CodeQL, default setup (Java, Python, workflows)"
+gh api -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured -f query_suite=default --silent \
+  || echo "  (CodeQL: free on public repositories; run this again once it's public)"
 
 echo "- labels"
 label() { gh label create "$1" --repo "$repo" --color "$2" --description "$3" --force >/dev/null || echo "  ($1 failed)"; }

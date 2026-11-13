@@ -58,6 +58,8 @@ Unreleased into the new version's section.
   Update Pip checks Java first and says what to install (#109).
 
 ### Changed
+- The repository is checked by CodeQL (security analysis) and OpenSSF Scorecard too, and docs/MAINTAINING.md
+  explains every check: when it runs, what it does and where to see it (#124).
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
 - One convention for branches, pull request titles and issue links (CONTRIBUTING.md), checked on every pull request.

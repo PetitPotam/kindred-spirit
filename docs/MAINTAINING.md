@@ -162,6 +162,29 @@ nothing merges without CI, the CLA and a review. Beyond that:
 - **Security reports** come privately ([SECURITY.md](../SECURITY.md)); fix them before talking about them.
 - **Releases stay boring:** small, often, with a clear changelog. Never release on a Friday night.
 
+## Everything that checks the repository
+
+This repository is also a way to learn GitHub and CI/CD: every check below is a file you can read (`.github/` or
+`scripts/`) or a setting, and each shows its results in a place on GitHub.
+
+| What | When it runs | What it does | Where to look |
+|---|---|---|---|
+| **CI** (`.github/workflows/ci.yml`) | every pull request and push to `main` | builds the mod for every Minecraft version and runs the Java tests, runs the brain's tests on Python 3.11 and 3.12, parses the Windows script, checks the pull request's title, branch and `Fixes #` link; **CI passed** sums them up | the checks at the bottom of a pull request; Actions tab |
+| **Platforms** (`platforms.yml`) | pull requests that touch the Setup, scripts, services or the brain | installs and starts everything on clean macOS (Apple silicon and Intel), Windows and Linux machines, and starts a real Minecraft client on Linux to check she answers ([TESTING-PLATFORMS.md](TESTING-PLATFORMS.md)) | the pull request's checks |
+| **Release** (`release.yml`) | a version tag on `main` | builds the jars and the Setup, makes the GitHub release, uploads to Modrinth and CurseForge | Releases; Actions tab |
+| **Website** (`website.yml`) | changes under `web/` | builds and checks the site on pull requests; deploys it when merged to `main` | the pull request's checks |
+| **CLA** (`cla.yml`) | pull requests | asks first-time contributors to sign the [CLA](../CLA.md) | a comment on the pull request |
+| **Labeler**, **Stale** | pull requests; daily | labels pull requests by the folders they touch; nudges, then closes, inactive issues | labels; issue comments |
+| **Dependabot** (`dependabot.yml`) | weekly / monthly | update pull requests for actions, Python and Gradle dependencies (never Minecraft or Fabric), and security alerts | Pull requests; Security tab → Dependabot |
+| **Secret scanning and push protection** | every push | refuses a push that contains a key or token, and alerts on ones already in the history | Security tab → Secret scanning |
+| **CodeQL** (a setting: code scanning, default setup) | pull requests, pushes to `main`, weekly | GitHub's security analysis of the Java, Python and workflow code (injection, unsafe paths, leaked tokens in workflows...) | Security tab → Code scanning; comments on the pull request |
+| **Scorecard** (`scorecard.yml`) | pushes to `main`, weekly | the OpenSSF score of the repository's security practices; each finding explains how to fix it | Security tab → Code scanning (tool "Scorecard"); the badge in the README |
+| **The ruleset on `main`** (a setting) | every merge | pull requests only, squash, **CI passed** up to date with `main`, no force-push, no deletion, no bypass | Settings → Rules |
+| **The pre-push hook** (`.githooks/pre-push`) | on your computer, before a push | refuses a push to `main` from your own computer | your terminal |
+
+Good first things to read: a failed run's log (Actions tab → the run → the red step), a CodeQL alert's
+explanation, and Scorecard's list of checks (https://github.com/ossf/scorecard/blob/main/docs/checks.md).
+
 ## The repository's settings (what `scripts/github-setup.sh` does)
 
 - Merging: squash only, the pull request title as the commit title, branches deleted after merge,
@@ -170,5 +193,7 @@ nothing merges without CI, the CLA and a review. Beyond that:
   required, no force-pushes, no deletion, and no bypass for anyone.
   (GitHub only enforces rulesets on a private repository with a paid plan; on the free plan they apply
   once the repository is public.)
-- Dependabot alerts and security updates, private vulnerability reporting.
+- Dependabot alerts and security updates, private vulnerability reporting, CodeQL code scanning (default setup).
+  Secret scanning and push protection are on by default for public repositories. (Secret scanning's
+  "non-provider patterns" and "validity checks" need GitHub's paid Secret Protection, so they stay off.)
 - The labels above, and the project board linked to the repository.
