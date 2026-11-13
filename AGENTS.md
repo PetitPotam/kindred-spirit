@@ -62,6 +62,8 @@ These are not optional. A pull request that breaks one of them is closed.
 - **The protocol** between the mod and the brain is at the top of `brain/kindred/server.py`. Changing it
   is a breaking change: both sides in the same pull request, marked **Breaking** in the changelog.
 - **Evals** for her answers: `brain/evals/` and `scripts/eval.sh`.
+- **Website:** `cd web && node build.mjs && node check.mjs` ([web/README.md](web/README.md)). Nothing in `web/`
+  is deployed without your human's OK: merging to main deploys the live site.
 
 ## Setting up a friend's Windows PC
 

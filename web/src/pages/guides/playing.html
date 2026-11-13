@@ -1,0 +1,108 @@
+---
+title: Playing with Pip
+description: How to talk to Pip, what she can do, how she discovers her powers, how power and style limit what she may do, and the controls.
+section: guides
+layout: guide
+---
+<h1>Playing with Pip</h1>
+<p class="lede">Mostly, you just talk to her and discover what she can do along the way. That's the point, so this
+  page is for the curious.</p>
+
+<h2 id="talking">Talking to her</h2>
+<ul>
+  <li><strong>By voice:</strong> hold <kbd>V</kbd>, speak, and let go. Speech-to-text on your computer hears you, and
+    she answers out loud. (Change the key in Controls → Kindred Spirit.)</li>
+  <li><strong>In chat:</strong> just type. In singleplayer everything goes to her; on a server or a LAN world, start
+    with her name: "Pip, where are the cows?". Or use <code>/kindred &lt;message&gt;</code> (short: <code>/ks</code>).
+    The <code>chatMode</code> setting chooses: <code>all</code>, <code>name</code> or <code>command</code>.</li>
+  <li><strong>Subtitles</strong> appear above her, with optional captions and a log in your chat that only you see.</li>
+</ul>
+<p>She sees what's in her line of sight from where she floats, hears the game's sounds ("zombie groans" behind a
+  wall), feels rain, snow and the cold, and notices what you do: what you place, mine, craft and eat. She speaks up on
+  her own when a creeper sneaks behind you, lava or a big drop is ahead, or your hearts run low.</p>
+
+<h2 id="things-to-say">Things to try</h2>
+<ul class="pill-list">
+  <li>stay here</li>
+  <li>come here</li>
+  <li>follow me</li>
+  <li>look at me</li>
+  <li>do a spin</li>
+  <li>any diamonds near me?</li>
+  <li>where are the sheep? lead the way</li>
+  <li>where's the nearest village? take me there</li>
+  <li>push them away</li>
+  <li>always protect me</li>
+  <li>this is my base</li>
+  <li>remind me in 10 minutes to check the furnace</li>
+  <li>put my block back</li>
+  <li>what am I missing to make a piston?</li>
+  <li>build us a cozy cottage for three</li>
+</ul>
+<p>Sneak while looking at her to <strong>pet</strong> her.</p>
+
+<h2 id="powers">She discovers her powers with you</h2>
+<p>Pip starts out not knowing what she can do, and she never lists commands. The first time you ask for something new,
+  she answers at once ("Diamonds? Ooh, I don't know if I can... but I'll try!"). Then, in the background, the power
+  slowly wakes up: she senses something strange, maybe asks a small favour (stand still, pet her, say her name), and
+  then it clicks: "I can sense diamonds now!" She remembers it after that. Powers you need right away, like pushing
+  monsters back, wake up instantly.</p>
+<p>Prefer her to know everything from the start? See <a href="/guides/configure#heart">her heart settings</a>.</p>
+
+<h2 id="what-she-may-do">What she may do: power and style</h2>
+<p>You decide how much she can do, and the mod enforces it, not the AI. Use <code>/kindred power</code> and
+  <code>/kindred style</code>.</p>
+<table>
+  <thead><tr><th scope="col"></th><th scope="col">grounded (only what really exists)</th><th scope="col">magic (things can appear)</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">advisor</th><td>talks, finds ores and animals, locates places, leads the way</td><td>same</td></tr>
+    <tr><th scope="row">helper (default)</th><td>+ pushes monsters away, places one of your torches, chops, builds with your blocks</td><td>+ gives items and effects, torches and blocks from thin air</td></tr>
+    <tr><th scope="row">allpowerful</th><td>+ time and weather</td><td>+ all of it</td></tr>
+  </tbody>
+</table>
+<p>Finding and guiding work everywhere. Anything that changes the world works in singleplayer, when you host a LAN
+  world, and in a friend's LAN world whose game has the mod, always done the way a command would.</p>
+
+<h2 id="heart">Her heart</h2>
+<p>Pip has a <strong>bond</strong> with you. Kindness brings her closer: she opens up, proposes plans, plays pranks
+  (harmless ones, and she owns up). Hitting her or being mean makes her keep her distance, sulk, or vanish for a while.
+  She forgives quickly. <code>/kindred heart</code> shows how she feels about you.</p>
+
+<h2 id="memory">Her memory</h2>
+<p>She remembers who you are and what you like, your habits and places, what you found together, a diary of each
+  session, and reminders. Each world has its own Pip by default: a new world means meeting a new her. To bring her
+  along:</p>
+<ul>
+  <li><code>/kindred memory</code> shows what she knows here; <code>/kindred memory worlds</code> lists your worlds.</li>
+  <li><code>/kindred memory import &lt;world&gt;</code> brings what she knew about you from another world.</li>
+  <li><code>/kindred memory forget &lt;words&gt;</code>, or just say "forget that I ...".</li>
+  <li><code>/kindred reset</code> gives you a brand-new companion for this world.</li>
+</ul>
+<p>Her memories live on your computer. More: <a href="{{blob}}/docs/MEMORY.md">docs/MEMORY.md</a>.</p>
+
+<h2 id="blueprints">Building from blueprints</h2>
+<p>Ask for a building ("build us a cozy cottage for three", "a small desert house") and she finds a matching blueprint,
+  describes the best two or three when several fit, and checks before a big one. She can make one up, or use any
+  <code>.nbt</code>, <code>.schem</code> or <code>.litematic</code> file in <code>config/kindredspirit/blueprints/</code>.
+  With magic it rises in seconds; grounded, she first tells you the materials. She never builds over what you built.</p>
+
+<h2 id="controls">Controls</h2>
+<table>
+  <thead><tr><th scope="col">Key or command</th><th scope="col">What it does</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>V</kbd> (hold)</td><td>talk; let go to send</td></tr>
+    <tr><td>type in chat</td><td>talk to her (with her name first on a server); or <code>/kindred &lt;text&gt;</code>, <code>/ks &lt;text&gt;</code></td></tr>
+    <tr><td><code>/kindred status</code></td><td>brain connection, skin, mode, quality level, mood</td></tr>
+    <tr><td><code>/kindred reconnect</code></td><td>after restarting her brain</td></tr>
+    <tr><td><code>/kindred skin &lt;name&gt;</code> · <code>/kindred skins</code></td><td>change her look, list skins</td></tr>
+    <tr><td><code>/kindred mode follow|stay|come</code></td><td>follow you (default), wait here, come close for a moment</td></tr>
+    <tr><td><code>/kindred side left|right|above|auto</code></td><td>which side she floats on</td></tr>
+    <tr><td><code>/kindred look me|there|ahead|up|down|around</code></td><td>where to look for a few seconds</td></tr>
+    <tr><td><code>/kindred emote &lt;name&gt;</code></td><td>nod, shake, spin, hop, wiggle, happy, shy, think, tease, doze</td></tr>
+    <tr><td><code>/kindred heart</code></td><td>how she feels about you</td></tr>
+    <tr><td><code>/kindred life</code></td><td>her liveliness switches (see <a href="/guides/configure#life">Configure her</a>)</td></tr>
+    <tr><td><code>/kindred power …</code> · <code>/kindred style …</code></td><td>what she may do (above)</td></tr>
+    <tr><td>sneak while looking at her</td><td>pet her</td></tr>
+  </tbody>
+</table>
+<p>The full list is in the <a href="{{repo}}#controls">README</a>.</p>

@@ -65,6 +65,7 @@ brain/      Python 3.11+ "brain"
 services/   the gateway (AI, speech-to-text, voice, embeddings, memory store) and local tools
             (Kokoro voice, local embeddings, memory_store.py)
 scripts/    setup, start/stop, launcher profile installer
+web/        the website (plain HTML, built with Node's standard library; see web/README.md)
 docs/       design, roadmap, good first issues
 ```
 

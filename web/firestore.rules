@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Cloud Firestore is not used yet. If it's ever turned on, these rules deny everything to web and mobile clients
+// until a reviewed rule opens one collection for one purpose (see web/BACKEND.md). Server code using the Admin SDK
+// is not affected by rules. To deploy them, add "firestore": {"rules": "firestore.rules"} to firebase.json.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

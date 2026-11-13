@@ -1,0 +1,16 @@
+{
+  "name": "kindred-spirit-website",
+  "private": true,
+  "description": "The Kindred Spirit website: plain HTML pages, one stylesheet, a little JavaScript, built with Node's standard library only.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node check.mjs",
+    "serve": "node serve.mjs",
+    "test": "node build.mjs && node check.mjs"
+  }
+}

@@ -1,0 +1,74 @@
+---
+title: Credits
+description: Kindred Spirit stands on the work of many others. The libraries, models, data and research it uses, and how the project is made with AI, openly.
+section: credits
+---
+<div class="wrap prose">
+  <h1>Credits</h1>
+  <p class="lede">Kindred Spirit stands on the work of many others. This is a summary; every library, model, dataset,
+    service and source, with its licence, is in <a href="{{blob}}/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a>.
+    If something is missing or wrong, please open an issue.</p>
+
+  <h2 id="made-with-ai">Made with AI, openly</h2>
+  <p>Kindred Spirit is written with <a href="https://www.anthropic.com/claude-code">Claude Code</a>, Anthropic's
+    agentic coding tool. Its author directs the work: the ideas and design decisions, the playtests, the feedback, and
+    the approval of every change. Claude does most of the writing.</p>
+  <ul>
+    <li><strong>What Claude wrote:</strong> most of the code (the mod, her brain, the local services, the dashboard),
+      the tests, the documentation, research summaries, the scripts that draw her skins and make the demo video and its
+      music, and this website.</li>
+    <li><strong>Which model:</strong> Claude Opus 5.5, for the whole project so far.</li>
+    <li><strong>Pip herself uses AI while you play:</strong> her conversation is generated live by the AI the player
+      chooses (Google's Gemini by default), her deeper thinking can run on Anthropic's Claude, and her voice comes
+      from a speech model on the player's computer. What she says is AI-generated and can be wrong.</li>
+    <li><strong>Research summaries are AI-written</strong> from the cited papers and pages; check the sources for
+      anything that matters.</li>
+  </ul>
+
+  <h2 id="mod">The mod</h2>
+  <p><a href="https://fabricmc.net">Fabric</a> Loader, Fabric API and Loom (Apache-2.0, MIT), Gradle, JUnit 5 and Gson,
+    built with OpenJDK. It runs in <a href="https://www.minecraft.net">Minecraft Java Edition</a> by Mojang Studios,
+    which isn't distributed with it. Pip's skins, textures and icon are original art made for this project.</p>
+
+  <h2 id="brain">Her brain and voice</h2>
+  <ul>
+    <li><a href="https://github.com/ggml-org/whisper.cpp">whisper.cpp</a> and OpenAI's
+      <a href="https://github.com/openai/whisper">Whisper</a> (MIT) to hear you, with
+      <a href="https://github.com/snakers4/silero-vad">Silero VAD</a> (MIT).</li>
+    <li><a href="https://huggingface.co/hexgrad/Kokoro-82M">Kokoro-82M</a> by hexgrad (Apache-2.0) for her voice, through
+      <a href="https://github.com/thewh1teagle/kokoro-onnx">kokoro-onnx</a> and ONNX Runtime (MIT), with phonemizer and
+      eSpeak NG (GPL-3.0, installed on your computer, not distributed).</li>
+    <li><a href="https://huggingface.co/BAAI/bge-small-en-v1.5">BAAI's bge-small</a> (MIT) through
+      <a href="https://github.com/qdrant/fastembed">fastembed</a> (Apache-2.0) for understanding and memory search.</li>
+    <li><a href="https://github.com/python-websockets/websockets">websockets</a>, NumPy, soundfile, Pillow and pytest,
+      and Python itself.</li>
+  </ul>
+
+  <h2 id="knowledge">Knowledge and game data</h2>
+  <ul>
+    <li>The <a href="https://minecraft.wiki">Minecraft Wiki</a> contributors, under
+      <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a>: the knowledge base each player
+      builds on their own computer (not distributed by this project).</li>
+    <li><a href="https://github.com/PrismarineJS/minecraft-data">minecraft-data</a> by PrismarineJS (MIT) for recipes,
+      foods and mining data.</li>
+    <li><a href="https://github.com/Greaby/minecraft-circles-schematics">minecraft-circles-schematics</a> by Greaby
+      (CC0-1.0) for the circle blueprints.</li>
+  </ul>
+
+  <h2 id="research">Research and inspiration</h2>
+  <p>Studied, with no code copied: research on language agents and memory (CoALA, Talker-Reasoner, SwiftSage,
+    Generative Agents, MemGPT, Mem0, Zep, ReAct), Minecraft agents (Voyager, JARVIS-1, MineCollab and
+    <a href="https://github.com/mindcraft-bots/mindcraft">Mindcraft</a>, Mineflayer, Baritone, Carpet, Automatone), the
+    OCC model of emotions behind her heart, design notes from <a href="https://github.com/denfry/mcpfabric">MCPFabric</a>,
+    and the idea of a companion who is always there from
+    <a href="https://www.curseforge.com/minecraft/mc-mods/verity-je">Verity JE</a>. Kindred Spirit isn't a fork of it:
+    none of its code or assets are used.</p>
+
+  <h2 id="demo">The demo video</h2>
+  <p>Filmed by the game itself from a script, in a test world. The music is generated from scratch by a script in the
+    repository (no samples); the player's voice is synthesized with Kokoro.</p>
+
+  <h2 id="website">This website</h2>
+  <p>Plain HTML and CSS with system fonts, built by a small script with no dependencies, hosted on Firebase Hosting.
+    The pictures are stills from the demo video and the project's own art.</p>
+</div>

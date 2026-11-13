@@ -1,0 +1,200 @@
+---
+title: Kindred Spirit
+description: Pip is a cozy AI companion for Minecraft Java who floats beside you, sees your game, talks with you out loud and helps when you ask. Free software, early preview.
+scripts: video
+---
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div>
+      <p class="facts">A companion mod for Minecraft Java 1.21.1 · Fabric · free and open source · early preview</p>
+      <h1>Meet Pip, a little spirit who keeps you company while you play</h1>
+      <p class="lede">She floats beside you, sees your game, talks with you out loud and helps when you ask. She warns you
+        when a creeper sneaks up, remembers your adventures, and has a heart of her own. Your world stays yours:
+        nothing is added to it, and you can take her out any time.</p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="#watch">Watch her in action</a>
+        <a class="btn" href="/guides/install">Set her up</a>
+      </div>
+    </div>
+    <div class="hero-pip">
+      <figure>
+        <p class="speech" aria-hidden="true">Ooh, a stone pickaxe!</p>
+        <svg class="pip-art" viewBox="0 0 120 124" role="img" aria-labelledby="pip-art-title">
+          <title id="pip-art-title">Pip, a round green slime spirit with a happy face and pink cheeks</title>
+          <defs>
+            <radialGradient id="pip-body-fill" cx="40%" cy="32%" r="70%">
+              <stop offset="0" stop-color="#a8f0a0"/>
+              <stop offset=".55" stop-color="#6fd36f"/>
+              <stop offset="1" stop-color="#3f9f4c"/>
+            </radialGradient>
+          </defs>
+          <ellipse class="pip-shadow" cx="60" cy="116" rx="34" ry="5" fill="#1d2320" opacity=".35"/>
+          <g class="pip-body">
+            <circle cx="60" cy="60" r="50" fill="url(#pip-body-fill)"/>
+            <ellipse cx="42" cy="28" rx="13" ry="7" fill="#fff" opacity=".85"/>
+            <g class="pip-eyes">
+              <ellipse cx="44" cy="60" rx="7" ry="9" fill="#1d2320"/>
+              <ellipse cx="76" cy="60" rx="7" ry="9" fill="#1d2320"/>
+              <circle cx="46.5" cy="56.5" r="2.6" fill="#fff"/>
+              <circle cx="78.5" cy="56.5" r="2.6" fill="#fff"/>
+            </g>
+            <ellipse cx="32" cy="74" rx="7" ry="4" fill="#f59fb2" opacity=".85"/>
+            <ellipse cx="88" cy="74" rx="7" ry="4" fill="#f59fb2" opacity=".85"/>
+            <path d="M52 74q8 8 16 0" fill="none" stroke="#1d2320" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="watch" aria-labelledby="watch-title">
+  <div class="wrap">
+    <h2 id="watch-title">See her in action</h2>
+    <p class="section-intro">Four minutes in a singleplayer test world: finding sheep, mining, chopping, crafting
+      help, a cottage from a blueprint, a little magic, a creeper, a place she remembers, her feelings, her glow at
+      night and her skins.</p>
+    <figure class="video">
+      <div class="video-frame" data-video data-provider="{{video.provider}}" data-src="{{video.src}}"
+        data-youtube-id="{{video.youtubeId}}" data-captions="/media/showcase.en.vtt" data-title="Kindred Spirit showcase">
+        <img src="/media/showcase-poster.jpg" alt="" width="1280" height="720" loading="lazy" decoding="async">
+        <a class="video-play" href="{{video.src}}">
+          <span class="video-play-badge">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#2b7539"/><path d="M9.5 7.5v9l7-4.5z" fill="#fff"/></svg>
+            Play the showcase <span class="visually-hidden">video, {{video.duration}}, with captions</span>
+          </span>
+        </a>
+      </div>
+      <figcaption>Recorded live: Pip's answers are real AI replies, spoken by a voice that runs on the computer; the
+        player's voice is synthesized. {{video.duration}}, with English captions.
+        <a href="{{video.src}}">Download the video</a> (MP4, {{video.size}}).</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section section-alt" aria-labelledby="does-title">
+  <div class="wrap">
+    <h2 id="does-title">What she does</h2>
+    <p class="section-intro">Mostly, you just talk to her and find out along the way. Hold <kbd>V</kbd> and speak, or
+      type in the game's chat.</p>
+    <ul class="cards">
+      <li><article class="card">
+        <img src="/media/meet.jpg" alt="Pip, a pale fairy-winged spirit, floats beside a player in a grassy field" width="960" height="540" loading="lazy" decoding="async">
+        <div class="card-body">
+          <h3>She sees your world and talks back</h3>
+          <p>She knows your health, hunger, inventory, the biome, the time and weather, what you're looking at and the
+            monsters nearby, and answers out loud.</p>
+          <p class="say">Pip, what can you see around us?</p>
+        </div>
+      </article></li>
+      <li><article class="card">
+        <img src="/media/find.jpg" alt="Pip floats ahead over a fence where sheep are grazing" width="960" height="540" loading="lazy" decoding="async">
+        <div class="card-body">
+          <h3>She finds things and leads the way</h3>
+          <p>Ores, animals, villages, any structure or biome. She floats ahead with an arrow, the distance and a trail
+            of sparkles, and calls you back if you go the wrong way.</p>
+          <p class="say">Where are the sheep? Lead the way.</p>
+        </div>
+      </article></li>
+      <li><article class="card">
+        <img src="/media/mine.jpg" alt="Pip next to a stone wall with iron ore, saying: On it! Found a bit of iron for you." width="960" height="540" loading="lazy" decoding="async">
+        <div class="card-body">
+          <h3>She lends a hand</h3>
+          <p>She mines the block you look at with your own pickaxe, at its real speed, and chops whole trees. What
+            drops goes into your inventory.</p>
+          <p class="say">Now chop this tree and bring me the logs.</p>
+        </div>
+      </article></li>
+      <li><article class="card">
+        <img src="/media/cottage.jpg" alt="A birch and oak cottage, with the player and Pip in front of the door" width="960" height="540" loading="lazy" decoding="async">
+        <div class="card-body">
+          <h3>She builds with you</h3>
+          <p>Simple shapes with your blocks, or whole buildings from blueprint files, door toward you. She checks before
+            a big one and never builds over what you built.</p>
+          <p class="say">Build us a cozy cottage right here, for two.</p>
+        </div>
+      </article></li>
+      <li><article class="card">
+        <img src="/media/night.jpg" alt="At night, Pip glows softly in a field beside the cottage: I'll be your little floating lantern." width="960" height="540" loading="lazy" decoding="async">
+        <div class="card-body">
+          <h3>She watches over you</h3>
+          <p>Instant warnings for a creeper close by, lava or a big drop ahead and low health. She pushes monsters away,
+            and at night her soft glow lights the way.</p>
+          <p class="say">It's so dark out here. Can you light the way?</p>
+        </div>
+      </article></li>
+      <li><article class="card">
+        <img src="/media/skins.jpg" alt="Pip as a big green slime with a little sprout on top, beside the player" width="960" height="540" loading="lazy" decoding="async">
+        <div class="card-body">
+          <h3>She's yours to dress up</h3>
+          <p>A slime, a soft cube, a fairy, a pixie, a glowing wisp, a strawberry, a starry orb, Sprout with its leaves,
+            or your own picture.</p>
+          <p class="card-cmd"><code>/kindred skin sprout</code></p>
+        </div>
+      </article></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="heart-title">
+  <div class="wrap split">
+    <div>
+      <h2 id="heart-title">She has a heart</h2>
+      <p>Pip isn't a menu of commands. She's a whimsical little spirit, delighted by ordinary things and curious about
+        you. Kindness brings her closer: she opens up, suggests plans and plays harmless pranks. Hit her or be mean and
+        she keeps her distance, sulks, or vanishes for a while. She forgives quickly.</p>
+      <p><strong>She discovers her powers with you.</strong> She doesn't know what she can do until you ask. "I'll
+        try!", she says, and a little later: "I can sense diamonds now!"</p>
+      <p><strong>She remembers.</strong> Who you are, what you like, your places, a diary of your sessions, and
+        reminders ("in 10 minutes", "at night", "next time we play"). Each world has its own Pip, unless you'd rather
+        she followed you everywhere.</p>
+      <p><a href="/guides/playing">How to play with her</a></p>
+    </div>
+    <figure class="split-media">
+      <video data-autoplay muted loop playsinline controls preload="none" poster="/media/skins-loop.jpg" width="640" height="360"
+        aria-label="Pip trying on skins: slime, soft cube, strawberry, wisp, starry orb, pixie and fairy">
+        <source src="/media/skins-loop.mp4" type="video/mp4">
+      </video>
+    </figure>
+  </div>
+</section>
+
+<section class="section section-alt" aria-labelledby="friends-title">
+  <div class="wrap">
+    <h2 id="friends-title">Play with friends on your LAN</h2>
+    <p class="section-intro">One Pip, on the computer that runs her. Friends on the same network join your world and
+      see her exactly as you do. They talk to her in chat ("Pip, ..."), and she knows who said what. Friends need only
+      the mod: no AI, no keys, nothing else.</p>
+    <p><a class="btn" href="/guides/friends">Set up a friend's computer</a></p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="promise-title">
+  <div class="wrap">
+    <h2 id="promise-title">Made to be kind to you and your computer</h2>
+    <ul class="promise-list">
+      <li><strong>Your world stays yours</strong> No new blocks, items or mobs, nothing saved in your world. She only
+        changes things when you ask, the way a player or a command would, and every power can be switched off.</li>
+      <li><strong>Bring your own AI</strong> Gemini by default (it has a free tier), your Claude subscription, Ollama on
+        your own computer, or another provider. Hearing and voice run on your computer.</li>
+      <li><strong>Light on your game</strong> She adapts to your frame rate and hardware. Built on a fanless laptop,
+        with nothing heavy on the game's threads.</li>
+      <li><strong>Your memories stay with you</strong> Her memories live on your computer. The AI you choose sees
+        only your words, a short description of your game and the few memories that matter.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section section-alt" aria-labelledby="open-title">
+  <div class="wrap">
+    <h2 id="open-title">Made in the open</h2>
+    <p class="section-intro">Kindred Spirit is free software under the GNU AGPL-3.0, written with an AI coding assistant
+      and said so openly. It's an early preview: hosting Pip needs a Mac for now, while friends on Windows can join with
+      just the mod. Ideas, bug reports and contributions are welcome.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="{{repo}}">The code on GitHub</a>
+      <a class="btn" href="/roadmap">What's next</a>
+      <a class="btn" href="/contributing">Help build her</a>
+    </div>
+  </div>
+</section>

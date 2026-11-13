@@ -1,0 +1,96 @@
+---
+title: Install and set up
+description: Set up Kindred Spirit on your Mac in about ten minutes: build the mod, prepare Pip's brain, choose an AI, a voice and hearing, and add a Minecraft launcher profile.
+section: guides
+layout: guide
+---
+<h1>Install and set up</h1>
+<p class="lede">Hosting Pip means running the mod in Minecraft and her "brain" on the same computer. On a Mac it takes
+  about ten minutes. Joining a friend who already hosts her is much simpler: see <a href="/guides/friends">Friends on
+  LAN</a>.</p>
+
+<h2 id="what-you-need">What you need</h2>
+<ul>
+  <li><strong>Minecraft Java Edition</strong> (Pip uses release 1.21.1 with the Fabric loader; the setup installs
+    Fabric for you).</li>
+  <li><strong>A Mac</strong> with <a href="https://brew.sh">Homebrew</a>. Linux should work (the scripts are written
+    for it) but hasn't been tried yet; Windows hosts aren't supported yet.</li>
+  <li><strong>An AI for her to think with.</strong> Use what you already have: a free
+    <a href="https://aistudio.google.com/apikey">Gemini key</a> (the default), your Claude subscription through Claude
+    Code, another AI's command-line tool you pay for, an API key (OpenAI, Claude API, Groq, OpenRouter, Mistral), or
+    nothing at all with <a href="https://ollama.com">Ollama</a> on your computer.</li>
+</ul>
+
+<h2 id="steps">The steps</h2>
+<ol class="steps">
+  <li>
+    <p><strong>Install the tools</strong> Java, Python and the local speech-to-text:</p>
+    <pre><code>brew install openjdk@25 python@3.12 whisper-cpp</code></pre>
+  </li>
+  <li>
+    <p><strong>Get the code</strong></p>
+    <pre><code>git clone {{repo}}.git
+cd kindred-spirit</code></pre>
+  </li>
+  <li>
+    <p><strong>Run the setup guide</strong></p>
+    <pre><code>scripts/setup.sh</code></pre>
+    <p>It prepares her brain, then asks what you have for each of the four parts: <strong>the AI</strong> (how she
+      thinks), <strong>speech-to-text</strong> (how she hears you), <strong>the voice</strong> (how she speaks, or
+      subtitles only) and <strong>memory</strong> (on your computer, or your own deployed gateway). It saves your
+      choices, installs only the local tools you picked, starts everything and tests each part:</p>
+    <pre><code>  ok   AI           Hello, friend, there!
+  ok   voice        65 KB of WAV
+  ok   speech->text heard: 'Testing 1 2 3.'
+  ok   embeddings   384 numbers per text
+  ok   memory       stored, found and removed a test memory</code></pre>
+    <p>Anything that fails comes with how to fix it. Your keys go in <code>~/.kindred-spirit/secrets.env</code>,
+      readable only by you. Want no questions? <code>scripts/setup.sh --defaults</code> picks Gemini and everything
+      else local.</p>
+  </li>
+  <li>
+    <p><strong>Build the mod</strong></p>
+    <pre><code>(cd mod &amp;&amp; ./gradlew build)</code></pre>
+  </li>
+  <li>
+    <p><strong>Add a launcher profile</strong> (quit the Minecraft Launcher first):</p>
+    <pre><code>python3 scripts/install_profile.py</code></pre>
+    <p>It adds a <strong>Kindred Spirit (Fabric 1.21.1)</strong> profile with its own game folder
+      (<code>minecraft-kindred</code>), installs Fabric Loader and Fabric API, and backs up your launcher profiles. Your
+      other profiles, mods and worlds are left alone.</p>
+  </li>
+  <li>
+    <p><strong>Play</strong> Double-click <code>scripts/play-mac.command</code>. It starts everything and opens the
+      launcher from Terminal. Pick the Kindred Spirit profile and press Play.</p>
+  </li>
+</ol>
+
+<div class="note">
+  <p class="note-title">Why start from Terminal?</p>
+  <p>On macOS the Minecraft Launcher has no microphone permission of its own. Started from the Dock, the game records
+    silence, so <code>play-mac.command</code> opens it from Terminal, which can use the microphone.</p>
+</div>
+
+<h2 id="change-later">Changing your choices later</h2>
+<ul>
+  <li>Run the guide again: <code>brain/.venv/bin/python scripts/guide.py</code></li>
+  <li>Only test everything: <code>brain/.venv/bin/python scripts/guide.py --check</code></li>
+  <li>Switch one part in one command, without restarting the game: see <a href="/guides/configure#ai-voice">Configure
+    her</a>.</li>
+</ul>
+
+<h2 id="knowledge">Optional: what she knows about Minecraft</h2>
+<p>Pip answers "how does this work?" questions from a <strong>knowledge base on your computer</strong>, built from the
+  Minecraft Wiki and the game's own recipe data. You fill it yourself (the recommended set takes about 45 minutes, at
+  a polite one page per second):</p>
+<pre><code>python3 services/knowledge/kb.py crawl minecraft-wiki --core --grow 600
+python3 services/knowledge/kb.py crawl minecraft-data</code></pre>
+<p>She also learns pages she doesn't have yet in the background while you play. The wiki's text is under
+  <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a>: it stays on your computer, with
+  each passage's page and licence. Details: <a href="{{blob}}/docs/KNOWLEDGE.md">docs/KNOWLEDGE.md</a>.</p>
+
+<h2 id="test-first">Trying it without touching your game</h2>
+<p>Three levels, from quickest to most real: the automated tests (no game, no key, no network), a fake game that talks
+  to your real setup (<code>brain/tools/fake_game.py</code>), and a throwaway sandbox Minecraft driven by a script. The
+  README explains each: <a href="{{repo}}#testing-without-breaking-your-game">Testing without breaking your
+  game</a>.</p>
