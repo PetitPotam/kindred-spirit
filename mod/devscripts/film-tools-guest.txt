@@ -1,0 +1,11 @@
+# Filming tools check (#144), guest side (runGuest, Robin): join the host's LAN world and ask Pip for something.
+# See film-tools-host.txt.
+wait 1100
+join 127.0.0.1:25599
+wait 200
+lookat
+type Pip, can we have some bread?
+wait 100
+screenshot film-guest
+wait 100
+quit
