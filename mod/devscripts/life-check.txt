@@ -1,4 +1,4 @@
-# Focused check: eye contact, petting, stay, watching a creeper. Screenshots: mod/run/screenshots/check-*.png
+# Focused check: eye contact, petting, stay, watching a creeper. Screenshots: mod/versions/26.3/run/screenshots/check-*.png
 world kindred-test
 wait 200
 cmd gamemode creative

@@ -1,6 +1,6 @@
 # The demo video, filmed by the sandbox game itself. From the mod folder, with the brain running:
 #   ../brain/.venv/bin/python ../demo/make_voices.py
-#   ./gradlew runClient -PdevScript=../demo/demo-script.txt -PvideoSize=960x540
+#   ./gradlew :1.21.1:runClient -PdevScript=../demo/demo-script.txt -PvideoSize=960x540
 #   ../brain/.venv/bin/python ../demo/make_video.py   (needs pillow, numpy and ffmpeg)
 # Each "mark X" ... "mark X_end" is a chapter of the edit; Pip's answers are live, not scripted.
 world kindred-test

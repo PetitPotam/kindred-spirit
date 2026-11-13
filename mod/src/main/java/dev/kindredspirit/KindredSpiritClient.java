@@ -1085,7 +1085,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         JsonObject hello = new JsonObject();
         hello.addProperty("type", "hello");
         hello.addProperty("mod", "0.1.0");
-        hello.addProperty("minecraft", "1.21.1");
+        hello.addProperty("minecraft", Mc.gameVersion());
         hello.addProperty("name", cfg.name);
         addAbilities(hello);
         link.send(hello);

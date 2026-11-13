@@ -27,10 +27,10 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * A tiny test script for the sandbox game ({@code ./gradlew runClient}), so a change can be tried
+ * A tiny test script for the sandbox game ({@code ./gradlew :26.3:runClient}), so a change can be tried
  * without touching your real Minecraft. Only active when the JVM is started with
  * {@code -Dkindredspirit.devScript=<file>} and that file exists, which
- * {@code ./gradlew runClient -PdevScript=devscripts/smoke-test.txt} does. One command per line:
+ * {@code ./gradlew :26.3:runClient -PdevScript=devscripts/smoke-test.txt} does. One command per line:
  * <pre>
  *   world NAME          open this test world, creating it (survival, cheats on) if needed
  *   wait TICKS          wait (20 ticks = 1 second)
@@ -56,7 +56,7 @@ import java.util.Deque;
  *
  * For demo videos:
  *   video               HUD hidden (subtitles stay), chat log off, FOV 75, Fancy, no view bobbing
- *   record start NAME   record the screen to mod/run/recordings/NAME (needs ffmpeg); record stop
+ *   record start NAME   record the screen to mod/versions/<version>/run/recordings/NAME (needs ffmpeg; 1.21.x only for now); record stop
  *   mark NAME           a named moment in the recording (the editing script cuts on them)
  *   turn YAW PITCH SEC  turn the camera smoothly (eased), instead of "look" which snaps
  *   turnto companion SEC  turn smoothly to look at the companion

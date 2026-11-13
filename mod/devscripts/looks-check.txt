@@ -1,6 +1,6 @@
 # Her face and moods, the gestures, her speech bubble and the HUD, with no brain needed: the "brain"
 # lines stand in for it (run it with brainPort pointing at a quiet stand-in, or no brain at all).
-# Screenshots: mod/run/screenshots/looks-*.png
+# Screenshots: mod/versions/26.3/run/screenshots/looks-*.png
 world kindred-test
 wait 200
 cmd gamemode creative

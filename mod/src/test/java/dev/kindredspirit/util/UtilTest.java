@@ -11,6 +11,16 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Logic that runs without Minecraft: ./gradlew test (a few seconds, no game needed). */
 class UtilTest {
     @Test
+    void lightIsPackedTheWayTheGameDoes() {
+        // block light in bits 4-7, sky light in bits 20-23 (LightTexture.pack up to 1.21.x, LightCoordsUtil.pack in 26.x)
+        assertEquals(0xF000F0, Mc.FULL_BRIGHT);
+        assertEquals(Mc.FULL_BRIGHT, Mc.light(15, 15));
+        int l = Mc.light(9, 4);
+        assertEquals(9, Mc.lightBlock(l));
+        assertEquals(4, Mc.lightSky(l));
+    }
+
+    @Test
     void wavRoundTrip() {
         byte[] pcm = new byte[16000 * 2]; // one second of 16 kHz mono
         for (int i = 0; i < 16000; i++) {

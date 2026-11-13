@@ -7,10 +7,10 @@
 
 **How I tested it**
 
-- [ ] `cd mod && ./gradlew build` (mod and its Java tests)
+- [ ] `cd mod && ./gradlew build` (mod and its Java tests, for every Minecraft version)
 - [ ] `cd brain && .venv/bin/python -m pytest -q` (brain)
 - [ ] Tried in the sandbox if it changes what you see, hear or what she does
-      (`./gradlew runClient -PdevScript=devscripts/<script>.txt`); a screenshot or clip is welcome
+      (`./gradlew :26.3:runClient -PdevScript=devscripts/<script>.txt`); a screenshot or clip is welcome
 
 **Checklist**
 

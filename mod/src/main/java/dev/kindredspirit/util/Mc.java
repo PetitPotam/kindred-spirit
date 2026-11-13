@@ -41,6 +41,15 @@ import java.util.Set;
 public final class Mc {
     private Mc() {}
 
+    /** The game's own version, "1.21.1" or "26.3" (the brain says what is in the player's game, not another one). */
+    public static String gameVersion() {
+        //? if >=26.1 {
+        return net.minecraft.SharedConstants.getCurrentVersion().name();
+        //?} else {
+        /*return net.minecraft.SharedConstants.getCurrentVersion().getName();
+        *///?}
+    }
+
     // --- players and the server ---
 
     /** The world a player on the integrated server is in. */
@@ -128,11 +137,13 @@ public final class Mc {
         *///?}
     }
 
-    //? if >=26.1 {
-    public static final net.minecraft.world.entity.EntityType<net.minecraft.world.entity.animal.allay.Allay> ALLAY = net.minecraft.world.entity.EntityTypes.ALLAY;
-    //?} else {
-    /*public static final net.minecraft.world.entity.EntityType<net.minecraft.world.entity.animal.allay.Allay> ALLAY = net.minecraft.world.entity.EntityType.ALLAY;
-    *///?}
+    public static net.minecraft.world.entity.EntityType<net.minecraft.world.entity.animal.allay.Allay> allay() {
+        //? if >=26.1 {
+        return net.minecraft.world.entity.EntityTypes.ALLAY;
+        //?} else {
+        /*return net.minecraft.world.entity.EntityType.ALLAY;
+        *///?}
+    }
 
     /** A new entity of that type in the world, not yet added to it (null if it can't be made). */
     public static <T extends Entity> T create(net.minecraft.world.entity.EntityType<T> type, ServerLevel level) {

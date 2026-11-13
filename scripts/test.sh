@@ -16,7 +16,7 @@ python() { # the brain's venv: this checkout's, else the main checkout's (worktr
   command -v python3
 }
 
-java_home() { # a JDK 25 runs Gradle (the mod targets Java 21)
+java_home() { # a JDK 25 runs Gradle (it builds the mod for every Minecraft version)
   [[ -n "${JAVA_HOME:-}" ]] && { echo "$JAVA_HOME"; return; }
   /usr/libexec/java_home -v 25 2>/dev/null && return
   for d in /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home /usr/local/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home \

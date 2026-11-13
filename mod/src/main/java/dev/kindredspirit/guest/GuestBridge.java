@@ -90,7 +90,7 @@ public final class GuestBridge {
         }
         if (pip == null || pip.level() != level) {
             if (pip != null) pip.discard();
-            pip = Mc.create(Mc.ALLAY, level);
+            pip = Mc.create(Mc.allay(), level);
             if (pip == null) return;
             pip.addTag(TAG);
             pip.setNoAi(true);

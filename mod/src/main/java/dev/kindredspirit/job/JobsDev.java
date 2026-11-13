@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * Sandbox only: a {@code /pipjob} command to try the Phase 5 jobs, the crafting planner and trading
  * help in the dev client before they're wired into her actions (that wiring lands with the
  * playtest-fixes branch). Registered only when the game runs with {@code -Dkindredspirit.devScript},
- * as {@code ./gradlew runClient -PdevScript=...} does, so players never see it. Every answer is also
+ * as {@code ./gradlew :26.3:runClient -PdevScript=...} does, so players never see it. Every answer is also
  * logged ("[pipjob] ...") for the scripts to check.
  *
  * <pre>

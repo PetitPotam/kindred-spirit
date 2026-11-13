@@ -64,6 +64,19 @@ class BlueprintTest {
     }
 
     @Test
+    void blockNamesFollowThisGamesVersion() {
+        assertEquals("minecraft:short_grass", Renames.apply(BlockSpec.parse("minecraft:grass")).name());
+        //? if >=26.1 {
+        assertEquals("minecraft:iron_chain", Renames.apply(BlockSpec.parse("minecraft:chain[axis=y]")).name());
+        assertEquals("minecraft:iron_chain", Renames.apply(BlockSpec.parse("minecraft:iron_chain")).name());
+        //?} else {
+        /*assertEquals("minecraft:chain", Renames.apply(BlockSpec.parse("minecraft:iron_chain[axis=y]")).name());
+        assertEquals("minecraft:chain", Renames.apply(BlockSpec.parse("minecraft:chain")).name());
+        *///?}
+        assertEquals("y", Renames.apply(BlockSpec.parse("minecraft:chain[axis=y]")).properties().get("axis"));
+    }
+
+    @Test
     void readsAVanillaStructureFile() throws IOException {
         Blueprint bp = sample("cottage.nbt");
         assertEquals(Blueprint.Format.STRUCTURE, bp.format());

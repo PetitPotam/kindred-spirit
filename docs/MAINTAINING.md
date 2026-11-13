@@ -34,8 +34,9 @@ behaviour; docs updated.
 
 ## Versions
 
-[Semantic Versioning](https://semver.org/), with the Minecraft version as build metadata in the jar's name:
-`kindred-spirit-0.2.0+1.21.1.jar`.
+[Semantic Versioning](https://semver.org/), with the Minecraft version as build metadata in the jar's name: one jar
+per Minecraft version in `mod/versions/`, all with the same mod version (`kindred-spirit-0.2.0+26.3.jar`,
+`kindred-spirit-0.2.0+1.21.1.jar`). A release ships them all.
 
 | Change | Version |
 |---|---|
@@ -86,8 +87,10 @@ the GitHub release stays the one source of truth. The owner creates the project 
 Mods) with the fields and text in [docs/curseforge.md](curseforge.md); then the Actions variable
 `CURSEFORGE_PROJECT_ID` (the project's numeric ID, shown on its page) and the Actions secret `CURSEFORGE_TOKEN` (an
 API token from the CurseForge account settings, set with `gh secret set CURSEFORGE_TOKEN`, which hides what you type)
-turn the upload on. Without the variable the step is skipped. Each file is tagged Minecraft 1.21.1, Fabric, Client and
-Java 21, with Fabric API as a required dependency (the CurseForge app installs it too). Things to know:
+turn the upload on. Without the variable the step is skipped. Each jar is its own file, tagged with its Minecraft
+version and Java (`game_versions` and `java_version` in `mod/versions/<v>/gradle.properties`; mc-publish turns the
+names into CurseForge's numeric IDs), Fabric and Client, with Fabric API as a required dependency (the CurseForge app
+installs it too). Modrinth gets the same jars, one version entry each (`0.2.0+26.3`, `0.2.0+1.21.1`). Things to know:
 - **Moderation:** a new project goes to CurseForge's moderators with its first file, and every file is reviewed
   ("Under review") before players see it. If they ask for changes or reject it, answer or appeal in the project's
   messages: never delete it and upload it again. Changing what the project is (its visibility, deleting it) is done on
