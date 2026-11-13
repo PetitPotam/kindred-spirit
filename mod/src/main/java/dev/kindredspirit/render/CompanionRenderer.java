@@ -1,6 +1,5 @@
 package dev.kindredspirit.render;
 
-import dev.kindredspirit.util.Mc;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
