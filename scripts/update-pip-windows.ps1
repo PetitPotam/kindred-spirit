@@ -11,8 +11,12 @@ $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
 Write-Host "1/4  Getting the latest version..." -ForegroundColor Cyan
-git pull --ff-only
-if ($LASTEXITCODE -ne 0) { throw "git pull failed (are you signed in to GitHub? did you change files in the repository?)" }
+# (fetch and match GitHub exactly, rather than pull: this copy is only for playing, and it keeps working
+#  even when the history on GitHub has been rewritten)
+git fetch origin
+if ($LASTEXITCODE -ne 0) { throw "Getting the latest version failed: are you signed in to GitHub?" }
+git reset --hard origin/main
+if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
 
 Write-Host "2/4  Building the mod (the first time takes a few minutes)..." -ForegroundColor Cyan
 Push-Location mod

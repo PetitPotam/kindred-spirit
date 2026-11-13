@@ -1,0 +1,41 @@
+name: Release
+# Pushing a version tag (v0.2.0, v0.2.0-beta.1) builds the mod and makes a GitHub release with the jar and
+# that version's notes from CHANGELOG.md. scripts/release.sh makes the tag; see docs/MAINTAINING.md.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: The tag matches the version in mod/gradle.properties
+        run: |
+          v=$(sed -n 's/^mod_version=//p' mod/gradle.properties)
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "Tag ${GITHUB_REF_NAME} but mod_version=$v"; exit 1; }
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+      - run: ./gradlew build --no-daemon
+        working-directory: mod
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "CHANGELOG.md has no section for $VERSION"; exit 1; }
+      - name: Make the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""; case "$VERSION" in *-*) pre="--prerelease";; esac
+          jar=$(ls mod/build/libs/*.jar | grep -v -- -sources)
+          gh release create "$GITHUB_REF_NAME" $jar --title "Kindred Spirit $VERSION" --notes-file notes.md $pre --verify-tag

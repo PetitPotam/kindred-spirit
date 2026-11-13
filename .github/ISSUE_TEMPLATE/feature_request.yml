@@ -1,0 +1,26 @@
+name: Idea or feature
+description: Something Pip could do or be.
+labels: ["idea", "needs-triage"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like her to do, and when?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it make the game more fun?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part is it about?
+      options: ["Talking and personality", "Helping (building, mining, crafting...)", "Memory", "Voice and hearing", "Friends and LAN", "Skins and looks", "Dashboard", "Setup", "Other"]
+  - type: textarea
+    id: world
+    attributes:
+      label: Does it change the world?
+      description: Pip never changes the world unless the player asks. If this does, how would it be switched off?

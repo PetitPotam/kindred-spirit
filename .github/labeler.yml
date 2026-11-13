@@ -1,0 +1,15 @@
+mod:
+  - changed-files:
+      - any-glob-to-any-file: "mod/**"
+brain:
+  - changed-files:
+      - any-glob-to-any-file: "brain/**"
+services:
+  - changed-files:
+      - any-glob-to-any-file: "services/**"
+docs:
+  - changed-files:
+      - any-glob-to-any-file: ["docs/**", "*.md"]
+ci:
+  - changed-files:
+      - any-glob-to-any-file: [".github/**", "scripts/**"]

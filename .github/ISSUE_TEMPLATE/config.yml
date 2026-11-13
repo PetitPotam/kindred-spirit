@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/PetitPotam/kindred-spirit/security/advisories/new
+    about: Please report security problems privately, not in a public issue (see SECURITY.md).
+  - name: Can I use Pip's name or art for...?
+    url: https://github.com/PetitPotam/kindred-spirit/blob/main/TRADEMARKS.md
+    about: What you may do with Pip's name, character and art.

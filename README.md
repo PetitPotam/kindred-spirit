@@ -5,7 +5,7 @@
 
 **A cute AI companion for Minecraft Java that floats beside you, talks with you by voice, and never touches your world.**
 
-Minecraft 1.21.1 · Fabric · MIT · early preview
+Minecraft 1.21.1 · Fabric · AGPL-3.0 · early preview
 
 <img src="docs/demo.gif" width="720" alt="Pip trying on skins: slime, soft cube, strawberry, wisp, starry orb, pixie and fairy">
 </div>
@@ -367,4 +367,17 @@ and source, with its licence: **[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 (Anthropic), mostly by Claude Opus 5.5, directed, playtested and reviewed by its author; Pip herself talks
 through Gemini and thinks through Claude while you play. Details: [how this project was made](THIRD_PARTY_NOTICES.md#how-this-project-was-made-with-ai-openly).
 
-MIT licensed. Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.
+## Licence
+
+Copyright © 2026 PetitPotam ([github.com/PetitPotam](https://github.com/PetitPotam)).
+
+- **The code** is free software under the **[GNU Affero General Public License v3.0](LICENSE)**
+  (AGPL-3.0-only): use it, study it, change it and share it; if you share a changed version, or run one
+  for others over a network, share its source under the same licence.
+- **Additional permission** (AGPL section 7): you may combine Kindred Spirit with Minecraft, the Fabric
+  loader and Fabric API, and distribute the result, even though Minecraft itself isn't free software.
+- **Pip's name, character and art** have their own, simple rules: anything kind is welcome, nothing
+  lewd or hateful. See **[TRADEMARKS.md](TRADEMARKS.md)**.
+- **Contributing** needs a signed [Contributor License Agreement](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.

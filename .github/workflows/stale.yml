@@ -1,0 +1,26 @@
+name: Close unanswered questions
+# Only issues waiting for an answer from their author (label needs-info): a reminder after 21 days, closed 14
+# days later. Nothing else is ever closed automatically.
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/stale@v9
+        with:
+          only-labels: needs-info
+          days-before-stale: 21
+          days-before-close: 14
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          stale-issue-message: >-
+            This issue is waiting for more information. It will be closed in two weeks if there's no answer;
+            it can always be reopened.
+          close-issue-message: Closed for now, as there was no answer. Comment if it's still happening and we'll reopen it.

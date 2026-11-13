@@ -1,0 +1,23 @@
+name: Share a blueprint or a skin
+description: A build Pip could make, or a new look for her.
+labels: ["content", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please share only things you made yourself, or that are under a licence that lets them be shared
+        (CC0, CC BY...). Pip's character rules apply to skins: see TRADEMARKS.md.
+  - type: textarea
+    id: what
+    attributes:
+      label: What is it?
+      description: For a blueprint, what it is and its size; for a skin, its name. Attach the file (zip it if GitHub refuses it).
+    validations:
+      required: true
+  - type: input
+    id: licence
+    attributes:
+      label: Who made it, and under what licence?
+      placeholder: "I made it, CC0 / from <link>, CC BY 4.0"
+    validations:
+      required: true
