@@ -1,0 +1,41 @@
+# A first look at every new or edited issue (no AI, no cost): the area label from the form's "Which part is it
+# about?", and `needs-info` (with one friendly comment) for a bug report with neither the computer nor any logs.
+# The decisions are in scripts/triage_issue.py (tested in brain/tests/test_issue_triage.py); this file applies them.
+name: Issue triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions: {}
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/triage_issue.py
+          sparse-checkout-cone-mode: false
+      - name: Decide
+        id: decide
+        run: python3 -I scripts/triage_issue.py > triage.json && cat triage.json
+      - name: Apply
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          add=$(jq -r '.add | join(",")' triage.json)
+          remove=$(jq -r '.remove | join(",")' triage.json)
+          [ -n "$add" ] && gh issue edit "$NUMBER" --repo "$REPO" --add-label "$add"
+          [ -n "$remove" ] && gh issue edit "$NUMBER" --repo "$REPO" --remove-label "$remove"
+          if [ "$(jq -r '.comment' triage.json)" != "" ]; then
+            jq -r '.comment' triage.json > comment.md
+            gh issue comment "$NUMBER" --repo "$REPO" --body-file comment.md
+          fi
+          true
