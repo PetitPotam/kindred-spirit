@@ -7,19 +7,26 @@
 # Needs: Git (signed in to GitHub), Java 25 (Temurin, to build), Minecraft with Fabric installed once, the same
 # Minecraft version as the host's. Without -Minecraft it keeps the version of the Kindred jar already installed
 # (the newest one the first time). Close Minecraft first: a running game keeps the old mod.
+#
+# For tests (.github/workflows/platforms.yml): -Here installs this copy as it is, without getting the latest
+# version, and $env:APPDATA can point to a throwaway folder.
 
-param([string]$Minecraft = "")
+param([string]$Minecraft = "", [switch]$Here)
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
-Write-Host "1/4  Getting the latest version..." -ForegroundColor Cyan
-# (fetch and match GitHub exactly, rather than pull: this copy is only for playing, and it keeps working
-#  even when the history on GitHub has been rewritten)
-git fetch origin
-if ($LASTEXITCODE -ne 0) { throw "Getting the latest version failed: are you signed in to GitHub?" }
-git reset --hard origin/main
-if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
+if ($Here) {
+    Write-Host "1/4  Using this copy as it is (-Here)." -ForegroundColor Cyan
+} else {
+    Write-Host "1/4  Getting the latest version..." -ForegroundColor Cyan
+    # (fetch and match GitHub exactly, rather than pull: this copy is only for playing, and it keeps working
+    #  even when the history on GitHub has been rewritten)
+    git fetch origin
+    if ($LASTEXITCODE -ne 0) { throw "Getting the latest version failed: are you signed in to GitHub?" }
+    git reset --hard origin/main
+    if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
+}
 
 # Which Minecraft: the one asked for, else the one the installed Kindred jar is for, else the newest the mod supports
 $mods = Join-Path $env:APPDATA ".minecraft\mods"

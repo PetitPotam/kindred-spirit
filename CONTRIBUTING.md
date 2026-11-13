@@ -95,7 +95,9 @@ cd mod && ./gradlew build             # needs JDK 25; makes one jar per Minecraf
 4. Keep changes focused; explain *why* in the description, and add a line under "Unreleased" in
    [CHANGELOG.md](CHANGELOG.md).
 
-CI runs steps 1 and 2 on every pull request.
+CI runs steps 1 and 2 on every pull request. If you touched the install (setup, scripts, services), also run
+`scripts/test-install.sh all`: the same checks GitHub runs on macOS, Linux and Windows
+([docs/TESTING-PLATFORMS.md](docs/TESTING-PLATFORMS.md)).
 
 ## Several Minecraft versions
 

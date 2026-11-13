@@ -1,0 +1,11 @@
+# What `docker build` leaves out (scripts/test-install.Dockerfile): local builds, environments and downloads
+.git
+**/.venv
+**/__pycache__
+mod/build
+mod/.gradle
+mod/run
+mod/run-guest
+setup/cache
+setup/dist
+web/node_modules

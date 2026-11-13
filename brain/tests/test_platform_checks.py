@@ -1,0 +1,48 @@
+"""The install checks' pieces (#104): the stand-in AI answers like an OpenAI-compatible service, streaming or not,
+and the test script parses."""
+import json
+import os
+import subprocess
+import sys
+import threading
+import urllib.request
+
+import pytest
+
+REPO = os.path.join(os.path.dirname(__file__), "..", "..")
+sys.path.insert(0, os.path.join(REPO, "brain", "tools"))
+import fake_ai  # noqa: E402
+
+
+@pytest.fixture
+def ai():
+    srv = fake_ai.ThreadingHTTPServer(("127.0.0.1", 0), fake_ai.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield "http://127.0.0.1:%d/v1" % srv.server_address[1]
+    srv.shutdown()
+
+
+def post(url, body):
+    req = urllib.request.Request(url, json.dumps(body).encode(), {"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        return r.read().decode()
+
+
+def test_it_answers_a_chat(ai):
+    out = json.loads(post(ai + "/chat/completions", {"model": "fake", "messages": [{"role": "user", "content": "hi"}]}))
+    assert out["choices"][0]["message"]["content"] == fake_ai.ANSWER and out["usage"]["total_tokens"]
+
+
+def test_it_streams_word_by_word_like_the_brain_asks(ai):
+    raw = post(ai + "/chat/completions", {"stream": True, "messages": []})
+    events = [line[6:] for line in raw.splitlines() if line.startswith("data: ")]
+    assert events[-1] == "[DONE]"
+    chunks = [json.loads(e) for e in events[:-1]]
+    assert "".join(c["choices"][0]["delta"].get("content", "") for c in chunks) == fake_ai.ANSWER
+    assert chunks[-1]["usage"] and chunks[-1]["choices"][0]["finish_reason"] == "stop"
+
+
+def test_the_install_check_script_parses():
+    subprocess.run(["bash", "-n", os.path.join(REPO, "scripts", "test-install.sh")], check=True)
+    usage = subprocess.run(["bash", os.path.join(REPO, "scripts", "test-install.sh"), "nonsense"], capture_output=True, text=True)
+    assert usage.returncode == 2 and "setup-app" in usage.stdout
