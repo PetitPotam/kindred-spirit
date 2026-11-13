@@ -80,8 +80,9 @@ To play with the host's Pip, the friend needs **no brain, no Python, no AI keys*
 with Fabric, Fabric API, and the Kindred mod jar built from this repository. The full guide for the
 person is [docs/PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md); the steps for you:
 
-1. **Java 21 JDK** (to build the mod). Check `java -version`; if missing or older than 21, install
-   Eclipse Temurin 21 (e.g. `winget install EclipseAdoptium.Temurin.21.JDK`), then open a new terminal.
+1. **Java 25 JDK** (to build the mod: Loom, its build tool, needs Java 25; the game itself uses the launcher's own
+   Java). Check `java -version`; if missing or older than 25, install Eclipse Temurin 25 (e.g.
+   `winget install EclipseAdoptium.Temurin.25.JDK`), then open a new terminal.
 2. **Build the mod** from the repository root, in PowerShell:
    ```powershell
    git pull
@@ -100,7 +101,7 @@ person is [docs/PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md); the steps for 
    - the Kindred jar from step 2 (replace any older Kindred jar).
 5. They start the **fabric-loader-1.21.1** installation and join the host's LAN world from Multiplayer.
 
-**Steps 2 and 4 in one command** (after Git, Java 21 and Fabric are set up), and the way to update
+**Steps 2 and 4 in one command** (after Git, Java 25 and Fabric are set up), and the way to update
 whenever the host pushes changes (Minecraft closed):
 
 ```powershell

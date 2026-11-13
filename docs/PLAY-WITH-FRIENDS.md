@@ -25,8 +25,8 @@ Both go in your mods folder: press `Win + R`, type `%APPDATA%\.minecraft\mods` a
 2. **Kindred Spirit**: the host can send you their file
    (`kindred-spirit-0.1.0-preview+1.21.1.jar`, the one *without* `-sources`), or build it from this
    repository:
-   - Install **Java 21** (Temurin JDK 21: <https://adoptium.net/temurin/releases/?version=21>, Windows,
-     `.msi`).
+   - Install **Java 25** (Temurin JDK 25: <https://adoptium.net/temurin/releases/?version=25>, Windows,
+     `.msi`). Only the build needs it; Minecraft keeps using its own Java.
    - In a terminal (PowerShell), in the folder where you cloned the repository:
      ```powershell
      git pull
