@@ -56,13 +56,21 @@ if [ -z "$num" ]; then
       --single-select-options "High,Medium,Low" >/dev/null
     gh project field-create "$num" --owner "$owner" --name "Area" --data-type SINGLE_SELECT \
       --single-select-options "Mod,Brain,Services,Docs,LAN,Setup" >/dev/null
+    status=$(gh project field-list "$num" --owner "$owner" --format json -q '.fields[] | select(.name=="Status") | .id')
+    gh api graphql --silent -f query="mutation { updateProjectV2Field(input: {fieldId: \"$status\", singleSelectOptions: [
+      {name: \"Triage\", color: GRAY, description: \"New, not looked at yet\"},
+      {name: \"To do\", color: BLUE, description: \"Planned\"},
+      {name: \"In progress\", color: YELLOW, description: \"Being worked on\"},
+      {name: \"In review\", color: PURPLE, description: \"A pull request is open\"},
+      {name: \"Done\", color: GREEN, description: \"Merged or finished\"}]}) { clientMutationId }" \
+      || echo "  (Status columns: failed; add Triage, To do, In progress, In review, Done by hand)"
   }
 fi
 if [ -n "$num" ]; then
   gh project link "$num" --owner "$owner" --repo "$repo" >/dev/null 2>&1
   echo "  project #$num: https://github.com/users/$owner/projects/$num"
-  echo "  (in the project's Workflows, turn on 'Auto-add to project' for $repo, and add the statuses"
-  echo "   Triage, To do, In progress, In review, Done to its Status field)"
+  echo "  (by hand, once: in the project's Workflows turn on 'Auto-add to project' for $repo; add a Board"
+  echo "   view grouped by Status and a Roadmap view grouped by Milestone)"
 else
   echo "  (failed: run 'gh auth refresh -s project' and try again)"
 fi
