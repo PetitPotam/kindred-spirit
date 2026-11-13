@@ -65,7 +65,12 @@ def test_every_release_builds_tests_and_attaches_the_setup():
     for want in ("needs: release", "macos-15, ", "macos-15-intel", "--mods mod-files", "setup/smoke_test.py",
                  "gh release upload", ".dmg.sha256", "not yet tried by a person"):
         assert want in setup, want
-    assert "name: mod-files" in text[:text.index("\n  setup:")]
+    release = text[:text.index("\n  setup:")]
+    assert "name: mod-files" in release
+    # #155: the jars and versions.json in one flat folder, so the build finds them at the top of mod-files/
+    upload = release[release.index("name: mod-files") - 200:release.index("name: mod-files") + 120]
+    assert "path: mod-files/" in upload and "versions.json\n" not in upload.split("name: mod-files")[1]
+    assert "cp versions.json mod-files/" in release
 def test_stop_waits_for_helpers_to_exit_and_forces_stubborn_ones(tmp_path):
     """A restart needs the helpers' ports free: stop.sh waits, then forces one that ignores the polite stop."""
     import time
