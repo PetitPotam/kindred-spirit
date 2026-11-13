@@ -222,29 +222,11 @@ def modern_give(name, args, can_command):
     return name, dict(args, command=new.strip())
 
 
-def find_blueprints(query, dirs=None, limit=15):
-    """The blueprint files she can build (the mod reads the same folders), matching the words asked."""
-    names = []
-    for d in dirs or BLUEPRINT_DIRS:
-        try:
-            names += [f.rsplit(".", 1)[0] for f in sorted(os.listdir(d))
-                      if f.lower().endswith((".nbt", ".schem", ".litematic"))]
-        except OSError:
-            pass
-    if not names:
-        return {"ok": False, "error": "There are no blueprint files yet (only the cottage you can make up)."}
-    words = [w for w in re.findall(r"[a-z0-9]+", (query or "").lower()) if len(w) > 1 and w not in ("a", "the", "of")]
-    words = [w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words]  # (ships -> ship)
-    hits = [n for n in names if all(w in n.lower() for w in words)] if words else []
-    if words and not hits:  # any of the words, best first
-        scored = sorted(((sum(w in n.lower() for w in words), n) for n in names), reverse=True)
-        hits = [n for s, n in scored if s][:limit]
-    kinds = sorted({"_".join(n.split("_")[:2]) if n.startswith("village_") else n.split("_")[0] for n in names})
-    out = {"ok": True, "total": len(names), "kinds": kinds}
-    if words:
-        out["matches"] = hits[:limit]
-        out["more"] = max(0, len(hits) - limit)
-    return out
+def find_blueprints(query, dirs=None, limit=6):
+    """The blueprints she can build (the mod reads the same folders), found in their catalogue by what they are:
+    category, biome, size, beds and words (see blueprints.py)."""
+    from . import blueprints
+    return blueprints.search(query, dirs or BLUEPRINT_DIRS, limit)
 
 
 class Brain:

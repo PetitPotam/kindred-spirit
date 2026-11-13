@@ -250,13 +250,16 @@ public final class BlueprintBuild {
         }
         ServerLevel level = sp.serverLevel();
         if (magic) {
-            CommandPlan.Command c = queue.poll();
-            if (c.first().kind() == Placement.Kind.CLEAR && c.steps().stream()
+            // nothing to clear there: no command, and no wait for it
+            while (!queue.isEmpty() && queue.peek().first().kind() == Placement.Kind.CLEAR && queue.peek().steps().stream()
                     .allMatch(st -> level.getBlockState(new BlockPos(st.x(), st.y(), st.z())).isAir())) {
-                placed += c.blocks(); // nothing to clear there: no command
-                tick--; // (and no wait for it)
+                placed += queue.poll().blocks();
+            }
+            if (queue.isEmpty()) {
+                finish();
                 return;
             }
+            CommandPlan.Command c = queue.poll();
             JsonObject r = Commands.run(server, sp, c.text(), power == null ? Abilities.Power.HELPER : power, false);
             if (!r.has("ok") || !r.get("ok").getAsBoolean()) LOG.info("blueprint command failed: {} -> {}", c.text(), r);
             commandsRun++;
@@ -277,13 +280,15 @@ public final class BlueprintBuild {
             if (decrement(c) == 0) queue.poll();
             if (placed % 6 == 1) visit(s);
         }
-        if (queue.isEmpty()) {
-            JsonObject r = Actions.ok();
-            r.addProperty("built", name);
-            r.addProperty("blocks", placed);
-            last = r;
-            LOG.info("blueprint {} done: {} blocks", name, placed);
-        }
+        if (queue.isEmpty()) finish();
+    }
+
+    private static void finish() {
+        JsonObject r = Actions.ok();
+        r.addProperty("built", name);
+        r.addProperty("blocks", placed);
+        last = r;
+        LOG.info("blueprint {} done: {} blocks", name, placed);
     }
 
     private static final Map<CommandPlan.Command, Integer> left = new java.util.IdentityHashMap<>();
