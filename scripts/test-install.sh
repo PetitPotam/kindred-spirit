@@ -37,7 +37,7 @@ host_python() {
 
 cleanup() {
   [[ -n "${KH:-}" && -d "${KH:-}/run" ]] && HOME="$WORK/home" KINDRED_HOME="$KH" bash "$ROOT/scripts/stop.sh" >/dev/null 2>&1
-  for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done
+  for p in ${PIDS[@]+"${PIDS[@]}"}; do kill "$p" 2>/dev/null; done
   if [[ $FAILED == 0 ]]; then rm -rf "$WORK"; else echo "  (kept for a look: $WORK)"; fi
 }
 trap cleanup EXIT
