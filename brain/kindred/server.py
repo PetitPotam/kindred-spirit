@@ -1021,15 +1021,17 @@ class Brain:
         log.info("imported %d memories from %s", copied, src)
         return "%s now remembers %d things from %s.%s" % (self.cfg["name"], copied, src.split(":", 1)[-1], extra)
 
+    # everything a brand-new companion must not know: who you are, who she was, and the places she noticed (spot) (#121)
+    RESET_KINDS = ["player", "self", "origin", "taste", "core", "habit", "world", "place", "found", "spot",
+                   "episode", "diary", "reminder"]
+
     async def reset_world(self):
         m, world = self.memory, self.memory.world_id
         if m.per_world:
-            n = (await m.store.call("delete", kinds=["player", "self", "origin", "taste", "core", "habit", "world", "place", "found",
-                                                       "episode", "diary", "reminder"], world=world, contains=""))["deleted"]
+            n = (await m.store.call("delete", kinds=self.RESET_KINDS, world=world, contains=""))["deleted"]
             await m.store.call("clear_docs", prefix="world:%s:" % world)
         else:
-            n = (await m.store.call("delete", kinds=["player", "self", "origin", "taste", "core", "habit", "world", "place", "found",
-                                                       "episode", "diary", "reminder"], contains=""))["deleted"]
+            n = (await m.store.call("delete", kinds=self.RESET_KINDS, contains=""))["deleted"]
             await m.store.call("clear_docs")
         self.heart.state = self.heart.fresh()
         self.mind.history, self.mind.summary, self.mind.to_fold = [], "", []

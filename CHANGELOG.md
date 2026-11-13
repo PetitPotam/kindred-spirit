@@ -31,6 +31,8 @@ Unreleased into the new version's section.
   for now (#41).
 
 ### Fixed
+- `/kindred reset` now also forgets the places she noticed on her own (your bed, builds, where you died), so the
+  new companion really starts fresh (#121).
 - Stopping her (`scripts/stop.sh`, the Setup's Stop, an update's restart) waits until her helpers have really exited,
   and forces one that doesn't, so starting again never finds a port still taken (whisper-server is slow to let go).
 - Friends building the mod on Windows need Java 25, not Java 21 (the build tool requires it): the guides say so, and
