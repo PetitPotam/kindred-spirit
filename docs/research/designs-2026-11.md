@@ -210,6 +210,55 @@ from the session log.
   which tools, what worked: the playtest-fixes log changes do most of it), so that a small local System 1,
   private and free, becomes possible later. Nothing is sent anywhere for this; it's a local option.
 
+## Phase B, built and measured (2026-11-13, branch claude/arch-improvements-d066f8)
+
+On top of main with the playtest fixes and blueprints merged (`6d0ecd9`). Eval set: 29 cases (17
+singleplayer, 12 LAN), live = one pass with the real AI and the Claude judge (a pass varies by a case or
+two from run to run, so differences of that size are noise).
+
+| | main (6d0ecd9) | after Phase B |
+|---|---|---|
+| Brain checks (stub and local modes) | 43/48, 26/29 cases | **48/48, 29/29** |
+| Live: cases passing every AI check | 20/25 | 22/26 |
+| Plain commands ("follow me", "stand still"...): first words | 1.1 to 4.7 s | **0.0 s, no AI call** |
+| AI calls per answer | 1.79 | 1.62 |
+| Tokens sent per answer (mean) | 9,780 | 9,130 |
+| Share of tokens served from Gemini's cache | not measured | 41% |
+| First words, all answers (median) | 1.89 s | 1.96 s |
+| Judge: character score | 0.95 | 0.93 |
+
+What was built:
+- **Context order** (`mind.build_messages`, on: `ai.stable_context`): her character alone in the system prompt;
+  who she's become and the summary right after it; the window moving in steps (half folded at once, always
+  starting with something said to her). The gateway logs `cached_in`, and the eval reports the cached share.
+- **One tool list on every call** (`ai.stable_tools`, **off**): built and measured, not worth it yet. A direct
+  test shows Gemini 3 Flash caching the start of a request in ~2,000-token blocks, and any change in the tool
+  list breaks it; but on the eval set the fixed list gave 44% cached against 41% without, for 40% more tokens,
+  so the same bill and no faster first words. Tool rounds are cached either way. Worth measuring again in a
+  real session (several turns in a row), which single-moment cases can't show.
+- **Talker first, step 3** (`talker.py`, `answer_on_instinct`): a sentence that is only "follow me", "stand
+  still / don't move", "come here", "stop leading, follow me" gets an instinct line at once and no AI call;
+  System 2 writes those lines in her voice (new moments `follow_ok`, `stay_ok`, `come_ok`).
+- **System 0 guards**, found by the eval: "can you get me back to the house?" was forced to protect, and
+  "remove this block" to clearing land with no size; now a trip and harvest.
+- **Recall**: no tool echoes, no repeated words in "Memories that come to mind".
+- **Facts per person** (`facts.py`): nickname, pronouns, name and relation read from her memories into one
+  slot each, the newest winning, said once ("People: the player (AlexCraftX): nickname Damb, he/him |
+  riverrobin: the player's friend, nickname Dumber"). New case `sp-latest-nickname`: 3/3 brain checks, 1/3 on main.
+
+Not built (and why): **several people answered in parallel**. One `Mind` holds the state of the answer in
+progress (what she recalled, the heart note, the powers offered, the stream), so two answers at once would
+race on it; it needs a per-person answer state first, which is a refactor to do with care, not overnight.
+**Talker first, steps 1 and 2** (an instinct line as a forced power starts; skipping the second round when
+the outcome is predictable) touch how her answers are spoken and need listening to in the game, not just
+numbers. **Query-based perception** and **shorter tool descriptions** live in `describe.py` / `tools.py`,
+which the blueprints work is changing tonight.
+
+Still failing live, on both: a friend's "apples for both of us" (the AI writes `to` the friend twice),
+"protect me and Robin" (protects one), and honesty after a failed power is not guaranteed ("He's stuck in
+honey!" after slowness failed twice, in one of three runs): a check on her words after a failed tool, like
+the claimed-action check, is the next guard to add.
+
 ## Order of work (Phase B)
 
 1. Context order and the fixed tool list, plus the gateway logging cached tokens: smallest change, and it
