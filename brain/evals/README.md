@@ -10,6 +10,8 @@ scripts/eval.sh --mode local             # + System 0's understanding (your loca
 scripts/eval.sh --mode live --judge      # her real AI through your gateway (~$0.15 for the set) + a judge
 scripts/eval.sh --mode live --repeat 3 --only follow-me
 scripts/eval.sh --brain ../../other-checkout/brain --label other   # the same cases against another version
+scripts/eval.sh --mode live --set ai.stable_context=false --set behaviour.talker_first=false --label off
+                                         # the same code with a change switched off, to compare
 scripts/eval.sh --list
 scripts/eval.sh context --since "2026-11-12 23:04" --until "2026-11-12 23:58"   # what her prompts were made of
 ```
@@ -24,7 +26,8 @@ silent WAV, reflection calls get nothing, and the AI is either the case's script
 real gateway (live). Her settings and logs go to a scratch folder, never `~/.kindred-spirit`.
 
 Everything is recorded: her acts (follow, stay...), every tool with its arguments and result, what
-reached the game, what she said and when, and each AI request (forced tool, offered tools, tokens).
+reached the game, what she said and when, and each AI request (forced tool, offered tools, tokens, and
+the tokens Gemini served from its cache).
 
 ## Checks
 
@@ -42,7 +45,9 @@ reached the game, what she said and when, and each AI request (forced tool, offe
   through your gateway as a `reflect` call (Claude in the recommended setup: a different model family from
   the one that talks).
 
-Case fields: `id`, `from` (session and time), `who` (`player` or a friend's name), `say`, `history`
+Case fields: `id`, `play` (`singleplayer` or `lan`), `from` (session and time), `who` (`player` or a friend's
+name), `say`, or `turns` (`[{who, say, after, snapshot}]`: several messages in order, `after` seconds
+after the one before, 0 = once it's answered; for tasks over a few steps or two people talking), `history`
 (`[role, text]` pairs), `memories` (`{kind, text, importance, meta}`), `snapshot` (merged over a base
 one), `setup` (`bond`, `abilities`, `power`, `style`, `following`, `amnesia`, `guest_powers`, `alerts`),
 `game` (results per power: a dict, or a list of `{when: {arg: regex}, result}`), `stub_ai`, `expect`
