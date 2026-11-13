@@ -67,12 +67,17 @@ The steps today:
 | **Your computer** | Looks at your memory, chip and free space, and picks settings that keep Minecraft smooth (Light, Balanced or Best). |
 | **Her brain on this computer** | Installs her brain, the gateway and the dashboard, with their own Python, into your user folder (about 130 MB, no administrator password). |
 | **Wake her up** | Starts them in the background (her brain, the gateway and her dashboard) and checks that each one answers. |
+| **Her conversation (System 1)** | The AI that answers you: Gemini with a free key (recommended; the step shows how to get one in about two minutes), another service with your key (OpenAI, Groq, Mistral, OpenRouter, Claude API), a model on your Mac with Ollama, or an AI subscription you already have (Claude Code, Codex, Gemini CLI). **Use this** saves it and asks her a first question; the answer and how long it took are shown. |
+| **Her slow thinking (System 2)** | The AI she uses now and then to learn from your time together and write her story: the same one (recommended), another one, or off. |
 | **Every time you play** | Whether she wakes by herself when you log in to your Mac (off unless you choose it), or when you open Kindred Spirit Setup. |
 
-Coming next, in the same guide: choosing her AI (a free Gemini key by default, other services, a model on your
-own Mac or an AI subscription you already have), her voice, hearing and memory models, and installing Minecraft's
-Fabric with the mod and saying hi to her once to check everything ([#94](https://github.com/PetitPotam/kindred-spirit/issues/94),
-[#95](https://github.com/PetitPotam/kindred-spirit/issues/95), [#96](https://github.com/PetitPotam/kindred-spirit/issues/96)).
+**Your keys** go to `~/.kindred-spirit/secrets.env`, which only you can read. The Setup never shows a key again,
+never writes one to a log, and leaves it out of help prompts. On Gemini's free tier, Google may use what is sent to
+improve its products; a paid key (or Ollama, on your own Mac) avoids that.
+
+Coming next, in the same guide: her voice, hearing and memory models, and installing Minecraft's Fabric with the mod
+and saying hi to her once to check everything ([#95](https://github.com/PetitPotam/kindred-spirit/issues/95),
+[#96](https://github.com/PetitPotam/kindred-spirit/issues/96)).
 
 You can close the page at any time: Pip keeps running, and the Setup itself quits a few minutes later (or press
 **Close the Setup**).

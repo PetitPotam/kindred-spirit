@@ -23,7 +23,9 @@ import tempfile
 import time
 import urllib.request
 
-PORTS = {"setup": 11541, "gateway": 11537, "dashboard": 11540, "brain": 47911}
+PORTS = {"setup": 11541, "gateway": 11537, "dashboard": 11540, "brain": 47911, "ai": 11599}
+FAKE_KEY = "gsk_fake0000000000000000000000robin"  # a made-up key: the stand-in AI accepts anything
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def say(*a):
@@ -88,6 +90,11 @@ def main(argv):
     os.makedirs(kh)
     with open(os.path.join(kh, "brain.toml"), "w", encoding="utf-8") as fh:  # her brain on the test's ports
         fh.write('[server]\nport = %d\n\n[gateway]\nurl = "http://127.0.0.1:%d/v1"\n' % (PORTS["brain"], PORTS["gateway"]))
+    with open(os.path.join(kh, "gateway.json"), "w", encoding="utf-8") as fh:  # "Groq" is the stand-in AI here
+        json.dump({"upstreams": {"groq": {"base": "http://127.0.0.1:%d/v1" % PORTS["ai"]}},
+                   "stt": {"use": "none"}, "tts": {"use": "none"}, "embeddings": {"use": "none"}}, fh)
+    fake_ai = subprocess.Popen([sys.executable, "-I", os.path.join(REPO, "brain", "tools", "fake_ai.py"), "--port",
+                                str(PORTS["ai"])], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     env = {"HOME": home, "KINDRED_HOME": kh, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "KINDRED_SETUP_NO_BROWSER": "1",
            "KINDRED_SETUP_PORT": str(PORTS["setup"]), "KINDRED_GATEWAY_PORT": str(PORTS["gateway"]),
            "KINDRED_DASHBOARD_PORT": str(PORTS["dashboard"]), "TMPDIR": work,
@@ -104,11 +111,13 @@ def main(argv):
         assert hello["setup"] is True, hello
         state = call("/api/setup/state")
         assert state["mode"] == "app" and state["installed"] is None, state
-        assert [s["id"] for s in state["steps"]][:4] == ["computer", "install", "start", "login"], state["steps"]
+        assert [s["id"] for s in state["steps"]] == ["computer", "install", "start", "ai", "thinking", "login"], state["steps"]
         assert opened() == "/setup", "before setup, opening the app shows the steps"
         for sid, action, extra in [("computer", "choose", {"choice": "auto"}), ("computer", "test", {}),
                                    ("install", "install", {}), ("install", "test", {}),
                                    ("start", "start", {}), ("start", "test", {}),
+                                   ("ai", "choose", {"choice": "groq", "key": FAKE_KEY}), ("ai", "test", {}),
+                                   ("thinking", "choose", {"choice": "off"}), ("thinking", "choose", {"choice": "same"}),
                                    ("login", "choose", {"choice": "login"}), ("login", "test", {}),
                                    ("login", "choose", {"choice": "app"}), ("login", "test", {})]:
             t = time.time()
@@ -130,7 +139,10 @@ def main(argv):
         assert all(s["status"] == "done" for s in state["steps"]), [(s["id"], s["status"]) for s in state["steps"]]
         assert os.path.islink(os.path.join(home, "Library", "Application Support", "Kindred Spirit", "current"))
         assert oct(os.stat(os.path.join(kh, "secrets.env")).st_mode & 0o777) == "0o600"
+        assert "GROQ_API_KEY=" + FAKE_KEY in open(os.path.join(kh, "secrets.env")).read()
+        assert FAKE_KEY not in json.dumps(call("/api/setup/state")), "a key is never shown back"
         prompt = call("/api/setup/help", {"step": "start", "error": "Traceback in %s/x.py, key AIzaSyFAKE0000000000000000000000" % home})["prompt"]
+        assert FAKE_KEY not in call("/api/setup/help", {"step": "ai"})["prompt"]
         assert home not in prompt and "AIzaSy" not in prompt and "Kindred Spirit Setup" in prompt, prompt
         say("help prompt: %d characters, nothing private in it" % len(prompt))
         r = call("/api/setup/run", {"step": "start", "action": "stop"})
@@ -145,6 +157,7 @@ def main(argv):
             rt = os.path.join(home, "Library", "Application Support", "Kindred Spirit", "current", "kindred", "scripts", "stop.sh")
             if os.path.exists(rt):
                 subprocess.run(["/bin/bash", rt], env=env, check=False)
+        fake_ai.terminate()
         try:
             call("/api/setup/quit", {}, timeout=5)
         except Exception:
