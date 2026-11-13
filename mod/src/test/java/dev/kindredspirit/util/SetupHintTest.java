@@ -2,6 +2,9 @@ package dev.kindredspirit.util;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /** #92 (the "Pip needs her brain" hint) and #114 (the mod's real version in its hello). */
@@ -20,8 +23,17 @@ class SetupHintTest {
 
     @Test
     void theHintLinksToTheGuides() {
-        assertTrue(NoBrainHint.SETUP_GUIDE.startsWith("https://") && NoBrainHint.SETUP_GUIDE.endsWith("SETUP.md"));
+        assertEquals("https://kindred-spirit-pip.web.app/download", NoBrainHint.SETUP_GUIDE, "the website's Download page");
         assertTrue(NoBrainHint.FRIENDS_GUIDE.startsWith("https://"));
+    }
+
+    @Test
+    void modMenusHomepageIsTheDownloadPageToo() throws Exception {
+        try (InputStream in = SetupHintTest.class.getResourceAsStream("/fabric.mod.json")) {
+            assertNotNull(in, "fabric.mod.json on the classpath");
+            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(json.contains("\"homepage\": \"" + NoBrainHint.SETUP_GUIDE + "\""), "homepage = " + NoBrainHint.SETUP_GUIDE);
+        }
     }
 
     @Test
