@@ -40,7 +40,8 @@ friends on LAN need only the mod.
   (#107).
 - **Installed only the mod?** In your own world, one chat message now says that Pip needs her brain on this computer,
   with links to the Setup and to playing with a friend who hosts her, and **Don't show again**
-  (`/kindred hint off`). Mod Menu's description and links say the same (#92).
+  (`/kindred hint off`). Mod Menu's description and links say the same (#92). Its Setup link, and Mod Menu's homepage,
+  open the website's Download page (#146).
 
 ### Fixed
 - `/kindred reset` also forgets the places she noticed on her own (your bed, builds, where you died), so the new
