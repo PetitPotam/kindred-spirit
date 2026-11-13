@@ -18,7 +18,7 @@ Change this file and the page together, and keep it in step with modrinth.md: sa
 | Logo | [art/pip-icon.png](art/pip-icon.png) scaled to **400 x 400** (CurseForge's size; PNG, not WebP): `sips -z 400 400 docs/art/pip-icon.png --out pip-icon-400.png` |
 | Source | `https://github.com/PetitPotam/kindred-spirit` |
 | Issues | `https://github.com/PetitPotam/kindred-spirit/issues` |
-| Wiki (setup guide) | `https://kindred-spirit-pip.web.app` |
+| Wiki (setup guide) | `https://kindred-spirit-pip.web.app/guides/install` (the guide, not the Download page: CurseForge allows no external download links for files) |
 | Files | uploaded by the release workflow, one per Minecraft version: 26.3 (Java 25) and 1.21.1 (Java 21), each Fabric, Client, Fabric API as a required dependency |
 
 Custom licence text, if AGPL-3.0 isn't in the list:
@@ -59,13 +59,16 @@ doing, warns you when a creeper sneaks up, and grows closer to you the more you 
 
 - **Pip needs her "brain", a separate program on the host's computer.** This mod draws her and connects her to your
   game; the brain gives her a voice, memory and thoughts. It isn't in this file: it's free and open source, runs on
-  **macOS** for now (Windows and Linux hosts are planned), and the setup guide installs it (see "Links" at the
-  bottom). Without it, she can't talk.
+  **macOS** for now (Windows and Linux hosts are planned), and Kindred Spirit Setup, a Mac app for Apple silicon and
+  Intel, installs it step by step (the setup guide is in "Links" at the bottom). Without it, she can't talk, and the
+  mod shows one message in your world saying so.
 - **She uses an AI service for her words,** with your own key: Google's Gemini by default (its free tier is
-  enough to play), or another provider, or a local model. Her voice and hearing run on your computer.
+  enough to play), or another provider, a local model with Ollama, or an AI subscription you already have (Claude
+  Code, Codex, Gemini CLI). Her voice and hearing run on your computer.
 - **Friends joining your world on LAN** need only this mod and Fabric API: one Pip, on the host's computer, that
   everyone sees and talks to.
-- **Early preview:** playable and fun, but young. Feedback is very welcome.
+- **Beta:** playable and fun, and still young. Some things nobody has tried yet (see "Good to know"); feedback is
+  very welcome.
 
 ## What she does
 
@@ -84,6 +87,8 @@ doing, warns you when a creeper sneaks up, and grows closer to you the more you 
   discovers her powers with you as you play.
 - **Remembers.** She knows your name, what you like, your bed, your builds and where you died, and she keeps a diary
   of your sessions.
+- **Lets you watch her think.** Press K for her dashboard, a page on your computer: her heart and mood, your
+  conversations, what she remembers, the buildings she knows, every AI call, and all her settings, changed live.
 - **Is yours.** She can be a slime, a cube, a fairy, a sprout, a wisp or a starry orb, or wear your own PNG. You
   choose how much she may do (from advice only to full magic) and how chatty she is.
 
@@ -102,8 +107,10 @@ Gemini by default, with your own key; another provider, or a local model through
 - a short description of your game around you: health, inventory, position and biome, what she sees and hears,
 - what she remembers about you that's relevant to the moment.
 
-Her slower thinking (learning from your sessions, her diary, who she's becoming) goes to Anthropic's Claude through
-the Claude command-line tool, if you set it up, with your own account. To answer questions about the game, her
+Her slower thinking (learning from your sessions, her diary, who she's becoming) goes to the same AI by default,
+or to another one you choose (for example Anthropic's Claude through the Claude command-line tool, with your own
+account), or is switched off. On Gemini's free tier, Google may use what is sent to improve its products; a paid key
+or a local model avoids that. To answer questions about the game, her
 brain also reads pages from the Minecraft Wiki (minecraft.wiki) and keeps them on your computer.
 
 Nothing is sent to us, and the mod itself sends nothing anywhere: only to her brain on your computer, over a local
@@ -149,6 +156,10 @@ PetitPotam
 - Minecraft 26.3 or 1.21.1 (one file for each: pick the one for your game), Fabric Loader, and
   [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api). Client-side: nothing is added to your world
   or its saves.
+- The Setup app isn't signed by Apple (that needs a paid membership), so the first time macOS warns you; the setup
+  guide shows how to open it anyway. It's built and tested on Apple silicon and Intel Macs with every release, but
+  nobody has yet tried it on a real Intel Mac, or updated from one release to the next: reports welcome.
+- On 26.3, her Minecraft knowledge still assumes 1.21.1 for things added since, unless you set its version.
 - On multiplayer servers you don't host, she doesn't look through blocks for ores or anything else (that would be
   like x-ray). In your own worlds, a LAN world you host, or a friend's world that runs Kindred, she does.
 - Free software under the GNU AGPL-3.0. Pip's name, character and art have their own simple rules: anything kind
@@ -157,5 +168,5 @@ PetitPotam
 
 ## Links
 
-- Setup guide (installs her brain on the host's computer): [kindred-spirit-pip.web.app](https://kindred-spirit-pip.web.app)
+- Setup guide (Kindred Spirit Setup installs her brain on the host's Mac): [kindred-spirit-pip.web.app/guides/install](https://kindred-spirit-pip.web.app/guides/install)
 - Source code, issues and ideas: [github.com/PetitPotam/kindred-spirit](https://github.com/PetitPotam/kindred-spirit)
