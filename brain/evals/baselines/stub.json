@@ -1,29 +1,29 @@
 {
  "about": "Stub mode (what CI runs): which cases' brain checks pass. A case that passes here must keep passing (tests/test_evals.py); when a change makes more pass, run scripts/eval.sh --json evals/baselines/new.json and update this file.",
- "commit": "8e88c15 (main, 2026-11-13)",
+ "commit": "Phase B step 1 on claude/arch-improvements-d066f8 (main 6d0ecd9 + context order and System 0 guards)",
  "summary": {
-  "checks": "36/45",
-  "cases": "20/28",
-  "case_rate": 0.71
+  "checks": "45/45",
+  "cases": "28/28",
+  "case_rate": 1.0
  },
  "cases": {
-  "follow-me-not-guide": false,
-  "follow-me-while-leading": false,
+  "follow-me-not-guide": true,
+  "follow-me-while-leading": true,
   "stop-leading-follow-me": true,
-  "stand-still": false,
-  "guest-both-of-us": false,
+  "stand-still": true,
+  "guest-both-of-us": true,
   "guest-follow-me": true,
   "guest-kill-no-sword": true,
   "guest-enchant-honest": true,
   "friend-holding-unknown": true,
-  "friend-holding-known": false,
+  "friend-holding-known": true,
   "lead-to-far-friend": true,
   "failed-slowness-no-claim": true,
   "poke-playfully": true,
   "flatten-honest": true,
-  "campfire-not-torch": false,
+  "campfire-not-torch": true,
   "emotes-no-gifts": true,
-  "defend-friend-standing": false,
+  "defend-friend-standing": true,
   "house-and-protect-both": true,
   "diary-real": true,
   "diary-none-no-inventing": true,
@@ -33,7 +33,7 @@
   "sp-get-wood-amnesia": true,
   "sp-do-the-same-building": true,
   "sp-remove-block": true,
-  "sp-back-to-the-house": false,
+  "sp-back-to-the-house": true,
   "sp-what-are-you": true
  }
 }

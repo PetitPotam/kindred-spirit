@@ -82,6 +82,9 @@ ACTION_HINTS = [
      r"\b(and )?(everything|everyone|all of them|anything|all the monsters|all monsters|mobs)\b|"
      r"\b(follow|stay with|go with) and (protect|defend|guard)\b|\b(protect|defend|guard) and (follow|stay with)\b|"
      r"\b(look after|watch over|guard) (him|her|them|\w+) for (me|us)\b", "standing_request"),
+    # a trip: "get me back to the house", "take us home" (before the gifts' "get me..." and protect's "get ... back")
+    (r"\b(get|take|bring) (me|us)( all)? (back )?(home|to (the|my|our|your) (\w+ )?(house|home|base|place|spot|camp|"
+     r"farm|village|portal|bed|cottage|hut|cabin))\b", "guide"),
     (r"\b(place|put|set|drop)\b.{0,30}\b(campfire|bed|chest|barrel|door|crafting table|furnace|lantern|anvil|"
      r"enchanting table|bookshel(f|ves)|cauldron|bell|smoker|blast furnace|loom|composter|beacon|jukebox|"
      r"flower ?pot|ladder|sign|banner|trapdoor|fence gate)\b|\b(campfire|bed|chest|door)\b.{0,15}\b(here|there)\b",
@@ -90,7 +93,8 @@ ACTION_HINTS = [
      r"( me| us)?( some| a)? light\b(?=.{0,20}\btorch)|\blight (it|this|that|things|everything) up\b|"
      r"\blight (it|this)\b|\bcan'?t see\b|\bhelp (me|us) see\b|\btoo dark\b", "place_torch"),
     (r"\b(poke|prod|boop|bonk|tickle)\b|\b(hit|push|shove|smack|tap)\b.{0,15}\b(playfully|for fun|gently|a little)\b|"
-     r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b|"
+     r"\b(push|knock|blast|keep|get)\b(?! (me|us) back\b(?! off))(?!.{0,15}\bback (to|home|there|inside)\b).{0,30}\b(away|back|off)\b|"
+     r"\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b|"
      r"\b(i'?m|i am|we'?re|we are) (being )?(attacked|under attack|getting (shot|hit|attacked))\b|\b(save|defend) me\b|"
      r"\b(is|are|re|theyre|s|they|it)\s?(shooting|attacking|hitting) (me|us)\b", "protect"),
     (r"\b(place|put)\b.{0,12}\b(this|that|the|a|my|one) block\b", "build"),
@@ -99,6 +103,9 @@ ACTION_HINTS = [
     (r"\b(place|put|set( up)?|stack|lay)\b.{0,30}\b(\d+|some|a few|more)\b.{0,20}\b(blocks?|logs?|planks?|wood|"
      r"stones?|cobble\w*|bricks?|dirt|glass)\b|\b(place|put|stack|set)\b.{0,40}\b(vertical(ly)?|on top( of)?|above (it|"
      r"that|this|them)|upwards?|on the ground|in a (row|line|column))\b", "build"),
+    # one block they're looking at ("remove this block"): her hands take it, it's not a land to clear
+    (r"\b(remove|break|take (away|out)|get rid of|destroy|mine)\b( for me)? (this|that|the) (one )?block\b(?! of\b)"
+     r"(?!.{0,20}\b(and|all|everything|area|around)\b)", "harvest"),
     (r"\b(flatten|level( out)?|clear( out| away)?|remove|dig away|get rid of|squash)\b.{0,40}\b(ground|land|area|hill|"
      r"terrain|space|blocks?|everything|this|it|above|trees?|dirt|grass)\b|\bmake (it|this|the (ground|area|land)) "
      r"(flat|level)\b", "build"),
@@ -134,7 +141,7 @@ ACTION_HINTS = [
     (r"\b(stop the rain|make it (rain|sunny|clear|storm)|clear (the|up the) weather)\b", "set_weather"),
 ]
 _hints = [(re.compile(p), tool) for p, tool in ACTION_HINTS]
-STANDING = re.compile(ACTION_HINTS[0][0], re.I)
+STANDING = re.compile(ACTION_HINTS[0][0], re.I)  # (the standing rule stays first in ACTION_HINTS)
 
 
 COMMON = set("water lava fire night light dark home house cave tree trees stone wood iron gold diamond sand dirt "

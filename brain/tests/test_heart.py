@@ -388,8 +388,8 @@ def test_think_fast_then_slow_she_tries_then_the_power_wakes_up(stubs):
             assert "sense diamonds now" in reveal["text"]
     asyncio.run(_serve(brain, scenario))
     fast = stubs.ai_requests[0]
-    assert "tool_choice" not in fast and "find_ore" not in json.dumps(fast.get("tools", [])), \
-        "System 1 answers at once, without the power"
+    assert fast.get("tool_choice") in (None, "none") and "find ore" not in fast["messages"][-1]["content"].split(
+        "[Powers for this answer]")[-1].split("[Player]")[0], "System 1 answers at once, without the power"
     assert "never done" in fast["messages"][-1]["content"]
     slow = stubs.ai_requests[2]
     assert slow["tool_choice"]["function"]["name"] == "find_ore", "when it wakes up, she really does it"
