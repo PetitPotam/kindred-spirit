@@ -1,9 +1,9 @@
 {
  "about": "Stub mode (what CI runs): which cases' brain checks pass. A case that passes here must keep passing (tests/test_evals.py); when a change makes more pass, run scripts/eval.sh --json evals/baselines/new.json and update this file.",
- "commit": "Phase B step 1 on claude/arch-improvements-d066f8 (main 6d0ecd9 + context order and System 0 guards)",
+ "commit": "126c774 (Phase B: context order, talker first, facts)",
  "summary": {
-  "checks": "45/45",
-  "cases": "28/28",
+  "checks": "48/48",
+  "cases": "29/29",
   "case_rate": 1.0
  },
  "cases": {
@@ -34,6 +34,7 @@
   "sp-do-the-same-building": true,
   "sp-remove-block": true,
   "sp-back-to-the-house": true,
-  "sp-what-are-you": true
+  "sp-what-are-you": true,
+  "sp-latest-nickname": true
  }
 }
