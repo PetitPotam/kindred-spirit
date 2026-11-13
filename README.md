@@ -99,7 +99,14 @@ She answers them in chat as "[Pip] ...", knows who said what, and sees them in t
   haste or night vision, healing, finding, leading, protecting, within her power and style. Off: they
   only talk with her.
 
-Nothing friends say changes her bond with you. `lanGuests: false` turns all of it off.
+**A heart for each of them.** She has the same five feelings for each friend as for you (lighter:
+she lives with you), moved by how they treat her: their words, their hits and pats (their game tells
+yours who did it), kept across sessions. She's warm with the kind one and prickly with the one who's
+mean to her. Their words don't change her bond with you, with one exception: when a friend hurts her
+in front of you, she notices whether you stand up for her ("leave her alone" counts; saying nothing
+costs a little trust). "From now on, do what Walid says" lets that friend ask her to follow them or
+stay. The dashboard shows a card for each friend, and every session log says who asked for what.
+`lanGuests: false` turns all of it off.
 
 **When a friend hosts the world instead:** your Pip comes with you (her brain stays on your computer).
 If their game has the mod, it shows her to everyone (an Allay for players without it), passes their

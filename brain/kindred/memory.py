@@ -107,6 +107,29 @@ class GatewayMemory:
         return await asyncio.to_thread(self._call, op, body)
 
 
+# what a person is called, and their pronouns: one at a time (the latest replaces the old ones)
+NAME_FACT = re.compile(r"\b(calls? (me|him|her|them|the player)|called|nick ?names?|my name is|name is|wants to be called|"
+                       r"likes to be called|goes by|prefers to be called)\b", re.I)
+PRONOUN_FACT = re.compile(r"\bpronouns?\b|\b(he/him|she/her|they/them)\b", re.I)
+# a gender the AI guessed ("Is female and still getting to know me"): never kept from reflection
+GUESSED_GENDER = re.compile(r"\b(is|seems|they'?re|he'?s|she'?s) (a |to be )?(female|male|girl|boy|woman|man|lady|guy)\b", re.I)
+
+
+def subject(fact):
+    """Who a fact is about: its first word ("Walid's nickname is Dumber" -> walid), or "player"."""
+    m = re.match(r"\s*(the player|[A-Za-z0-9_]+)", fact or "")
+    w = (m.group(1) if m else "player").lower()
+    return "player" if w in ("the player", "player", "they", "he", "she", "calls", "likes", "prefers", "wants", "goes",
+                             "my", "name", "nickname") else re.sub(r"'s$", "", w)
+
+
+def world_key(world_id):
+    """One world, one memory: a LAN world's address without its port (the port changes every time the host opens
+    it to LAN: 192.168.1.73:63665, then :55368, and each was a new world with no memories, heart or diary)."""
+    w = world_id or "unknown"
+    return re.sub(r"^(mp:[^:]+):\d+$", r"\1", w)
+
+
 class Memory:
     def __init__(self, store, clock=time.time):
         self.store = store
@@ -122,7 +145,7 @@ class Memory:
     # ------------------------------------------------------------------ sessions
 
     async def open_world(self, world_id):
-        self.world_id = world_id or "unknown"
+        self.world_id = world_key(world_id)
         self.stats = (await self.store.call("doc", key="world:%s:stats" % self.world_id)).get("value") or {
             "first_met": None, "last_seen": None, "sessions": 0, "minutes": 0}
 
@@ -150,7 +173,19 @@ class Memory:
         self.session_start = self.clock()
         self.exchanges = 0
         await self._save_stats()
+        await self.forget_guessed_gender()
         return since
+
+    async def forget_guessed_gender(self):
+        """Genders the AI guessed before this was fixed ("Is female and still getting to know me"): gone. What the
+        player said about themselves is kept as their pronouns, which this doesn't touch."""
+        try:
+            rows = (await self.store.call("list", kinds=["player"], world=self.world_id, limit=300))["results"]
+            for r in rows:
+                if GUESSED_GENDER.search(r.get("text", "")) and not PRONOUN_FACT.search(r.get("text", "")):
+                    await self.store.call("delete", id=r["id"], kinds=["player"])
+        except Exception:
+            pass
 
     async def end_session(self):
         if self.session_start is None or self.stats is None:
@@ -172,8 +207,35 @@ class Memory:
 
     async def remember(self, fact, about="player", importance=7):
         kind = about if about in ("player", "self", "habit", "world") else "player"
+        if kind == "player":
+            await self.replace_older(fact)
         r = await self.add(kind, fact, importance, dedupe=0.88)
         return not r.get("merged")
+
+    async def replace_older(self, fact):
+        """A new name, nickname or pronouns for someone replaces the old ones about the same person (they were kept
+        side by side: Dumb, Dumber, Twinkle...). Returns how many went."""
+        rx = PRONOUN_FACT if PRONOUN_FACT.search(fact) else NAME_FACT if NAME_FACT.search(fact) else None
+        if rx is None:
+            return 0
+        who, gone = subject(fact), 0
+        try:
+            rows = (await self.store.call("list", kinds=["player"], world=self.world_id, limit=200))["results"]
+        except Exception:
+            return 0
+        for r in rows:
+            if rx.search(r.get("text", "")) and subject(r["text"]) == who and r["text"].strip() != fact.strip():
+                await self.store.call("delete", id=r["id"], kinds=["player"])
+                gone += 1
+        return gone
+
+    async def diary(self, n=3):
+        """Her real diary, newest first (so she quotes it rather than inventing one)."""
+        try:
+            return [r["text"] for r in (await self.store.call("list", kinds=["diary"], world=self.world_id,
+                                                             limit=n))["results"]]
+        except Exception:
+            return []
 
     async def forget(self, about):
         r = await self.store.call("delete", kinds=["player", "self", "habit", "world", "place", "found", "reminder"],
@@ -241,6 +303,66 @@ class Memory:
             if f["text"].endswith(what) and abs(m.get("x", 1e9) - x) < 16 and abs(m.get("z", 1e9) - z) < 16:
                 return
         await self.add("found", "We found %s" % what, 5, {"x": x, "y": y, "z": z, "dimension": dimension, "what": what})
+
+    # ------------------------------------------------------------------ places she remembers on her own (item 25)
+
+    SPOT_CAP = 150
+    # what -> (how far apart two sightings may be and still be the same spot, importance); "one" = only ever one
+    SPOT_KINDS = {"build": (24, 7), "bed": ("one", 8), "death": ("one", 6), "chest": (8, 5), "workshop": (8, 5),
+                  "portal": (12, 7), "danger": (10, 4), "first": ("one", 6), "friend": ("one", 3), "found": (8, 5)}
+
+    async def spot(self, what, label, x, y, z, dimension="minecraft:overworld", biome=None, who="player", feel=None,
+                   source="own"):
+        """A place she remembers, with coordinates: one record per spot (sightings of the same thing nearby merge, and
+        the record moves to the latest for a building site, a bed, a death). Returns (record, new?)."""
+        kind = what.split(":", 1)[0]
+        merge, imp = self.SPOT_KINDS.get(kind, (10, 5))
+        now = self.clock()
+        try:
+            rows = (await self.store.call("list", kinds=["spot"], world=self.world_id, limit=self.SPOT_CAP + 50))["results"]
+        except Exception:
+            return None, False
+        same = None
+        for r in rows:
+            m = r.get("meta") or {}
+            if m.get("what") != what or m.get("dimension", dimension) != dimension:
+                continue
+            if merge == "one" or math.hypot(m.get("x", 0) - x, m.get("z", 0) - z) <= merge:
+                same = r
+                break
+        if same:
+            m = dict(same.get("meta") or {})
+            moves = kind in ("build", "bed", "death", "friend")  # (where it is now; firsts and finds keep the first)
+            if moves:
+                m.update({"x": round(x), "y": round(y), "z": round(z)})
+            m.update({"last": now, "visits": m.get("visits", 1) + 1})
+            if who and who not in (m.get("with") or []):
+                m["with"] = (m.get("with") or []) + [who]
+            await self.store.call("update", id=same["id"], text=label if moves else same["text"], meta=m)
+            return dict(same, meta=m), False
+        meta = {"what": what, "x": round(x), "y": round(y), "z": round(z), "dimension": dimension, "biome": biome,
+                "first": now, "last": now, "visits": 1, "with": [who] if who else [], "feel": feel, "source": source}
+        r = await self.add("spot", label, imp, {k: v for k, v in meta.items() if v is not None})
+        if len(rows) >= self.SPOT_CAP:  # the least important (then oldest) fade
+            old = sorted(rows, key=lambda r: (r.get("importance", 5), (r.get("meta") or {}).get("last", 0)))[0]
+            await self.store.call("delete", id=old["id"], kinds=["spot"])
+        return {"text": label, "meta": meta, "id": r.get("id")}, True
+
+    async def spots(self, limit=200):
+        try:
+            return (await self.store.call("list", kinds=["spot"], world=self.world_id, limit=limit))["results"]
+        except Exception:
+            return []
+
+    async def find_spot(self, words):
+        """A place she remembers, by description ("where we saw our first cow", "what I was building")."""
+        try:
+            hits = (await self.store.call("search", query=words, kinds=["spot", "place", "found"], world=self.world_id,
+                                          k=3))["results"]
+        except Exception:
+            return None
+        hits = [h for h in hits if "x" in (h.get("meta") or {})]
+        return hits[0] if hits and hits[0].get("score", 0) > 0.3 else None
 
     async def places(self):
         return (await self.store.call("list", kinds=["place"], world=self.world_id, limit=30))["results"]
@@ -310,7 +432,7 @@ class Memory:
             lst("list", kinds=["habit"], world=self.world_id, limit=4, order="important"),
             lst("list", kinds=["reminder"], world=self.world_id, limit=6),
             lst("list", kinds=["place"], world=self.world_id, limit=8),
-            lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary"],
+            lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary", "spot"],
                 world=self.world_id, k=8))
         now = self.clock()
         player, me, origin, tastes, cores, habits, reminders, places, recalled = (
@@ -338,6 +460,19 @@ class Memory:
             lines.append("The player's habits: " + " ".join(m["text"].rstrip(".") + "." for m in habits))
         if places:
             lines.append("Named places: " + "; ".join(m["meta"].get("name", m["text"]) + rel(m["meta"]) for m in places) + ".")
+        known = await self.spots(120)
+        if known and "x" in where:  # the places she knows on her own: the nearest and most important few
+            def score(m):
+                mm = m.get("meta") or {}
+                if mm.get("dimension") and where.get("dimension") and mm["dimension"] != where["dimension"]:
+                    return 1e9
+                return math.hypot(mm.get("x", 0) - where["x"], mm.get("z", 0) - where["z"]) / (1 + m.get("importance", 5) / 3)
+            near = sorted(known, key=score)[:6]
+            near = [m for m in near if score(m) < 1e9]
+            seen |= {m["id"] for m in near}
+            if near:
+                lines.append("Places you know (from what you saw together; lead there with guide 'to' = its words): "
+                             + "; ".join(m["text"] + rel(m["meta"]) for m in near) + ".")
         if reminders:
             lines.append("Reminders you hold: " + "; ".join("%s (%s)" % (m["text"], m["meta"].get("when", "")) for m in reminders) + ".")
         extra = [m for m in recalled if m["id"] not in seen and m["score"] > 0.2][:6]
@@ -417,6 +552,10 @@ class Memory:
                 text = (item.get("text") if isinstance(item, dict) else str(item)).strip()
                 if len(text) < 8:
                     continue
+                if kind == "player" and GUESSED_GENDER.search(text):
+                    continue  # (a gender is never guessed: they say it, and it's kept from their own words)
+                if kind == "player":
+                    await self.replace_older(text)
                 imp = item.get("importance", 6) if isinstance(item, dict) else 6
                 passing = isinstance(item, dict) and bool(item.get("temporary"))
                 if text and len(text) < 300:

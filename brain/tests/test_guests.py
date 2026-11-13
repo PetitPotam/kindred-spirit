@@ -68,7 +68,7 @@ def test_a_friend_can_ask_for_her_powers_and_they_go_to_them(stubs):
     asyncio.run(run())
     assert ran == [("give_effect", {"effect": "haste", "to": "waterwalid"})], "his effect, not the player's"
     offered = {t["function"]["name"] for t in stubs.ai_requests[0]["tools"]}
-    assert "give_effect" in offered and "harvest" not in offered and "remember" not in offered
+    assert "give_effect" in offered and "harvest" in offered and "remember" not in offered  # (chopping for friends too)
 
 
 def test_without_powers_a_friend_only_talks(stubs):

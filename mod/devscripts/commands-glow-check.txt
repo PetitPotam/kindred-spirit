@@ -1,0 +1,33 @@
+# Her commands (magic, all-powerful) and her glow, in singleplayer. No brain needed (brainPort can be quiet).
+# Screenshots: mod/run/screenshots/cmd-*.png; results in the game log ("action command ...").
+world Commands Test
+wait 200
+cmd gamemode survival
+cmd time set noon
+look 0 10
+do command {"command": "/fill ~2 ~ ~2 ~8 ~4 ~8 oak_planks hollow"}
+wait 20
+do command {"command": "/setblock ^ ^ ^3 red_bed[facing=south,part=foot]"}
+do command {"command": "/give @s diamond_pickaxe"}
+do command {"command": "/enchant @s efficiency 3"}
+do command {"command": "/effect give @s speed 30 1"}
+do command {"command": "/kill @e"}
+do command {"command": "/effect give @s poison 5"}
+do command {"command": "/summon wither ~ ~ ~5"}
+do command {"command": "/fill 9000 64 9000 9010 70 9010 stone"}
+wait 40
+camera back
+wait 10
+screenshot cmd-01-room
+camera first
+cmd time set midnight
+act {"move": "come", "seconds": 30}
+wait 80
+screenshot cmd-02-glow-night
+act {"glow": "bright", "seconds": 60}
+wait 40
+screenshot cmd-03-glow-bright
+act {"glow": "off", "seconds": 60}
+wait 40
+screenshot cmd-04-glow-off
+quit

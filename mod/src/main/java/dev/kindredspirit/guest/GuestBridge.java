@@ -39,6 +39,8 @@ public final class GuestBridge {
     public record Heard(String who, String text) {}
 
     private static final Deque<Heard> heard = new ArrayDeque<>();
+    /** Friends touching your Pip (hit / petted), for her brain: who, and what (in Heard.text). */
+    private static final Deque<Heard> touches = new ArrayDeque<>();
     private static boolean cleaned;
 
     /** What the client hands over: whether guests are on, her name, and where she floats. */
@@ -181,14 +183,63 @@ public final class GuestBridge {
                     res = dev.kindredspirit.act.Actions.error("That isn't allowed.");
                 } else {
                     var args = m.has("args") && m.get("args").isJsonObject() ? m.getAsJsonObject("args") : new com.google.gson.JsonObject();
+                    args.addProperty("_power", power.name());
                     res = dev.kindredspirit.act.Actions.serverSide(server, from, a, args, style);
                 }
                 res.addProperty("type", "done");
                 res.addProperty("id", m.has("id") ? m.get("id").getAsString() : "");
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(from, new PipPayload(res.toString()));
             }
+            case "touch" -> touch(server, from, m.has("what") ? m.get("what").getAsString() : "");
+            case "glow" -> { // a visiting Pip's light, placed by this world's game where she floats
+                if (!acceptVisitors.get()) return;
+                net.minecraft.core.BlockPos at = m.has("x") ? new net.minecraft.core.BlockPos(m.get("x").getAsInt(),
+                        m.get("y").getAsInt(), m.get("z").getAsInt()) : null;
+                dev.kindredspirit.act.Glow.visitorLight(server, from, at, m.has("level") ? m.get("level").getAsInt() : 12);
+            }
             default -> { }
         }
+    }
+
+    /**
+     * Someone hit or petted the Pip they see (on their screen with the mod, or her stand-in without it). Whose
+     * Pip is she? Yours: her brain hears it from your game. A visiting Pip: her owner's game is told.
+     */
+    public static void touch(MinecraftServer server, ServerPlayer from, String what) {
+        if (!what.equals("hit") && !what.equals("petted")) return;
+        Minecraft mc = Minecraft.getInstance();
+        boolean own = enabled.get() && where.get() != null && mc.player != null;
+        if (own) {
+            if (from.getUUID().equals(mc.player.getUUID())) return; // (yours are seen by your own game)
+            synchronized (touches) {
+                touches.add(new Heard(from.getGameProfile().getName(), what));
+                while (touches.size() > 10) touches.removeFirst();
+            }
+            return;
+        }
+        UUID ownerId = visitorOwner;
+        if (visiting() == null || ownerId == null || from.getUUID().equals(ownerId)) return;
+        ServerPlayer owner = server.getPlayerList().getPlayer(ownerId);
+        if (owner == null || !net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(owner, PipPayload.TYPE)) return;
+        // (as a "done" with id "touch": an older Kindred ignores it instead of taking it for her state)
+        com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+        o.addProperty("type", "done");
+        o.addProperty("id", "touch");
+        o.addProperty("what", what);
+        o.addProperty("by", from.getGameProfile().getName());
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(owner, new PipPayload(o.toString()));
+    }
+
+    /** A friend's touch on your Pip since last time (who, and "hit" or "petted" in text). */
+    public static Heard nextTouch() {
+        synchronized (touches) {
+            return touches.poll();
+        }
+    }
+
+    /** The stand-in is hit or petted by someone without the mod: it's a touch (and the Allay keeps nothing). */
+    public static boolean standIn(net.minecraft.world.entity.Entity e) {
+        return e != null && e.getTags().contains(TAG);
     }
 
     private static net.minecraft.world.entity.Entity find(MinecraftServer server, UUID id) {

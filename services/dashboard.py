@@ -818,6 +818,10 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     body["all_worlds"] = True
                 return self.send(200, memory("search", **body))
+            if url.path == "/api/places":  # the places she knows in a world: on her own, named by you, found
+                w = q.get("world") or None
+                return self.send(200, {"places": memory("list", kinds=["spot", "place", "found"], world=w, all_worlds=not w,
+                                                        limit=400).get("results", [])})
             if url.path == "/api/memory/doc":
                 return self.send(200, memory("doc", key=q.get("key", "")))
             if url.path == "/api/settings":
@@ -851,7 +855,7 @@ def _post(handler):
     if not handler.host_ok():
         return
     url = urlparse(handler.path)
-    if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles"):
+    if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles", "/api/places"):
         return handler.send(404, {"error": "not found"})
     if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
         return handler.send(403, {"error": "only from the dashboard itself"})
@@ -863,6 +867,18 @@ def _post(handler):
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 return handler.send(200, r.read(), "audio/wav")
+        except (urllib.error.URLError, OSError) as e:
+            return handler.send(502, {"error": str(getattr(e, "reason", e))})
+    if url.path == "/api/places":  # rename a place she knows, or forget it
+        try:
+            pid = int(body.get("id"))
+            if body.get("action") == "forget":
+                return handler.send(200, memory("delete", id=pid, kinds=["spot", "place", "found"]))
+            if body.get("action") == "rename" and str(body.get("text", "")).strip():
+                return handler.send(200, memory("update", id=pid, text=str(body["text"]).strip()[:120]))
+            return handler.send(400, {"error": "forget or rename (with a text)"})
+        except (ValueError, TypeError) as e:
+            return handler.send(400, {"error": str(e)})
         except (urllib.error.URLError, OSError) as e:
             return handler.send(502, {"error": str(getattr(e, "reason", e))})
     if url.path == "/api/profiles":

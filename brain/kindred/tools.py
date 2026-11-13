@@ -41,25 +41,36 @@ ABILITY_TOOLS = {
                   "x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}}),
     "stop_guide": _fn("stop_guide", "Stop leading the way and float beside the player again."),
     "protect": _fn("protect", "Push every hostile mob within 8 blocks away from the player (no damage), or from "
-                   "another player here if 'to' names them. Use when they're in danger or ask for help with monsters.",
-                   {"to": {"type": "string", "description": "another player's name; empty = the player"}}),
+                   "another player here if 'to' names them. Use when they're in danger or ask for help with monsters. "
+                   "It also gives a friend who just hit the player a playful shove. With poke=true and 'to' a player's "
+                   "name: a playful poke on that player (a little shove and a puff, no harm), when asked to poke, prod, "
+                   "boop, push back or playfully hit someone.",
+                   {"to": {"type": "string", "description": "another player's name; empty = the player"},
+                    "poke": {"type": "boolean", "description": "true: poke the player named in 'to' (playful, no harm)"}}),
     "harvest": _fn("harvest", "Break what the player is looking at, within 6 blocks: a whole tree (all its logs) "
                    "if they look at a log, else that one block. What drops goes into their inventory, as if mined "
                    "with what they hold. Use when they ask you to chop a tree, cut wood, mine or break a block. "
                    "Never for animals, chests or anything that holds things."),
-    "build": _fn("build", "Build with the player: place blocks in a shape, one by one, a few per second, starting "
-                 "at the spot they're looking at (or just in front of them) and going forward (the way they face) "
-                 "and to their right. In grounded style each block comes from their inventory (you place what they "
-                 "have). Shapes: pillar (a stack, 'height' high), corners (a pillar on each corner of a rectangle "
-                 "'width' x 'length', 'height' high), wall (a row 'width' long, 'height' high), floor ('width' x "
-                 "'length', flat), outline (the border of 'width' x 'length', 'height' high, like a pen or room). "
-                 "'stop' stops a build. One block where they look: a pillar of height 1. If the size they want isn't "
-                 "clear, ask before building. At most 256 blocks.",
-                 {"shape": {"type": "string", "enum": ["pillar", "corners", "wall", "floor", "outline", "stop"]},
-                  "block": {"type": "string", "description": "the block to use, e.g. cobblestone, oak_planks; empty = "
-                            "the block in their hand (or the one they have most of)"},
+    "build": _fn("build", "Build with the player, starting at the spot they're looking at (or just in front of them) "
+                 "and going forward (the way they face) and to their right. In grounded style each block comes from "
+                 "their inventory (you place what they have) and what you clear goes into it; in magic style it's free "
+                 "and fast. Shapes: place (ONE block or item where they look, placed properly: a campfire, a bed, a "
+                 "chest, a door, a lantern...), pillar (a stack, 'height' high), corners (a pillar on each corner of "
+                 "'width' x 'length'), wall (a row 'width' long, 'height' high), floor ('width' x 'length', flat), "
+                 "outline (the border of 'width' x 'length', 'height' high, like a pen), house (floor, walls, a door, a "
+                 "roof, sized for 'people'), portal (a nether portal: 10 obsidian, then lit), clear (everything in "
+                 "'width' x 'length' goes, from where they stand up, or above 'level'), flatten (clear, and fill holes "
+                 "in the ground at that level with 'block'). 'stop' stops. Use the block they named, in this or an "
+                 "earlier message. If what they want isn't one of these shapes, say you can't build that yet: never "
+                 "build something else and call it done. If the size isn't clear, ask first.",
+                 {"shape": {"type": "string", "enum": ["place", "pillar", "corners", "wall", "floor", "outline", "house",
+                                                       "portal", "clear", "flatten", "stop"]},
+                  "block": {"type": "string", "description": "the block or item, e.g. cobblestone, oak_planks, campfire, "
+                            "red_bed; empty = the one in their hand (or the one they have most of)"},
                   "height": {"type": "integer"}, "width": {"type": "integer", "description": "to their right"},
-                  "length": {"type": "integer", "description": "forward"}}, ["shape"]),
+                  "length": {"type": "integer", "description": "forward"},
+                  "people": {"type": "integer", "description": "house: how many it's for"},
+                  "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"}}, ["shape"]),
     "place_torch": _fn("place_torch", "Place a torch at or right next to the player's feet (in grounded style it "
                        "uses one of their torches)."),
     "give_item": _fn("give_item", "Make items appear in someone's inventory (magic): the player's, or another "
@@ -74,6 +85,26 @@ ABILITY_TOOLS = {
                        {"effect": {"type": "string"},
                         "to": {"type": "string", "description": "another player's name; empty = the player"}},
                        ["effect"]),
+    "command": _fn("command", "Run one of Minecraft's own commands (the old words the world obeys), as the player, "
+                   "from where they stand; the game's exact answer comes back. Use it when it's the simplest way: building "
+                   "in one go, gifts, enchanting, effects, and (all-powerful) mobs, teleporting, time, weather. Only what "
+                   "they asked for; for another player only if that player asked, or playful things the player asked "
+                   "for. Never @e, @a or @r; ~ coordinates are from the player (~ ~ ~ = their feet, ^ ^ ^3 = 3 ahead).\n"
+                   "  /fill <x1 y1 z1> <x2 y2 z2> <block> [hollow|outline|replace|keep|destroy]  e.g. /fill ~-8 ~ ~-8 ~8 ~10 ~8 "
+                   "air (clear everything around, from their feet up), /fill ~-6 ~-1 ~-6 ~6 ~-1 ~6 dirt (flatten the ground), "
+                   "/fill ~2 ~ ~2 ~8 ~4 ~8 oak_planks hollow (a room), /fill ~-10 ~-3 ~-10 ~10 ~6 ~10 air replace fire (put out a fire)\n"
+                   "  /setblock <x y z> <block>[states]  e.g. /setblock ^ ^ ^2 campfire\n"
+                   "  /clone <x1 y1 z1> <x2 y2 z2> <x y z>   copy a build\n"
+                   "  /give <player> <item> [count]  e.g. /give Walid golden_apple 2\n"
+                   "  /enchant <player> <enchantment> [level]  the item in their hand, e.g. /enchant Walid efficiency 3\n"
+                   "  /effect give <player> <effect> [seconds] [level]  e.g. /effect give Walid speed 60 1; harmful ones "
+                   "(slowness, poison, levitation...) only if asked for by name, at most 10 s\n"
+                   "  /particle <name> <x y z>, /playsound <sound> master <player>  for fun\n"
+                   "  /locate structure <id> | biome <id>\n"
+                   "  all-powerful only: /summon <mob> <x y z> (a few, never dangerous ones), /tp <player> <x y z | player>, "
+                   "/time set day|noon|night|midnight, /weather clear|rain|thunder, /spawnpoint <player>",
+                   {"command": {"type": "string", "description": "the command, e.g. /fill ~-3 ~ ~-3 ~3 ~ ~3 stone"}},
+                   ["command"]),
     "find_player": _fn("find_player", "Find another player here in the world (a friend on the player's LAN world) "
                        "by name, even said roughly. Then guide can lead the way to them as they move.",
                        {"name": {"type": "string", "description": "their name, or 'player' for the player you live beside"}},
@@ -100,9 +131,12 @@ MEMORY_TOOLS = [
         ["text", "when"]),
     _fn("cancel_reminder", "Cancel reminders that mention something.", {"about": {"type": "string"}}, ["about"]),
     _fn("standing_request", "The player wants you to do something every time, on your own: 'always protect me' "
-        "(what=protect) or 'tell me when we're near diamonds' (what=notify_ore, detail=the ore). Or stop one.",
+        "(what=protect) or 'tell me when we're near diamonds' (what=notify_ore, detail=the ore). Protection can be for "
+        "a friend here ('follow and defend Walid': for=Walid) or for everyone ('protect us from everything': "
+        "for=everyone). Or stop one.",
         {"what": {"type": "string", "enum": ["protect", "notify_ore"]},
          "detail": {"type": "string", "description": "for notify_ore: which ore"},
+         "for": {"type": "string", "description": "protect: a friend's name, or 'everyone'; empty = the player"},
          "stop": {"type": "boolean", "description": "true to stop doing it"}}, ["what"]),
     _fn("listen_more", "Listen more closely to what the world remembers about the guide or thing you were just told "
         "about: the next part (what='next'), or a part by name (what='Step two', 'Collection system'...). Use it when "

@@ -51,7 +51,9 @@ CHAT = ["hello", "hi pip", "how are you", "i love you", "you are funny", "what i
         "thank you", "thanks for the warning", "i'm a teacher", "tell me about yourself", "what do you like",
         "good night", "wow amazing", "sorry", "i don't know", "what do you think", "that's beautiful", "yes please",
         "no thanks", "what are you", "where do you come from", "i'm tired", "this is fun", "nice house",
-        "look at that sunset", "i'm going to build a house", "let's go mining", "i found diamonds!"]
+        "look at that sunset", "i'm going to build a house", "let's go mining", "i found diamonds!",
+        # (moving with you is the body's job, never a trip somewhere: "follow me" once meant "lead me")
+        "follow me", "follow us", "keep following me", "come with me", "stay with me", "stand still", "don't move"]
 
 THRESHOLD = 0.80   # how close to an example (cosine, local bge-small)
 MARGIN = 0.03      # and how much closer than to plain conversation
