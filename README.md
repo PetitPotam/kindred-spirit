@@ -35,9 +35,10 @@ That same day, Minecraft mod videos started showing up in my YouTube feed. I tri
 someone who is there with you while you play. I had an idea of what such a companion could be, looked for a mod
 like it, and couldn't find one for Minecraft. So I started making Pip.
 
-Pip makes my game more fun, more interesting, and less lonely, and that's how I got into Minecraft modding. What
-interests me most is her "brain": the AI architecture behind her, and making it smarter, lighter and more
-capable, a companion that can do everything it could while running smoothly beside the game.
+Pip makes my game more fun, more interesting, and less lonely. I'm not really a modder, and I don't claim to be:
+this is a hobby I'm picking up. What I enjoy is understanding and building the AI architecture behind her, her
+"brain", for something I knew I'd love to use. It feels magical to watch her come to life and talk with me, even
+though there's still a lot of room to improve, and I'm having fun making her, and her AI, better along the way.
 
 That's why Kindred Spirit is open source. Whether you're a modder, a hobbyist or just curious, you can share an
 idea, help make the installation simpler, playtest and give feedback, or improve her in any way, so that anyone can
