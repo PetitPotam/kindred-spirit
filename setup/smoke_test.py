@@ -134,7 +134,7 @@ def main(argv):
         state = call("/api/setup/state")
         assert state["mode"] == "app" and state["installed"] is None, state
         assert [s["id"] for s in state["steps"]] == ["computer", "install", "start", "ai", "thinking", "instincts", "voice",
-                                                     "hearing", "minecraft", "hello", "login"], state["steps"]
+                                                     "hearing", "minecraft", "hello", "login", "updates"], state["steps"]
         assert opened() == "/setup", "before setup, opening the app shows the steps"
         for sid, action, extra in [("computer", "choose", {"choice": "auto"}), ("computer", "test", {}),
                                    ("install", "install", {}), ("install", "test", {}),
@@ -193,7 +193,7 @@ def main(argv):
         state = call("/api/setup/state")
         assert state["dashboard"]["running"], state["dashboard"]
         # (saying hi needs Minecraft itself: not on a test machine)
-        assert all(s["status"] == "done" for s in state["steps"] if s["id"] not in ("minecraft", "hello")), \
+        assert all(s["status"] == "done" for s in state["steps"] if s["id"] not in ("minecraft", "hello", "updates")), \
             [(s["id"], s["status"]) for s in state["steps"]]
         assert os.path.islink(os.path.join(home, "Library", "Application Support", "Kindred Spirit", "current"))
         assert oct(os.stat(os.path.join(kh, "secrets.env")).st_mode & 0o777) == "0o600"

@@ -47,8 +47,11 @@ def mods_dir():
 
 
 def versions():
-    """[{"minecraft", "jar", "fabric_api"}], newest first: from versions.json, else from the jars' names."""
-    d = mods_dir()
+    return versions_in(mods_dir())
+
+
+def versions_in(d):
+    """[{"minecraft", "jar", "fabric_api"}] in a mods folder, newest first: from versions.json, else the jars' names."""
     try:
         with open(os.path.join(d, "versions.json"), encoding="utf-8") as fh:
             vs = [v for v in json.load(fh).get("versions", []) if os.path.exists(os.path.join(d, v.get("jar", "")))]

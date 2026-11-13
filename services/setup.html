@@ -205,6 +205,7 @@ function render() {
     h("div", {class: "summary"}, s.summary || ""),
     h("p", {class: "why"}, s.why),
     s.default ? h("div", {class: "rec"}, h("b", {}, "We recommend"), h("span", {}, s.default)) : null,
+    s.notes ? h("details", {open: true}, h("summary", {}, "What's new"), h("pre", {}, s.notes)) : null,
     s.facts && s.facts.length ? h("table", {class: "facts"}, h("tbody", {}, s.facts.map(([k, v]) => h("tr", {}, h("td", {}, k), h("td", {}, v))))) : null,
     s.choices ? h("div", {class: "choices", role: "radiogroup"}, s.choices.map(c => {
       const on = (choice[s.id] || s.chosen) === c.value;

@@ -46,6 +46,9 @@ Unreleased into the new version's section.
 - Every release now carries Kindred Spirit Setup for macOS (Apple silicon and Intel), built and smoke-tested by CI
   from the release's own mod files, with a SHA-256 for each file and a note saying what was tested where (#98).
 
+- The Setup updates everything together: it checks GitHub Releases, shows what's new, installs the new version of
+  her brain, the matching mod and the Setup itself, keeps your settings and memories, and can go back (#97).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
