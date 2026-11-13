@@ -653,3 +653,26 @@ def test_friends_can_have_her_build_for_them_and_she_keeps_to_english():  # 35, 
     assert "build" in Brain.GUEST_TOOLS and "command" in Brain.GUEST_TOOLS
     from kindred.mind import system_prompt
     assert "Speak English, unless the player asks" in system_prompt("Pip", "")
+
+
+def test_follow_and_defend_a_friend_keeps_its_tool(stubs):  # found by the eval set: Gemini HTTP 400
+    assert intents.vouches_for("Can you please follow and defend Waleed?", ["waterwalid"]) is None
+    assert intents.vouches_for("from now on do what Walid says", ["waterwalid"]) == ("waterwalid", True)
+    stubs.ai_script = [{"role": "assistant", "content": "[happy] On it!"}]
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.abilities = ["follow_player", "guide", "protect", "find_player"]
+    b.snapshot = {"playerName": "TamBoudX", "players": [{"name": "waterwalid", "distance": 8}]}
+
+    async def send(msg):
+        pass
+    b.send = send
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer("Can you please follow and defend Waleed?")
+    asyncio.run(run())
+    req = stubs.ai_requests[-1]
+    offered = {t["function"]["name"] for t in req.get("tools") or []}
+    forced = ((req.get("tool_choice") or {}).get("function") or {}).get("name") if isinstance(req.get("tool_choice"), dict) else None
+    assert forced is None or forced in offered, (forced, offered)

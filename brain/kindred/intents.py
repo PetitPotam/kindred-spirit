@@ -239,8 +239,9 @@ WHERE_AM_I = re.compile(r"\bwhere am i\b|\bwhere('?s| is) my position\b|\bhow fa
 # "for both of us", "for me and him": each gets one
 BOTH = re.compile(r"\b(both of us|for us\b|us both|each of us|all of us|for (me|him|her) and (me|him|her|\w+)|"
                   r"for everyone)\b", re.I)
-_VOUCH = re.compile(r"\b(do what|listen to|obey|take orders from|you can follow|follow) (\w[\w ]{1,20}?)( says| asks| tells you)?"
-                    r"\b.{0,20}$|\b(from now on|you can)\b.{0,25}\b(do what|listen to|obey|follow) (\w[\w ]{1,20}?)( says| asks)?\b",
+_VOUCH = re.compile(r"\b(do what|listen to|obey|take orders from|follow (?:what|whatever)) (\w[\w ]{1,20}?)( says| asks| tells you)?"
+                    r"\b.{0,20}$|\b(from now on|you can)\b.{0,25}\b(do what|listen to|obey|follow (?:what|whatever)) (\w[\w ]{1,20}?)"
+                    r"( says| asks)?\b",
                     re.I)
 _UNVOUCH = re.compile(r"\b(don'?t|do not|stop|no longer)\b.{0,10}\b(listen(ing)? to|obey(ing)?|taking orders from|"
                       r"do(ing)? what) (\w[\w ]{1,20}?)( says| asks)?\b", re.I)
