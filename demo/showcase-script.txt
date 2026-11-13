@@ -6,7 +6,7 @@
 #   ../demo/.venv/bin/python ../demo/make_video.py showcase
 # Each "mark X" ... "mark X_end" is a chapter; "caption" puts a note at the bottom of the edit.
 # Pip's answers are live (real speech-to-text and AI), so every take is a little different.
-world kindred-showcase
+world kindred-showcase-take2
 wait 300
 video
 cmd gamemode spectator
@@ -23,10 +23,15 @@ cmd tp @s 3000 175 3000 0 30
 wait 120
 
 # the stage: a floating meadow with room for a cottage, a sheep pen, trees, flowers, an iron outcrop
+# (one /fill is at most 32768 blocks: the stage is cleared in strips)
 cmd fill 2960 146 2958 3040 147 3050 minecraft:stone
 cmd fill 2960 148 2958 3040 149 3050 minecraft:grass_block
-cmd fill 2960 150 2958 3040 160 3050 minecraft:air
-cmd fill 2960 161 2958 3040 172 3050 minecraft:air
+cmd fill 2960 150 2958 2989 160 3050 minecraft:air
+cmd fill 2990 150 2958 3019 160 3050 minecraft:air
+cmd fill 3020 150 2958 3040 160 3050 minecraft:air
+cmd fill 2960 161 2958 2989 172 3050 minecraft:air
+cmd fill 2990 161 2958 3019 172 3050 minecraft:air
+cmd fill 3020 161 2958 3040 172 3050 minecraft:air
 cmd kill @e[type=!minecraft:player]
 cmd place feature minecraft:oak 3018 150 3026
 cmd place feature minecraft:birch 2976 150 3012
