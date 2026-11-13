@@ -107,6 +107,18 @@ conversations, past sessions, her memories, the buildings she knows, and her set
 
 To come back to the steps, press **Setup steps** in the dashboard's side bar.
 
+## Updates
+
+The last step, **Updates**, asks GitHub for the newest version and shows what's new. **Update** then:
+- downloads that version's Setup for your Mac, checked against its fingerprint;
+- installs its program next to the current one, and wakes her up on it;
+- puts the matching mod into your Kindred Spirit profile (or the mods folder you gave);
+- replaces the Setup app itself.
+
+Her brain, the mod and the Setup always move together, because they must be the same version. Your settings, keys
+and memories stay as they are. The version before is kept: **Go back to …** returns to it. Quit Minecraft before
+updating.
+
 ## Where things go
 
 | What | Where |

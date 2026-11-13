@@ -38,6 +38,7 @@ import kindred_gateway as gw  # noqa: E402  (KINDRED_HOME, the gateway's port)
 import setup_ai  # noqa: E402  (choosing her AI, #94)
 import setup_models  # noqa: E402  (her local models, #95)
 import setup_minecraft  # noqa: E402  (Minecraft, Fabric and the mod, then saying hi, #96)
+import setup_update  # noqa: E402  (updates, #97)
 from kindred import hardware  # noqa: E402
 
 PAYLOAD = os.environ.get("KINDRED_SETUP_PAYLOAD") or ""  # the app's own copy: python/, kindred/, VERSION
@@ -648,11 +649,12 @@ STEPS = {
     "minecraft": (setup_minecraft.step_minecraft, setup_minecraft.act_minecraft, setup_minecraft.test_minecraft),
     "hello": (setup_minecraft.step_hello, setup_minecraft.act_hello, setup_minecraft.test_hello),
     "login": (step_login, act_login, test_login),
+    "updates": (setup_update.step_updates, setup_update.act_updates, setup_update.test_updates),
 }
 LOGS_FOR = {"computer": (), "install": ("setup.out",), "start": ("gateway.out", "brain.out", "dashboard.out"),
             "login": ("login.out",), "ai": ("gateway.out", "ollama-pull.out"), "thinking": ("gateway.out",),
             "instincts": ("setup-models.out", "embed.out"), "voice": ("setup-models.out", "kokoro.out"),
-            "hearing": ("whisper.out",), "minecraft": (), "hello": ("brain.log",)}
+            "hearing": ("whisper.out",), "minecraft": (), "hello": ("brain.log",), "updates": ("update.out",)}
 
 
 # ---------------------------------------------------------------------- her dashboard, and opening the app again
