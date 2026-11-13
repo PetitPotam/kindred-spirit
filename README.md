@@ -363,4 +363,8 @@ design notes from [MCPFabric](https://github.com/denfry/mcpfabric), and the idea
 from [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je). Every library, model, dataset, service
 and source, with its licence: **[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)**.
 
+**Made with AI, openly:** this project is written with [Claude Code](https://www.anthropic.com/claude-code)
+(Anthropic), mostly by Claude Opus 5.5, directed, playtested and reviewed by its author; Pip herself talks
+through Gemini and thinks through Claude while you play. Details: [how this project was made](THIRD_PARTY_NOTICES.md#how-this-project-was-made-with-ai-openly).
+
 MIT licensed. Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.
