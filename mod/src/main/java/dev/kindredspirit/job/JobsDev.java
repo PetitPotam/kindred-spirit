@@ -37,7 +37,7 @@ public final class JobsDev implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (System.getProperty("kindredspirit.devScript") == null) return;
-        ServerTickEvents.END_SERVER_TICK.register(Jobs::tick);
+        // (Jobs.tick itself is registered for everyone by Jobs.register)
         ServerTickEvents.END_SERVER_TICK.register(s -> {
             JsonObject done = Jobs.lastResult();
             if (done != null && done != reported) {

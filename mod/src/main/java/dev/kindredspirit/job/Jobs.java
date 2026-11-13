@@ -168,6 +168,134 @@ public final class Jobs {
         return r;
     }
 
+    /**
+     * Her {@code job} action: {"kind": "mine" | "chop" | "collect" | "craft" | "return_items" | "stop" | "status",
+     * "what", "count", "x", "y", "z" (return_items: where they died, else the last death this game saw)}.
+     */
+    public static JsonObject action(ServerPlayer sp, JsonObject args, boolean magic) {
+        String kind = str(args, "kind", "status").toLowerCase(java.util.Locale.ROOT).replace(' ', '_');
+        String what = str(args, "what", "");
+        int count = args.has("count") ? Math.max(1, args.get("count").getAsInt()) : 0;
+        if (busy() && !kind.equals("stop") && !kind.equals("status")) {
+            return error("I'm still busy with the last job (" + job.kind + " " + job.what + "). Say stop first.");
+        }
+        return switch (kind) {
+            case "mine", "dig", "collect_blocks" -> what.isBlank() ? error("Mine what? (iron, coal, stone, diamonds...)")
+                    : mine(sp, what, count == 0 ? 8 : count, magic);
+            case "chop", "tree", "wood", "logs" -> chop(sp, count == 0 ? 64 : count, magic);
+            case "collect", "pick_up", "gather" -> collect(sp, magic);
+            case "craft", "make" -> what.isBlank() ? error("Craft what?") : craft(sp, what, count == 0 ? 1 : count, magic);
+            case "return_items", "get_my_things", "death" -> {
+                BlockPos at = args.has("x") && args.has("z")
+                        ? BlockPos.containing(args.get("x").getAsDouble(), args.has("y") ? args.get("y").getAsDouble() : sp.getY(),
+                        args.get("z").getAsDouble())
+                        : deathOf(sp);
+                yield at == null ? error("I don't know where you died.") : returnItems(sp, at, magic);
+            }
+            case "stop" -> stop();
+            default -> status();
+        };
+    }
+
+    /** "Chop that tree": the nearest tree within reach, its whole trunk (grounded: with your axe, at its speed). */
+    public static JsonObject chop(ServerPlayer sp, int max, boolean magic) {
+        ServerLevel level = sp.serverLevel();
+        BlockPos c = sp.blockPosition();
+        int radius = magic ? 16 : 8;
+        Predicate<String> logs = Dig.kind("log");
+        Dig.World world = (x, y, z) -> {
+            BlockPos p = new BlockPos(x, y, z);
+            return level.isLoaded(p) ? BuiltInRegistries.BLOCK.getKey(level.getBlockState(p).getBlock()).toString() : "";
+        };
+        // the tree they look at, else the nearest log
+        net.minecraft.world.phys.HitResult hit = sp.pick(8, 1f, false);
+        List<int[]> start = null;
+        if (hit instanceof net.minecraft.world.phys.BlockHitResult bh && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK
+                && level.getBlockState(bh.getBlockPos()).is(net.minecraft.tags.BlockTags.LOGS)) {
+            BlockPos b = bh.getBlockPos();
+            start = List.of(new int[]{b.getX(), b.getY(), b.getZ()});
+        } else {
+            start = Dig.find(world, c.getX(), c.getY(), c.getZ(), radius, logs, 1);
+        }
+        if (start.isEmpty()) return error("There's no tree within " + radius + " blocks.");
+        int[] s0 = start.get(0);
+        List<int[]> trunk = Dig.vein(world, s0[0], s0[1], s0[2], logs, Math.min(max, MAX_BLOCKS), true);
+        trunk.sort(java.util.Comparator.comparingInt(p -> p[1])); // from the bottom, like a player
+        Job j = new Job("chop", "a tree", sp.getUUID(), magic);
+        for (int[] p : trunk) {
+            BlockPos at = new BlockPos(p[0], p[1], p[2]);
+            j.work.add(magic ? quick(s -> breakBlock(s, at, j)) : new Mining(at, j));
+        }
+        return start(j, trunk.size());
+    }
+
+    /** Where each player last died (this game saw it), for "get my things back". */
+    private static final Map<UUID, BlockPos> deaths = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static BlockPos deathOf(ServerPlayer sp) {
+        return deaths.get(sp.getUUID());
+    }
+
+    /** Hooks for the world's game: the job tick and where players die. Called once from the client entrypoint. */
+    public static void register() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(Jobs::tick);
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity instanceof ServerPlayer p && !(p instanceof net.fabricmc.fabric.api.entity.FakePlayer)) {
+                deaths.put(p.getUUID(), p.blockPosition());
+            }
+        });
+    }
+
+    /** "What am I missing for a piston?": the plan from their pockets, in words for her. */
+    public static JsonObject craftHelp(ServerPlayer sp, String item, int count) {
+        CraftPlanner p = planner(sp.getServer());
+        String id = item.contains(":") ? item : "minecraft:" + item.trim().toLowerCase(java.util.Locale.ROOT).replace(' ', '_');
+        if (!p.knows(id)) {
+            JsonObject r = error("There's no recipe for " + item + " (it's found or mined, not crafted, or it has another name).");
+            r.addProperty("item", item);
+            return r;
+        }
+        CraftPlanner.Plan plan = p.plan(id, Math.max(1, count), GameRecipes.pockets(sp));
+        JsonObject r = ok();
+        r.addProperty("item", id.replace("minecraft:", ""));
+        r.addProperty("count", Math.max(1, count));
+        r.addProperty("canMakeNow", plan.canMakeNow());
+        StringBuilder steps = new StringBuilder();
+        for (CraftPlanner.Step st : plan.steps()) {
+            if (steps.length() > 0) steps.append(", then ");
+            steps.append(st.recipe().station() == dev.kindredspirit.craft.Recipe.Station.FURNACE ? "smelt " : "craft ")
+                    .append(st.makes()).append(' ').append(st.recipe().result().replace("minecraft:", "").replace('_', ' '));
+        }
+        r.addProperty("steps", steps.toString());
+        if (!plan.missing().isEmpty()) r.add("missing", toJson(plan.missing()));
+        r.add("uses", toJson(plan.fromInventory()));
+        if (!plan.stations().isEmpty()) {
+            r.addProperty("needs", plan.stations().stream().map(st -> st == dev.kindredspirit.craft.Recipe.Station.FURNACE
+                    ? "a furnace and fuel" : "a crafting table").reduce((a, b) -> a + " and " + b).orElse(""));
+        }
+        return r;
+    }
+
+    /** Trading help: the nearest villager's real offers, against the player's pockets. */
+    public static JsonObject trades(ServerPlayer sp) {
+        net.minecraft.world.entity.npc.AbstractVillager v = dev.kindredspirit.trade.VillagerTrades.nearest(sp, 10);
+        if (v == null) return error("There's no villager within 10 blocks.");
+        JsonObject r = ok();
+        r.addProperty("villager", dev.kindredspirit.trade.VillagerTrades.who(v));
+        com.google.gson.JsonArray lines = new com.google.gson.JsonArray();
+        var advice = dev.kindredspirit.trade.TradeAdvice.advise("", dev.kindredspirit.trade.VillagerTrades.offers(v),
+                dev.kindredspirit.trade.VillagerTrades.pockets(sp));
+        for (int i = 0; i < Math.min(8, advice.size()); i++) lines.add(advice.get(i).line());
+        r.add("offers", lines);
+        r.addProperty("distance", (int) Math.round(v.distanceTo(sp)));
+        if (advice.isEmpty()) r.addProperty("note", "It has nothing to trade (no job yet, or a baby).");
+        return r;
+    }
+
+    private static String str(JsonObject o, String k, String d) {
+        return o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsString() : d;
+    }
+
     public static JsonObject stop() {
         if (job == null) return error("I'm not doing a job.");
         job.stoppedBecause = "asked";
