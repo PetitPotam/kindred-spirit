@@ -59,6 +59,7 @@ from scratch for Fabric.
 | You can direct it | say or type "stay here", "come here", "follow me", "look at me", "do a spin"; pet it by sneaking while looking at it |
 | Skins | a slime, a soft cube, a fairy and a pixie with fluttering wings, a glowing wisp, a strawberry, a starry orb, Sprout with its leaves, or your own PNG ([how](docs/SKINS.md)) |
 | Session logs | every play session gets a timeline and a summary in `~/.kindred-spirit/logs/sessions/`, shown on the dashboard, to see what went wrong |
+| Blueprints | **builds whole buildings from files** where you look, its door toward you: "build us a cozy cottage for three" (one she makes up, a bed each), or any `.nbt`, `.schem` or `.litematic` in `config/kindredspirit/blueprints/` ("a small desert house", "the plains smithy", "a circle to build on"). The game describes every file (what it is, its category, size, materials, a top and a front picture); she finds the right one by what you ask, describes the two or three best and asks which when several fit, and checks before a big one. Magic builds it in seconds; grounded first tells you the materials. She never builds over what you built. Browse, add and remove them on the dashboard's **Blueprints** page |
 
 In progress: Minecraft's own commands as her powers (instant building, flattening, a whole house), a
 memory of places with coordinates, a heart for each friend, blueprints. Not yet: mining and crafting

@@ -1,0 +1,42 @@
+# Her blueprint catalogue and building from files (singleplayer). Needs a few files in the sandbox's own
+# run/config/kindredspirit/blueprints (village houses, a circle, SOURCES.txt): the game describes and draws them
+# at startup (catalogue.json, .catalogue/*.png), then she builds two through her blueprint power.
+world kindred-catalogue
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd gamerule doImmediateRespawn true
+cmd effect give @s minecraft:resistance infinite 4 true
+cmd effect give @s minecraft:slow_falling 15 0 true
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -24 194 -24 24 198 40 minecraft:stone
+cmd fill -24 199 -24 24 199 40 minecraft:grass_block
+cmd fill -24 200 -24 24 207 40 minecraft:air
+cmd fill -24 208 -24 24 216 40 minecraft:air
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power helper
+type /kindred style magic
+wait 20
+# a village building from a file, by its exact name
+cmd tp @s 0.5 200 0.5 0 35
+wait 10
+do blueprint {"what": "village_plains_armorer_house_1"}
+wait 200
+cmd tp @s 0.5 205 -6.5 0 20
+wait 20
+screenshot catalogue-armorer
+# a circle to build on, by its words
+cmd tp @s 0.5 200 13.5 0 50
+wait 10
+do blueprint {"what": "circle 20x20"}
+wait 120
+cmd tp @s 0.5 222 26.5 0 90
+wait 20
+screenshot catalogue-circle
+quit
