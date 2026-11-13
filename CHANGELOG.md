@@ -24,6 +24,19 @@ Unreleased into the new version's section.
   Controls → Kindred Spirit). On a friend's computer with only the mod, it says the dashboard is on the host's (#107).
 - Releases are uploaded to CurseForge too, from the same GitHub release, once the project exists there (its page is
   in docs/curseforge.md).
+- Her live dashboard is part of the Setup: once she's set up, opening Kindred Spirit Setup wakes her and opens her
+  dashboard; an "Open her dashboard" button in the steps; and, if you choose it, she wakes when you log in (#111).
+- The Setup chooses her AI: for her conversation (System 1), Gemini's free key by default with a guided way to get
+  one, another service with your key, Ollama on your Mac, or Claude Code, Codex or Gemini CLI; for her slow thinking
+  (System 2), the same, another one, or off. Each choice is tested with a real call; keys stay in secrets.env (#94).
+- The Setup downloads her local models, sized for the computer, with progress, a SHA-256 check and resume: her
+  instincts (bge-small), her voice (Kokoro, with a preview of each voice) and her hearing (Whisper, with a microphone
+  test). The Setup app now carries its own whisper-server, so hearing needs no Homebrew (#95).
+- The Setup installs Minecraft's side: a Kindred Spirit launcher profile for the newest Minecraft (or another one
+  the mod supports) with Fabric Loader, Fabric API and the matching mod, or the mod into another launcher's mods
+  folder; then "Say hi to her" checks the whole chain from the game to her answer (#96).
+- Every release now carries Kindred Spirit Setup for macOS (Apple silicon and Intel), built and smoke-tested by CI
+  from the release's own mod files, with a SHA-256 for each file and a note saying what was tested where (#98).
 - **Minecraft 26.3**, the newest release, next to 1.21.1: one jar for each, built from the same code (with
   Stonecutter) and tested in CI for every version; releases upload each jar to Modrinth and CurseForge for its own
   Minecraft. Friends pick theirs with `update-pip-windows.ps1 -Minecraft <version>` (it keeps the one they have),
@@ -37,20 +50,6 @@ Unreleased into the new version's section.
   and forces one that doesn't, so starting again never finds a port still taken (whisper-server is slow to let go).
 - Friends building the mod on Windows need Java 25, not Java 21 (the build tool requires it): the guides say so, and
   Update Pip checks Java first and says what to install (#109).
-- Her live dashboard is part of the Setup: once she's set up, opening Kindred Spirit Setup wakes her and opens her
-  dashboard; an "Open her dashboard" button in the steps; and, if you choose it, she wakes when you log in (#111).
-
-- The Setup chooses her AI: for her conversation (System 1), Gemini's free key by default with a guided way to get
-  one, another service with your key, Ollama on your Mac, or Claude Code, Codex or Gemini CLI; for her slow thinking
-  (System 2), the same, another one, or off. Each choice is tested with a real call; keys stay in secrets.env (#94).
-
-- The Setup downloads her local models, sized for the computer, with progress, a SHA-256 check and resume: her
-  instincts (bge-small), her voice (Kokoro, with a preview of each voice) and her hearing (Whisper, with a microphone
-  test). The Setup app now carries its own whisper-server, so hearing needs no Homebrew (#95).
-
-- The Setup installs Minecraft's side: a Kindred Spirit launcher profile for the newest Minecraft (or another one
-  the mod supports) with Fabric Loader, Fabric API and the matching mod, or the mod into another launcher's mods
-  folder; then "Say hi to her" checks the whole chain from the game to her answer (#96).
 
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,

@@ -81,6 +81,16 @@ jobs:
             mod/build/libs/*.jar
             notes.md
 
+      - name: The mod files and versions.json, for Kindred Spirit Setup (the setup jobs below)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mod-files
+          path: |
+            mod/build/libs/kindred-spirit-*+*.jar
+            !mod/build/libs/*-sources.jar
+            versions.json
+          if-no-files-found: error
+
   # Each jar on Modrinth and CurseForge, tagged with its own Minecraft version.
   publish:
     needs: release
@@ -137,3 +147,68 @@ jobs:
           environment: client
           java: ${{ matrix.java }}
           dependencies: fabric-api(required){curseforge:306612}
+
+  # Kindred Spirit Setup: the download that installs everything (docs/SETUP.md, setup/README.md). Built on each system
+  # from the release's own mod files, smoke-tested (installed and started in a throwaway home), and attached to the
+  # GitHub release with its SHA-256. Windows (#40) and Linux (#81) get their own rows here once their package exists.
+  setup:
+    name: Setup, ${{ matrix.name }}
+    needs: release
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, name: macOS Apple silicon, arch: arm64 }
+          - { runner: macos-15-intel, name: macOS Intel, arch: x86_64 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: mod-files
+          path: mod-files
+      - name: Build it (with its own Python, whisper-server and the mod for each Minecraft version)
+        run: python setup/build.py --arch ${{ matrix.arch }} --mods mod-files --out dist
+      - name: Install and start it, as a player would (throwaway home, other ports)
+        run: python setup/smoke_test.py dist/*.dmg
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/*.dmg dist/*.dmg.sha256 --clobber
+
+  setup-notes:
+    name: Setup notes on the release
+    needs: setup
+    if: always() && needs.setup.result != 'skipped'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say which Setup files are there, what was tested, and what isn't there yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          assets=$(gh release view "$GITHUB_REF_NAME" -R "$REPO" --json assets -q '.assets[].name')
+          line() { # file, chip, what was tested
+            if grep -qx "$1" <<<"$assets"; then echo "- **$2:** \`$1\` ($3)"; else echo "- **$2:** not built this time (see the workflow run)"; fi
+          }
+          v="${GITHUB_REF_NAME#v}"
+          {
+            # (the release's own notes, without this section if a re-run already added it)
+            gh release view "$GITHUB_REF_NAME" -R "$REPO" --json body -q .body | awk '/^## Kindred Spirit Setup \(macOS\)/{exit} {print}'
+            echo
+            echo "## Kindred Spirit Setup (macOS)"
+            echo
+            echo "One download that installs her brain, her AI, her models and the mod, step by step. How to open it the first time (macOS asks, because it isn't signed with a paid Apple certificate): [docs/SETUP.md](https://github.com/$REPO/blob/main/docs/SETUP.md)."
+            echo
+            line "Kindred-Spirit-Setup-$v-macos-arm64.dmg" "Apple silicon (M1 and newer)" "built and tested on GitHub's Apple silicon Mac"
+            line "Kindred-Spirit-Setup-$v-macos-x86_64.dmg" "Intel" "built and tested on GitHub's Intel Mac; not yet tried by a person on a real Intel Mac: reports welcome"
+            echo "- **Windows and Linux:** not yet ([#40](https://github.com/$REPO/issues/40), [#81](https://github.com/$REPO/issues/81)). Friends on any system can join a host's LAN world with just the mod."
+            echo
+            echo "Check a download: \`shasum -a 256 -c Kindred-Spirit-Setup-$v-macos-arm64.dmg.sha256\` (in the folder where both are)."
+          } > notes.md
+          gh release edit "$GITHUB_REF_NAME" -R "$REPO" --notes-file notes.md

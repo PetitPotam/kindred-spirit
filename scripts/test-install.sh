@@ -181,6 +181,9 @@ client_run() {
     "chat Hi Pip, are you there?" "waitsay 1200" "wait 60" "screenshot ci-answer" "wait 20" "quit" > "$WORK/client.txt"
   local answered_before=0
   answered_before=$(grep -c "you: Hi Pip.*test answer" "$brainlog" 2>/dev/null) || answered_before=0
+  # Minecraft's assets first, with a second try: Loom's parallel download sometimes trips over its own .part files
+  ( cd "$ROOT/mod" && { ./gradlew ":$mc:downloadAssets" --no-daemon -q || ./gradlew ":$mc:downloadAssets" --no-daemon -q; } ) \
+    > "$WORK/assets-$mc.log" 2>&1 || { bad "Minecraft $mc's assets didn't download:"; tail -20 "$WORK/assets-$mc.log"; return; }
   local run=(./gradlew ":$mc:runClient" --no-daemon --console=plain "-PdevScript=$WORK/client.txt")
   if [[ "$(uname -s)" == Linux ]]; then
     # 26.x opens its window with SDL and asks for an sRGB-capable OpenGL 3.3 framebuffer, which Xvfb's GLX visuals
