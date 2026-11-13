@@ -27,10 +27,22 @@ cd mod && ./gradlew runClient -PdevScript=../demo/tour-script.txt -PvideoSize=96
 demo/.venv/bin/python demo/make_video.py tour       # -> demo/out/kindred-spirit-tour.mp4
 ```
 
+**The showcase** (`showcase-script.txt`, about 4 minutes) is what she does in singleplayer today:
+meeting her, finding and leading, mining and chopping with your tools, crafting help, a cottage from a
+blueprint, effects and enchanting, warnings and protection, taking you back to a place she remembers,
+feelings, her glow at night, skins, and a card about playing with friends on LAN:
+
+```bash
+brain/.venv/bin/python demo/make_voices.py s_       # the player's lines for the showcase
+cd mod && ./gradlew runClient -PdevScript=../demo/showcase-script.txt -PvideoSize=960x540 && cd ..
+demo/.venv/bin/python demo/make_video.py showcase   # -> demo/out/kindred-spirit-showcase.mp4
+```
+
 | File | What it does |
 |---|---|
 | `demo-script.txt` | the shots: world setup, camera moves, what the player says, `mark` chapters |
 | `tour-script.txt` | the long tour (two worlds; `caption` lines become notes in the edit) |
+| `showcase-script.txt` | the singleplayer showcase (a fresh world each take: a /fill is at most 32768 blocks, so the stage is cleared in strips) |
 | `seed_journey.py` | her prepared memories for the tour's "weeks later" |
 | `make_voices.py` | the player's spoken lines (sent through the real push-to-talk path) |
 | `make_music.py` | a cozy background track made from scratch (no samples, no copyright) |
