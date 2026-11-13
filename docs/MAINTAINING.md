@@ -50,9 +50,10 @@ Minecraft, its Fabric API and Java (Kindred Spirit Setup reads it); in the repos
 The mod and the brain are released together with one version: a jar only works with a brain of the same
 release (the protocol between them is at the top of `brain/kindred/server.py`).
 
-**A new Minecraft version** is its own minor release: update `minecraft_version`, `fabric_version` and
-`loader_version` in `mod/gradle.properties`, fix what breaks, play it in the sandbox, and say so in the
-changelog. Dependabot never does this automatically.
+**A new Minecraft version** is its own minor release: add it next to the others in `mod/versions/` (how:
+[CONTRIBUTING.md](../CONTRIBUTING.md#several-minecraft-versions)), fix what breaks, play it in the sandbox, and say
+so in the changelog. `loader_version` (Fabric Loader, the same for every version) stays in `mod/gradle.properties`.
+Dependabot never does this automatically.
 
 ## Making a release
 
@@ -111,7 +112,9 @@ installs it too). Modrinth gets the same jars, one version entry each (`0.2.0+26
 - **The CurseForge app** shows a project only once it has at least one "Release" file: preview, alpha and beta versions
   are on the website but not in the app.
 
-After a release, friends who play with the host update with **Update Pip** (`scripts/update-pip-windows.cmd`).
+After a release, hosts on a Mac update with the Setup's **Updates** step (her brain, the mod and the Setup together),
+and friends who play with the host update with **Update Pip** (`scripts/update-pip-windows.cmd`), which still builds
+from `main` rather than downloading the release's jar.
 
 **An urgent fix:** a `fix/...` branch from `main`, a pull request, merge, then a patch release.
 

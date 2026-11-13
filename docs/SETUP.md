@@ -3,9 +3,12 @@
 One download that gets Pip ready on your Mac, with a guide that explains every step. No terminal, no Python to
 install by hand.
 
-> **Status:** the Setup is being built in parts ([#82](https://github.com/PetitPotam/kindred-spirit/issues/82)).
-> This page describes what the app does today. Until a release includes it, follow the
-> [setup in the README](../README.md#setup-macos-about-10-minutes).
+> **Status: beta.** The Setup is attached to every release from the beta on (the first preview, 0.2.0-preview, came
+> before it: if the newest release has no `.dmg`, follow the [manual setup in the README](../README.md#manual-setup-for-contributors-or-without-the-setup)).
+> It's built and tested on GitHub's Apple silicon and Intel Macs with every release; some things nobody has tried
+> yet are [listed at the end](#not-tried-yet), and reports are very welcome. Her brain runs on macOS only for now:
+> Windows ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)) and Linux
+> ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)) are planned.
 
 ## 1. Download it
 
@@ -136,6 +139,28 @@ Quit Minecraft, then in the dashboard's Setup steps choose **When I open Kindred
 play" (this removes the login item, if you had one) and press **Stop** under "Wake her up". Then delete
 **Kindred Spirit Setup** from Applications and the folder `~/Library/Application Support/Kindred Spirit`.
 `~/.kindred-spirit` holds her memories and your keys: delete it too only if you want her to forget everything.
+
+## Not tried yet
+
+Every release builds the Setup on GitHub's Apple silicon and Intel Macs and runs it there in a throwaway home: it
+installs her, wakes her, downloads and tests her models (her hearing even hears her own voice), installs the mod,
+and stops and starts her, with a stand-in AI ([what is checked where](TESTING-PLATFORMS.md)). These need a person,
+and nobody has tried them yet:
+
+- downloading the `.dmg` and opening it by double-click, past macOS's first-run warning (macOS 15 or newer, and 12
+  to 14);
+- a real Intel Mac;
+- **Open Minecraft** with a real launcher and account, and whether macOS then asks for the microphone in the
+  Setup's name;
+- **Test the microphone** with a real microphone;
+- her AI with real keys and services through the Setup;
+- **Updates** from one real release to the next, and **Go back**.
+
+If you try one, an [issue](https://github.com/PetitPotam/kindred-spirit/issues) saying how it went (with the help
+prompt the step copies) helps a lot.
+
+**Not supported yet:** hosting her on Windows or Linux (above); a signed and notarised app (it needs a paid Apple
+Developer membership, hence the first-run warning); voices other than Kokoro, OpenAI's, or subtitles only.
 
 ## For contributors
 
