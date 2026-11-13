@@ -13,4 +13,4 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       # (pull_request_target: reads only the list of changed files, never runs the pull request's code)
-      - uses: actions/labeler@v5
+      - uses: actions/labeler@v7
