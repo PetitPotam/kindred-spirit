@@ -58,6 +58,38 @@ public final class Actions {
     /** Who last hurt whom (players, on this world's server): protect pushes a friend who just hit you, playfully. */
     private static final Map<java.util.UUID, Object[]> hurtBy = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** What each player did lately, as the world's game saw it (placed, broke, hit, killed, got hurt): so she never
+     *  has to guess what a friend is doing. Kept two minutes, a few dozen entries each. */
+    private static final Map<java.util.UUID, java.util.Deque<Object[]>> did = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void playerDid(net.minecraft.world.entity.player.Player p, String what) {
+        if (!(p instanceof ServerPlayer)) return;
+        var q = did.computeIfAbsent(p.getUUID(), k -> new java.util.concurrent.ConcurrentLinkedDeque<>());
+        q.addLast(new Object[]{System.currentTimeMillis(), what});
+        while (q.size() > 40) q.pollFirst();
+    }
+
+    /** "placed 12 oak log, broke 3 stone, hit a sheep (the last 10 s ago)", or "" if nothing in two minutes. */
+    public static String activityOf(java.util.UUID id) {
+        var q = did.get(id);
+        if (q == null) return "";
+        long now = System.currentTimeMillis();
+        java.util.Map<String, Integer> n = new java.util.LinkedHashMap<>();
+        long last = 0;
+        for (Object[] e : q) {
+            if (now - (long) e[0] > 120000) continue;
+            n.merge((String) e[1], 1, Integer::sum);
+            last = Math.max(last, (long) e[0]);
+        }
+        if (n.isEmpty()) return "";
+        StringBuilder b = new StringBuilder();
+        n.forEach((k, v) -> {
+            String[] w = k.split(" ", 2);
+            b.append(b.length() > 0 ? ", " : "").append(w[0]).append(" ").append(v > 1 ? v + " " : "a ").append(w.length > 1 ? w[1] : "");
+        });
+        return b + " (the last " + Math.max(1, (now - last) / 1000) + " s ago)";
+    }
+
     /** The world's game saw a player hurt another (registered on the server: see KindredSpiritClient). */
     public static void playerHurt(ServerPlayer victim, ServerPlayer attacker) {
         if (victim != attacker) hurtBy.put(victim.getUUID(), new Object[]{attacker.getUUID(), System.currentTimeMillis()});
@@ -280,7 +312,9 @@ public final class Actions {
         try {
             return switch (a) {
                 case LOCATE -> locate(s, sp, str(args, "what", "village"));
-                case PROTECT -> protect(target(s, sp, str(args, "to", "")));
+                case PROTECT -> args.has("poke") && args.get("poke").getAsBoolean()
+                        ? poke(sp, target(s, sp, str(args, "to", "")))
+                        : protect(target(s, sp, str(args, "to", "")));
                 case PLACE_TORCH -> placeTorch(sp, style);
                 case HARVEST -> harvest(sp);
                 case BUILD -> Builder.start(s, sp, args, style);
@@ -371,6 +405,20 @@ public final class Actions {
                 hurtBy.remove(sp.getUUID());
             }
         }
+        return r;
+    }
+
+    /** A playful poke on a player (on request): a small shove away from you, a puff, her giggle. No harm. */
+    static JsonObject poke(ServerPlayer you, ServerPlayer who) {
+        if (who == you) return error("Poke who? Name another player.");
+        double dx = who.getX() - you.getX(), dz = who.getZ() - you.getZ(), d = Math.max(0.1, Math.hypot(dx, dz));
+        who.knockback(0.9, -dx / d, -dz / d);
+        who.hurtMarked = true;
+        who.serverLevel().sendParticles(ParticleTypes.POOF, who.getX(), who.getY() + 1, who.getZ(), 10, 0.3, 0.4, 0.3, 0.02);
+        who.serverLevel().playSound(null, who.blockPosition(), net.minecraft.sounds.SoundEvents.CHICKEN_EGG,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1f, 1.6f);
+        JsonObject r = ok();
+        r.addProperty("poked", who.getGameProfile().getName());
         return r;
     }
 
@@ -562,6 +610,10 @@ public final class Actions {
         res.addProperty("found", true);
         res.addProperty("player", who.getGameProfile().getName());
         res.addProperty("entity", who.getId());
+        var held = who.getMainHandItem();
+        res.addProperty("holding", held.isEmpty() ? "nothing" : BuiltInRegistries.ITEM.getKey(held.getItem()).getPath().replace('_', ' '));
+        String act = activityOf(who.getUUID());
+        res.addProperty("lately", act.isEmpty() ? "nothing the world noticed in the last two minutes" : act);
         return res;
     }
 

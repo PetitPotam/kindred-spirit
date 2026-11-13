@@ -41,8 +41,12 @@ ABILITY_TOOLS = {
                   "x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}}),
     "stop_guide": _fn("stop_guide", "Stop leading the way and float beside the player again."),
     "protect": _fn("protect", "Push every hostile mob within 8 blocks away from the player (no damage), or from "
-                   "another player here if 'to' names them. Use when they're in danger or ask for help with monsters.",
-                   {"to": {"type": "string", "description": "another player's name; empty = the player"}}),
+                   "another player here if 'to' names them. Use when they're in danger or ask for help with monsters. "
+                   "It also gives a friend who just hit the player a playful shove. With poke=true and 'to' a player's "
+                   "name: a playful poke on that player (a little shove and a puff, no harm), when asked to poke, prod, "
+                   "boop, push back or playfully hit someone.",
+                   {"to": {"type": "string", "description": "another player's name; empty = the player"},
+                    "poke": {"type": "boolean", "description": "true: poke the player named in 'to' (playful, no harm)"}}),
     "harvest": _fn("harvest", "Break what the player is looking at, within 6 blocks: a whole tree (all its logs) "
                    "if they look at a log, else that one block. What drops goes into their inventory, as if mined "
                    "with what they hold. Use when they ask you to chop a tree, cut wood, mine or break a block. "

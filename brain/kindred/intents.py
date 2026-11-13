@@ -79,7 +79,8 @@ ACTION_HINTS = [
     (r"\b(place|put|light|drop)\b.{0,30}\btorch|\btorch\b.{0,20}\b(here|down|please)|\b(give|make|need|want|some)"
      r"( me| us)?( some| a)? light\b|\blight (it|this|that|the way|us|things|everything|our way) up\b|"
      r"\blight (it|this|the way|our way)\b|\bcan'?t see\b|\bhelp (me|us) see\b|\btoo dark\b", "place_torch"),
-    (r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b|"
+    (r"\b(poke|prod|boop|bonk|tickle)\b|\b(hit|push|shove|smack|tap)\b.{0,15}\b(playfully|for fun|gently|a little)\b|"
+     r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b|"
      r"\b(i'?m|i am|we'?re|we are) (being )?(attacked|under attack|getting (shot|hit|attacked))\b|\b(save|defend) me\b|"
      r"\b(is|are|re|theyre|s|they|it)\s?(shooting|attacking|hitting) (me|us)\b", "protect"),
     (r"\b(place|put)\b.{0,12}\b(this|that|the|a|my|one) block\b", "build"),
