@@ -44,6 +44,27 @@ doing, warns you when a creeper sneaks up, and grows closer to you the more you 
 "flatten everything within 10 blocks of me" · "what can you build?" · "give me back my stuff" (after you died) ·
 "stay here" · "do a spin"
 
+## Why I made Pip
+
+I've always liked Minecraft, but mostly from the other side of the screen: I'd rather watch YouTubers,
+speedrunners and streamers play it than play myself. Then, a long while after I got a MacBook Air of my own, my
+brother asked me to play with him, so I did.
+
+That same day, Minecraft mod videos started showing up in my YouTube feed. I tried
+[Verity](https://www.curseforge.com/minecraft/mc-mods/verity-je), and what stayed with me was its companion:
+someone who is there with you while you play. I had an idea of what such a companion could be, looked for a mod
+like it, and couldn't find one for Minecraft. So I started making Pip.
+
+Pip makes my game more fun, more interesting, and less lonely, and that's how I got into Minecraft modding. What
+interests me most is her "brain": the AI architecture behind her, and making it smarter, lighter and more
+capable, a companion that can do everything it could while running smoothly beside the game.
+
+That's why Kindred Spirit is open source. Whether you're a modder, a hobbyist or just curious, you can share an
+idea, help make the installation simpler, playtest and give feedback, or improve her in any way, so that anyone can
+enjoy her the way I did, and the way my brothers and I did when we tested her together.
+
+PetitPotam
+
 ## What she sends, and where
 
 Pip's brain runs on your own computer. To answer you, it sends to the AI service you set it up with (Google's

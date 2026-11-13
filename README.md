@@ -23,14 +23,29 @@ creeper sneaks behind you or your hearts run low.
 - **Light on your computer.** It adapts to your frame rate and hardware (see [Performance](#performance)).
 - **Made to be hacked on.** The mod is thin; the personality lives in a small Python "brain".
 
-## Where it comes from
+## Why I made Pip
 
-Kindred Spirit was inspired by [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je), a mod
-with an AI companion who lives in your world. I didn't care about its horror or its story. What
-stayed with me was the idea of a companion that is **present**: it sees what you're doing, talks
-with you, and keeps you company while you play. Kindred Spirit keeps only that idea and makes it
-cozy and configurable. It isn't a fork: none of Verity's code or assets are used, and it's written
-from scratch for Fabric.
+I've always liked Minecraft, but mostly from the other side of the screen: I'd rather watch YouTubers,
+speedrunners and streamers play it than play myself. Then, a long while after I got a MacBook Air of my own, my
+brother asked me to play with him, so I did.
+
+That same day, Minecraft mod videos started showing up in my YouTube feed. I tried
+[Verity](https://www.curseforge.com/minecraft/mc-mods/verity-je), and what stayed with me was its companion:
+someone who is there with you while you play. I had an idea of what such a companion could be, looked for a mod
+like it, and couldn't find one for Minecraft. So I started making Pip.
+
+Pip makes my game more fun, more interesting, and less lonely, and that's how I got into Minecraft modding. What
+interests me most is her "brain": the AI architecture behind her, and making it smarter, lighter and more
+capable, a companion that can do everything it could while running smoothly beside the game.
+
+That's why Kindred Spirit is open source. Whether you're a modder, a hobbyist or just curious, you can share an
+idea, help make the installation simpler, playtest and give feedback, or improve her in any way, so that anyone can
+enjoy her the way I did, and the way my brothers and I did when we tested her together.
+
+PetitPotam
+
+Kindred Spirit was inspired by Verity's companion, nothing else: I didn't care about its horror or its story.
+It isn't a fork: none of Verity's code or assets are used, and it's written from scratch for Fabric.
 
 > **Status: 0.1 preview.** It's playable and fun, but small. We're looking for contributors:
 > see [what to build next](#help-wanted) and the [design](docs/DESIGN.md).
