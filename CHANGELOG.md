@@ -76,6 +76,8 @@ friends on LAN need only the mod.
   and a note saying what was tested where; they upload each jar to Modrinth and CurseForge for its own Minecraft
   once those projects are live (#98).
 - CodeQL and OpenSSF Scorecard check the repository, and docs/MAINTAINING.md explains every check (#124).
+- New issues get their area label automatically, and a bug report missing the computer and the logs gets a friendly
+  request for them; GitHub Copilot follows the project's rules and review checklist (#126).
 - Every change, release and website update reaches `main` through a pull request whose CI passed; a release is a
   "Release X" pull request, then its tag. One convention for branches, titles and issue links (CONTRIBUTING.md),
   checked on every pull request.
