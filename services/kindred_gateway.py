@@ -39,6 +39,7 @@ import copy
 import http.client
 import json
 import logging
+import logging.handlers
 import os
 import re
 import shutil
@@ -244,8 +245,16 @@ def text_of(content):
     return ""
 
 
+TRANSCRIPT_MAX = 20_000_000  # bytes; the older calls move to gateway.jsonl.1 (one kept), #26
+
+
 def transcript(entry):
     entry["time"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        if os.path.getsize(TRANSCRIPT) > TRANSCRIPT_MAX:
+            os.replace(TRANSCRIPT, TRANSCRIPT + ".1")
+    except OSError:
+        pass
     try:
         with open(TRANSCRIPT, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -885,7 +894,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve():
     os.makedirs(LOG_DIR, exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-                        handlers=[logging.FileHandler(os.path.join(LOG_DIR, "gateway.log")), logging.StreamHandler(sys.stderr)])
+                        handlers=[logging.handlers.RotatingFileHandler(os.path.join(LOG_DIR, "gateway.log"), maxBytes=5_000_000, backupCount=2), logging.StreamHandler(sys.stderr)])
     if not os.path.exists(STATE):
         change(lambda s: None)
     state = load()

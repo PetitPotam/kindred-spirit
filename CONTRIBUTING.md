@@ -79,6 +79,7 @@ cd mod && ./gradlew build             # needs JDK 25 to build (the mod targets J
 
 ## Before you open a pull request
 
+0. `scripts/test.sh` runs both of these from anywhere (or `scripts/test.sh brain` for the quick half)
 1. `cd mod && ./gradlew build` (compiles and runs the Java tests)
 2. `brain/.venv/bin/python -m pytest brain/tests`
 3. If you touched what you see or hear: try it in the sandbox,

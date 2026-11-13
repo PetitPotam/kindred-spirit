@@ -1,0 +1,15 @@
+# #28: her brain stops mid-game (the test stops it from outside), then comes back.
+world kindred-offline
+wait 220
+cmd time set 1000
+cmd weather clear
+cmd gamerule doDaylightCycle false
+act {"move": "follow"}
+wait 200
+screenshot brain-00-running
+wait 300
+screenshot brain-01-offline
+wait 500
+screenshot brain-02-back
+wait 40
+quit

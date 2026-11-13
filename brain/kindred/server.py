@@ -34,6 +34,7 @@ from websockets.exceptions import ConnectionClosed
 
 from . import config, intents, tools, voice
 from . import mind as mind_mod
+from . import memory as memory_mod
 from . import heart as intents_heart
 from .describe import describe, where_words
 from . import knowledge as kb
@@ -457,6 +458,12 @@ class Brain:
         """What happens when the AI uses a tool: memory here, everything else in the game."""
         try:
             if name == "remember":
+                fact = str(args.get("fact", ""))
+                own = " ".join([getattr(self, "last_player_text", "") or ""] + self.recent_player[-3:])
+                if args.get("about", "player") == "player" and memory_mod.guessed_about_player(fact) \
+                        and not (memory_mod.SAID_OWN.search(own) or intents.pronouns_said(own)):
+                    return {"ok": False, "error": "Never keep someone's gender, pronouns or age unless they said it "
+                                                  "themselves. Don't guess it, and don't mention it."}
                 self.learn_nickname(args.get("fact", ""))
                 new = await self.memory.remember(args.get("fact", ""), args.get("about", "player"))
                 return {"ok": True, "remembered": True, "alreadyKnew": not new}

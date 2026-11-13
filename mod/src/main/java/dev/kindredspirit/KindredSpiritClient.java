@@ -564,6 +564,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
     private long speakingGrace;
     private volatile int currentLine;
+    private boolean wasLinked;    // her brain was connected last frame (it stopping mid-game gets a sign, #28)
+    private long offlineSince, offlineNoticed; // (offlineNoticed: when it was first said)
     private long nextTaskCheck;   // her task on the HUD, looked up 4 times a second (not every frame)
     private String taskLine;
     private int taskDone, taskTotal;
@@ -1534,6 +1536,23 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 y += 10;
             }
         }
+        boolean linked = link.connected();
+        if (brainHere && !sharing && inWorld) { // her brain stopped while you play: say so, and when it's back
+            if (wasLinked && !linked) {
+                offlineSince = offlineNoticed = now;
+                notice(displayName + "'s brain stopped. Start it again with scripts/start.sh: she'll come back by herself.", 9000);
+                companion.say("zzz... (" + displayName + "'s brain isn't running)", 0, now);
+                caption = companion.subtitle;
+                captionUntil = companion.subtitleUntil;
+            } else if (!linked && offlineSince > 0) { // (kept on screen while she's without it)
+                notice = displayName + "'s brain isn't running: start it with scripts/start.sh (she'll come back by herself).";
+                noticeUntil = Math.max(noticeUntil, now + 1000);
+            } else if (linked && offlineSince > 0) {
+                offlineSince = 0;
+                notice(displayName + "'s brain is back.", 3000);
+            }
+        }
+        wasLinked = linked;
         if (brainHere && !sharing && !link.connected() && inWorld && now - joinedAt > 3000 && now - joinedAt < 15000) {
             notice("Kindred brain not connected yet: run scripts/start.sh, then /kindred reconnect", 2000);
         }

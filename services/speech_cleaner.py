@@ -27,6 +27,7 @@ import http.client
 import io
 import json
 import logging
+import logging.handlers
 import os
 import re
 import sys
@@ -170,7 +171,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     os.makedirs(LOG_DIR, exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-                        handlers=[logging.FileHandler(os.path.join(LOG_DIR, "speech-cleaner.log")),
+                        handlers=[logging.handlers.RotatingFileHandler(os.path.join(LOG_DIR, "speech-cleaner.log"), maxBytes=5_000_000, backupCount=2),
                                   logging.StreamHandler(sys.stderr)])
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler)
     server.daemon_threads = True

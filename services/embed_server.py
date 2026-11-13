@@ -11,6 +11,7 @@ Run with a Python that has fastembed (scripts/setup.sh makes one):
 import argparse
 import json
 import logging
+import logging.handlers
 import os
 import sys
 import threading
@@ -74,7 +75,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(LOG_DIR, exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-                        handlers=[logging.FileHandler(os.path.join(LOG_DIR, "embed.log")), logging.StreamHandler(sys.stderr)])
+                        handlers=[logging.handlers.RotatingFileHandler(os.path.join(LOG_DIR, "embed.log"), maxBytes=5_000_000, backupCount=2), logging.StreamHandler(sys.stderr)])
     _model = TextEmbedding(MODEL, cache_dir=args.cache, threads=THREADS)
     list(_model.embed(["warm up"]))
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler)

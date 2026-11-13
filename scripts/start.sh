@@ -27,8 +27,14 @@ set -a; eval "$(cd "$ROOT/brain" && "$BPY" -m kindred.hardware --env)"; set +a
 NICE="nice -n ${KINDRED_NICE:-10}"
 
 up() { curl -s -o /dev/null --max-time 2 "$1"; }
+rotate() { # a .out file over 5 MB moves to .out.1 (one kept), so logs never fill the disk (#26)
+  local f="$LOGS/$1.out"
+  [[ -f "$f" ]] && [[ $(wc -c < "$f") -gt 5000000 ]] && mv -f "$f" "$f.1"
+  return 0
+}
 start() { # name pidfile-name command...
   local name="$1"; shift
+  rotate "$name"
   nohup $NICE "$@" >> "$LOGS/$name.out" 2>&1 &
   echo $! > "$RUN/$name.pid"
 }
@@ -79,7 +85,7 @@ grep -qE '^(GEMINI_API_KEY)=.+' "$KH/secrets.env" 2>/dev/null || [[ -n "${GEMINI
 cd "$ROOT/brain"
 if [[ "${1:-}" == "--background" ]]; then
   if (exec 3<>/dev/tcp/127.0.0.1/47811) 2>/dev/null; then echo "brain: already running"
-  else nohup "$BPY" -m kindred >> "$LOGS/brain.out" 2>&1 & echo $! > "$RUN/brain.pid"; echo "brain: started"; fi
+  else rotate brain; nohup "$BPY" -m kindred >> "$LOGS/brain.out" 2>&1 & echo $! > "$RUN/brain.pid"; echo "brain: started"; fi
 else
   echo "brain: running here (Ctrl+C to stop)"
   exec "$BPY" -m kindred

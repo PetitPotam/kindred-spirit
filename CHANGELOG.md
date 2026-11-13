@@ -35,6 +35,10 @@ Unreleased into the new version's section.
   update script, release automation, and a Contributor License Agreement.
 
 ### Fixed (from the 2026-11-13 playtest)
+- Her memory never keeps a gender, pronouns or an age the AI guessed, only what you said yourself.
+- Logs rotate (5 MB each, the AI-call record at 20 MB) instead of growing forever.
+- If her brain stops while you play, a sign says so and stays until it's back; `scripts/test.sh` runs every
+  test from any folder or worktree.
 - Big blueprints: she asks once, then builds on your yes (or "the upright one"), instead of asking again and again
   or saying "coming up!" without building.
 - Thanks and praise no longer make her redo the last build; a power that's not for the moment isn't "forgotten".

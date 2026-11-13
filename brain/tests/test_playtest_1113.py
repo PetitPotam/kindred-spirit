@@ -351,3 +351,29 @@ def test_shapes_and_flattening_are_build_requests():  # #58, #74
     build = tools.ABILITY_TOOLS["build"]["function"]["parameters"]["properties"]
     assert {"sphere", "star", "stepped_pyramid", "torus"} <= set(build["shape"]["enum"])
     assert {"radius", "hollow", "vertical", "sides"} <= set(build)
+
+
+def test_gender_pronouns_and_age_are_never_guessed(stubs):  # #25
+    from kindred import memory
+    for guess in ("The player is a boy who loves building", "The player seems to be a kid", "The player is probably "
+                  "a teenager", "The player is about 12 years old", "The player's pronouns are he/him"):
+        assert memory.guessed_about_player(guess), guess
+    for fine in ("The player loves building with cherry wood", "The player's pronouns are she/her (they said so)",
+                 "The player lives 20 blocks from the village"):
+        assert not memory.guessed_about_player(fine), fine
+    b = _brain(stubs, [])
+    kept = []
+
+    async def remember(fact, about="player", importance=7):
+        kept.append(fact)
+        return True
+    b.memory.remember = remember
+
+    async def run():
+        b.last_player_text = "look at my castle"
+        guessed = await b._run_tool("remember", {"fact": "The player seems to be a kid"})
+        b.last_player_text = "I'm 14 years old by the way"
+        said = await b._run_tool("remember", {"fact": "The player is 14 years old (they said so)"})
+        return guessed, said
+    guessed, said = asyncio.run(run())
+    assert guessed["ok"] is False and said["ok"] and kept == ["The player is 14 years old (they said so)"]

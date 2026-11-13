@@ -53,6 +53,7 @@ These are not optional. A pull request that breaks one of them is closed.
 
 ## Working on the code
 
+- **All tests at once:** `scripts/test.sh` (or `scripts/test.sh brain` / `mod`), from any folder or worktree.
 - **Mod:** `cd mod && ./gradlew build` (builds and runs the Java tests; needs a JDK 25 to run Gradle, the
   mod targets Java 21).
 - **Brain:** `scripts/setup.sh` once, then `cd brain && .venv/bin/python -m pytest -q`.

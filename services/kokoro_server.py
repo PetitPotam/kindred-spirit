@@ -23,6 +23,7 @@ import argparse
 import io
 import json
 import logging
+import logging.handlers
 import os
 import re
 import sys
@@ -229,7 +230,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(LOG_DIR, exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-                        handlers=[logging.FileHandler(os.path.join(LOG_DIR, "kokoro.log")),
+                        handlers=[logging.handlers.RotatingFileHandler(os.path.join(LOG_DIR, "kokoro.log"), maxBytes=5_000_000, backupCount=2),
                                   logging.StreamHandler(sys.stderr)])
     opts = rt.SessionOptions()
     opts.intra_op_num_threads = max(1, THREADS)

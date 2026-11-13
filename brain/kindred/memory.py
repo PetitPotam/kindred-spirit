@@ -114,6 +114,21 @@ NAME_FACT = re.compile(r"\b(calls? (me|him|her|them|the player)|called|nick ?nam
 PRONOUN_FACT = re.compile(r"\bpronouns?\b|\b(he/him|she/her|they/them)\b", re.I)
 # a gender the AI guessed ("Is female and still getting to know me"): never kept from reflection
 GUESSED_GENDER = re.compile(r"\b(is|seems|they'?re|he'?s|she'?s) (a |to be )?(female|male|girl|boy|woman|man|lady|guy)\b", re.I)
+# an age the AI guessed ("seems to be a kid", "is probably a teenager", "is 12 years old"): never kept unless they said it
+AGE_GUESS = re.compile(r"\b(is|seems|they'?re|he'?s|she'?s|probably|maybe|likely) (about |around |probably |maybe |likely |"
+                       r"to be |a |an |quite |very |still )*(kid|child|teen(ager)?|adult|grown-?up|young (boy|girl|man|woman|"
+                       r"person|player)|little (boy|girl|one)|\d{1,2} ?(years? old|yo))\b|\b(age|aged) \d{1,2}\b", re.I)
+# the player saying it about themselves: "I'm 14", "I'm a girl", "I am a him" (then it may be kept, in their words)
+SAID_OWN = re.compile(r"\bi'?m (a |an )?(\d{1,2}( years old)?|girl|boy|woman|man|guy|lady|kid|teen(ager)?|adult)\b|"
+                      r"\bi am (a |an )?(\d{1,2}|girl|boy|woman|man|guy|lady|kid|teen(ager)?|adult|him|her|them)\b|"
+                      r"\bmy (age|pronouns|gender) (is|are)\b|\bi'?m \d{1,2} years\b", re.I)
+
+
+def guessed_about_player(text):
+    """A gender, pronouns or age about the player written by the AI, not said by them (#25)."""
+    t = text or ""
+    return bool(GUESSED_GENDER.search(t) or AGE_GUESS.search(t)
+                or (PRONOUN_FACT.search(t) and not re.search(r"\b(said|told|asked)\b", t, re.I)))
 
 
 TOOL_ECHO = re.compile(r"\s*I used [a-z_]+ [{(]")  # (an episode that only repeats a tool call and its result)
@@ -186,7 +201,8 @@ class Memory:
         try:
             rows = (await self.store.call("list", kinds=["player"], world=self.world_id, limit=300))["results"]
             for r in rows:
-                if GUESSED_GENDER.search(r.get("text", "")) and not PRONOUN_FACT.search(r.get("text", "")):
+                if (GUESSED_GENDER.search(r.get("text", "")) or AGE_GUESS.search(r.get("text", ""))) \
+                        and not PRONOUN_FACT.search(r.get("text", "")) and not SAID_OWN.search(r.get("text", "")):
                     await self.store.call("delete", id=r["id"], kinds=["player"])
         except Exception:
             pass
@@ -574,8 +590,8 @@ class Memory:
                 text = (item.get("text") if isinstance(item, dict) else str(item)).strip()
                 if len(text) < 8:
                     continue
-                if kind == "player" and GUESSED_GENDER.search(text):
-                    continue  # (a gender is never guessed: they say it, and it's kept from their own words)
+                if kind == "player" and guessed_about_player(text):
+                    continue  # (a gender, pronouns or an age are never guessed: they say it, and it's kept in their words)
                 if kind == "player":
                     await self.replace_older(text)
                 imp = item.get("importance", 6) if isinstance(item, dict) else 6
