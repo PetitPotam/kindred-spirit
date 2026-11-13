@@ -90,6 +90,25 @@ cd mod && ./gradlew build             # needs JDK 25 to build (the mod targets J
 
 CI runs steps 1 and 2 on every pull request.
 
+## Branches, pull requests and commits
+
+One convention for everyone: contributors, the maintainer and AI agents. A check on every pull request
+reminds you of it.
+
+- **An issue first.** Find the issue for what you're doing, or open one (the forms ask the right questions).
+- **Branch:** `type/issue-short-name`, for example `feature/93-setup-app`, `fix/92-no-brain-hint` or
+  `docs/12-roof-guide`. Types: `feature` (something new), `fix` (a bug), `docs`, `ci` (workflows, scripts),
+  `refactor` (same behaviour, better code), `chore` (maintenance), `release` (made by `scripts/release.sh`).
+- **Pull request title:** plain English, saying what changes for the player, **at most 72 characters**, no
+  prefixes like `feat:` or `fix:`. It becomes the commit title on `main`, so write it for someone reading the
+  history in a year: "She plants crops on request", not "update tools.py".
+- **Pull request description:** the template (what and why, how you tested it, the checklist, whether AI tools
+  were used), and **`Fixes #<number>`** so the issue closes itself when it's merged (`Refs #<number>` if it doesn't
+  finish the issue).
+- **Commits inside your branch:** anything short and honest is fine ("wip", "fix the test"). Pull requests are
+  squash-merged, so only the title and description reach `main`.
+- **No direct pushes to `main`**, for anyone; merging needs "CI passed" (see docs/MAINTAINING.md).
+
 ## Common tasks
 
 - **A new danger alert** (drowning, lava, falling...): add a rule in `brain/kindred/alerts.py`, a test

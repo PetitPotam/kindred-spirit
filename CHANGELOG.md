@@ -12,6 +12,7 @@ Unreleased into the new version's section.
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
+- One convention for branches, pull request titles and issue links (CONTRIBUTING.md), checked on every pull request.
 
 ## [0.2.0-preview] - 2026-11-13
 

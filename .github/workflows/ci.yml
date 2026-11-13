@@ -75,10 +75,42 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile("$PWD\scripts\update-pip-windows.ps1", [ref]$null, [ref]$errors) | Out-Null
           if ($errors) { $errors | ForEach-Object { Write-Error $_.ToString() }; exit 1 }
 
+  conventions:
+    name: Pull request conventions
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Branch name, title and linked issue (CONTRIBUTING.md)
+        env: # (values from the pull request go through the environment, never into the script itself)
+          BRANCH: ${{ github.head_ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          fail=0
+          if [ "${#TITLE}" -gt 72 ]; then
+            echo "::error title=Pull request title::${#TITLE} characters: at most 72 (it becomes the commit title on main)."
+            fail=1
+          fi
+          if printf '%s' "$TITLE" | grep -Eqi '^(feat|fix|chore|docs|ci|refactor|build|test|perf|style)(\(.*\))?!?:'; then
+            echo "::warning title=Pull request title::No 'feat:'-style prefix: say what changes for the player, in plain English."
+          fi
+          case "$AUTHOR" in dependabot*|github-actions*) exit $fail ;; esac
+          if ! printf '%s' "$BRANCH" | grep -Eq '^(feature|fix|docs|ci|refactor|chore)/[0-9]+-[a-z0-9-]+$|^release/[0-9]+[.][0-9]+[.][0-9]+'; then
+            echo "::warning title=Branch name::Not type/issue-short-name (for example feature/93-setup-app): see CONTRIBUTING.md."
+          fi
+          case "$BRANCH" in
+            release/*) ;;
+            *) printf '%s' "$BODY" | grep -Eqi '(fix(es|ed)?|close[sd]?|resolve[sd]?|refs?) +([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+' \
+                 || echo "::warning title=Linked issue::No 'Fixes #<number>' (or 'Refs #<number>') in the description: link the issue it's for." ;;
+          esac
+          exit $fail
+
   passed:
     name: CI passed
     if: always()
-    needs: [mod, brain, windows-script]
+    needs: [mod, brain, windows-script, conventions]
     runs-on: ubuntu-24.04
     steps:
       - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
