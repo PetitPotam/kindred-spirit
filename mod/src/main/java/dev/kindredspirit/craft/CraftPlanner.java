@@ -94,8 +94,9 @@ public final class CraftPlanner {
         Map<String, Integer> taken = new HashMap<>(); // out of the player's original pockets
         Map<String, Integer> missing = new HashMap<>();
         List<Step> steps = new ArrayList<>();
-        /** this way needs the thing being made (iron ingots from an iron block, to make the block) */
-        boolean loop;
+        /** the items this way loops back to (iron ingots from an iron block, to make the block): a way that
+         *  loops back to something above is circular; one that loops back to the item itself means it's gathered */
+        Set<String> loops = new HashSet<>();
         private final Map<String, Integer> original;
 
         State(Map<String, Integer> inventory) {
@@ -109,7 +110,7 @@ public final class CraftPlanner {
             c.taken = new HashMap<>(taken);
             c.missing = new HashMap<>(missing);
             c.steps = new ArrayList<>(steps);
-            c.loop = loop;
+            c.loops = new HashSet<>(loops);
             return c;
         }
 
@@ -118,7 +119,7 @@ public final class CraftPlanner {
             taken = from.taken;
             missing = from.missing;
             steps = from.steps;
-            loop = from.loop;
+            loops = from.loops;
         }
 
         /** How much is left to gather; ore blocks count triple (only Silk Touch brings them home). */
@@ -156,7 +157,7 @@ public final class CraftPlanner {
             options.add(r);
         }
         if (making.contains(item)) {
-            s.loop = true;
+            s.loops.add(item);
             s.missing.merge(item, n, Integer::sum);
             return;
         }
@@ -170,14 +171,30 @@ public final class CraftPlanner {
             State trial = s.copy();
             apply(r, n, trial, depth, making, smelting, budget);
             if (best == null || better(trial, best)) best = trial;
-            if (!best.loop && best.missingTotal() == s.missingTotal()) break; // nothing more to gather: good enough
+            if (best.loops.isEmpty() && best.missingTotal() == s.missingTotal()) break; // nothing more to gather: good enough
         }
         making.remove(item);
+        Set<String> above = new HashSet<>(best.loops);
+        above.remove(item);
+        if (above.isEmpty() && (!best.loops.isEmpty() || bringsOre(best, s))) {
+            // every way to make it goes through itself (redstone from a redstone block) or through ore blocks only
+            // Silk Touch brings home (redstone ore): it's something you gather, so say the thing itself
+            s.missing.merge(item, n, Integer::sum);
+            return;
+        }
         s.restore(best);
     }
 
+    /** Whether this way adds an ore block to what's missing (not one already in the pockets). */
+    private static boolean bringsOre(State after, State before) {
+        for (Map.Entry<String, Integer> e : after.missing.entrySet()) {
+            if (e.getKey().endsWith("_ore") && e.getValue() > before.missing.getOrDefault(e.getKey(), 0)) return true;
+        }
+        return false;
+    }
+
     private static boolean better(State a, State b) {
-        if (a.loop != b.loop) return !a.loop;
+        if (a.loops.isEmpty() != b.loops.isEmpty()) return a.loops.isEmpty();
         if (a.missingTotal() != b.missingTotal()) return a.missingTotal() < b.missingTotal();
         return a.steps.size() < b.steps.size();
     }
@@ -217,6 +234,10 @@ public final class CraftPlanner {
         sorted.sort((a, b) -> {
             int c = Integer.compare(s.inv.getOrDefault(b, 0), s.inv.getOrDefault(a, 0));
             if (c != 0) return c;
+            // then what can be made from the pockets in one step (birch planks when you carry birch logs): with
+            // a game's thousand recipes and eleven kinds of planks, trying the likely one first matters
+            c = Boolean.compare(fromPockets(b, s), fromPockets(a, s));
+            if (c != 0) return c;
             c = Integer.compare(usual(a), usual(b));
             return c != 0 ? c : a.compareTo(b);
         });
@@ -226,7 +247,7 @@ public final class CraftPlanner {
         for (String alt : sorted) {
             State trial = s.copy();
             need(alt, amount, trial, depth + 1, making, smelting, budget);
-            int m = trial.loop ? Integer.MAX_VALUE - 1 : trial.missingTotal();
+            int m = !trial.loops.isEmpty() ? Integer.MAX_VALUE - 1 : trial.missingTotal();
             if (m < bestMissing) {
                 bestMissing = m;
                 best = alt;
@@ -234,6 +255,20 @@ public final class CraftPlanner {
             }
         }
         return best;
+    }
+
+    /** Whether one of the item's recipes has something in the pockets for every slot. */
+    private boolean fromPockets(String item, State s) {
+        for (Recipe r : byResult.getOrDefault(item, List.of())) {
+            boolean all = true;
+            for (Set<String> slot : r.slots()) {
+                boolean any = false;
+                for (String alt : slot) if (s.inv.getOrDefault(alt, 0) > 0) { any = true; break; }
+                if (!any) { all = false; break; }
+            }
+            if (all) return true;
+        }
+        return false;
     }
 
     /** When nothing's in the pockets, say what most people would use: oak, cobblestone, coal. */

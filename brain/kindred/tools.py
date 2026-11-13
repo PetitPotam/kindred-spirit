@@ -71,6 +71,35 @@ ABILITY_TOOLS = {
                   "length": {"type": "integer", "description": "forward"},
                   "people": {"type": "integer", "description": "house: how many it's for"},
                   "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"}}, ["shape"]),
+    "blueprint": _fn("blueprint", "Build a whole house where the player is looking: a cottage made for how many people "
+                     "it's for (a bed each, a chest, a crafting table, a furnace, windows, a door facing them, a stair roof), "
+                     "or a schematic file they gave you by its name. Use it for any house, home, hut, cabin or cottage. In "
+                     "magic style it rises in a few seconds; in grounded style it needs the materials in their pockets, and "
+                     "if something's missing you get the list (and what they could craft): tell them what to gather. It "
+                     "never builds over something built: then say so. 'stop' stops.",
+                     {"what": {"type": "string", "description": "'cottage' (default), or a schematic's name, or 'stop'"},
+                      "people": {"type": "integer", "description": "how many it's for (a bed each)"},
+                      "wood": {"type": "string", "description": "oak (default), spruce, birch, jungle, acacia, dark_oak, "
+                               "cherry or mangrove"}}),
+    "job": _fn("job", "Work that takes a while, done with your hands, near the player: mine some of something (whole "
+               "veins, nearest first, with the tool in their hand: a stone pickaxe can't take diamonds), chop the tree "
+               "they look at (all its logs), collect the items lying around, craft something from what they carry, or "
+               "get their things back where they died. What it gets goes into their pockets. You get the result when it "
+               "starts; 'status' says how it went, 'stop' stops. Kinds: mine (what: iron, coal, copper, gold, diamond, "
+               "redstone, lapis, emerald, stone, logs...; count), chop, collect, craft (what: an item id; count), "
+               "return_items, status, stop.",
+               {"kind": {"type": "string", "enum": ["mine", "chop", "collect", "craft", "return_items", "status", "stop"]},
+                "what": {"type": "string", "description": "mine: the block or ore; craft: the item, e.g. furnace, torch"},
+                "count": {"type": "integer"}}, ["kind"]),
+    "craft_help": _fn("craft_help", "Work out how to make something from what the player has right now: the steps "
+                      "(planks, then sticks, then the pickaxe), what they're missing, and whether they need a crafting "
+                      "table or a furnace. Use it for 'what am I missing for a piston?', 'can I make a bed?', 'how do I "
+                      "craft a furnace?'. It reads the game's own recipes, exactly.",
+                      {"item": {"type": "string", "description": "the item id, e.g. piston, furnace, white_bed"},
+                       "count": {"type": "integer"}}, ["item"]),
+    "trades": _fn("trades", "Read the trades of the nearest villager (within 10 blocks), checked against what the player "
+                  "carries: what they can sell now for emeralds, the good ones (Mending, diamond gear) even if they can't "
+                  "afford them yet, what's sold out. Use it when they ask what a villager sells or buys, or for good trades."),
     "place_torch": _fn("place_torch", "Place a torch at or right next to the player's feet (in grounded style it "
                        "uses one of their torches)."),
     "give_item": _fn("give_item", "Make items appear in someone's inventory (magic): the player's, or another "

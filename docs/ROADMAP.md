@@ -186,10 +186,12 @@ Being built on the `claude/playtest-fixes` branch (33 items, from the session lo
 ## Phase 4: Expertise and understanding
 - **Building from blueprints** ([research and plan](research/blueprints.md)): started, a reader for
   vanilla structure `.nbt`, Sponge `.schem` and Litematica `.litematic` files (turning, the front by
-  the door, build order, material list, saving). Next: in-game blueprints and building them, a house
-  generator ("a cozy cottage for three"), a ghost preview, "remember this house", understanding builds.
-- Recipes and items (minecraft-data), wiki knowledge search. Started: a crafting planner on the game's
-  own recipes and your pockets ("what am I missing for a piston?"), [design](research/blueprints.md#7-phase-4-expertise-and-understanding).
+  the door, build order, material list, saving). **Works in singleplayer**: "build us a cozy cottage for
+  three" (a generated cottage with a bed each, built where you look: magic through /fill and /setblock,
+  grounded from your pockets after a material list; never over what you built), and schematic files from
+  `config/kindredspirit/blueprints/`. Next: a ghost preview, "remember this house", understanding builds.
+- Recipes and items (minecraft-data), wiki knowledge search. **Works**: "what am I missing for a piston?"
+  answered from the game's own recipes and your pockets ([design](research/blueprints.md#7-phase-4-expertise-and-understanding)).
 - Expert modes: survival, redstone, builder, speedrun. Started: the modes, auto mode from what you're
   doing, speedrun splits (brain, not wired yet).
 - Activity understanding (building, redstone, farming, mining) and a session journal. Started: rules
@@ -198,9 +200,10 @@ Being built on the `claude/playtest-fixes` branch (33 items, from the session lo
   rare nudges; routines are repeating reminders.
 
 ## Phase 5: Grounded actions and jobs
-Started ([design](research/blueprints.md#8-phase-5-grounded-actions-and-jobs)): a job runner (mine
-whole veins nearest first, collect, craft a batch, get your things back after death) and trading help
-(a villager's real offers against your pockets); to be wired into her actions next.
+**Works in singleplayer** ([design](research/blueprints.md#8-phase-5-grounded-actions-and-jobs)): jobs
+through her invisible hands (mine whole veins with your own tool at its speed, chop the tree you look
+at, collect, craft from your pockets, get your things back where you died, stop, status) and trading
+help (a villager's real offers against your pockets). Next: LAN, repeating jobs near you.
 - Grounded tasks within the radius: break the tree in front of you, collect, craft.
 - Walk you somewhere; mine, collect and craft jobs.
 - Return your items after death; trading help.
