@@ -9,76 +9,76 @@ do build {"shape": "portal"}
 wait 60
 screenshot friends-08-portal
 look 180 5
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-chat Robin, stop hitting Pip! Leave her alone
+chat Robin, stop hitting Pip!
 wait 150
-chat Robin, stop hitting Pip! Leave her alone
+chat hey, leave her alone
 wait 150
-chat Robin, stop hitting Pip! Leave her alone
+chat be nice to her, Robin
 wait 150
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
-cmd tp Robin ~-1.5 ~ ~2.5 0 0
+cmd tp Robin ^ ^ ^3.2 facing entity @s
 wait 100
 quit

@@ -207,6 +207,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         // her stand-in (friends without the mod): a hit or a pat on it is a touch on her; it never takes items
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (world.isClientSide && entity.getUUID().equals(GuestBridge.hidden)) {
+                return net.minecraft.world.InteractionResult.FAIL; // (you see her, not the stand-in: your game reports the hit)
+            }
             if (!world.isClientSide && GuestBridge.standIn(entity) && player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 GuestBridge.touch(sp.server, sp, "hit");
                 return net.minecraft.world.InteractionResult.FAIL;
