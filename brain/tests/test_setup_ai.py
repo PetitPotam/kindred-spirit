@@ -105,7 +105,7 @@ def test_slow_thinking_same_other_or_off(gateway, home):
 
 
 def test_the_steps_come_in_order(home):
-    assert list(setup_steps.STEPS) == ["computer", "install", "start", "ai", "thinking", "login"]
+    assert list(setup_steps.STEPS) == ["computer", "install", "start", "ai", "thinking", "instincts", "voice", "hearing", "login"]
     for sid in ("ai", "thinking"):
         s = setup_steps.STEPS[sid][0]()
         assert s["choices"] and s["fields"] and s["default"] and len(s["why"]) > 60

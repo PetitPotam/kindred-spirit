@@ -79,6 +79,12 @@ table.facts td:first-child { color: var(--muted); white-space: nowrap; }
 .choice ol { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; }
 .fields { display: grid; gap: 10px; margin: 10px 0 2px; }
 .fields .field { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
+.fields select { padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); }
+.progress { margin: 4px 0 14px; }
+.bar { height: 10px; border-radius: 6px; background: var(--code); overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent); transition: width .4s; }
+.progress.failed .bar > div { background: var(--bad); }
+.progress .small { margin-top: 4px; }
 .fields input { padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); font-family: var(--mono); font-size: 13px; }
 .tag { font-size: 11.5px; font-weight: 700; color: var(--good); background: var(--good-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
 
@@ -210,8 +216,11 @@ function render() {
           on && c.link ? h("a", {class: "link", href: c.link.url, target: "_blank", rel: "noopener"}, c.link.label + " ↗") : null,
           on ? fieldsBox(s) : null));
     })) : null,
+    progressBox(s),
     h("div", {class: "buttons"},
-      (s.actions || []).map(a => h("button", {class: "btn" + (a.primary ? " primary" : ""), disabled: busy, onclick: () => run(s.id, a.id, a.label)}, a.label)),
+      (s.actions || []).map(a => h("button", {class: "btn" + (a.primary ? " primary" : ""), disabled: busy || (s.progress && s.progress.state === "running"), onclick: () => run(s.id, a.id, a.label)}, a.label)),
+      s.audio && (!s.audio.for || s.audio.for.includes(choice[s.id] || s.chosen)) ? h("button", {class: "btn", disabled: busy, onclick: () => hear(s)}, "▶ " + s.audio.label) : null,
+      s.mic ? h("button", {class: "btn", disabled: busy, onclick: () => micTest(s, s.mic.seconds)}, "🎙 " + s.mic.label) : null,
       h("button", {class: "btn", disabled: busy, onclick: () => run(s.id, "test", "Test it")}, "Test it"),
       h("span", {class: "spacer"}),
       h("button", {class: "btn quiet", onclick: () => copyHelp(s.id)}, "Copy a help prompt")),
@@ -244,11 +253,65 @@ function fieldsBox(s) {  // inputs a choice needs (a key, a model); a key is sen
   const shown = (s.fields || []).filter(f => !f.for || f.for.includes(sel));
   if (!shown.length) return null;
   const vals = fieldVals[s.id] = fieldVals[s.id] || {};
+  for (const f of shown) if (vals[f.id] === undefined && f.value !== undefined) vals[f.id] = f.value;
   return h("div", {class: "fields"}, shown.map(f => h("div", {class: "field"},  // (inside the choice's label: no nested labels)
     h("span", {}, f.label),
-    h("input", {type: f.type === "password" ? "password" : "text", autocomplete: "off", spellcheck: "false", "aria-label": f.label,
-                placeholder: f.placeholder || "", value: vals[f.id] || "", oninput: e => { vals[f.id] = e.target.value; },
-                onclick: e => e.stopPropagation()}))));
+    f.type === "select"
+      ? h("select", {"aria-label": f.label, onchange: e => { vals[f.id] = e.target.value; }, onclick: e => e.stopPropagation()},
+          f.options.map(o => h("option", {value: o.value, selected: vals[f.id] === o.value}, o.label)))
+      : h("input", {type: f.type === "password" ? "password" : "text", autocomplete: "off", spellcheck: "false", "aria-label": f.label,
+                    placeholder: f.placeholder || "", value: vals[f.id] || "", oninput: e => { vals[f.id] = e.target.value; },
+                    onclick: e => e.stopPropagation()}))));
+}
+
+function progressBox(s) {  // a download in the background: how far it is
+  const p = s.progress;
+  if (!p) return null;
+  return h("div", {class: "progress " + p.state, role: "progressbar", "aria-valuenow": p.percent, "aria-valuemin": 0, "aria-valuemax": 100},
+    h("div", {class: "bar"}, h("div", {style: "width:" + (p.state === "failed" ? 100 : p.percent) + "%"})),
+    h("div", {class: "small " + (p.state === "failed" ? "bad" : "muted")},
+      p.state === "done" ? "Downloaded. Press “Test it”." : p.state === "failed" ? "It stopped: " + p.text + " Press “Use this” to try again (it continues where it stopped)." : p.percent + "% · " + p.text));
+}
+
+async function hear(s) {  // "Hear it": her voice in the chosen voice
+  const vals = fieldVals[s.id] || {};
+  results[s.id] = {running: true, label: "Making her voice"}; render();
+  try {
+    const r = await fetch("/api/setup/preview", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({voice: vals.voice || ""})});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "HTTP " + r.status);
+    const url = URL.createObjectURL(await r.blob());
+    new Audio(url).play();
+    results[s.id] = {ok: true, message: "Playing her voice. Like it? Press “Use this” to keep it."};
+  } catch (e) { results[s.id] = {ok: false, message: "Her voice didn't play: " + e.message}; }
+  render();
+}
+
+async function micTest(s, seconds) {  // records a few seconds, as 16 kHz WAV, and asks her hearing what it heard
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio: true}); }
+  catch (e) { results[s.id] = {ok: false, message: "The browser couldn't use the microphone: allow it when the browser asks (or in its settings), then try again."}; return render(); }
+  results[s.id] = {running: true, label: "Listening for " + seconds + " seconds: say something to her"}; render();
+  const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), node = ctx.createScriptProcessor(4096, 1, 1), chunks = [];
+  node.onaudioprocess = e => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  src.connect(node); node.connect(ctx.destination);
+  await new Promise(r => setTimeout(r, seconds * 1000));
+  node.disconnect(); src.disconnect(); stream.getTracks().forEach(t => t.stop());
+  const rate = ctx.sampleRate; await ctx.close();
+  const all = new Float32Array(chunks.reduce((n, c) => n + c.length, 0)); let o = 0; for (const c of chunks) { all.set(c, o); o += c.length; }
+  const n = Math.floor(all.length * 16000 / rate), pcm = new Int16Array(n);
+  for (let i = 0; i < n; i++) pcm[i] = Math.max(-1, Math.min(1, all[Math.floor(i * rate / 16000)])) * 32767;
+  const wav = new DataView(new ArrayBuffer(44 + pcm.length * 2)), w = (p, t) => [...t].forEach((c, i) => wav.setUint8(p + i, c.charCodeAt(0)));
+  w(0, "RIFF"); wav.setUint32(4, 36 + pcm.length * 2, true); w(8, "WAVEfmt "); wav.setUint32(16, 16, true); wav.setUint16(20, 1, true);
+  wav.setUint16(22, 1, true); wav.setUint32(24, 16000, true); wav.setUint32(28, 32000, true); wav.setUint16(32, 2, true); wav.setUint16(34, 16, true);
+  w(36, "data"); wav.setUint32(40, pcm.length * 2, true); pcm.forEach((v, i) => wav.setInt16(44 + i * 2, v, true));
+  results[s.id] = {running: true, label: "Writing down what she heard"}; render();
+  try {
+    const r = await fetch("/api/setup/hear", {method: "POST", headers: {"Content-Type": "audio/wav"}, body: wav.buffer});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "HTTP " + r.status);
+    results[s.id] = d.text ? {ok: true, message: "She heard: “" + d.text + "”"} : {ok: false, message: "She heard nothing: is the right microphone chosen in System Settings → Sound → Input?"};
+  } catch (e) { results[s.id] = {ok: false, message: "Her hearing didn't answer: " + e.message}; }
+  render();
 }
 
 function resultBox(id) {
@@ -312,7 +375,8 @@ async function quit() {
 }
 
 load();
-const timer = setInterval(load, 5000);  // keeps the steps fresh, and tells the Setup this page is still open
+let timer = setInterval(load, 5000);  // keeps the steps fresh, and tells the Setup this page is still open
+setInterval(() => { if (state && state.steps.some(s => s.progress && s.progress.state === "running")) load(); }, 1000);
 </script>
 </body>
 </html>

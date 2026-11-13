@@ -52,6 +52,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(HERE), "brain"))
 from kindred import config as brain_config  # noqa: E402  (her settings, with their defaults)
 from kindred import blueprints  # noqa: E402  (her blueprint folders and their catalogue)
 import setup_steps  # noqa: E402  (the Setup's guided steps)
+import setup_models  # noqa: E402  (its voice preview and microphone test)
 
 SETUP_PAGE = os.path.join(HERE, "setup.html")
 SETUP_MODE = False  # True when the Setup app runs this (dashboard.py --setup)
@@ -895,14 +896,26 @@ def _post(handler):
     url = urlparse(handler.path)
     if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles", "/api/places",
                         "/api/blueprints/add", "/api/blueprints/remove", "/api/blueprints/restore",
-                        "/api/setup/run", "/api/setup/help", "/api/setup/quit"):
+                        "/api/setup/run", "/api/setup/help", "/api/setup/quit", "/api/setup/preview",
+                        "/api/setup/hear"):
         return handler.send(404, {"error": "not found"})
     if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
         return handler.send(403, {"error": "only from the dashboard itself"})
     length = int(handler.headers.get("Content-Length") or 0)
     if length > blueprints.MAX_BYTES * 2:
         return handler.send(413, {"error": "too big"})
-    body = json.loads(handler.rfile.read(length) or b"{}")
+    raw = handler.rfile.read(length)
+    if url.path == "/api/setup/hear":  # the microphone test: a short WAV from the page, written down by her hearing
+        try:
+            return handler.send(200, {"text": setup_models.transcribe(raw)})
+        except setup_steps.SetupError as e:
+            return handler.send(400, {"error": str(e)})
+    body = json.loads(raw or b"{}")
+    if url.path == "/api/setup/preview":  # "Hear it": her voice saying a line, in the chosen voice
+        try:
+            return handler.send(200, setup_models.speak(voice=str(body.get("voice") or "")), "audio/wav")
+        except setup_steps.SetupError as e:
+            return handler.send(400, {"error": str(e)})
     if url.path == "/api/setup/run":  # a step's button: do it, or test it
         return handler.send(200, setup_steps.run(str(body.get("step", "")), str(body.get("action", "")), body))
     if url.path == "/api/setup/help":  # the "Copy a help prompt" button

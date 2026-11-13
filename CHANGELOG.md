@@ -33,6 +33,10 @@ Unreleased into the new version's section.
   one, another service with your key, Ollama on your Mac, or Claude Code, Codex or Gemini CLI; for her slow thinking
   (System 2), the same, another one, or off. Each choice is tested with a real call; keys stay in secrets.env (#94).
 
+- The Setup downloads her local models, sized for the computer, with progress, a SHA-256 check and resume: her
+  instincts (bge-small), her voice (Kokoro, with a preview of each voice) and her hearing (Whisper, with a microphone
+  test). The Setup app now carries its own whisper-server, so hearing needs no Homebrew (#95).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
