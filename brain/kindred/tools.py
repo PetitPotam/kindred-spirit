@@ -59,12 +59,12 @@ ABILITY_TOOLS = {
                  "'width' x 'length'), wall (a row 'width' long, 'height' high), floor ('width' x 'length', flat), "
                  "outline (the border of 'width' x 'length', 'height' high, like a pen), house (floor, walls, a door, a "
                  "roof, sized for 'people'), portal (a nether portal: 10 obsidian, then lit), clear (everything in "
-                 "'width' x 'length' goes, from where they stand up, or above 'level'), flatten (clear, and fill holes "
+                 "'width' x 'length' goes, from where they stand up, or above 'level'), end_portal (a working end portal: twelve frames with eyes around it, open to the End; magic only), farm (a crop farm: tilled ground with water in the middle and crops planted, 'width' x 'length', 9 x 9 by default; 'block' is the crop: wheat, carrots, potatoes or beetroots), flatten (clear, and fill holes "
                  "in the ground at that level with 'block'). 'stop' stops. Use the block they named, in this or an "
                  "earlier message. If what they want isn't one of these shapes, say you can't build that yet: never "
                  "build something else and call it done. If the size isn't clear, ask first.",
                  {"shape": {"type": "string", "enum": ["place", "pillar", "corners", "wall", "floor", "outline", "house",
-                                                       "portal", "clear", "flatten", "stop"]},
+                                                       "portal", "end_portal", "farm", "clear", "flatten", "stop"]},
                   "block": {"type": "string", "description": "the block or item, e.g. cobblestone, oak_planks, campfire, "
                             "red_bed; empty = the one in their hand (or the one they have most of)"},
                   "height": {"type": "integer"}, "width": {"type": "integer", "description": "to their right"},
@@ -141,6 +141,9 @@ ABILITY_TOOLS = {
                    "/time set day|noon|night|midnight, /weather clear|rain|thunder, /spawnpoint <player>",
                    {"command": {"type": "string", "description": "the command, e.g. /fill ~-3 ~ ~-3 ~3 ~ ~3 stone"}},
                    ["command"]),
+    "find_flat": _fn("find_flat", "Find the flattest open, dry ground nearby (about 96 blocks around, what the world has loaded) "
+                     "for something to build: 'a flat field', 'flat ground for a house'. Then guide leads there.",
+                     {"size": {"type": "integer", "description": "how big a square, in blocks (12 by default)"}}),
     "find_player": _fn("find_player", "Find another player here in the world (a friend on the player's LAN world) "
                        "by name, even said roughly. Then guide can lead the way to them as they move.",
                        {"name": {"type": "string", "description": "their name, or 'player' for the player you live beside"}},

@@ -145,7 +145,7 @@ public final class Actions {
                         return r;
                     });
                 }
-                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER, COMMAND,
+                case LOCATE, FIND_FLAT, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER, COMMAND,
                      JOB, BLUEPRINT, CRAFT_HELP, TRADES -> onServer(mc, a, args, power, style);
                 case GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> done(ok()); // handled by the companion itself
             };
@@ -313,6 +313,7 @@ public final class Actions {
         try {
             return switch (a) {
                 case LOCATE -> locate(s, sp, str(args, "what", "village"));
+                case FIND_FLAT -> findFlat(sp, num(args, "size", 12));
                 case PROTECT -> args.has("poke") && args.get("poke").getAsBoolean()
                         ? poke(sp, target(s, sp, str(args, "to", "")))
                         : protect(target(s, sp, str(args, "to", "")));
@@ -544,6 +545,57 @@ public final class Actions {
         sp.addEffect(new net.minecraft.world.effect.MobEffectInstance(effect, seconds * 20, 0));
         r.addProperty("effect", key.replace('_', ' '));
         r.addProperty("seconds", seconds);
+        return r;
+    }
+
+    /**
+     * The flattest open ground of size x size near the player (what the world has loaded, within 96 blocks):
+     * the ground's height every 2 blocks over the area, no water or lava on top, trees count as bumps.
+     * 'Take me to a flat field': she finds it, then guide leads there.
+     */
+    static JsonObject findFlat(ServerPlayer sp, int size) {
+        ServerLevel level = sp.serverLevel();
+        int n = Math.max(6, Math.min(48, size));
+        BlockPos me = sp.blockPosition();
+        double best = Double.MAX_VALUE;
+        int bx = 0, bz = 0, bmin = 0, bmax = 0, btrees = 0;
+        for (int dx = -96; dx <= 96; dx += 6) {
+            for (int dz = -96; dz <= 96; dz += 6) {
+                int cx = me.getX() + dx, cz = me.getZ() + dz;
+                int lo = Integer.MAX_VALUE, hi = Integer.MIN_VALUE, trees = 0;
+                boolean ok = true;
+                for (int x = cx - n / 2; x <= cx + n / 2 && ok; x += 2) {
+                    for (int z = cz - n / 2; z <= cz + n / 2 && ok; z += 2) {
+                        if (!level.hasChunkAt(new BlockPos(x, 0, z))) { ok = false; break; }
+                        int h = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                        BlockPos top = new BlockPos(x, h - 1, z);
+                        var st = level.getBlockState(top);
+                        if (!st.getFluidState().isEmpty()) { ok = false; break; } // (no building on water)
+                        if (st.is(net.minecraft.tags.BlockTags.LOGS)) { trees++; continue; } // a tree: in the way, not ground
+                        lo = Math.min(lo, h);
+                        hi = Math.max(hi, h);
+                    }
+                }
+                if (!ok || lo == Integer.MAX_VALUE) continue;
+                // flat first, then few trees to cut, then near
+                double score = (hi - lo) * 10 + trees * 3 + Math.sqrt((double) dx * dx + dz * dz) / 24;
+                if (score < best) {
+                    best = score;
+                    bx = cx;
+                    bz = cz;
+                    bmin = lo;
+                    bmax = hi;
+                    btrees = trees;
+                }
+            }
+        }
+        if (best == Double.MAX_VALUE) return error("I couldn't find open dry ground of that size around here (only what the world has loaded, about 96 blocks).");
+        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+        JsonObject r = place(sp, bx + 0.5, y, bz + 0.5);
+        r.addProperty("found", true);
+        r.addProperty("size", n + " x " + n);
+        r.addProperty("bumpiness", bmax - bmin == 0 ? "perfectly flat" : "flat within " + (bmax - bmin) + " block" + (bmax - bmin > 1 ? "s" : ""));
+        if (btrees > 0) r.addProperty("trees", "a few trees to clear");
         return r;
     }
 
