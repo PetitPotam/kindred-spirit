@@ -36,7 +36,9 @@ behaviour; docs updated.
 
 [Semantic Versioning](https://semver.org/), with the Minecraft version as build metadata in the jar's name: one jar
 per Minecraft version in `mod/versions/`, all with the same mod version (`kindred-spirit-0.2.0+26.3.jar`,
-`kindred-spirit-0.2.0+1.21.1.jar`). A release ships them all.
+`kindred-spirit-0.2.0+1.21.1.jar`). A release ships them all, with a `versions.json` that says which jar goes with which
+Minecraft, its Fabric API and Java (Kindred Spirit Setup reads it); in the repository the same facts are in
+`mod/versions/<minecraft>/gradle.properties`.
 
 | Change | Version |
 |---|---|
