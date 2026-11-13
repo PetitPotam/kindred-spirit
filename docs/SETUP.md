@@ -75,7 +75,7 @@ Fabric with the mod and saying hi to her once to check everything ([#94](https:/
 
 You can close the page at any time: Pip keeps running, and the Setup itself quits a few minutes later (or press
 **Close the Setup**). To come back to the steps, open the app again, or **Setup steps** in the dashboard
-(`http://127.0.0.1:11440`).
+(`http://127.0.0.1:11440`, or press **K** in the game).
 
 ## Where things go
 
