@@ -3489,6 +3489,101 @@
      "She wonders honestly about what she is, in her own playful voice, in one or two short lines: no lore dump, no claims of a backstory she doesn't have yet."
     ]
    }
+  },
+  {
+   "id": "sp-latest-nickname",
+   "play": "singleplayer",
+   "from": "session 20261112-2304, t=1650s",
+   "who": "player",
+   "say": "What do you call me again?",
+   "history": [
+    [
+     "user",
+     "Can you follow me?"
+    ],
+    [
+     "assistant",
+     "[happy] Follow me, Dumb!\n[excited] Eep, you're drifting off. (you said this on your own: the player walked away from where you're leading them)"
+    ],
+    [
+     "user",
+     "No, no. Can you please follow me? You're not understanding. Can you please follow me? No, no. Can you please follow me? You're not understanding. Can you please follow me? No, no. Can you please follow me? You're not understanding. Can you please follow me"
+    ],
+    [
+     "assistant",
+     "[happy] Right behind you, Dumb!"
+    ]
+   ],
+   "snapshot": {
+    "health": 20,
+    "where": {
+     "x": 300,
+     "y": 66,
+     "z": -300,
+     "biome": "minecraft:plains"
+    },
+    "time": {
+     "timeOfDay": 6000
+    },
+    "holding": "minecraft:netherite_axe",
+    "offhand": "minecraft:firework_rocket",
+    "players": [],
+    "hostiles": [],
+    "wearing": [
+     "minecraft:netherite_boots",
+     "minecraft:netherite_leggings",
+     "minecraft:elytra",
+     "minecraft:netherite_helmet"
+    ]
+   },
+   "setup": {
+    "bond": 55
+   },
+   "memories": [
+    {
+     "kind": "player",
+     "text": "The player's nickname is Dumb and waterwalid's nickname is Dumber.",
+     "importance": 6
+    },
+    {
+     "kind": "player",
+     "text": "Likes playful teasing and pranks.",
+     "importance": 6
+    },
+    {
+     "kind": "player",
+     "text": "The player's nickname is Twinkle Dee.",
+     "importance": 6
+    }
+   ],
+   "stub_ai": [
+    {
+     "role": "assistant",
+     "content": "[happy] Dumb! Or was it Twinkle Dee?"
+    }
+   ],
+   "expect": {
+    "brain": {
+     "prompt_has": [
+      "nickname Twinkle Dee"
+     ],
+     "prompt_not": [
+      "nickname is Dumb\\b"
+     ],
+     "answers": true
+    },
+    "ai": {
+     "said": [
+      "Twinkle"
+     ],
+     "said_not": [
+      "\\bDumb\\b"
+     ]
+    },
+    "judge": [
+     "She calls the player by their latest nickname (Twinkle Dee), not an old one."
+    ]
+   }
   }
  ]
 }
