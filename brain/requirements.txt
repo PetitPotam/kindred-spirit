@@ -1,2 +1,2 @@
-websockets>=13,<16
-numpy>=1.26
+websockets>=17.4,<18
+numpy>=2.5.4
