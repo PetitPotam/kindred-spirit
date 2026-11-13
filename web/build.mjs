@@ -141,7 +141,7 @@ export function build() {
     const nav = (section) => (meta.section === section ? ' aria-current="page"' : "");
     values.page.fullTitle = escapeHtml(values.page.fullTitle);
     values.page.description = escapeHtml(meta.description);
-    const navState = Object.fromEntries(["guides", "roadmap", "contributing", "credits"].map((s) => [s, nav(s)]));
+    const navState = Object.fromEntries(["download", "guides", "roadmap", "contributing", "credits"].map((s) => [s, nav(s)]));
     const html = fill(layout, { ...values, content, nav: navState }, "layout.html");
     const outFile = join(OUT, rel);
     mkdirSync(dirname(outFile), { recursive: true });

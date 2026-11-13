@@ -22,7 +22,7 @@ Needs Node 22 or newer. CI also validates the HTML (`html-validate`) and runs Li
 |---|---|
 | `src/pages/` | one HTML fragment per page, with a small `---` header (title, description, layout); `guides/x.html` is served as `/guides/x` |
 | `src/layout.html` | the page around every page: header, footer, cookie settings link, the Mojang notice |
-| `src/assets/` | `site.css`, `consent.js` (cookie choice and Google Analytics), `video.js` (the showcase player) |
+| `src/assets/` | `site.css`, `consent.js` (cookie choice and Google Analytics), `video.js` (the showcase player), `download.js` (the Download page asks GitHub for the newest Setup, only when a button is pressed) |
 | `src/media/`, `src/img/` | stills from the showcase, its poster and captions, Pip's icon |
 | `site.config.json` | the site address, repository, measurement ID, the video's address, the guides' order, the legal pages' date |
 | `firebase.json`, `.firebaserc` | Hosting (clean URLs, security headers, caching) and the rules files below |
