@@ -5,18 +5,26 @@
 #
 # Needs: Git (signed in to GitHub), Java 25 (Temurin, to build), Minecraft 1.21.1 with Fabric installed once.
 # Close Minecraft first: a running game keeps the old mod.
+#
+# For tests (.github/workflows/platforms.yml): -Here installs this copy as it is, without getting the latest
+# version, and $env:APPDATA can point to a throwaway folder.
+param([switch]$Here)
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
-Write-Host "1/4  Getting the latest version..." -ForegroundColor Cyan
-# (fetch and match GitHub exactly, rather than pull: this copy is only for playing, and it keeps working
-#  even when the history on GitHub has been rewritten)
-git fetch origin
-if ($LASTEXITCODE -ne 0) { throw "Getting the latest version failed: are you signed in to GitHub?" }
-git reset --hard origin/main
-if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
+if ($Here) {
+    Write-Host "1/4  Using this copy as it is (-Here)." -ForegroundColor Cyan
+} else {
+    Write-Host "1/4  Getting the latest version..." -ForegroundColor Cyan
+    # (fetch and match GitHub exactly, rather than pull: this copy is only for playing, and it keeps working
+    #  even when the history on GitHub has been rewritten)
+    git fetch origin
+    if ($LASTEXITCODE -ne 0) { throw "Getting the latest version failed: are you signed in to GitHub?" }
+    git reset --hard origin/main
+    if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
+}
 
 Write-Host "2/4  Building the mod (the first time takes a few minutes)..." -ForegroundColor Cyan
 # Loom, the build tool, needs Java 25: check first, so the message says what to install
