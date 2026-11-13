@@ -13,7 +13,8 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "dev.kindredspirit.KindredSpiritClient"
+      "dev.kindredspirit.KindredSpiritClient",
+      "dev.kindredspirit.job.JobsDev"
     ]
   },
   "depends": {
