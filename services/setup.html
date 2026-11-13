@@ -75,6 +75,11 @@ table.facts td:first-child { color: var(--muted); white-space: nowrap; }
 .choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .choice input { margin-top: 4px; accent-color: var(--accent); }
 .choice .note { display: block; color: var(--muted); font-size: 13px; }
+.choice .link { font-size: 13px; }
+.choice ol { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; }
+.fields { display: grid; gap: 10px; margin: 0 0 14px; }
+.fields label { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
+.fields input { padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); font-family: var(--mono); font-size: 13px; }
 .tag { font-size: 11.5px; font-weight: 700; color: var(--good); background: var(--good-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
 
 .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; }
@@ -139,7 +144,7 @@ footer { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; align-item
 
 <script>
 "use strict";
-let state = null, current = null, busy = false, choice = {}, results = {}, helpText = {};
+let state = null, current = null, busy = false, choice = {}, results = {}, helpText = {}, fieldVals = {};
 
 function h(tag, attrs, ...kids) {  // builds elements with textContent only: logs and errors are never read as HTML
   const el = document.createElement(tag);
@@ -195,10 +200,16 @@ function render() {
     h("p", {class: "why"}, s.why),
     s.default ? h("div", {class: "rec"}, h("b", {}, "We recommend"), h("span", {}, s.default)) : null,
     s.facts && s.facts.length ? h("table", {class: "facts"}, h("tbody", {}, s.facts.map(([k, v]) => h("tr", {}, h("td", {}, k), h("td", {}, v))))) : null,
-    s.choices ? h("div", {class: "choices", role: "radiogroup"}, s.choices.map(c => h("label", {class: "choice"},
-      h("input", {type: "radio", name: "choice-" + s.id, value: c.value,
-                  checked: (choice[s.id] || s.chosen) === c.value, onchange: () => { choice[s.id] = c.value; }}),
-      h("span", {}, c.label, c.recommended ? h("span", {class: "tag"}, "recommended") : null, h("span", {class: "note"}, c.note || ""))))) : null,
+    s.choices ? h("div", {class: "choices", role: "radiogroup"}, s.choices.map(c => {
+      const on = (choice[s.id] || s.chosen) === c.value;
+      return h("label", {class: "choice"},
+        h("input", {type: "radio", name: "choice-" + s.id, value: c.value, checked: on,
+                    onchange: () => { choice[s.id] = c.value; render(); }}),
+        h("span", {}, c.label, c.recommended ? h("span", {class: "tag"}, "recommended") : null, h("span", {class: "note"}, c.note || ""),
+          on && c.how ? h("ol", {}, c.how.map(x => h("li", {}, x))) : null,
+          on && c.link ? h("a", {class: "link", href: c.link.url, target: "_blank", rel: "noopener"}, c.link.label + " ↗") : null));
+    })) : null,
+    fieldsBox(s),
     h("div", {class: "buttons"},
       (s.actions || []).map(a => h("button", {class: "btn" + (a.primary ? " primary" : ""), disabled: busy, onclick: () => run(s.id, a.id, a.label)}, a.label)),
       h("button", {class: "btn", disabled: busy, onclick: () => run(s.id, "test", "Test it")}, "Test it"),
@@ -226,6 +237,17 @@ function render() {
     h("span", {}, "Stuck? The guide: ", h("a", {href: state.guide, target: "_blank", rel: "noopener"}, "docs/SETUP.md")),
     h("span", {class: "spacer"}),
     state.mode === "app" ? h("button", {class: "btn quiet", onclick: quit}, "Close the Setup") : h("a", {href: "/"}, "← Back to the dashboard"));
+}
+
+function fieldsBox(s) {  // inputs a choice needs (a key, a model); a key is sent once and never shown back
+  const sel = choice[s.id] || s.chosen;
+  const shown = (s.fields || []).filter(f => !f.for || f.for.includes(sel));
+  if (!shown.length) return null;
+  const vals = fieldVals[s.id] = fieldVals[s.id] || {};
+  return h("div", {class: "fields"}, shown.map(f => h("label", {},
+    f.label,
+    h("input", {type: f.type === "password" ? "password" : "text", autocomplete: "off", spellcheck: "false",
+                placeholder: f.placeholder || "", value: vals[f.id] || "", oninput: e => { vals[f.id] = e.target.value; }}))));
 }
 
 function resultBox(id) {
@@ -256,7 +278,8 @@ async function run(id, action, label) {
   render();
   try {
     const s = state.steps.find(x => x.id === id);
-    results[id] = await api("/api/setup/run", {step: id, action, choice: choice[id] || (s && s.chosen)});
+    results[id] = await api("/api/setup/run", Object.assign({}, fieldVals[id] || {}, {step: id, action, choice: choice[id] || (s && s.chosen)}));
+    if (fieldVals[id]) delete fieldVals[id].key;  // a key is never kept in the page
   } catch (e) {
     results[id] = {ok: false, message: "The Setup didn't answer: " + e.message};
   }

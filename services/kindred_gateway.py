@@ -686,6 +686,9 @@ class Handler(BaseHTTPRequestHandler):
         req = for_kind(req, state, up, kind)
         started = time.time()
         stream = bool(req.get("stream"))
+        if up.get("type") == "off":  # switched off in the Setup (her slow thinking): say so, at once
+            self.reply(503, {"error": {"message": "this kind of call (%s) is switched off" % kind}})
+            return
         if up.get("type") in ("claude_cli", "cli"):  # an AI command-line tool the player already has
             req.pop("stream", None)
             resp = (claude_cli_chat if up["type"] == "claude_cli" else any_cli_chat)(up, req, kind)
