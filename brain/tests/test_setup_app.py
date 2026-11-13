@@ -306,6 +306,18 @@ def test_the_build_ships_what_runs_and_pins_python():
     assert build.version() and "-" not in build.APP_NAME
 
 
+def test_a_release_setup_is_never_built_without_the_mod(tmp_path):
+    """#155: the release passes --mods with its jars; a folder without them (say, in a subfolder) stops the build."""
+    nested = tmp_path / "mod-files" / "mod" / "build" / "libs"
+    nested.mkdir(parents=True)
+    for name in ("kindred-spirit-9.9.9+26.3.jar", "kindred-spirit-9.9.9+26.3-sources.jar"):
+        (nested / name).write_text("jar")
+    with pytest.raises(SystemExit) as e:
+        build.main(["--mods", str(tmp_path / "mod-files")])
+    assert "without the mod" in str(e.value)
+    assert [os.path.basename(j) for j in build.mod_jars(str(nested))] == ["kindred-spirit-9.9.9+26.3.jar"]
+
+
 def test_the_launcher_and_scripts_are_valid_shell():
     for rel in ("setup/macos/launcher.sh", "scripts/start.sh", "scripts/stop.sh"):
         subprocess.run(["bash", "-n", os.path.join(REPO, rel)], check=True)
