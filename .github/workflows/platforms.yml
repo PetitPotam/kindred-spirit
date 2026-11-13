@@ -1,0 +1,117 @@
+name: Platforms
+# Does Kindred Spirit install and run on each system, on a clean machine? (#104; how to run the same checks yourself:
+# docs/TESTING-PLATFORMS.md). No keys or secrets: a stand-in AI answers her. Not part of "CI passed": it runs only
+# when the install, the mod or the brain change, on release tags, and on demand (Actions -> Platforms -> Run).
+on:
+  pull_request:
+    paths:
+      - "setup/**"
+      - "scripts/**"
+      - "services/**"
+      - "brain/kindred/**"
+      - "brain/tools/**"
+      - "brain/requirements*.txt"
+      - "mod/src/main/**"
+      - "mod/*.gradle"
+      - "mod/gradle.properties"
+      - ".github/workflows/platforms.yml"
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platforms-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  macos:
+    name: macOS, ${{ matrix.chip }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, chip: Apple silicon }
+          - { runner: macos-15-intel, chip: Intel }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v5 # Gradle runs on Java 25 (the mod targets Java 21)
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+      - name: Kindred Spirit Setup (build the app, install and start it from the .dmg)
+        run: mkdir -p dist && KINDRED_KEEP_DMG="$PWD/dist" scripts/test-install.sh setup-app
+      - name: Her brain with scripts/setup.sh (the terminal install)
+        if: success() || failure()
+        run: scripts/test-install.sh brain
+      - name: Minecraft's side (Fabric, Fabric API, the mod, the launcher profile)
+        if: success() || failure()
+        run: scripts/test-install.sh minecraft
+      - uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: setup-macos-${{ matrix.runner }}
+          path: dist/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  linux:
+    name: Linux (Ubuntu)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+      - name: Her brain with scripts/setup.sh
+        run: scripts/test-install.sh brain
+      - name: Minecraft's side (Fabric, Fabric API, the mod, the launcher profile)
+        if: success() || failure()
+        run: scripts/test-install.sh minecraft
+      - name: Kindred Spirit Setup
+        if: success() || failure()
+        run: scripts/test-install.sh setup-app # says plainly that it's macOS-only so far (#81)
+
+  windows:
+    name: Windows (a friend's PC)
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5 # what the friend's guide asks for (AGENTS.md, docs/PLAY-WITH-FRIENDS.md)
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Update Pip (scripts/update-pip-windows.ps1) into a fresh Minecraft folder
+        shell: powershell # Windows PowerShell 5.1, as on a friend's PC
+        run: |
+          $env:APPDATA = Join-Path $env:RUNNER_TEMP "appdata"
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1 -Here
+          if ($LASTEXITCODE -ne 0) { throw "update-pip-windows.ps1 failed" }
+          $mods = Join-Path $env:APPDATA ".minecraft\mods"
+          Get-ChildItem $mods | Format-Table Name, Length
+          if (-not (Get-ChildItem $mods -Filter "kindred-spirit-*.jar")) { throw "no Kindred jar in $mods" }
+          if (-not (Get-ChildItem $mods -Filter "fabric-api-*+1.21.1.jar")) { throw "no Fabric API for 1.21.1 in $mods" }
+          Write-Host "ok: the mod and Fabric API are in the mods folder"
+      - name: Hosting her on Windows
+        shell: pwsh
+        run: |
+          Write-Host "::notice title=Not yet supported::Hosting Pip on Windows (her brain, voice, hearing and the Setup app) isn't supported yet (#40). This job checks the friend's side: installing the mod to join a host's LAN world."
