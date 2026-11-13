@@ -73,7 +73,7 @@ ABILITY_TOOLS = {
                   "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"}}, ["shape"]),
     "blueprint": _fn("blueprint", "Build a whole house where the player is looking: a cottage made for how many people "
                      "it's for (a bed each, a chest, a crafting table, a furnace, windows, a door facing them, a stair roof), "
-                     "or a schematic file they gave you by its name. Use it for any house, home, hut, cabin or cottage. In "
+                     "or a blueprint file by its exact name from find_blueprint (a village house, an igloo, a ship...). Use the cottage for any house, home, hut, cabin or cottage they describe. In "
                      "magic style it rises in a few seconds; in grounded style it needs the materials in their pockets, and "
                      "if something's missing you get the list (and what they could craft): tell them what to gather. It "
                      "never builds over something built: then say so. 'stop' stops.",
@@ -183,6 +183,15 @@ MEMORY_TOOLS = [
 ]
 
 
+FIND_BLUEPRINT = _fn("find_blueprint", "Look up which blueprints (buildings saved as files) you can build: Minecraft's "
+                     "own village houses for each biome (plains, desert, savanna, taiga, snowy: small and medium houses, "
+                     "libraries, temples, smithies, farms, fountains...), an igloo, ruined portals, shipwrecks, a "
+                     "pillager watchtower, and any the player added. Search by words ('desert library', 'ship', "
+                     "'small house'); then build one with blueprint, giving its exact name as 'what'.",
+                     {"query": {"type": "string", "description": "words to look for; empty = what kinds there are"}})
+
+
 def for_abilities(abilities):
     """The tool list to send the AI, given what the mod says is allowed."""
-    return [ABILITY_TOOLS[a] for a in abilities if a in ABILITY_TOOLS] + MEMORY_TOOLS
+    extra = [FIND_BLUEPRINT] if "blueprint" in abilities else []
+    return [ABILITY_TOOLS[a] for a in abilities if a in ABILITY_TOOLS] + extra + MEMORY_TOOLS
