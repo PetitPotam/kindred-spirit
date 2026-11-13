@@ -1,35 +1,86 @@
 name: CI
+# Every pull request and every push to main: build and test the mod and the brain. "CI passed" is the one
+# check a pull request needs before it can be merged (see docs/MAINTAINING.md).
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: # a new push to the same pull request cancels the run still going for the old one
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   mod:
+    name: Mod (build and Java tests)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: mod
     steps:
       - uses: actions/checkout@v5
+      - uses: gradle/actions/wrapper-validation@v4 # the Gradle wrapper jar is the real one
       # Loom (the Fabric build plugin) runs on Java 25; the mod itself is compiled for Java 21
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 25
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - run: ./gradlew build --no-daemon
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: mod/build/reports/tests/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: kindred-spirit-jar
           path: mod/build/libs/*.jar
 
   brain:
+    name: Brain (Python ${{ matrix.python }})
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: brain/requirements*.txt
       - run: pip install -r brain/requirements-dev.txt
       - run: python -m pytest -q brain/tests
+
+  windows-script:
+    name: Windows update script (parses)
+    runs-on: windows-2025
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\scripts\update-pip-windows.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_.ToString() }; exit 1 }
+
+  passed:
+    name: CI passed
+    if: always()
+    needs: [mod, brain, windows-script]
+    runs-on: ubuntu-24.04
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: echo "A job failed or was cancelled" && exit 1
+      - run: echo "All good"

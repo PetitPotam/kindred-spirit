@@ -1,0 +1,53 @@
+name: Bug report
+description: Something doesn't work, or Pip did something she shouldn't.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please search the open issues first, and **remove any API keys** from what you paste.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you said or did, in order. "Say 'Pip, build a farm' while standing on sand" is perfect.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: ["Singleplayer", "LAN (I host)", "LAN (a friend hosts)", "Dashboard", "Setup / install", "Other"]
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Kindred Spirit / Minecraft / Fabric Loader / Fabric API versions
+      placeholder: "0.1.0-preview / 1.21.1 / 0.16.14 / 0.116.18"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Computer and operating system
+      placeholder: "MacBook Air M4 16 GB, macOS 26 / Windows 11, RTX 3060"
+  - type: input
+    id: ai
+    attributes:
+      label: AI provider and model
+      placeholder: "Gemini 3 Flash, Ollama (llama3.2)..."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        `minecraft-kindred/logs/latest.log` (lines with `kindredspirit`) and `~/.kindred-spirit/logs/brain.log`.
+        Remove API keys and anything personal first.
+      render: text

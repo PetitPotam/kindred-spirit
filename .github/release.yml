@@ -1,0 +1,16 @@
+# How GitHub groups merged pull requests in automatically generated release notes.
+changelog:
+  exclude:
+    labels: [skip-changelog]
+    authors: [dependabot]
+  categories:
+    - title: New
+      labels: [feature, idea]
+    - title: Fixed
+      labels: [bug]
+    - title: Blueprints and skins
+      labels: [content]
+    - title: Docs
+      labels: [docs]
+    - title: Other changes
+      labels: ["*"]

@@ -1,6 +1,7 @@
 # Third-party notices and credits
 
-Kindred Spirit is MIT licensed ([LICENSE](LICENSE)), © 2026 Kindred Spirit contributors. It builds on
+Kindred Spirit is © 2026 PetitPotam, free software under the GNU AGPL-3.0 ([LICENSE](LICENSE)); Pip's name,
+character and art follow [TRADEMARKS.md](TRADEMARKS.md). It builds on
 the work of many others. This file lists everything it uses, downloads, reads or learned from, with
 the licence of each, as far as we know it. If something is missing or wrong, please open an issue.
 

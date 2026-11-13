@@ -3,6 +3,24 @@
 Thanks for wanting to help! Kindred Spirit is young, and small contributions shape it a lot.
 You don't need to know Minecraft modding: half of the project is Python.
 
+## Licence and the contributor agreement
+
+Kindred Spirit is free software under the [GNU AGPL-3.0](LICENSE), copyright PetitPotam. Before your
+first pull request can be merged, please read and sign the **[Contributor License Agreement](CLA.md)**
+(a comment on the pull request is enough). In short:
+
+- you keep the copyright of what you write;
+- your contribution is published to everyone under the AGPL-3.0;
+- you also give the maintainer the right to license it under other terms, including proprietary ones,
+  so the project can be licensed in other ways in the future without asking every contributor.
+
+If you used AI tools for a contribution, say so in the pull request (this project is itself written
+with Claude Code, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)). Pip's name, character and art
+have their own rules: [TRADEMARKS.md](TRADEMARKS.md).
+
+**Using an AI agent?** Point it at [AGENTS.md](AGENTS.md): it has the rules agents must follow here.
+How pull requests are reviewed and merged, and how versions are made: [docs/MAINTAINING.md](docs/MAINTAINING.md).
+
 ## Ground rules
 
 - **Your world stays yours.** The mod must not register blocks, items, entities or world
@@ -65,7 +83,8 @@ cd mod && ./gradlew build             # needs JDK 25 to build (the mod targets J
 2. `brain/.venv/bin/python -m pytest brain/tests`
 3. If you touched what you see or hear: try it in the sandbox,
    `cd mod && ./gradlew runClient -PdevScript=devscripts/smoke-test.txt`, and attach a screenshot.
-4. Keep changes focused; explain *why* in the description.
+4. Keep changes focused; explain *why* in the description, and add a line under "Unreleased" in
+   [CHANGELOG.md](CHANGELOG.md).
 
 CI runs steps 1 and 2 on every pull request.
 

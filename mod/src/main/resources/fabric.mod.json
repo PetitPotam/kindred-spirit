@@ -5,10 +5,12 @@
   "name": "Kindred Spirit",
   "description": "A cute AI companion that floats beside you, talks with you, and never changes your world. Client-side only.",
   "authors": [
-    "Kindred Spirit contributors"
+    "PetitPotam"
   ],
-  "contact": {},
-  "license": "MIT",
+  "contact": {
+    "sources": "https://github.com/PetitPotam/kindred-spirit"
+  },
+  "license": "AGPL-3.0-only",
   "icon": "assets/kindredspirit/icon.png",
   "environment": "client",
   "entrypoints": {
