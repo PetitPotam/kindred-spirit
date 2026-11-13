@@ -127,7 +127,7 @@ jobs:
     # Windows runners have no OpenGL 3.2 for Minecraft at all (docs/TESTING-PLATFORMS.md says what could change that).
     name: Minecraft client, ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: 60 # (one game per Minecraft version in mod/versions/)
     continue-on-error: ${{ matrix.experiment }}
     strategy:
       fail-fast: false
