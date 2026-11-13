@@ -35,6 +35,7 @@ public final class KindredConfig {
     public String chatMode = "auto";
     /** Show the little heart meter when your bond with her changes. */
     public boolean showBond = true;
+    public boolean showTask = true;      // what her hands are busy with, and how far along (top right)
     /** With your world open to LAN, friends without the mod see her (as a stand-in) and can talk to her. */
     public boolean lanGuests = true;
     /** Friends on your LAN world may ask for her powers too (gifts, effects, finding, leading), within her

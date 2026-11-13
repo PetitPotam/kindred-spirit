@@ -1,0 +1,33 @@
+# The big blueprint, confirmed once then built; then praise that doesn't rebuild.
+world kindred-1113-ship
+wait 220
+cmd gamemode spectator
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -24 198 -24 24 198 40 minecraft:grass_block
+cmd fill -24 199 -24 24 215 40 minecraft:air
+cmd tp @s 0.5 199 -20.5 0 30
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power allpowerful
+type /kindred style magic
+act {"move": "follow"}
+wait 100
+chat I want a big shipwreck
+wait 300
+chat upright
+wait 400
+camera back
+look 0 30
+wait 20
+screenshot p1113-04-shipwreck
+camera first
+chat Amazing.
+wait 260
+quit

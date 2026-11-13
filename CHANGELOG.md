@@ -10,6 +10,13 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **Busy hands:** while she builds or works, a new task is kept and done right after ("Ship's first! I'll put
+  the bell down the second I'm done"); "stop" or "do this first" switches. Her task and its progress show at
+  the top right (`showTask` in kindredspirit.json).
+- **Hush her:** "shh", "stop talking", "be quiet" (or "stop" / "enough" while she talks), or a quick tap on the
+  talk key, stop her at once; the rest is dropped. Hushed twice, she keeps it short for a while.
+- **Your bed:** "lead me to my spawn point / my bed" goes to where you come back to life.
+- **"In the middle of what you just built":** "put a bell in the middle of the farm".
 - A crop farm (tilled ground, water, crops planted), a working end portal, and "find a flat field" that
   leads you to the flattest open ground nearby.
 - Builds from blueprints: Minecraft's own structures and CC0 circles, from your local blueprints folder.
@@ -17,6 +24,13 @@ Unreleased into the new version's section.
 - Jobs, crafting help and trading help; a heart for each person she meets; places she remembers.
 - Contributor guide for AI agents (`AGENTS.md`), issue forms, CI for the mod, the brain and the Windows
   update script, release automation, and a Contributor License Agreement.
+
+### Fixed (from the 2026-11-13 playtest)
+- Big blueprints: she asks once, then builds on your yes (or "the upright one"), instead of asking again and again
+  or saying "coming up!" without building.
+- Thanks and praise no longer make her redo the last build; a power that's not for the moment isn't "forgotten".
+- "Give me back my stuff" fetches your real things, no copies; seeds in your hand aren't used as building
+  blocks; room for a big build is looked for nearby and big enough; corrections during a lead aren't refused.
 
 ### Changed
 - The licence is now the **GNU AGPL-3.0** (it was MIT), with a Minecraft linking permission; Pip's name,

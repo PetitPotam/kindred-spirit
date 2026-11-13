@@ -116,4 +116,14 @@ class BuildPlanTest {
         }
         assertEquals(BuildPlan.Shape.FARM, BuildPlan.Shape.of("wheat_farm"));
     }
+
+    @Test
+    void theMiddleOfAFarmIsOverItsWater() {
+        var farm = BuildPlan.steps(BuildPlan.Shape.FARM, 0, 64, 0, FX, FZ, 0, 0, 0, 1, Integer.MIN_VALUE);
+        var water = farm.stream().filter(s -> s.kind() == 'W').findFirst().orElseThrow();
+        assertArrayEquals(new int[]{water.x(), 64, water.z()}, BuildPlan.middleTop(farm), "on the water, at crop level");
+        var pillar = BuildPlan.steps(BuildPlan.Shape.PILLAR, 5, 64, 5, FX, FZ, 1, 1, 4, 1, Integer.MIN_VALUE);
+        assertArrayEquals(new int[]{5, 68, 5}, BuildPlan.middleTop(pillar), "on top of the pillar");
+        assertNull(BuildPlan.middleTop(List.of()));
+    }
 }

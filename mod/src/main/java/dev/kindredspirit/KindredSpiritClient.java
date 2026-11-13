@@ -564,6 +564,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
     private long speakingGrace;
     private volatile int currentLine;
+    private long nextTaskCheck;   // her task on the HUD, looked up 4 times a second (not every frame)
+    private String taskLine;
+    private int taskDone, taskTotal;
+    private long talkPressedAt;   // when the talk key went down
+    private boolean talkCutHer;   // and whether she was speaking then (a quick tap hushes her)
 
     private float volume(Minecraft mc) {
         return cfg.voiceVolume * mc.options.getSoundSourceVolume(SoundSource.MASTER)
@@ -684,6 +689,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
             if (!link.connected()) {
                 if (brainHere) notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
             } else {
+                talkPressedAt = now;
+                talkCutHer = companion.activity == Behavior.Activity.SPEAKING || voice.isPlaying();
                 voice.stop();
                 companion.activity = Behavior.Activity.LISTENING;
                 recorder.start(cfg.maxRecordSeconds, this::onRecorded);
@@ -691,8 +698,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
             }
         } else if (!held && companion.activity == Behavior.Activity.LISTENING) {
             recorder.stop();
-            companion.activity = Behavior.Activity.THINKING;
-            speakingGrace = now + 15000; // give up "thinking" if nothing comes back
+            if (talkCutHer && now - talkPressedAt < 400) { // a quick tap while she spoke: hush, nothing to hear
+                hush();
+                event("hush");
+            } else {
+                companion.activity = Behavior.Activity.THINKING;
+                speakingGrace = now + 15000; // give up "thinking" if nothing comes back
+            }
         }
         if (companion.activity == Behavior.Activity.THINKING && now > speakingGrace) {
             companion.activity = Behavior.Activity.IDLE;
@@ -919,6 +931,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     logChat(herLine(text));
                 });
             }
+            case "hush" -> mc.execute(this::hush); // "shh", "stop talking": cut off at once, the rest dropped
             case "say_more" -> {
                 // the next sentence of the line she's saying, as her answer streams in
                 if (!msg.has("line") || msg.get("line").getAsInt() != currentLine) return;
@@ -1023,6 +1036,18 @@ public final class KindredSpiritClient implements ClientModInitializer {
             companion.mood = Mood.OFFLINE;
             if (companion.activity != Behavior.Activity.SPEAKING) companion.activity = Behavior.Activity.IDLE;
         });
+    }
+
+    /** She stops talking at once: voice, subtitle and the rest of the line (later sentences of it are dropped). */
+    private void hush() {
+        voice.stop();
+        currentLine++;
+        long now = System.currentTimeMillis();
+        companion.subtitleUntil = Math.min(companion.subtitleUntil, now);
+        captionUntil = now;
+        caption = "";
+        companion.activity = Behavior.Activity.IDLE;
+        companion.life.play(Emote.SHY, companion.now());
     }
 
     private void event(String name) {
@@ -1251,6 +1276,38 @@ public final class KindredSpiritClient implements ClientModInitializer {
             reply.accept(follow(str(args, "name")));
             return;
         }
+        if (action.equals("guide") && args.has("spawn")) { // their bed (the last slept in), else the world spawn
+            Minecraft m = Minecraft.getInstance();
+            net.minecraft.client.server.IntegratedServer server = m.getSingleplayerServer();
+            java.util.UUID me = m.player.getUUID();
+            java.util.function.Consumer<double[]> lead = spot -> { // then led there like any place
+                JsonObject g = new JsonObject();
+                g.addProperty("x", (int) Math.floor(spot[0]));
+                g.addProperty("y", (int) Math.floor(spot[1]));
+                g.addProperty("z", (int) Math.floor(spot[2]));
+                g.addProperty("place", spot[3] > 0 ? "your bed (where you come back to life)"
+                        : "the world's spawn (no bed slept in here, or it's gone)");
+                JsonObject again = new JsonObject();
+                again.addProperty("id", id);
+                again.addProperty("action", "guide");
+                again.add("args", g);
+                runAction(again);
+            };
+            if (server == null) { // a friend's world: only the world spawn is known here
+                net.minecraft.core.BlockPos w = m.level.getSharedSpawnPos();
+                lead.accept(new double[]{w.getX(), w.getY(), w.getZ(), 0});
+                return;
+            }
+            server.execute(() -> {
+                net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(me);
+                net.minecraft.core.BlockPos bed = sp == null ? null : sp.getRespawnPosition();
+                boolean here = bed != null && sp.getRespawnDimension() == sp.level().dimension();
+                net.minecraft.core.BlockPos p = here ? bed : server.overworld().getSharedSpawnPos();
+                double[] spot = {p.getX(), p.getY(), p.getZ(), here ? 1 : 0};
+                m.execute(() -> lead.accept(spot));
+            });
+            return;
+        }
         if (action.equals("guide")) {
             double[] t = Actions.lastTarget;
             int follow = Actions.lastTargetEntity;
@@ -1278,6 +1335,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 res.addProperty("distance", Math.round(Math.sqrt(dx * dx + dz * dz)));
                 res.addProperty("direction", Direction8.relative(Minecraft.getInstance().player.getYRot(), dx, dz));
                 res.addProperty("following", follow >= 0 ? "someone moving (you follow them as they walk)" : "a fixed place");
+                if (args.has("place")) res.addProperty("place", args.get("place").getAsString());
             }
             reply.accept(res);
             return;
@@ -1495,6 +1553,24 @@ public final class KindredSpiritClient implements ClientModInitializer {
             g.fill(x, y + 12, x + bw, y + 15, a | 0x3A3550);
             g.fill(x, y + 12, x + Math.max(1, (int) (bw * Math.min(100, bond) / 100.0)), y + 15, a | heart);
             for (int t : new int[]{15, 35, 65, 85}) g.fill(x + bw * t / 100, y + 12, x + bw * t / 100 + 1, y + 15, a | 0x15121D); // the levels
+        }
+        if (now >= nextTaskCheck) {
+            nextTaskCheck = now + 250;
+            JsonObject t = cfg.showTask && !sharing ? Snapshot.task() : null;
+            taskLine = t == null ? null : t.get("what").getAsString();
+            taskDone = t == null ? 0 : t.get("done").getAsInt();
+            taskTotal = t == null ? 0 : t.get("total").getAsInt();
+        }
+        if (taskLine != null) { // what her hands are busy with, under the heart meter
+            String title = displayName + ": " + taskLine;
+            String count = taskDone + " / " + taskTotal;
+            int tw = Math.max(98, font.width(title) + font.width(count) + 10);
+            int x = w - tw - 8, y = rightY + (cfg.showBond && bond >= 0 && now < bondShownUntil ? 30 : 3);
+            panel(g, x - 5, y - 4, x + tw + 5, y + 21, 230, herColor());
+            g.drawString(font, title, x, y, 0xFFFFFFFF);
+            g.drawString(font, count, x + tw - font.width(count), y, 0xFF000000 | herColor());
+            g.fill(x, y + 12, x + tw, y + 15, 0xFF3A3550);
+            g.fill(x, y + 12, x + Math.max(1, (int) (tw * (double) taskDone / Math.max(1, taskTotal))), y + 15, 0xFF000000 | herColor());
         }
         if (now < noticeUntil && !notice.isEmpty()) { // something worth knowing, top left, fading out
             var lines = font.split(Component.literal(notice), Math.max(120, Math.min(300, w - 140)));

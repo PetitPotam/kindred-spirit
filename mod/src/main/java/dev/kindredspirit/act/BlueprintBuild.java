@@ -66,6 +66,7 @@ public final class BlueprintBuild {
     private static boolean magic;
     private static Abilities.Power power;
     private static String name = "";
+    private static int total; // blocks in the whole build, for "230 of 659"
     private static int tick, placed, commandsRun;
     private static JsonObject last;
 
@@ -142,6 +143,7 @@ public final class BlueprintBuild {
         magic = free;
         power = pw;
         name = bp.name();
+        total = bp.solidBlocks();
         tick = placed = commandsRun = 0;
         last = null;
         r.addProperty("how", free ? "magic: with the old words the world obeys (/fill, /setblock)" : "from your pockets, block by block");
@@ -232,6 +234,16 @@ public final class BlueprintBuild {
 
     public static boolean busy() {
         return !queue.isEmpty();
+    }
+
+    /** What she's building and how far along, or null when she isn't (the snapshot, the HUD). */
+    public static JsonObject progress() {
+        if (queue.isEmpty()) return null;
+        JsonObject o = new JsonObject();
+        o.addProperty("what", "building " + name.replace('_', ' '));
+        o.addProperty("done", Math.min(placed, total));
+        o.addProperty("total", total);
+        return o;
     }
 
     /** How the last build ended (for the brain or the sandbox), or null. */

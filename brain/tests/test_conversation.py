@@ -268,5 +268,5 @@ def test_a_failed_tool_doesnt_excuse_saying_it_worked(stubs):
     from kindred import tools as T
     text, mood, gesture = asyncio.run(m.reply({}, "lead the way", tools=[T.ABILITY_TOOLS["guide"]], run_tool=run_tool))
     assert "can't tell" in text and "Follow me" not in text
-    assert "no tool ran" in _json.dumps(stubs.ai_requests[-1]["messages"][-1]) or "didn't" in _json.dumps(
+    assert "ran or worked" in _json.dumps(stubs.ai_requests[-1]["messages"][-1]) or "didn't" in _json.dumps(
         stubs.ai_requests[-1]["messages"][-1])

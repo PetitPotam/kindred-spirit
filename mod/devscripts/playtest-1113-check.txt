@@ -1,0 +1,60 @@
+# Fixes from the 2026-11-13 singleplayer playtest: the bell in the middle of the farm, seeds in hand, the bed,
+# a big blueprint confirmed once then built, and praise that doesn't rebuild.
+world kindred-1113-check
+wait 220
+cmd gamemode spectator
+cmd gamerule doImmediateRespawn true
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -24 198 -24 24 198 40 minecraft:grass_block
+cmd fill -24 199 -24 24 215 40 minecraft:air
+cmd tp @s 0.5 199 0.5 0 35
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power allpowerful
+type /kindred style magic
+act {"move": "follow"}
+wait 100
+chat could you make a wheat farm here please
+wait 300
+chat place a bell in the middle of the farm
+wait 260
+camera back
+look 0 45
+wait 20
+screenshot p1113-01-bell-in-farm
+camera first
+cmd item replace entity @s weapon.mainhand with minecraft:wheat_seeds 5
+cmd tp @s -12.5 199 0.5 0 35
+wait 30
+chat build an outline 4 by 4, 3 high
+wait 260
+screenshot p1113-02-seeds-in-hand
+cmd spawnpoint @s 18 199 30
+cmd tp @s -18.5 199 -18.5 0 10
+wait 40
+chat can you lead me to my spawn point?
+wait 260
+screenshot p1113-03-lead-to-bed
+cmd tp @s 0.5 199 -20.5 0 30
+wait 40
+chat I want a big shipwreck
+wait 300
+chat upright
+wait 300
+chat yes, build it please
+wait 400
+camera back
+look 0 30
+wait 20
+screenshot p1113-04-shipwreck
+camera first
+chat Amazing.
+wait 260
+quit

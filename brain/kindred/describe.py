@@ -59,6 +59,10 @@ def describe(s):
         return "The player is not in a world right now."
     w, t = s.get("where", {}), s.get("time", {})
     lines = []
+    task = s.get("task") or {}
+    if task.get("what"):  # what her hands are busy with (#72): "what are you doing?" has a true answer
+        lines.append("Your hands are busy: %s (%s of %s done). New tasks wait until it's finished, unless they say stop "
+                     "or 'do this first'." % (task["what"], task.get("done", "?"), task.get("total", "?")))
     if s.get("recent"):
         lines.append("Just happened: " + "; ".join(s["recent"]) + ".")
     lines.append("Health %s/%s hearts, hunger %s/10, armor %s. Game mode: %s." % (

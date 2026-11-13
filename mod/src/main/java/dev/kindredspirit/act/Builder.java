@@ -50,6 +50,9 @@ public final class Builder {
     private static Abilities.Style style = Abilities.Style.GROUNDED;
     private static UUID owner; // who asked: their inventory, their reach (a visiting Pip builds for her owner)
     private static int tick, placed, cleared, skipped;
+    private static String doing = "";  // "building a farm" (the snapshot, the HUD)
+    private static int total;
+    private static int[] lastMiddle; // the middle of what she built last, on top ("the bell in the middle of the farm")
 
     /** Starts a build. Called on the server thread. */
     static JsonObject start(MinecraftServer server, ServerPlayer sp, JsonObject args, Abilities.Style st) {
@@ -111,6 +114,11 @@ public final class Builder {
             origin = new BlockPos(sp.blockPosition().getX(), origin.getY(), sp.blockPosition().getZ())
                     .relative(f.getCounterClockWise(), w / 2);
         }
+        boolean middle = "middle".equalsIgnoreCase(Actions.str(args, "at", ""));
+        if (middle && lastMiddle == null) {
+            return Actions.error("I haven't built anything yet to put it in the middle of: I'll put it where you look if you like.");
+        }
+        if (middle) origin = new BlockPos(lastMiddle[0], lastMiddle[1], lastMiddle[2]);
         Direction f = sp.getDirection();
         // clearing: everything from where they stand up (or above the level they name: "above Y 64")
         int level = args.has("level") ? Actions.num(args, "level", 0) : shape.clears() ? sp.getBlockY() - 1 : Integer.MIN_VALUE;
@@ -131,6 +139,9 @@ public final class Builder {
         }
         queue.clear();
         queue.addAll(steps);
+        total = steps.size();
+        doing = (shape.clears() ? "clearing" : "building a " + shape.name().toLowerCase(Locale.ROOT).replace('_', ' '));
+        if (!shape.clears() && shape != BuildPlan.Shape.PLACE) lastMiddle = BuildPlan.middleTop(steps);
         item = what;
         free = isFree;
         style = st;
@@ -352,10 +363,21 @@ public final class Builder {
         return !queue.isEmpty();
     }
 
+    /** What she's building and how far along, or null when she isn't. */
+    public static JsonObject progress() {
+        int left = queue.size();
+        if (left == 0 || total < 20) return null; // (a block or two isn't a task worth waiting for)
+        JsonObject o = new JsonObject();
+        o.addProperty("what", doing);
+        o.addProperty("done", total - left);
+        o.addProperty("total", total);
+        return o;
+    }
+
     private static Item blockItem(ServerPlayer sp, String wanted, boolean free) {
         ItemStack hand = sp.getMainHandItem();
         if (wanted.isBlank() || wanted.equalsIgnoreCase("hand") || wanted.equalsIgnoreCase("held")) {
-            return hand.getItem() instanceof BlockItem ? hand.getItem() : mostBlocks(sp);
+            return buildable(hand.getItem()) ? hand.getItem() : mostBlocks(sp);
         }
         String id = wanted.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
         Item it = itemOf(id);
@@ -369,6 +391,11 @@ public final class Builder {
         return it instanceof BlockItem ? it : null;
     }
 
+    /** A block to build with: not seeds, saplings, flowers or crops (wheat seeds in your hand made an outline of wheat). */
+    private static boolean buildable(Item it) {
+        return it instanceof BlockItem b && !(b.getBlock() instanceof net.minecraft.world.level.block.BushBlock);
+    }
+
     private static Item itemOf(String id) {
         ResourceLocation key = ResourceLocation.tryParse(id.contains(":") ? id : "minecraft:" + id);
         return key == null ? null : BuiltInRegistries.ITEM.getOptional(key).orElse(null);
@@ -376,7 +403,7 @@ public final class Builder {
 
     private static Item mostBlocks(ServerPlayer sp) {
         java.util.Map<Item, Integer> n = new java.util.HashMap<>();
-        for (ItemStack s : sp.getInventory().items) if (s.getItem() instanceof BlockItem) n.merge(s.getItem(), s.getCount(), Integer::sum);
+        for (ItemStack s : sp.getInventory().items) if (buildable(s.getItem())) n.merge(s.getItem(), s.getCount(), Integer::sum);
         return n.entrySet().stream().max(java.util.Map.Entry.comparingByValue()).map(java.util.Map.Entry::getKey).orElse(null);
     }
 

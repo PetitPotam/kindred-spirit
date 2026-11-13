@@ -96,6 +96,14 @@ public final class Snapshot {
         return h;
     }
 
+    /** The task her hands are on, and how far along: a blueprint, a build, or a job; null when free. */
+    public static JsonObject task() {
+        JsonObject t = dev.kindredspirit.act.BlueprintBuild.progress();
+        if (t == null) t = dev.kindredspirit.act.Builder.progress();
+        if (t == null) t = dev.kindredspirit.job.Jobs.progress();
+        return t;
+    }
+
     public static JsonObject build(Minecraft mc, int scanRadius) {
         return build(mc, scanRadius, null);
     }
@@ -120,6 +128,8 @@ public final class Snapshot {
         JsonObject o = new JsonObject();
         o.addProperty("type", "snapshot");
         if (p == null || mc.level == null) return o;
+        JsonObject task = task(); // what her hands are busy with (a build, a job), so she can say so (#72)
+        if (task != null) o.add("task", task);
 
         o.addProperty("health", round1(p.getHealth()));
         o.addProperty("maxHealth", round1(p.getMaxHealth()));

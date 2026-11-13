@@ -86,7 +86,7 @@ ACTION_HINTS = [
     (r"\b(get|take|bring) (me|us)( all)? (back )?(home|to (the|my|our|your) (\w+ )?(house|home|base|place|spot|camp|"
      r"farm|village|portal|bed|cottage|hut|cabin))\b", "guide"),
     # "get my things back" (from where I died): before protect's "get ... back"
-    (r"\b(get|bring|fetch|grab|collect|recover|pick up)\b.{0,25}\b(my|our) (stuff|things|items|loot|gear|"
+    (r"\b(get|give|bring|fetch|grab|collect|recover|return|pick up)\b.{0,25}\b(my|our) (stuff|things|items|loot|gear|"
      r"inventory|drops)\b", "job"),
     (r"\b(place|put|set|drop)\b.{0,30}\b(campfire|bed|chest|barrel|door|crafting table|furnace|lantern|anvil|"
      r"enchanting table|bookshel(f|ves)|cauldron|bell|smoker|blast furnace|loom|composter|beacon|jukebox|"
@@ -144,7 +144,9 @@ ACTION_HINTS = [
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),
     (r"\b(chop|cut|fell|harvest|break|mine|dig out|knock down)\b.{0,25}\b(tree|trees|log|logs|wood|this|that|block|it|"
      r"stone|ore|rock)\b|\bget (me )?(some )?wood\b", "harvest"),
-    (r"\bflat\b.{0,20}\b(field|area|place|spot|land|ground|plain|plains|space|zone)\b|\b(field|area|place|spot|ground|"
+    (r"\b(better|another|other|bigger|good|free|open|empty|flat) (place|spot|space|area|location)\b|"
+     r"\b(room|space) for (it|this|that|the \w+)\b|"
+     r"\bflat\b.{0,20}\b(field|area|place|spot|land|ground|plain|plains|space|zone)\b|\b(field|area|place|spot|ground|"
      r"land)\b.{0,15}\b(that'?s|is|which is)? ?flat\b|\bflat (one|enough)\b", "find_flat"),
     (r"\bend portal\b|\bportal to the end\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(build|make|plant|set up|start|"
@@ -219,7 +221,25 @@ def player_hint(text, names, allowed):
 
 # words that ask her to lead or show the way (a guide nobody asked for is refused)
 ASKS_TO_GO = re.compile(r"\b(lead|guide|take|bring|show|way|where|follow (you|her|pip)|go (to|back|home)|get (me|us) "
-                        r"(to|back|home)|back to|find|direction|which way|how do i get|go there|let'?s go|walk me)\b")
+                        r"(to|back|home)|back to|find|direction|which way|how do i get|go there|let'?s go|walk me|"
+                        r"spawn|bed|slept|leading|not (it|here|there)|wrong (way|place|spot))\b")
+# "shh", "stop talking", "enough": she stops talking at once (#73). Plain "stop" / "enough" hush her only while she
+# talks; otherwise they keep their old meaning (stop the build, the lead)
+HUSH = re.compile(r"^\W*(pip,? )?(s?h(u)?sh+|shh+|hush|quiet|be quiet|quiet please|stop talking|stop it|stop|enough|"
+                  r"that'?s enough|ok(ay)?,? ok(ay)?|alright,? alright|shut up|shut it|silence|zip it|not now|"
+                  r"you talk too much|too long)(,? pip)?\W*$", re.I)
+HUSH_ALWAYS = re.compile(r"^\W*(pip,? )?(s?h(u)?sh+|shh+|hush|quiet|be quiet|quiet please|stop talking|shut up|shut it|"
+                         r"silence|zip it|you talk too much)(,? pip)?\W*$", re.I)
+# where the player comes back to life: their bed (the last one slept in), else the world's spawn (the game knows it)
+SPAWN = re.compile(r"\b(spawn( ?point)?|respawn|(my|the|our) bed|where (i|we) (last )?slept|slept (in|into))\b", re.I)
+# thanks and praise, nothing else: words back, never the last tool again ("Amazing." rebuilt the house she just made)
+PRAISE = re.compile(r"^\W*(oh |wow |pip,? )?(amazing|awesome|great|cool|nice|wow|perfect|beautiful|lovely|gorgeous|"
+                    r"incredible|wonderful|fantastic|so cool|so good|love it|i love it|well done|good job|good girl|"
+                    r"thanks?( you)?( so much| a lot)?|thank you( so much| pip)?|thx|ty|yay)(,? pip)?\W*$", re.I)
+# a yes to something she offered or asked about ("yes, do that", "build it please", "the long one")
+CONFIRM = re.compile(r"^\W*(yes|yeah|yep|yup|sure|ok(ay)?|go ahead|please|do it|do that|build it|make it|"
+                     r"start( building)?|let'?s do it|that one|this one|i want (it|that|the|a|one))\b|"
+                     r"\b(build|make|start building|do) (it|that|this|the \w+)( please| now)?\W*$", re.I)
 
 
 NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,

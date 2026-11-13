@@ -188,13 +188,18 @@ CLAIM = re.compile(r"\bi did it\b|\b(i'?ve (just )?|i have (just )?|i just |i )(
                    r"trying to push|trying to light)\b|\b(follow me|right this way|this way)\b|\bhere'?s (a|your) torch\b|"
                    r"\b(let me|i'?ll|i will) (place|put|push|light|chop|cut|mine|dig|break|give|make|lead|take you|"
                    r"set|change|plant|build|show you|find)\b|\bfollow (my|the) (glow|light|sparkles?)\b|"
-                   r"\bon my way\b|\b(here|there) you go\b|\bi'?m (going to|gonna) (lead|show|find|give|take)\b|"
+                   r"\bon my way\b|\b(coming|going) (right )?up\b|\bon (its|it'?s) way\b|\bhere it comes\b|"
+                   r"\b(it'?s|they'?re) (rising|going up|coming up)\b|\bpoof\b|\bta-?da\b|\bhere it is\b|"
+                   r"\b(it'?s|all|i'?m|we'?re) (done|built|ready|finished)\b|^\W*done\b|\bi (built|made) (it|you|a|the)\b|\b(here|there) you go\b|\bi'?m (going to|gonna) (lead|show|find|give|take)\b|"
                    r"\b(you'?re|you are) all (sparkly|glowy|zoomy)\b",
                    re.I)
 
 
 TALK_TOOLS = ("remember", "forget", "name_place", "rename_place", "set_reminder", "cancel_reminder",
               "standing_request", "listen_more")
+# looking things up changes nothing in the world: "Poof! A whole ship" after a search and two failed builds is a claim
+LOOKUPS = ("find_blueprint", "find_flat", "find_ore", "find_block", "find_animal", "find_player", "locate",
+           "craft_help", "trades", "recipe", "look_up", "wiki")
 
 
 def claims_action(text):
@@ -531,14 +536,17 @@ class Mind:
                 msg.pop("tool_calls", None)
             content = msg.get("content") or ""
             if not calls:
-                if not [n for n in ran if n not in TALK_TOOLS] and tools and run_tool and not self.allow_fib and claims_action(content) \
-                        and not checked and round_ < rounds - 1:
+                deeds = [n for n in ran if n not in TALK_TOOLS]
+                claimed = claims_action(content) if not deeds else (
+                    not [n for n in deeds if n not in LOOKUPS]  # only lookups ran: a claim of a deed (not "I found") counts
+                    and claims_action(re.sub(r"\b(found|find|finding|see|seen)\b", "", content, flags=re.I)))
+                if claimed and tools and run_tool and not self.allow_fib and not checked and round_ < rounds - 1:
                     # it says it did something (placed, pushed, leads...) but nothing ran: do it, or say so
                     checked = True
                     log.info("claimed an action without doing it, asking again: %s", content[:120])
                     messages.append({"role": "assistant", "content": content})
                     messages.append({"role": "user", "content": "(Check: in that answer you said you did or are "
-                                     "doing something, but no tool ran. Either use the tool now to really do it, or "
+                                     "doing something, but nothing that does it ran or worked. Either use the tool now to really do it, or "
                                      "answer again saying honestly what you can or can't do. Same tags as before.)"})
                     continue
                 break

@@ -84,6 +84,12 @@ def player_name(memories):
     return m.group(1) if m else ""
 
 
+# what keeps her hands busy (a new one waits while one runs, #72), and the words that put a new one first
+TASK_TOOLS = ("build", "blueprint", "job", "harvest")
+BUSY_OVERRIDE = re.compile(r"\b(stop|instead|first|right now|now|leave (it|that)|cancel|forget (it|that)|never ?mind|"
+                           r"drop (it|that)|change of plan)\b", re.I)
+
+
 class SpokenStream:
     """One answer, spoken as it streams in: the first sentence starts her line (through the coordinator,
     as a reply), the next ones join it. The voice for each is made in order while the AI keeps writing."""
@@ -94,6 +100,8 @@ class SpokenStream:
         self.task = asyncio.create_task(self.run())
 
     def add(self, text, mood, gesture, whisper):
+        if self.brain.hush_at >= self.started:
+            return  # hushed while this answer was being written: not a word of it
         if self.first_at is None:
             self.first_at = self.brain.clock()
         self.said.append(text)
@@ -109,6 +117,8 @@ class SpokenStream:
             if item is None:
                 return
             text, mood, gesture, whisper = item
+            if self.brain.hush_at >= self.started:
+                continue
             style = "whisper" if whisper else None
             try:
                 if self.line is None:
@@ -261,6 +271,16 @@ class Brain:
         self.spot_said, self.friends_seen, self.prev_dim, self.prev_spot_pos = {}, {}, None, None
         self.friend_warned = -1e9
         self.recent_gifts = {}       # (tool, what, to) -> when: never the same gift again unasked
+        self.blueprint_offer = None  # (name, when): the blueprint she last offered or asked about
+        self.blueprint_asked = {}    # blueprint name -> when she offered it (asked once, then built)
+        self.blueprint_size = None   # (longest side, when): the blueprint in question, for find_flat
+        self.recent_builds = {}      # blueprint name -> when it was built (never twice unasked)
+        self.led_at = -1e9           # when a lead the player asked for started (corrections are fine)
+        self.task_queue = []         # what they asked while her hands were busy: done next, in order (#72)
+        self.task_prev = None        # the task in the last snapshot (finished when it's gone)
+        self.hush_at = -1e9          # when the player last hushed her ("shh", a tap on the talk key)
+        self.hushes = []             # when, lately: hushed often, she keeps it short for a while
+        self.short_until = -1e9
         self.notified = []
         self.idle_since = clock()
         self.last_pos = None
@@ -461,7 +481,7 @@ class Brain:
             if name == "cancel_reminder":
                 return {"ok": True, "cancelled": await self.memory.cancel_reminder(args.get("about", ""))}
             if name == "find_blueprint":
-                return find_blueprints(args.get("query", ""))
+                return self.blueprint_found(find_blueprints(args.get("query", "")))
             if name == "listen_more":
                 return await self.listen_more(args.get("what", "next"))
             if name == "standing_request":
@@ -487,6 +507,8 @@ class Brain:
             await self.tip_for(name)
             return {"ok": False, "error": "That's beyond what you can do."}
         if self.offered is not None and name not in self.offered:
+            if name in (getattr(self, "discovered", None) or []):  # she can, but it isn't what they asked for
+                return {"ok": False, "error": "Not for this: that isn't what they asked for. Just answer in words."}
             # (amnesia) a power she hasn't discovered: the AI knows the name, she doesn't
             return {"ok": False, "error": "You don't know how to do that yet."}
         args = self.real_names(args)  # nicknames she was taught ("follow Dumb") -> the player's name
@@ -527,12 +549,41 @@ class Brain:
             named = intents.block_named(self.recent_player + [getattr(self, "last_player_text", "")])
             if named:  # ("flatten it with dirt", then "do it": still dirt, not whatever is in their hand)
                 args = dict(args, block=named)
+        task = (self.snapshot or {}).get("task")
+        if task and name in TASK_TOOLS and str(args.get("shape") or args.get("what") or args.get("kind") or "") != "stop":
+            if not BUSY_OVERRIDE.search(said_now):
+                if said_now and said_now not in [t for t, _ in self.task_queue]:
+                    self.task_queue = (self.task_queue + [(said_now, self.clock())])[-3:]
+                self.session.event("busy", what=task.get("what"), kept=said_now or None)
+                return {"ok": False, "busy": task.get("what"), "kept": True,
+                        "error": "Your hands are busy: %s (%s of %s). This is kept: you'll do it right after, by "
+                                 "yourself. Say so in a few words, in your way (or, if you're cross, a pointed 'busy!'). "
+                                 "They can say 'stop' or 'do this first'." % (task.get("what"), task.get("done"), task.get("total"))}
+            # "do this first", "stop that and...": the old task stops, this one starts
+            await self.request("job" if str(task.get("what", "")).split(" ")[0] not in ("building", "clearing") else "build",
+                               {"kind": "stop"} if str(task.get("what", "")).split(" ")[0] not in ("building", "clearing")
+                               else {"shape": "stop"})
+            self.session.event("task_switched", what=task.get("what"))
+        if name == "give_item" and "job" in self.abilities and intents.action_hint(said_now, ["job"]) \
+                and re.search(r"\b(my|our) (stuff|things|items|loot|gear|inventory|drops)\b", said_now):
+            return {"ok": False, "error": "They want their own things back, not copies: use job with kind "
+                                          "return_items (it brings back what's lying where they died)."}
+        if name == "blueprint":
+            what = str(args.get("what") or "cottage").lower()
+            if what != "stop" and self.clock() - self.recent_builds.get(what, -1e9) < 120 and not re.search(
+                    r"\b(again|another|second|one more|more|too|also)\b", said_now):
+                return {"ok": False, "error": "You built that a moment ago and they didn't ask for another: don't "
+                                              "build it again (say thanks, or ask what's next)."}
+        if name == "find_flat" and self.blueprint_size and self.clock() - self.blueprint_size[1] < 300:
+            # room for the blueprint in question (the shipwreck is 28 long): never a spot too small for it
+            args = dict(args, size=max(int(args.get("size") or 0), self.blueprint_size[0] + 2))
         if name == "job" and str(args.get("kind", "")) == "return_items" and "x" not in args:
             death = await self.death_spot()
             if death:  # where she remembers they died (the mod also remembers the last death it saw)
                 args = dict(args, **death)
         if name == "guide" and not intents.ASKS_TO_GO.search(
-                (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()):
+                (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()) \
+                and self.clock() - self.led_at > 120:  # (correcting a lead they asked for is still asking)
             # (on 'Hey, Pep' and 'I'm hurt' she set off for a base from the last session: lead only when asked)
             return {"ok": False, "error": "Nobody asked to be led anywhere just now: don't lead (you may offer it in words)."}
         if name == "guide":
@@ -540,6 +591,13 @@ class Brain:
             if args.get("refuse"):
                 return {"ok": False, "error": args["refuse"]}
         result = await self.request(name, args)
+        if name == "guide" and result.get("ok"):
+            self.led_at = self.clock()
+        if name == "blueprint" and result.get("ok") and str(args.get("what") or "cottage").lower() != "stop":
+            self.recent_builds[str(args.get("what") or "cottage").lower()] = self.clock()
+            self.blueprint_offer = None
+        if name == "blueprint" and result.get("inTheWay"):
+            result["error"] = (result.get("error") or "") + " For room nearby: find_flat (the size is set for you), then guide."
         m = re.search(r"\(?(?:The player can switch with )?(/kindred [a-z ]+?)\.?\)", result.get("error") or "")
         if m:  # the way to unlock it is for the player, as a hint in chat: never in her mouth
             await self.send({"type": "notice", "text": "Tip: %s lets %s do this" % (m.group(1), self.cfg["name"])})
@@ -1088,10 +1146,33 @@ class Brain:
         m = max(deaths, key=lambda r: (r.get("meta") or {}).get("last", 0))["meta"]
         return {k: m[k] for k in ("x", "y", "z") if k in m}
 
+    def blueprint_found(self, res):
+        """find_blueprint's answer, with what she already asked: a blueprint she offered a moment ago and they answered
+        about gets built, not asked about again (the shipwreck was confirmed four times and never built)."""
+        names = [m.get("name") for m in res.get("matches") or [] if m.get("name")]
+        if not names:
+            return res
+        now = self.clock()
+        said = (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()
+        asked = now - self.blueprint_asked.get(names[0], -1e9) < 300
+        if asked and not re.match(r"^\W*(no|nope|nah|not|don'?t|stop|cancel|wait)\b", said):
+            res["say"] = ("You already offered this one and they've answered: build %s now (blueprint with what=%s). "
+                          "Don't ask again." % (names[0], names[0]))
+        for n in names[:3]:
+            self.blueprint_asked.setdefault(n, now)
+        self.blueprint_offer = (names[0], now)
+        side = [int(x) for x in re.findall(r"\d+", str((res["matches"][0] or {}).get("size", "")))[:2]]
+        if side:
+            self.blueprint_size = (max(side), now)
+        return res
+
     async def guide_target(self, args):
         """Where to lead: a place it remembers by name, what it just found ("last"), or coordinates
         only if the player actually said numbers (models like to invent them)."""
         to = str(args.get("to") or "").strip().lower()
+        said_now = getattr(self, "last_player_text", "") or ""
+        if intents.SPAWN.search(to + " " + said_now) and not re.search(r"\b(died|death|die|dead)\b", said_now.lower()):
+            return {"spawn": True}  # their bed (the last slept in), else the world spawn: the game knows it
         asked = " ".join([getattr(self, "last_player_text", "")] + self.recent_player[-3:]).lower()
         last = getattr(self, "last_found", None)
         if last and "x" in args and "z" in args:
@@ -1455,6 +1536,8 @@ class Brain:
                 asyncio.create_task(self.end_session())
             self.in_world = False
             self.snapshot = {}
+        elif name == "hush":  # a quick tap on the talk key while she spoke
+            await self.hush()
         elif name == "listening":  # you started talking (push-to-talk): she stops and listens
             self.player_listening, self.listening_since = True, self.clock()
             self.cut_short(self.clock(), by_player=True)
@@ -1560,6 +1643,12 @@ class Brain:
         self.snapshot = s
         self.snapshot_at = self.clock()
         self.save_snapshot(s)
+        task = s.get("task")
+        if self.task_prev and not task:  # her hands are free again: the next thing they asked for
+            self.session.event("task_done", what=self.task_prev.get("what"))
+            if self.task_queue:
+                asyncio.create_task(self.next_task(self.task_prev.get("what", "that")))
+        self.task_prev = task
         if "health" in s:
             self.log_world(s, self.clock())
             self.spots_from(s, self.clock())
@@ -2095,6 +2184,42 @@ class Brain:
         except Exception as e:  # (no embeddings: only the rules understand requests)
             log.info("understanding not warmed up: %s", e)
 
+    async def next_task(self, finished):
+        """Her hands are free: what they asked while she was busy, in order, as if they asked again now."""
+        await asyncio.sleep(1.5)  # (the snapshot after the last block: let "done!" land first)
+        while self.task_queue:
+            text, when = self.task_queue.pop(0)
+            if self.clock() - when > 600:
+                continue  # asked ten minutes ago: likely not wanted any more
+            self.session.event("task_next", text=text, after=finished)
+            self.recent.append((self.clock(), "you finished %s; now what they asked meanwhile: \"%s\"" % (finished, text)))
+            await self.answer(text)
+            return
+
+    def talking(self):
+        """Whether she's talking, about to (an answer being written), or was cut off a moment ago."""
+        now = self.clock()
+        return self.speaking_until > now - 1.5 or self.talk_lock.locked() or bool(self.unfinished)
+
+    async def hush(self, text=""):
+        """"Shh": she stops at once, the rest of what she was saying is dropped (never resumed), and an answer being
+        written isn't said. Hushed twice in five minutes, she keeps her answers short for ten (#73)."""
+        now = self.clock()
+        self.hush_at = now
+        self.unfinished = None
+        if self.resume_task is not None and not self.resume_task.done():
+            self.resume_task.cancel()
+        self.speaking_until, self.speaking_chunks, self.player_listening = now, [], False
+        await self.send({"type": "hush"})
+        self.hushes = [t for t in self.hushes if now - t < 300] + [now]
+        if len(self.hushes) >= 2:
+            self.short_until = now + 600
+        self.session.event("hushed", text=text or "(a tap on the talk key)")
+        self.recent = [(t, x) for t, x in self.recent if now - t < 90] + [
+            (now, "they hushed you, so you stopped talking: don't go back to what you were saying unless they ask")]
+        if re.search(r"\bshut (up|it)\b", text or "", re.I):
+            self.heart.hear(text)  # rude: her heart takes it as it is (a plain "shh" is fine)
+
     def hear_player(self, text, spoken=False):
         self.session.event("you", text=(text or "").strip(), spoken=spoken)
         """Messages wait in an inbox while she's thinking; when she's free she answers all of them at once
@@ -2103,6 +2228,9 @@ class Brain:
         if not text:
             return
         self.player_talked, self.player_listening = self.clock(), False  # (pressing V already stopped her)
+        if intents.HUSH_ALWAYS.match(text) or intents.HUSH.match(text) and self.talking():
+            asyncio.create_task(self.hush(text))  # cut off at once, never queued behind her answer
+            return
         self.inbox.append((text, spoken))
         if self.inbox_task is None or self.inbox_task.done():
             self.inbox_task = asyncio.create_task(self.drain_inbox())
@@ -2176,6 +2304,19 @@ class Brain:
                     force = offer["what"]  # "yes" to "want me to push them away?"
                 elif intents.YES.match(text) and self.her_offer and self.clock() - self.her_offer[1] < 60:
                     force = self.her_offer[0]  # "yes please" to "should I light it up for you?"
+                bp_note = ""
+                recent_bp = self.blueprint_offer and "blueprint" in self.abilities \
+                    and intents.action_hint(text, self.abilities) in (None, "blueprint", "build") \
+                    and not intents.PRAISE.match(text) and not re.match(r"^\W*(no|nope|nah|not|don'?t|stop|cancel|wait)\b", text, re.I)
+                if not force and recent_bp and self.clock() - self.blueprint_offer[1] < 300 and intents.CONFIRM.search(text):
+                    force = "blueprint"  # "yes, do that" / "build it please" to the blueprint she offered
+                    bp_note = ("They said yes to the blueprint you offered (%s): build it now with blueprint "
+                               "(what=%s), no more questions. " % (self.blueprint_offer[0], self.blueprint_offer[0]))
+                elif not force and recent_bp and self.clock() - self.blueprint_offer[1] < 90 and len(text.split()) <= 6 \
+                        and "?" not in text and not re.match(r"^\W*(what|which|how|where|why|who|is|are|can|could)\b", text, re.I):
+                    force = "blueprint"  # "upright" / "the long one": the answer to which blueprint she asked about
+                    bp_note = ("They answered which blueprint they want ('%s'): build the one from your search that "
+                               "matches it now, with blueprint and its exact name. No more questions. " % text)
                 self.her_offer = None
                 talk_tools = ["set_reminder", "name_place", "remember", "standing_request"]
                 others = [p.get("name", "") for p in self.snapshot.get("players") or []]
@@ -2216,8 +2357,10 @@ class Brain:
                     stood = self.heart.stood_up_for_her()  # they stood up for her: it counts (and she noticed)
                     await self.bond_update(stood, "you stood up for her")
                     someone += " The player just stood up for you against a friend who was mean to you: you noticed, it warms you."
-                note = " ".join(x.strip() for x in (self.favour_heard(text), note_cross, self.power_news, someone)
+                note = " ".join(x.strip() for x in (bp_note, self.favour_heard(text), note_cross, self.power_news, someone)
                                 if x.strip())
+                if self.clock() < self.short_until:
+                    note += " They've hushed you twice lately: one short sentence, no more."
                 note += " " if note else ""
                 self.power_news = ""
                 if force == "find_animal" and self.animal_named(text):
@@ -2244,12 +2387,15 @@ class Brain:
                              + " | ".join(entries)) if entries else " Your diary is still empty: say so, simply."
                 note += await self.world_answer(text)  # how the world works: what it remembers, or listen
                 offered = self.heart.offered_tools(self.abilities, force or (asked if note_cross else None))
+                self.discovered = list(offered)  # (what she knows, before this answer's filters)
                 if force and force in intents.FAMILY:  # a clear request: its powers only (no healing, food or torches
                     keep = intents.FAMILY[force]       # nobody asked for: 14 times in one evening)
                     offered = [a for a in offered if a in keep or a not in tools.ABILITY_TOOLS]
                 if (moving or vouched) and not intents.LEADING.search(text) and not about:
                     # (the AI can't turn "follow me" into leading either; "do what Robin says" isn't "go to Robin")
                     offered = [a for a in offered if a not in ("guide", "follow_player")]
+                if intents.PRAISE.match(text) and not force:
+                    offered = []  # thanks and praise get words back, never the last tool again
                 if force and force in tools.ABILITY_TOOLS and force not in offered:
                     # a required tool must be among those offered (Gemini refuses the call otherwise: HTTP 400)
                     if about and force in self.abilities:
@@ -2306,7 +2452,7 @@ class Brain:
             self.mind.world_knowledge = ""  # (only for the question it answered)
             hint = intents.offered_in(reply, self.abilities)
             self.her_offer = (hint, self.clock()) if hint else None
-            if not speech.said:  # (nothing came as a stream: the whole answer, as before)
+            if not speech.said and self.hush_at < speech.started:  # (nothing streamed: the whole answer, as before)
                 await self.say(reply, mood or "happy", emote=gesture,
                                style="whisper" if self.mind.last_whisper else None)
             self.last_talk = self.clock()

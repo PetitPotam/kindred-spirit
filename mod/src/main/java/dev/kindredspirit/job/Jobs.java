@@ -331,6 +331,17 @@ public final class Jobs {
         return job != null;
     }
 
+    /** The job she's on and how far along, or null. */
+    public static JsonObject progress() {
+        Job j = job;
+        if (j == null) return null;
+        JsonObject o = new JsonObject();
+        o.addProperty("what", (j.kind.replace('_', ' ') + " " + (j.what == null ? "" : j.what)).trim());
+        o.addProperty("done", j.done);
+        o.addProperty("total", Math.max(j.total, j.done));
+        return o;
+    }
+
     private static JsonObject start(Job j, int total) {
         j.total = total;
         job = j;

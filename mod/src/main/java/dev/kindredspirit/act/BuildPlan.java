@@ -193,6 +193,21 @@ public final class BuildPlan {
         return c;
     }
 
+    /** The middle of a build, on top: the centre column, one above its highest block there (the bell "in the middle of
+     *  the farm" goes over its water). Null for nothing. */
+    public static int[] middleTop(List<Step> steps) {
+        if (steps.isEmpty()) return null;
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE, minY = Integer.MAX_VALUE;
+        for (Step s : steps) {
+            minX = Math.min(minX, s.x()); maxX = Math.max(maxX, s.x());
+            minZ = Math.min(minZ, s.z()); maxZ = Math.max(maxZ, s.z());
+            minY = Math.min(minY, s.y());
+        }
+        int cx = Math.floorDiv(minX + maxX, 2), cz = Math.floorDiv(minZ + maxZ, 2), top = Integer.MIN_VALUE;
+        for (Step s : steps) if (s.x() == cx && s.z() == cz && s.kind() != 'X') top = Math.max(top, s.y());
+        return new int[]{cx, top == Integer.MIN_VALUE ? minY : top + 1, cz};
+    }
+
     /** A farm's water: the middle of every 9-wide stretch (and of a shorter last one), so the whole field stays wet. */
     static boolean middle(int i, int n) {
         int start = i / 9 * 9, size = Math.min(9, n - start);

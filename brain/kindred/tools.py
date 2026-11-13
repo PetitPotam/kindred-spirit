@@ -31,7 +31,8 @@ ABILITY_TOOLS = {
                        "to such a thing, then guide.", {"block": {"type": "string", "description": "flower, pumpkin, "
                        "chest, water, tree, sugar cane..."}}, ["block"]),
     "locate": _fn("locate", "Find the nearest structure or biome in this world (uses the world seed, any distance). "
-                  "Structures: " + STRUCTURES + ". Or any biome, like cherry_grove or mushroom_fields.",
+                  "Structures: " + STRUCTURES + ". Or any biome, like cherry_grove or mushroom_fields. "
+                  "Never to find room for a build: that's find_flat, near the player.",
                   {"what": {"type": "string"}}, ["what"]),
     "guide": _fn("guide", "Float ahead and lead the player to a place until they arrive (they see an arrow and the "
                  "distance on screen). Use it whenever you say 'follow me' or 'this way'. Usually call it with no "
@@ -62,7 +63,9 @@ ABILITY_TOOLS = {
                  "'width' x 'length' goes, from where they stand up, or above 'level'), end_portal (a working end portal: twelve frames with eyes around it, open to the End; magic only), farm (a crop farm: tilled ground with water in the middle and crops planted, 'width' x 'length', 9 x 9 by default; 'block' is the crop: wheat, carrots, potatoes or beetroots), flatten (clear, and fill holes "
                  "in the ground at that level with 'block'). 'stop' stops. Use the block they named, in this or an "
                  "earlier message. If what they want isn't one of these shapes, say you can't build that yet: never "
-                 "build something else and call it done. If the size isn't clear, ask first.",
+                 "build something else and call it done (a blueprint they chose is built with blueprint, never imitated "
+                 "with build). If the size isn't clear, ask first. 'at': 'middle' puts it in the middle of what you "
+                 "just built ('the bell in the middle of the farm'), else it goes where they look.",
                  {"shape": {"type": "string", "enum": ["place", "pillar", "corners", "wall", "floor", "outline", "house",
                                                        "portal", "end_portal", "farm", "clear", "flatten", "stop"]},
                   "block": {"type": "string", "description": "the block or item, e.g. cobblestone, oak_planks, campfire, "
@@ -70,13 +73,19 @@ ABILITY_TOOLS = {
                   "height": {"type": "integer"}, "width": {"type": "integer", "description": "to their right"},
                   "length": {"type": "integer", "description": "forward"},
                   "people": {"type": "integer", "description": "house: how many it's for"},
-                  "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"}}, ["shape"]),
+                  "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"},
+                  "at": {"type": "string", "enum": ["look", "middle"],
+                         "description": "look (default): where they look; middle: the middle of what you just built"}},
+                 ["shape"]),
     "blueprint": _fn("blueprint", "Build a whole house where the player is looking: a cottage made for how many people "
                      "it's for (a bed each, a chest, a crafting table, a furnace, windows, a door facing them, a stair roof), "
                      "or a blueprint file by its exact name from find_blueprint (a village house, an igloo, a ship...). For a "
                      "house in general ('a house', 'a cozy cottage for three'), the cottage; for a particular kind ('a "
                      "desert house', 'the plains smithy', 'a ship', 'something big'), look it up with find_blueprint first, "
-                     "and if several fit or you're not sure, ask which one before building; confirm a big one first. In "
+                     "and if several fit or you're not sure, ask which one before building; confirm a big one first, ONCE: "
+                     "when they've answered (yes, or which one), build it with its exact name, no more questions. "
+                     "Saying it's coming without calling this tool is a lie. If there's no room, find_flat with the "
+                     "blueprint's longest side as 'size' finds open ground nearby (never a far biome). In "
                      "magic style it rises in a few seconds; in grounded style it needs the materials in their pockets, and "
                      "if something's missing you get the list (and what they could craft): tell them what to gather. It "
                      "never builds over something built: then say so. 'stop' stops.",
