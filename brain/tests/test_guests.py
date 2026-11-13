@@ -186,3 +186,20 @@ def test_when_her_tries_run_out_she_still_answers_in_words(stubs):
     m = Mind(make_cfg(stubs.port))
     text, mood, _ = asyncio.run(m.reply(snap(), "lead the way"))
     assert text == "I can't find the way there, sorry." and mood == "sad"
+
+
+def test_lead_to_animals_in_sight_not_to_where_they_were_first_met(stubs):
+    """2026-11-13 demo take: "Where are the sheep? Lead the way!" led to where the first sheep was met
+    (the player's own spot, distance 0) instead of the sheep in sight."""
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.snapshot = {"animals": [{"id": 7, "type": "minecraft:sheep", "distance": 26, "direction": "ahead", "seen": True}],
+                  "where": {"x": 0, "y": 64, "z": 0}}
+    b.last_player_text = "Where are the sheep? Lead the way!"
+
+    async def spot(text):
+        return {"text": "where we met our first sheep", "meta": {"x": 0, "y": 64, "z": 0}}
+    b.memory.find_spot = spot
+    assert asyncio.run(b.guide_target({"to": "sheep"})) == {"entity": 7}
+    b.last_player_text = "Take me back to where we met our first sheep"
+    assert asyncio.run(b.guide_target({"to": "sheep"})) == {"x": 0, "y": 64, "z": 0}

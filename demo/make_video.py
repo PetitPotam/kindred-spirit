@@ -61,12 +61,38 @@ TOUR = [
     ("night", "Glows at night", "", "#6E8CE6"),
     ("skins", "Make her yours", "pick a skin, or draw your own", "#FF9EC4"),
 ]
+SHOWCASE = [
+    ("meet", "Meet Pip", "a little spirit who floats beside you, sees your world and talks back", "#7ADC6E"),
+    ("find", "She finds things", "and floats ahead to lead the way", "#6EC8DC"),
+    ("mine", "Helping hands", "she mines with your pickaxe", "#FFB347"),
+    ("chop", "and chops", "the tree you look at, logs into your pockets", "#FFB347"),
+    ("plan", "Crafting help", "what you're missing, from your own pockets", "#AA8CFF"),
+    ("cottage", "She builds with you", "a cottage from a blueprint, where you look", "#7ADC6E"),
+    ("magic", "A little magic", "effects, enchantments, gifts", "#E6B8FF"),
+    ("danger", "She watches your back", "instant warnings, and she pushes monsters away", "#F05A78"),
+    ("places", "She remembers places", "and takes you back", "#6EC8DC"),
+    ("feelings", "She has feelings", "hit her by accident, say sorry, pet her", "#FF9EC4"),
+    ("night", "Glows in the dark", "brighter when you ask", "#6E8CE6"),
+    ("skins", "Make her yours", "pick a skin, or draw your own", "#FF9EC4"),
+]
 CUTS = {
     "demo": {"chapters": CHAPTERS, "title_at": "fairy", "end_at": "night", "out": "kindred-spirit-demo.mp4",
              "title": [("a cute AI companion for Minecraft", 56, "Semibold", (240, 236, 255)),
                        ("talk to it · it talks back · it never changes your world", 34, "Medium", (206, 200, 236))],
              "fine": ["Recorded live in a test world. Pip's answers are real AI replies (Gemini 3.1 Flash-Lite) "
                       "spoken by a local Kokoro voice; the player's voice is synthesized."]},
+    "showcase": {"chapters": SHOWCASE, "title_at": "cottage", "end_at": "skins", "out": "kindred-spirit-showcase.mp4",
+                 "title": [("a living AI companion for Minecraft", 56, "Semibold", (240, 236, 255)),
+                           ("she talks, sees, helps, builds, remembers, and has feelings", 34, "Medium", (206, 200, 236))],
+                 "friends": [("Play with friends on LAN", 56, "Semibold", (240, 236, 255)),
+                             ("one Pip, on the computer that runs her", 34, "Medium", (206, 200, 236)),
+                             ("friends with the mod see her as you do, and talk to her in chat", 34, "Medium",
+                              (206, 200, 236)),
+                             ("she finds, helps and stays with whoever you choose", 34, "Medium", (206, 200, 236)),
+                             ("and comes along when a friend hosts the world", 34, "Medium", (206, 200, 236))],
+                 "fine": ["Recorded live in a singleplayer test world. Pip's answers are real AI replies (Gemini 3 "
+                          "Flash; her deeper thinking on Claude), spoken by a local Kokoro voice. The player's "
+                          "voice is synthesized."]},
     "tour": {"chapters": TOUR, "title_at": "guide", "end_at": "night", "out": "kindred-spirit-tour.mp4",
              "title": [("Pip's journey: a living AI companion for Minecraft", 52, "Semibold", (240, 236, 255)),
                        ("she talks, remembers, helps, has feelings, and grows with you", 34, "Medium",
@@ -285,6 +311,13 @@ def main():
             if ts - 0.3 <= t < te:
                 timeline_sounds.append((len(pieces), t - ts, f))
         pieces.append(chapter_clip(video, ts, dur, overlays, name))
+
+    if cut.get("friends"):  # a word about playing with friends before the end card
+        fr_still = os.path.join(TMP, "friends-still.png")
+        run(["ffmpeg", "-y", "-v", "error", "-ss", str(marks.get("places", marks["meet"]) + 3), "-i", video,
+             "-frames:v", "1", fr_still])
+        card(Image.open(fr_still).convert("RGB"), os.path.join(TMP, "friends.png"), "Friends", cut["friends"])
+        pieces.append(still_clip(os.path.join(TMP, "friends.png"), 6.0, "friends"))
 
     end_still = os.path.join(TMP, "end-still.png")
     run(["ffmpeg", "-y", "-v", "error", "-ss", str(marks.get(cut["end_at"], marks["meet"]) + 2), "-i", video,
