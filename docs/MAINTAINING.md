@@ -118,7 +118,8 @@ nothing merges without CI, the CLA and a review. Beyond that:
 
 - **Pin an issue** for the problem everyone hits ("Pip doesn't answer: check your AI key"), and close
   duplicates with a link to it.
-- **Turn on Discussions** for questions and showing off, so issues stay for bugs and ideas.
+- **Discussions** are on (Q&A, Ideas, Show and tell...): point questions there, so issues stay for bugs and
+  planned work; a good idea from a discussion becomes an issue.
 - **Saved replies** in GitHub for the answers you write ten times.
 - **First-time contributors' workflows need approval** (Settings → Actions → General): keep it on.
 - **Big pull requests nobody discussed:** thank, and ask for an issue first. It's fine to say no.

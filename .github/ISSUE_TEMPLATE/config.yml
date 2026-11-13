@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: A question, or something to show
+    url: https://github.com/PetitPotam/kindred-spirit/discussions
+    about: Ask how to set her up or play, share your builds and ideas, or just say hi, in Discussions.
   - name: Security problem
     url: https://github.com/PetitPotam/kindred-spirit/blob/main/SECURITY.md
     about: Please don't describe security problems in an issue. How to report them privately is here.
