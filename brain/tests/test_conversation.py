@@ -52,12 +52,14 @@ def test_the_stable_parts_come_first_and_stay_the_same(stubs):
 
 
 def test_one_tool_list_on_every_call_and_only_the_fitting_ones_run(stubs):
+    """ai.stable_tools (off by default): the same list on every call, what fits enforced before the game."""
     from kindred import tools
     stubs.ai_script = [
         {"role": "assistant", "content": "", "tool_calls": [
             {"id": "a", "type": "function", "function": {"name": "give_item", "arguments": '{"item": "apple"}'}}]},
         {"role": "assistant", "content": "[happy] Okay, I'm right here."}]
     cfg = make_cfg(stubs.port)
+    cfg["ai"]["stable_tools"] = True
     m = Mind(cfg)
     m.all_tools = tools.for_abilities(["give_item", "guide", "follow_player"])
     ran = []

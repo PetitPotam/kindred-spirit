@@ -32,9 +32,13 @@ def test_follow_me_is_never_a_trip(stubs):  # items 1 and 19
     assert {"type": "act", "move": "follow"} in sent
     req = stubs.ai_requests[-1]
     assert "tool_choice" not in req or req["tool_choice"] in ("auto", None)
-    # every tool is listed on every call (the provider's cache); what fits this answer is said and enforced
-    fit = req["messages"][-1]["content"].split("[Powers for this answer]")[-1].split("[Player]")[0]
-    assert "guide" not in fit and "follow player" not in fit
+    offered = {t["function"]["name"] for t in req.get("tools") or []}
+    content = req["messages"][-1]["content"]
+    if "[Powers for this answer]" in content:  # (ai.stable_tools: every tool listed, what fits said and enforced)
+        fit = content.split("[Powers for this answer]")[-1].split("[Player]")[0]
+        assert "guide" not in fit and "follow player" not in fit
+    else:
+        assert "guide" not in offered and "follow_player" not in offered
 
 
 def test_follow_me_to_somewhere_still_leads():

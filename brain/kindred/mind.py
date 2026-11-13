@@ -476,7 +476,10 @@ class Mind:
         and each sentence handed over as soon as it's complete (self.streamed then says how much was)."""
         ai = self.cfg["ai"]
         await self.recall(snapshot, prompt)
-        stable = self.all_tools if ai.get("stable_context", True) else None
+        # one tool list on every call (ai.stable_tools): measured on the eval set, the cache served 44% of the
+        # tokens with it and 41% without (tool rounds are cached either way) for 40% more tokens sent, so it's
+        # off by default; the smaller list for each kind of request is kept (docs/research/designs-2026-11.md)
+        stable = self.all_tools if ai.get("stable_tools", False) else None
         allowed = {t["function"]["name"] for t in tools or []} if (tools and run_tool) else set()
         messages = self.build_messages(snapshot, prompt, allowed if stable else None)
         self.last_rounds = 0
