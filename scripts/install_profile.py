@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Adds a "Kindred Spirit (Fabric 1.21.1)" profile to the official Minecraft Launcher.
 
-    python3 scripts/install_profile.py            install or update (the launcher must be closed)
-    python3 scripts/install_profile.py --dry-run  show what it would do
+    python3 scripts/install_profile.py                    install or update (the launcher must be closed)
+    python3 scripts/install_profile.py --minecraft 26.3   for another Minecraft version the mod supports
+    python3 scripts/install_profile.py --dry-run          show what it would do
 
 What it does, and nothing more:
-  1. Installs Fabric Loader for 1.21.1 with Fabric's official installer (versions/ folder).
+  1. Installs Fabric Loader for that Minecraft version with Fabric's official installer (versions/ folder).
   2. Creates a separate game folder (minecraft-kindred next to your minecraft folder) so this
-     profile has its own mods, settings and worlds; your other profiles are not touched.
+     profile has its own mods, settings and worlds; your other profiles are not touched. Another
+     Minecraft version gets a folder and profile of its own (minecraft-kindred-26.3), so a world is
+     never opened in the wrong game.
   3. Puts Fabric API (from Modrinth, hash-checked) and the Kindred Spirit jar in its mods folder.
   4. Copies your options.txt there the first time, so keys and video settings feel the same.
   5. Adds the profile to launcher_profiles.json, after saving a backup next to it.
@@ -80,9 +83,10 @@ def fabric_api():
 
 
 def mod_jar():
-    jars = [j for j in glob.glob(os.path.join(ROOT, "mod", "build", "libs", "kindred-spirit-*.jar")) if "-sources" not in j]
+    # one jar per Minecraft version (mod/versions/): the one for this profile's Minecraft
+    jars = glob.glob(os.path.join(ROOT, "mod", "build", "libs", "kindred-spirit-*+%s.jar" % MC_VERSION))
     if not jars:
-        sys.exit("Build the mod first:  cd mod && ./gradlew build")
+        sys.exit("Build the mod first:  cd mod && ./gradlew :%s:build" % MC_VERSION)
     return max(jars, key=os.path.getmtime)
 
 
@@ -99,13 +103,23 @@ def launcher_running():
 
 
 def main():
+    global MC_VERSION
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--game-dir", help="where this profile keeps its mods and worlds")
+    ap.add_argument("--minecraft", default=MC_VERSION,
+                    help="the Minecraft version (one of mod/versions/, default %s)" % MC_VERSION)
     a = ap.parse_args()
+    supported = sorted(os.listdir(os.path.join(ROOT, "mod", "versions")))
+    if a.minecraft not in supported:
+        sys.exit("Kindred Spirit is made for Minecraft %s, not %s." % (", ".join(supported), a.minecraft))
+    other = a.minecraft != MC_VERSION  # (another version: its own folder and profile, next to the default one)
+    MC_VERSION = a.minecraft
+    profile_id = PROFILE_ID + ("-" + MC_VERSION if other else "")
 
     mc = minecraft_dir()
-    game = a.game_dir or os.path.join(os.path.dirname(mc), ("minecraft-kindred" if sys.platform == "darwin" else ".minecraft-kindred"))
+    folder = ("minecraft-kindred" if sys.platform == "darwin" else ".minecraft-kindred") + ("-" + MC_VERSION if other else "")
+    game = a.game_dir or os.path.join(os.path.dirname(mc), folder)
     profiles = os.path.join(mc, "launcher_profiles.json")
     version_id = "fabric-loader-%s-%s" % (LOADER, MC_VERSION)
     jar = mod_jar()
@@ -152,10 +166,10 @@ def main():
     with open(os.path.join(ROOT, "mod", "src", "main", "resources", "assets", "kindredspirit", "icon.png"), "rb") as fh:
         icon = "data:image/png;base64," + base64.b64encode(fh.read()).decode()
     now = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
-    entry = data.setdefault("profiles", {}).get(PROFILE_ID, {"created": now})
+    entry = data.setdefault("profiles", {}).get(profile_id, {"created": now})
     entry.update({"name": "Kindred Spirit (Fabric %s)" % MC_VERSION, "type": "custom", "lastVersionId": version_id,
                   "gameDir": game, "icon": icon, "lastUsed": now})
-    data["profiles"][PROFILE_ID] = entry
+    data["profiles"][profile_id] = entry
     tmp = profiles + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2)

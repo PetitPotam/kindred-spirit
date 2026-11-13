@@ -13,8 +13,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherMixin {
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
+    //? if >=26.1 {
     private <E extends Entity> void kindredspirit$hideStandIn(E entity, Frustum frustum, double x, double y, double z,
+                                                            float partialTicks, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private <E extends Entity> void kindredspirit$hideStandIn(E entity, Frustum frustum, double x, double y, double z,
                                                             CallbackInfoReturnable<Boolean> cir) {
+    *///?}
         if (GuestBridge.hidden != null && GuestBridge.hidden.equals(entity.getUUID())) cir.setReturnValue(false);
     }
 }

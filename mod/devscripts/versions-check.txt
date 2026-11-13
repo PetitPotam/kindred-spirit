@@ -1,0 +1,47 @@
+# #41 a newer Minecraft: she appears, talks, leads the way and builds a shape.
+# ./gradlew :26.3:runClient -PdevScript=devscripts/versions-check.txt (needs the brain running: scripts/start.sh)
+# Game rules are named advance_time/spawn_mobs from 1.21.11 on (doDaylightCycle/doMobSpawning before: on 1.21.1
+# those two lines only print an error). "style magic": she builds without taking blocks from your pockets.
+# Screenshots land in versions/26.3/run/screenshots/.
+world kindred-versions
+wait 240
+cmd gamerule advance_time false
+cmd gamerule spawn_mobs false
+cmd time set 1000
+cmd weather clear
+cmd kill @e[type=!minecraft:player]
+cmd fill ~-40 ~-1 ~-12 ~12 ~-1 ~12 minecraft:grass_block
+cmd fill ~-40 ~ ~-12 ~12 ~10 ~12 minecraft:air
+type /kindred power allpowerful
+type /kindred style magic
+look 0 10
+wait 120
+screenshot versions-01-appears
+chat Hi Pip! Which Minecraft are we in, and what do you see around me?
+waitsay 400
+wait 60
+screenshot versions-02-talks
+camera front
+wait 40
+screenshot versions-03-face
+camera first
+cmd summon minecraft:sheep ~-32 ~ ~4
+cmd summon minecraft:sheep ~-34 ~ ~-3
+chat can you lead me to the sheep? I'll follow you
+wait 300
+screenshot versions-04-leads
+turnto companion 1
+wait 25
+walk 4
+wait 80
+screenshot versions-05-following
+cmd tp @s ~ ~ ~ 0 30
+chat make a star of gold blocks on the ground in front of me, 11 wide
+wait 400
+cmd gamemode spectator
+cmd tp @s ~ ~16 ~ 0 90
+wait 40
+screenshot versions-06-star
+cmd gamemode survival
+wait 20
+quit

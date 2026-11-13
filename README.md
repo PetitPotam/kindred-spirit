@@ -5,7 +5,7 @@
 
 **A cute AI companion for Minecraft Java that floats beside you, talks with you by voice, and never touches your world.**
 
-Minecraft 1.21.1 · Fabric · AGPL-3.0 · early preview
+Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · early preview
 
 <img src="docs/demo.gif" width="720" alt="Pip trying on skins: slime, soft cube, strawberry, wisp, starry orb, pixie and fairy">
 </div>
@@ -99,7 +99,7 @@ way a command would.
 ### Friends on your LAN world
 
 One Pip, on your computer: your AI, her voice, her memory and her heart. Open your world to LAN and
-friends join on the same Minecraft version (**release 1.21.1**):
+friends join on the same Minecraft version as yours (26.3 or 1.21.1, with the matching Kindred jar):
 
 - **With the mod (light mode):** they see her exactly as you do (her skin, face, moods, gestures and
   subtitles), drawn by their own game from what yours sends. No AI, Python or keys on their side.
@@ -178,7 +178,7 @@ with `/kindred life <name> <value>` (saved right away), or `/kindred life reset`
 ## How it fits together
 
 ```
-Minecraft 1.21.1 + Fabric
+Minecraft 26.3 or 1.21.1 + Fabric
   └─ Kindred Spirit mod (Java, client only): draws Pip, reads the game, acts when allowed, mic and speaker
         │  WebSocket on 127.0.0.1:47811, with a token from ~/.kindred-spirit/token
   Kindred brain (Python): conversation, moods, danger rules, tools, memory and learning
@@ -221,7 +221,7 @@ computer.
 brew install openjdk@25 python@3.12 whisper-cpp
 git clone https://github.com/PetitPotam/kindred-spirit.git && cd kindred-spirit
 scripts/setup.sh                 # the guide (below)
-(cd mod && ./gradlew build)      # builds the mod
+(cd mod && ./gradlew build)      # builds the mod: one jar per Minecraft version (26.3, 1.21.1)
 python3 scripts/install_profile.py      # quit the Minecraft Launcher first
 ```
 
@@ -245,7 +245,8 @@ Without questions: `scripts/setup.sh --defaults` (Gemini, everything else local)
 
 `install_profile.py` adds a **Kindred Spirit (Fabric 1.21.1)** profile with its **own game folder**
 (`minecraft-kindred`), installs Fabric Loader and Fabric API, and backs up your launcher profiles.
-Your other profiles, mods and worlds are untouched.
+Your other profiles, mods and worlds are untouched. For the newest Minecraft, `--minecraft 26.3` adds a
+**Kindred Spirit (Fabric 26.3)** profile next to it, with its own folder (`minecraft-kindred-26.3`).
 
 Then play: double-click **`scripts/play-mac.command`**. It starts everything and opens the launcher
 **from Terminal**, which matters on macOS: the launcher has no microphone permission of its own,
@@ -345,9 +346,10 @@ Three levels, from fastest to most real:
    .venv/bin/python tools/fake_game.py creeper --play
    .venv/bin/python tools/fake_game.py speak "what's around me?"   # Kokoro asks, Whisper hears
    ```
-3. **A sandbox Minecraft:** `cd mod && ./gradlew runClient -PdevScript=devscripts/smoke-test.txt` starts a
-   throwaway dev game (its own folder, `mod/run`), creates a test world, talks to the companion,
-   spawns a frozen creeper behind you, drops your health and takes screenshots in `mod/run/screenshots`.
+3. **A sandbox Minecraft:** `cd mod && ./gradlew :26.3:runClient -PdevScript=devscripts/smoke-test.txt` starts a
+   throwaway dev game (its own folder, `mod/versions/26.3/run`; `:1.21.1:runClient` for the older game), creates
+   a test world, talks to the companion, spawns a frozen creeper behind you, drops your health and takes
+   screenshots in `mod/versions/26.3/run/screenshots`.
    `devscripts/life-test.txt` does the same for its liveliness and every skin (eye contact, petting,
    gestures, stay and come, watching a creeper).
 

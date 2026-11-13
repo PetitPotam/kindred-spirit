@@ -1,5 +1,6 @@
 package dev.kindredspirit;
 
+import dev.kindredspirit.util.Mc;
 import dev.kindredspirit.life.Behavior;
 import dev.kindredspirit.skin.Skin;
 import dev.kindredspirit.util.Mood;
@@ -14,7 +15,7 @@ import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Enemy;
-import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -160,7 +161,7 @@ public final class Companion {
         // hitting her: the attack key pressed with the crosshair right on her, and no mob, animal or
         // block in front of her (hitting a cow next to her is not hitting her)
         // (always from YOUR eyes: in light mode her body follows the host, but the hand that hits her is yours)
-        boolean attack = mc.options.keyAttack.isDown() && mc.screen == null;
+        boolean attack = mc.options.keyAttack.isDown() && Mc.screen(mc) == null;
         Behavior.Senses me = s;
         if (a != p) {
             Vec3 myEye = p.getEyePosition(), myLook = p.getViewVector(1f);

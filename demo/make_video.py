@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Edits the recorded demo (mod/run/recordings/demo) into a finished video: chapter titles,
+"""Edits the recorded demo (mod/versions/1.21.1/run/recordings/demo) into a finished video: chapter titles,
 captions of what is said, a title and an end card, crossfades, the voices back in place, and
 music that dips under speech. Output: demo/out/kindred-spirit-demo.mp4 (+ a short preview GIF).
 
@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 CUT = sys.argv[1] if len(sys.argv) > 1 else "demo"
-REC = os.path.join(ROOT, "mod", "run", "recordings", CUT)
+REC = os.path.join(ROOT, "mod", "versions", "1.21.1", "run", "recordings", CUT)  # (recording: 1.21.x only for now)
 OUT = os.path.join(HERE, "out")
 TMP = os.path.join(OUT, "work" if CUT == "demo" else "work-" + CUT)
 W, H, FPS = 1920, 1080, 30

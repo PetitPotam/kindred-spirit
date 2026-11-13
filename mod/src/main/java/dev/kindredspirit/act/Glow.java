@@ -1,5 +1,6 @@
 package dev.kindredspirit.act;
 
+import dev.kindredspirit.util.Mc;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -48,7 +49,7 @@ public final class Glow {
         // dark: the brighter of the sky (night, caves, under a roof) and lamps or torches is below 7. Her own light never
         // counts: once she's lit, only daylight turns her off (she can't tell her light from a lamp's), so no flicker
         ServerLevel sl = server != null ? server.getLevel(mc.level.dimension()) : null;
-        long tod = mc.level.getDayTime() % 24000;
+        long tod = Mc.dayTime(mc.level) % 24000;
         int skyDarken = sl != null ? sl.getSkyDarken() : (tod > 13000 && tod < 23000 ? 11 : 0); // (visiting: from the clock)
         int sky = mc.level.getBrightness(LightLayer.SKY, here) - skyDarken;
         boolean dark = wasDark ? sky < 7 : Math.max(sky, mc.level.getBrightness(LightLayer.BLOCK, here)) < 7;
@@ -86,7 +87,7 @@ public final class Glow {
     public static void visitorLight(MinecraftServer server, net.minecraft.server.level.ServerPlayer owner, BlockPos at, int level) {
         Object[] old = visitors.remove(owner.getUUID());
         if (old != null) unlight(server, (ResourceKey<Level>) old[0], (BlockPos) old[1]);
-        ServerLevel l = owner.serverLevel();
+        ServerLevel l = Mc.level(owner);
         if (at == null || !l.isLoaded(at) || !l.getBlockState(at).isAir() || at.distSqr(owner.blockPosition()) > 16 * 16) return;
         l.setBlock(at, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, Math.max(1, Math.min(15, level))), 3);
         visitors.put(owner.getUUID(), new Object[]{l.dimension(), at});

@@ -4,7 +4,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * A visiting Pip, from her owner's game to the friend's world they joined (the host's game has
@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
  * powers she uses there (JSON: {"kind": "state" | "say" | "act", ...}).
  */
 public record VisitPayload(String json) implements CustomPacketPayload {
-    public static final Type<VisitPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("kindredspirit", "visit"));
+    public static final Type<VisitPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("kindredspirit", "visit"));
     public static final StreamCodec<RegistryFriendlyByteBuf, VisitPayload> CODEC =
             StreamCodec.composite(ByteBufCodecs.STRING_UTF8, VisitPayload::json, VisitPayload::new);
 

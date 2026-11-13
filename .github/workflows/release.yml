@@ -1,6 +1,7 @@
 name: Release
-# Pushing a version tag (v0.2.0, v0.2.0-beta.1) builds the mod and makes a GitHub release with the jar and
-# that version's notes from CHANGELOG.md. scripts/release.sh makes the tag; see docs/MAINTAINING.md.
+# Pushing a version tag (v0.2.0, v0.2.0-beta.1) builds the mod for every Minecraft version in mod/versions/ and makes
+# a GitHub release with the jars and that version's notes from CHANGELOG.md, then puts each jar on Modrinth and
+# CurseForge for its own Minecraft version. scripts/release.sh makes the tag; see docs/MAINTAINING.md.
 on:
   push:
     tags: ["v*"]
@@ -11,7 +12,11 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version-type: ${{ steps.type.outputs.type }}
+      minecraft: ${{ steps.minecraft.outputs.list }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -21,10 +26,12 @@ jobs:
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
             || { echo "Tag ${GITHUB_REF_NAME} isn't on main: releases come from a merged pull request (scripts/release.sh)."; exit 1; }
       - name: The tag matches the version in mod/gradle.properties
+        id: version
         run: |
           v=$(sed -n 's/^mod_version=//p' mod/gradle.properties)
           [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "Tag ${GITHUB_REF_NAME} but mod_version=$v"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -38,21 +45,62 @@ jobs:
         run: |
           awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
           [ -s notes.md ] || { echo "CHANGELOG.md has no section for $VERSION"; exit 1; }
+      - name: Version type for Modrinth and CurseForge
+        id: type
+        run: |
+          case "$VERSION" in *alpha*|*preview*) t=alpha;; *beta*|*rc*) t=beta;; *) t=release;; esac
+          echo "type=$t" >> "$GITHUB_OUTPUT"
+      - name: The Minecraft versions, and what Modrinth and CurseForge list for each (mod/versions/*/gradle.properties)
+        id: minecraft
+        run: |
+          # versions.json, attached to the release: which jar goes with which Minecraft, its Fabric API and Java
+          # (Kindred Spirit Setup reads it to install the right jar)
+          list=""; json=""
+          for p in mod/versions/*/gradle.properties; do
+            mc=$(sed -n 's/^minecraft_version=//p' "$p"); java=$(sed -n 's/^java_version=//p' "$p")
+            games=$(sed -n 's/^game_versions=//p' "$p"); fapi=$(sed -n 's/^fabric_version=//p' "$p")
+            jar="kindred-spirit-$VERSION+$mc.jar"
+            [ -f "mod/build/libs/$jar" ] || { echo "missing mod/build/libs/$jar"; exit 1; }
+            list="$list{\"minecraft\":\"$mc\",\"java\":\"$java\",\"games\":\"$games\"},"
+            json="$json  {\"minecraft\": \"$mc\", \"jar\": \"$jar\", \"fabric_api\": \"$fapi\", \"java\": $java},\n"
+          done
+          echo "list=[${list%,}]" >> "$GITHUB_OUTPUT"
+          printf '{"mod_version": "%s", "versions": [\n%b]}\n' "$VERSION" "${json%,\\n}" > versions.json
+          python3 -m json.tool versions.json
       - name: Make the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           pre=""; case "$VERSION" in *-*) pre="--prerelease";; esac
-          jar=$(ls mod/build/libs/*.jar | grep -v -- -sources)
-          gh release create "$GITHUB_REF_NAME" $jar --title "Kindred Spirit $VERSION" --notes-file notes.md $pre --verify-tag
+          jars=$(ls mod/build/libs/*.jar | grep -v -- -sources)
+          gh release create "$GITHUB_REF_NAME" $jars versions.json --title "Kindred Spirit $VERSION" --notes-file notes.md $pre --verify-tag
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            mod/build/libs/*.jar
+            notes.md
+
+  # Each jar on Modrinth and CurseForge, tagged with its own Minecraft version.
+  publish:
+    needs: release
+    if: vars.MODRINTH_PROJECT_ID != '' || vars.CURSEFORGE_PROJECT_ID != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.release.outputs.minecraft) }}
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      VERSION_TYPE: ${{ needs.release.outputs.version-type }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
       # Modrinth: only once the project exists and its ID and a token are set (Settings -> Secrets and variables ->
       # Actions: the variable MODRINTH_PROJECT_ID and the secret MODRINTH_TOKEN). A draft or private project stays
       # visible only to its members; see docs/MAINTAINING.md.
-      - name: Version type for Modrinth and CurseForge
-        if: vars.MODRINTH_PROJECT_ID != '' || vars.CURSEFORGE_PROJECT_ID != ''
-        run: |
-          case "$VERSION" in *alpha*|*preview*) t=alpha;; *beta*|*rc*) t=beta;; *) t=release;; esac
-          echo "VERSION_TYPE=$t" >> "$GITHUB_ENV"
       - name: Publish on Modrinth
         if: vars.MODRINTH_PROJECT_ID != ''
         uses: Kir-Antipov/mc-publish@v3.3
@@ -60,17 +108,18 @@ jobs:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           files: |
-            mod/build/libs/!(*-sources).jar
-          name: Kindred Spirit ${{ env.VERSION }}
-          version: ${{ env.VERSION }}+1.21.1
+            mod/build/libs/kindred-spirit-${{ env.VERSION }}+${{ matrix.minecraft }}.jar
+          name: Kindred Spirit ${{ env.VERSION }} for Minecraft ${{ matrix.minecraft }}
+          version: ${{ env.VERSION }}+${{ matrix.minecraft }}
           version-type: ${{ env.VERSION_TYPE }}
           changelog-file: notes.md
           loaders: fabric
-          game-versions: 1.21.1
+          game-versions: ${{ matrix.games }}
           dependencies: fabric-api(required){modrinth:P7dR8mSH}
-      # CurseForge: the same jar and notes as the GitHub release, once the project exists and its numeric ID and an
-      # API token are set (the variable CURSEFORGE_PROJECT_ID and the secret CURSEFORGE_TOKEN). Each file is reviewed
-      # by CurseForge's moderators before players see it; see docs/MAINTAINING.md and docs/curseforge.md.
+      # CurseForge: the same jars and notes as the GitHub release, once the project exists and its numeric ID and an
+      # API token are set (the variable CURSEFORGE_PROJECT_ID and the secret CURSEFORGE_TOKEN). mc-publish turns the
+      # Minecraft and Java versions into CurseForge's numeric IDs. Each file is reviewed by CurseForge's moderators
+      # before players see it; see docs/MAINTAINING.md and docs/curseforge.md.
       - name: Publish on CurseForge
         if: vars.CURSEFORGE_PROJECT_ID != ''
         uses: Kir-Antipov/mc-publish@v3.3
@@ -78,13 +127,13 @@ jobs:
           curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: |
-            mod/build/libs/!(*-sources).jar
-          name: Kindred Spirit ${{ env.VERSION }}
-          version: ${{ env.VERSION }}+1.21.1
+            mod/build/libs/kindred-spirit-${{ env.VERSION }}+${{ matrix.minecraft }}.jar
+          name: Kindred Spirit ${{ env.VERSION }} for Minecraft ${{ matrix.minecraft }}
+          version: ${{ env.VERSION }}+${{ matrix.minecraft }}
           version-type: ${{ env.VERSION_TYPE }}
           changelog-file: notes.md
           loaders: fabric
-          game-versions: 1.21.1
+          game-versions: ${{ matrix.games }}
           environment: client
-          java: 21
+          java: ${{ matrix.java }}
           dependencies: fabric-api(required){curseforge:306612}

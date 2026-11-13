@@ -3,7 +3,7 @@
 # with the brain running (scripts/start.sh):
 #   ../brain/.venv/bin/python ../demo/seed_journey.py      (her memories "weeks later", made up)
 #   ../brain/.venv/bin/python ../demo/make_voices.py t_    (the player's lines)
-#   ./gradlew runClient -PdevScript=../demo/tour-script.txt -PvideoSize=960x540
+#   ./gradlew :1.21.1:runClient -PdevScript=../demo/tour-script.txt -PvideoSize=960x540
 #   ../demo/.venv/bin/python ../demo/make_video.py tour
 # Each "mark X" ... "mark X_end" is a chapter; "caption" puts a note at the bottom of the edit.
 # Pip's answers are live (real speech-to-text and AI), so every take is a little different.

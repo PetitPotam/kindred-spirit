@@ -24,6 +24,11 @@ Unreleased into the new version's section.
   Controls → Kindred Spirit). On a friend's computer with only the mod, it says the dashboard is on the host's (#107).
 - Releases are uploaded to CurseForge too, from the same GitHub release, once the project exists there (its page is
   in docs/curseforge.md).
+- **Minecraft 26.3**, the newest release, next to 1.21.1: one jar for each, built from the same code (with
+  Stonecutter) and tested in CI for every version; releases upload each jar to Modrinth and CurseForge for its own
+  Minecraft. Friends pick theirs with `update-pip-windows.ps1 -Minecraft <version>` (it keeps the one they have),
+  and `install_profile.py --minecraft 26.3` adds a profile of its own. Recording demo videos works on 1.21.1 only
+  for now (#41).
 
 ### Fixed
 - Stopping her (`scripts/stop.sh`, the Setup's Stop, an update's restart) waits until her helpers have really exited,
@@ -49,6 +54,9 @@ Unreleased into the new version's section.
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
 - One convention for branches, pull request titles and issue links (CONTRIBUTING.md), checked on every pull request.
+- Building the mod needs a JDK 25 (it already did) and makes one jar per Minecraft version; the sandbox game is
+  `./gradlew :26.3:runClient` (or `:1.21.1:runClient`), in `mod/versions/<version>/run/`. The 1.21.1 jar now asks for
+  exactly 1.21.1, not any 1.21.x, which it never ran on. The mod tells her brain the real Minecraft version.
 
 ## [0.2.0-preview] - 2026-11-13
 
