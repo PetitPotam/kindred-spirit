@@ -38,4 +38,34 @@ def test_kindred_mod_config_points_at_another_game(tmp_path):
     dev = str(tmp_path / "run" / "config" / "kindredspirit.json")
     assert dashboard.mod_configs({"KINDRED_MOD_CONFIG": dev}) == [dev]
     usual = dashboard.mod_configs({})
-    assert len(usual) == 3 and all(p.endswith("kindredspirit.json") for p in usual) and dev not in usual
+    assert len(usual) >= 2 and all(p.endswith("kindredspirit.json") for p in usual) and dev not in usual
+
+
+def test_the_settings_of_every_minecraft_version_are_found(tmp_path, monkeypatch):
+    """#159: the Setup's 26.3 profile plays in minecraft-kindred-26.3; another launcher's instance has its own config.
+    The one changed last (the game played last) is the one the Settings page shows and changes."""
+    import os
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("KINDRED_MOD_CONFIG", raising=False)
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.setattr(dashboard.setup_steps, "load_state", lambda: {})
+    assert dashboard.mod_path() is None
+    support = tmp_path / "Library" / "Application Support"
+
+    def config(folder, when):
+        f = folder / "config" / "kindredspirit.json"
+        f.parent.mkdir(parents=True)
+        f.write_text('{"glow": true}')
+        os.utime(f, (when, when))
+        return str(f)
+
+    old = config(support / "minecraft-kindred", 1_700_000_000)  # 1.21.1, played long ago
+    new = config(support / "minecraft-kindred-26.3", 1_700_000_500)  # 26.3, the Setup's recommendation
+    assert old in dashboard.mod_configs({}) and new in dashboard.mod_configs({})
+    assert dashboard.mod_path() == new
+    prism = tmp_path / "PrismLauncher" / "instances" / "Robin" / "minecraft"
+    other = config(prism, 1_700_001_000)
+    monkeypatch.setattr(dashboard.setup_steps, "load_state", lambda: {"mods_folder": str(prism / "mods")})
+    assert dashboard.mod_path() == other
+    monkeypatch.setattr(dashboard.setup_steps, "load_state", lambda: 1 / 0)  # a broken Setup state: profiles only
+    assert dashboard.mod_path() == new

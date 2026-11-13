@@ -25,6 +25,7 @@ disk or behind the gateway; nothing new is collected:
 
 Standard library only, like the gateway.
 """
+import glob
 import json
 import os
 import re
@@ -226,10 +227,6 @@ def _leaves(d, prefix=""):
 
 def _kind(v):
     return "bool" if isinstance(v, bool) else "int" if isinstance(v, int) else "float" if isinstance(v, float) else "text"
-
-
-def mod_path():
-    return next((p for p in MOD_CONFIGS if os.path.exists(p)), None)
 
 
 def editable():
@@ -491,16 +488,32 @@ MOD_NEW = {"lanGuests": True, "lanGuestPowers": True, "follow": "", "sharedPip":
 
 def mod_configs(env=None):
     """Where the mod's settings file may be: KINDRED_MOD_CONFIG if set (e.g. the dev game's
-    mod/versions/1.21.1/run/config/kindredspirit.json while filming), else the launcher folders."""
+    mod/versions/1.21.1/run/config/kindredspirit.json while filming), else every Kindred profile's game folder (one per
+    Minecraft version: minecraft-kindred for 1.21.1, minecraft-kindred-26.3...), and the instance whose mods folder
+    the Setup put the mod in (another launcher's)."""
     env = os.environ if env is None else env
     if env.get("KINDRED_MOD_CONFIG"):
         return [os.path.expanduser(env["KINDRED_MOD_CONFIG"])]
-    return [os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit.json"),
-            os.path.expanduser("~/.minecraft-kindred/config/kindredspirit.json"),
-            os.path.join(env.get("APPDATA", ""), "minecraft-kindred", "config", "kindredspirit.json")]
+    rel = os.path.join("config", "kindredspirit.json")
+    found = []
+    for base, name in ((os.path.expanduser("~/Library/Application Support"), "minecraft-kindred"),
+                       (os.path.expanduser("~"), ".minecraft-kindred"), (env.get("APPDATA", ""), "minecraft-kindred")):
+        if base:
+            found.append(os.path.join(base, name, rel))
+            found += sorted(glob.glob(os.path.join(glob.escape(base), name + "-*", rel)))
+    try:
+        folder = setup_steps.load_state().get("mods_folder")
+    except Exception:  # (no Setup state, or an unreadable one: only the profiles then)
+        folder = None
+    if folder:
+        found.append(os.path.join(os.path.dirname(os.path.expanduser(folder).rstrip("/")), rel))
+    return found
 
 
-MOD_CONFIGS = mod_configs()
+def mod_path():
+    """The mod's settings file in use: of those that exist, the one changed last (the game played last)."""
+    there = [p for p in mod_configs() if os.path.exists(p)]
+    return max(there, key=os.path.getmtime) if there else None
 # what one million tokens cost (USD), to estimate; change with KINDRED_PRICE_IN / KINDRED_PRICE_OUT
 PRICE_IN = float(os.environ.get("KINDRED_PRICE_IN", "0.25"))
 PRICE_OUT = float(os.environ.get("KINDRED_PRICE_OUT", "1.50"))
@@ -759,7 +772,8 @@ def settings():
             brain = tomllib.load(fh)
     except (OSError, tomllib.TOMLDecodeError) as e:
         brain = {"error": str(e)}
-    mod = next((read_json(p) for p in MOD_CONFIGS if os.path.exists(p)), None)
+    mp = mod_path()
+    mod = read_json(mp) if mp else None
     secrets = []
     try:
         with open(kindred_gateway.SECRETS, encoding="utf-8") as fh:

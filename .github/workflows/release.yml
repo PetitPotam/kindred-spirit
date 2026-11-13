@@ -91,14 +91,20 @@ jobs:
             mod/build/libs/*.jar
             notes.md
 
-      - name: The mod files and versions.json, for Kindred Spirit Setup (the setup jobs below)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      # (one flat folder: with several paths, upload-artifact keeps them below their common folder, and the Setup's
+      #  build would find mod/build/libs/... instead of the jars it looks for, #155)
+      - name: The mod files and versions.json in one folder, for Kindred Spirit Setup (the setup jobs below)
+        run: |
+          mkdir -p mod-files
+          for jar in mod/build/libs/kindred-spirit-*+*.jar; do
+            case "$jar" in *-sources.jar) ;; *) cp "$jar" mod-files/;; esac
+          done
+          cp versions.json mod-files/
+          ls -l mod-files
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mod-files
-          path: |
-            mod/build/libs/kindred-spirit-*+*.jar
-            !mod/build/libs/*-sources.jar
-            versions.json
+          path: mod-files/
           if-no-files-found: error
 
   # Each jar on Modrinth and CurseForge, tagged with its own Minecraft version.

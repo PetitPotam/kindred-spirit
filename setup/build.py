@@ -137,6 +137,11 @@ def whisper_server(target, cache, dest):
     shutil.copy2(os.path.join(src, "LICENSE"), os.path.join(dest, "whisper.cpp-LICENSE.txt"))
 
 
+def mod_jars(folder):
+    """The mod's jars directly in `folder` (one per Minecraft version, no sources jars)."""
+    return sorted(j for j in glob.glob(os.path.join(folder, "kindred-spirit-*+*.jar")) if "-sources" not in j)
+
+
 def payload(stage, target, archive, cache=None, whisper=True, mods=None):
     """stage/payload: python/, kindred/, bin/ (whisper-server, when it could be built), mods/ (the mod for each
     Minecraft version, and the release's versions.json), VERSION."""
@@ -169,13 +174,12 @@ def payload(stage, target, archive, cache=None, whisper=True, mods=None):
         fh.write(version() + "\n")
     if whisper:
         whisper_server(target, cache, os.path.join(out, "bin"))
-    if os.path.isdir(mods) and glob.glob(os.path.join(mods, "kindred-spirit-*+*.jar")):
+    if mod_jars(mods):
         say("the mod for each Minecraft version (from %s)" % mods)
         dest = os.path.join(out, "mods")
         os.makedirs(dest, exist_ok=True)
-        for jar in glob.glob(os.path.join(mods, "kindred-spirit-*+*.jar")):
-            if "-sources" not in jar:
-                shutil.copy2(jar, dest)
+        for jar in mod_jars(mods):
+            shutil.copy2(jar, dest)
         if os.path.exists(os.path.join(mods, "versions.json")):
             shutil.copy2(os.path.join(mods, "versions.json"), dest)
     else:
@@ -274,6 +278,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if sys.version_info < (3, 11):
         raise SystemExit("build with Python 3.11 or newer")
+    if args.mods and not mod_jars(args.mods):  # a release's files were asked for: never a Setup without the mod (#155)
+        raise SystemExit("no kindred-spirit-*+*.jar in %s (--mods): not building a Setup without the mod" % args.mods)
     target = "%s-%s" % (args.system, args.arch)
     archive = python_archive(target, args.python_archive, args.cache)
     with tempfile.TemporaryDirectory(prefix="kindred-setup-") as stage:

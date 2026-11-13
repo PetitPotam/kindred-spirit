@@ -81,6 +81,8 @@ The **Settings** tab can change every setting, each shown with its default (↺ 
 - **The game (mod)**: everything in `kindredspirit.json` (skin, power, style, chat mode, subtitles,
   glow, her liveliness, size and position...), applied within two seconds, even while you play. The
   mod writes its defaults next to it (`kindredspirit.defaults.json`) when it starts.
+  With several Kindred profiles (one per Minecraft version) or another launcher's instance, it's the settings of
+  the game played last.
 - **The gateway**: the AI for her conversation and for her deeper thinking, the Gemini model and
   thinking for her replies, her Kokoro voice, speed and pitch, and speech-to-text, for the next call.
 
