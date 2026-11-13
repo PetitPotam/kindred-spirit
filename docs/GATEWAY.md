@@ -171,6 +171,9 @@ All of it is in `~/.kindred-spirit/gateway.json`, under `tts.providers.local_kok
   names (for OpenAI, say, a different `voice` or `speed` per mood); without them, every line uses the
   provider's normal voice.
 
+Her slow thinking can also be switched **off** (the Setup's "Her slow thinking" step does it): an upstream
+`{"type": "off"}` for the kind `reflect` answers at once that it's off, and her brain carries on without learning.
+
 ## Keys
 
 Keys go in `~/.kindred-spirit/secrets.env` (readable only by you, never in the repository):

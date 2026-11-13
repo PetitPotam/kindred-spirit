@@ -77,8 +77,8 @@ table.facts td:first-child { color: var(--muted); white-space: nowrap; }
 .choice .note { display: block; color: var(--muted); font-size: 13px; }
 .choice .link { font-size: 13px; }
 .choice ol { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; }
-.fields { display: grid; gap: 10px; margin: 0 0 14px; }
-.fields label { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
+.fields { display: grid; gap: 10px; margin: 10px 0 2px; }
+.fields .field { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
 .fields input { padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); font-family: var(--mono); font-size: 13px; }
 .tag { font-size: 11.5px; font-weight: 700; color: var(--good); background: var(--good-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
 
@@ -207,9 +207,9 @@ function render() {
                     onchange: () => { choice[s.id] = c.value; render(); }}),
         h("span", {}, c.label, c.recommended ? h("span", {class: "tag"}, "recommended") : null, h("span", {class: "note"}, c.note || ""),
           on && c.how ? h("ol", {}, c.how.map(x => h("li", {}, x))) : null,
-          on && c.link ? h("a", {class: "link", href: c.link.url, target: "_blank", rel: "noopener"}, c.link.label + " ↗") : null));
+          on && c.link ? h("a", {class: "link", href: c.link.url, target: "_blank", rel: "noopener"}, c.link.label + " ↗") : null,
+          on ? fieldsBox(s) : null));
     })) : null,
-    fieldsBox(s),
     h("div", {class: "buttons"},
       (s.actions || []).map(a => h("button", {class: "btn" + (a.primary ? " primary" : ""), disabled: busy, onclick: () => run(s.id, a.id, a.label)}, a.label)),
       h("button", {class: "btn", disabled: busy, onclick: () => run(s.id, "test", "Test it")}, "Test it"),
@@ -244,10 +244,11 @@ function fieldsBox(s) {  // inputs a choice needs (a key, a model); a key is sen
   const shown = (s.fields || []).filter(f => !f.for || f.for.includes(sel));
   if (!shown.length) return null;
   const vals = fieldVals[s.id] = fieldVals[s.id] || {};
-  return h("div", {class: "fields"}, shown.map(f => h("label", {},
-    f.label,
-    h("input", {type: f.type === "password" ? "password" : "text", autocomplete: "off", spellcheck: "false",
-                placeholder: f.placeholder || "", value: vals[f.id] || "", oninput: e => { vals[f.id] = e.target.value; }}))));
+  return h("div", {class: "fields"}, shown.map(f => h("div", {class: "field"},  // (inside the choice's label: no nested labels)
+    h("span", {}, f.label),
+    h("input", {type: f.type === "password" ? "password" : "text", autocomplete: "off", spellcheck: "false", "aria-label": f.label,
+                placeholder: f.placeholder || "", value: vals[f.id] || "", oninput: e => { vals[f.id] = e.target.value; },
+                onclick: e => e.stopPropagation()}))));
 }
 
 function resultBox(id) {
