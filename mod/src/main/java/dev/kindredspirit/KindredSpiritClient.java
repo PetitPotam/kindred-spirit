@@ -126,6 +126,25 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
     }
 
+    /** Your visiting Pip was hit or petted by someone in the friend's world: her brain hears who. */
+    private void touchedThere(String json) {
+        try {
+            JsonObject r = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            eventBy(str(r, "what"), str(r, "by"));
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private void eventBy(String name, String by) {
+        if (!name.equals("hit") && !name.equals("petted")) return;
+        LOG.info("{} {} Pip", by, name.equals("hit") ? "hit" : "petted");
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "event");
+        o.addProperty("event", name);
+        o.addProperty("by", by);
+        link.send(o);
+    }
+
     private void visitDone(String json) {
         try {
             JsonObject r = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
@@ -187,6 +206,55 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 "key.kindredspirit.talk", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.kindredspirit"));
 
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        // her stand-in (friends without the mod): a hit or a pat on it is a touch on her; it never takes items
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (world.isClientSide && entity.getUUID().equals(GuestBridge.hidden)) {
+                return net.minecraft.world.InteractionResult.FAIL; // (you see her, not the stand-in: your game reports the hit)
+            }
+            if (!world.isClientSide && GuestBridge.standIn(entity) && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                GuestBridge.touch(sp.server, sp, "hit");
+                return net.minecraft.world.InteractionResult.FAIL;
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
+        net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (GuestBridge.standIn(entity)) {
+                if (!world.isClientSide && hand == net.minecraft.world.InteractionHand.MAIN_HAND
+                        && player instanceof net.minecraft.server.level.ServerPlayer sp) GuestBridge.touch(sp.server, sp, "petted");
+                return net.minecraft.world.InteractionResult.SUCCESS;
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
+        // what each player does, as your world's game sees it (so what she says about a friend is real)
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, be) ->
+                Actions.playerDid(player, "broke " + state.getBlock().getName().getString().toLowerCase(java.util.Locale.ROOT)));
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            var item = player.getItemInHand(hand);
+            if (!world.isClientSide && item.getItem() instanceof net.minecraft.world.item.BlockItem) {
+                Actions.playerDid(player, "placed " + item.getHoverName().getString().toLowerCase(java.util.Locale.ROOT));
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (source.getEntity() instanceof net.minecraft.server.level.ServerPlayer killer && entity != killer) {
+                Actions.playerDid(killer, "killed " + entity.getType().getDescription().getString().toLowerCase(java.util.Locale.ROOT));
+            }
+        });
+        // a friend hitting you, seen by your world's game: protect then pushes them away (playfully)
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (entity instanceof net.minecraft.server.level.ServerPlayer victim
+                    && source.getEntity() instanceof net.minecraft.server.level.ServerPlayer attacker) {
+                Actions.playerHurt(victim, attacker);
+            }
+            if (source.getEntity() instanceof net.minecraft.server.level.ServerPlayer attacker && entity != attacker
+                    && !(entity instanceof net.minecraft.server.level.ServerPlayer)) {
+                Actions.playerDid(attacker, "hit " + entity.getType().getDescription().getString().toLowerCase(java.util.Locale.ROOT));
+            }
+            if (entity instanceof net.minecraft.server.level.ServerPlayer victim && amount >= 2) {
+                Actions.playerDid(victim, "got hurt");
+            }
+            return true;
+        });
         // her building works block by block on the (integrated) server
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
                 dev.kindredspirit.act.Builder::tick);
@@ -198,7 +266,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 dev.kindredspirit.guest.PipPayload.TYPE, (payload, context) -> {
                     String json = payload.json();
                     context.client().execute(() -> {
-                        if (json.contains("\"type\":\"done\"")) visitDone(json); // (an action your visiting Pip asked for)
+                        if (json.contains("\"id\":\"touch\"")) touchedThere(json); // (someone touched your visiting Pip)
+                        else if (json.contains("\"type\":\"done\"")) visitDone(json); // (an action your visiting Pip asked for)
                         else if (json.contains("\"type\":\"standin\"")) standInHere(json); // (her stand-in there: not drawn)
                         else shared.receive(json);
                     });
@@ -502,6 +571,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (devScript != null) devScript.tick(mc);
         long now = System.currentTimeMillis();
         for (GuestBridge.Heard h; (h = GuestBridge.next()) != null; ) fromGuest(h);
+        for (GuestBridge.Heard t; (t = GuestBridge.nextTouch()) != null; ) eventBy(t.text(), t.who()); // friends' touches
 
         if (now >= nextQualityCheck) {
             nextQualityCheck = now + 1000;
@@ -542,6 +612,17 @@ public final class KindredSpiritClient implements ClientModInitializer {
             visitingWorld = visit;
             LOG.info(visit ? "{} visits this world (its game has Kindred)" : "{} no longer visiting", displayName);
             Actions.remote = visit ? this::visitAct : null;
+            dev.kindredspirit.act.Glow.remote = visit ? (at, level) -> { // her glow, placed by the friend's game
+                JsonObject g = new JsonObject();
+                g.addProperty("kind", "glow");
+                if (at != null) {
+                    g.addProperty("x", at.getX());
+                    g.addProperty("y", at.getY());
+                    g.addProperty("z", at.getZ());
+                    g.addProperty("level", level);
+                }
+                sendVisit(g);
+            } : null;
             if (visit) notice(displayName + " comes along into this world: everyone here can see her and talk to her.", 6000);
             sendAbilities(); // (her powers work here now, through this world's game)
         }
@@ -560,8 +641,18 @@ public final class KindredSpiritClient implements ClientModInitializer {
             captionUntil = companion.subtitleUntil;
         }
         Companion.Touch touch = companion.tick(mc);
-        if (touch == Companion.Touch.PETTED) event("petted");
-        if (touch == Companion.Touch.HIT) event("hit");
+        if (touch != null && touch != Companion.Touch.NONE) {
+            String what = touch == Companion.Touch.HIT ? "hit" : touch == Companion.Touch.PETTED ? "petted" : "";
+            if (sharing && !what.isEmpty() && mc.getConnection() != null
+                    && net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(dev.kindredspirit.guest.VisitPayload.TYPE)) {
+                JsonObject t = new JsonObject(); // the Pip you see lives in another game: tell the world's game who touched her
+                t.addProperty("kind", "touch");
+                t.addProperty("what", what);
+                sendVisit(t);
+            } else if (!what.isEmpty()) {
+                event(what);
+            }
+        }
         trackWorld(mc);
         if (companion.life.arrived) {
             companion.life.arrived = false;
@@ -624,7 +715,25 @@ public final class KindredSpiritClient implements ClientModInitializer {
             long nowMs = System.currentTimeMillis();
             snap.add("sounds", hearing.recent(mc.player, 8000));
             var beside = companion.anchor(mc);
-            if (beside != mc.player) snap.addProperty("following", beside.getGameProfile().getName());
+            if (beside != mc.player) {
+                snap.addProperty("following", beside.getGameProfile().getName());
+                // the one she's with: how far from you, their health, and danger around THEM (her attention is there)
+                JsonObject with = new JsonObject();
+                with.addProperty("name", beside.getGameProfile().getName());
+                with.addProperty("distance", Math.round(beside.distanceTo(mc.player)));
+                with.addProperty("health", beside.getHealth());
+                with.addProperty("maxHealth", beside.getMaxHealth());
+                com.google.gson.JsonArray danger = new com.google.gson.JsonArray();
+                for (net.minecraft.world.entity.Mob m : mc.level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
+                        beside.getBoundingBox().inflate(10), m -> m instanceof net.minecraft.world.entity.monster.Enemy && m.isAlive())) {
+                    JsonObject mo = new JsonObject();
+                    mo.addProperty("type", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(m.getType()).toString());
+                    mo.addProperty("distance", Math.round(m.distanceTo(beside) * 10) / 10.0);
+                    danger.add(mo);
+                }
+                with.add("hostiles", danger);
+                snap.add("with", with);
+            }
             watchInventory(snap, nowMs);
             com.google.gson.JsonArray did = new com.google.gson.JsonArray();
             for (String d : youDid.summary(nowMs, 30000)) did.add(d);
@@ -753,6 +862,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         JsonObject o = new JsonObject();
         o.addProperty("type", "voice");
         o.addProperty("peak", peak);
+        o.addProperty("releasedAt", System.currentTimeMillis()); // (the brain logs how long the trip took)
         if (sharing) o.addProperty("relay", true); // (light mode: your words go to the host's Pip, in chat)
         o.addProperty("wav", Base64.getEncoder().encodeToString(wav));
         link.send(o);
@@ -842,6 +952,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 }
             });
             case "mood" -> mc.execute(() -> companion.mood = Mood.parse(str(msg, "mood"), companion.mood));
+            case "chat_line" -> mc.execute(() -> { // her answer to a friend, in chat only (it never waits for her voice)
+                String text = str(msg, "text"), to = str(msg, "to");
+                logChat(herLine(to.isEmpty() ? text : "(to " + to + ") " + text));
+                GuestBridge.say(mc.getSingleplayerServer(), text);
+                sayVisiting(text);
+                LOG.info("Pip, in chat to {}: {}", to, text);
+            });
             case "act" -> mc.execute(() -> applyAct(msg));
             case "bond" -> mc.execute(() -> {
                 bond = msg.get("value").getAsInt();
@@ -917,7 +1034,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
             return "sp:" + mc.getSingleplayerServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                     .toAbsolutePath().normalize().getFileName();
         }
-        return mc.getCurrentServer() != null ? "mp:" + mc.getCurrentServer().ip : "unknown";
+        // (no port: a LAN world gets a new port every time it's opened, and each was a new world with no memories)
+        return mc.getCurrentServer() != null ? "mp:" + mc.getCurrentServer().ip.replaceFirst(":\\d+$", "") : "unknown";
     }
 
     // ------------------------------------------------------------------ what she notices
@@ -985,21 +1103,35 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private int visiting = -1;
     /** The animal she's leading you to (it walks, so the trip follows it), or -1. */
     private int guideEntity = -1;
+    /** The player she's leading you to (by name): asked of the world's game when they're too far for yours. */
+    private String guidePlayer;
+    private boolean guideAsking;
 
     /** While leading: follow a walking animal, and leave a faint trail of sparkles you can follow. */
     private void tickGuide(Minecraft mc) {
         Behavior life = companion.life;
         if (life.mode != Behavior.Mode.GUIDE) {
             guideEntity = -1;
+            guidePlayer = null;
             Snapshot.headingX = Snapshot.headingZ = 0; // (hazards: look where the player looks)
             return;
         }
         double[] gt = life.guideTarget(); // hazards: look along the way she leads
         Snapshot.headingX = gt[0] - mc.player.getX();
         Snapshot.headingZ = gt[2] - mc.player.getZ();
-        if (guideEntity >= 0) {
-            net.minecraft.world.entity.Entity e = mc.level.getEntity(guideEntity);
-            if (e != null && e.isAlive()) life.retarget(e.getX(), e.getY(), e.getZ());
+        net.minecraft.world.entity.Entity e = guideEntity >= 0 ? mc.level.getEntity(guideEntity) : null;
+        if (e != null && e.isAlive()) {
+            life.retarget(e.getX(), e.getY(), e.getZ());
+        } else if (guidePlayer != null && !guideAsking && mc.level.getGameTime() % 30 == 0) {
+            // a friend too far for your game to see: where they are now, from the world's game
+            guideAsking = true;
+            String who = guidePlayer;
+            Actions.whereIs(mc, who).whenComplete((r, err) -> mc.execute(() -> {
+                guideAsking = false;
+                if (r != null && r.has("x") && who.equals(guidePlayer) && companion.life.mode == Behavior.Mode.GUIDE) {
+                    companion.life.retarget(r.get("x").getAsDouble(), r.get("y").getAsDouble(), r.get("z").getAsDouble());
+                }
+            }));
         }
         if (cfg.guideTrail && mc.level.getGameTime() % 4 == 0 && companion.life.presence > 0.5) {
             mc.level.addParticle(net.minecraft.core.particles.ParticleTypes.WAX_OFF,
@@ -1102,7 +1234,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
         String id = str(msg, "id"), action = str(msg, "action");
         JsonObject args = msg.has("args") && msg.get("args").isJsonObject() ? msg.getAsJsonObject("args") : new JsonObject();
         java.util.function.Consumer<JsonObject> reply = res -> {
-            if (id.equals("dev")) LOG.info("dev action {} -> {}", action, res);
+            String r = res.toString(); // (Pip's actions in the game log too, briefly)
+            LOG.info("{}action {} {} -> {}", id.equals("dev") ? "dev " : "", action, args, r.length() > 300 ? r.substring(0, 300) + "..." : r);
             res.addProperty("type", "done");
             res.addProperty("id", id);
             link.send(res);
@@ -1132,6 +1265,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             } else {
                 life.guide(t[0], t[1], t[2], companion.now());
                 guideEntity = follow;
+                guidePlayer = follow >= 0 && follow == Actions.lastTargetEntity && animal == null ? Actions.lastTargetPlayer : null;
                 res.addProperty("ok", true);
                 res.addProperty("guiding", true);
                 double dx = t[0] - Minecraft.getInstance().player.getX(), dz = t[2] - Minecraft.getInstance().player.getZ();
@@ -1205,6 +1339,17 @@ public final class KindredSpiritClient implements ClientModInitializer {
      */
     public void applyAct(JsonObject msg) {
         Minecraft mc = Minecraft.getInstance();
+        if (msg.has("glow")) { // "light the way" (brighter, for a while), "stop glowing"
+            String g = str(msg, "glow");
+            long ms = (long) ((msg.has("seconds") ? msg.get("seconds").getAsDouble() : 180) * 1000);
+            if (g.equals("off")) {
+                dev.kindredspirit.act.Glow.offUntil = System.currentTimeMillis() + ms;
+                dev.kindredspirit.act.Glow.brightUntil = 0;
+            } else {
+                dev.kindredspirit.act.Glow.brightUntil = System.currentTimeMillis() + ms;
+                dev.kindredspirit.act.Glow.offUntil = 0;
+            }
+        }
         Behavior life = companion.life;
         double now = companion.now();
         double seconds = msg.has("seconds") ? msg.get("seconds").getAsDouble() : 4;

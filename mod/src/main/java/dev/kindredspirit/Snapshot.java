@@ -243,11 +243,33 @@ public final class Snapshot {
             JsonObject po = new JsonObject();
             po.addProperty("name", other.getGameProfile().getName());
             po.addProperty("distance", round1(other.distanceTo(p)));
+            po.addProperty("x", Math.round(other.getX())); // (where she last saw them, for her memory of places)
+            po.addProperty("y", Math.round(other.getY()));
+            po.addProperty("z", Math.round(other.getZ()));
             po.addProperty("direction", Direction8.relative(p.getYRot(), other.getX() - p.getX(), other.getZ() - p.getZ()));
-            po.addProperty("seen", sees(mc, her, other));
+            boolean seen = sees(mc, her, other);
+            po.addProperty("seen", seen);
+            if (seen) { // what they hold and what they're doing, so she never has to make it up ("empty hands")
+                var held = other.getMainHandItem();
+                po.addProperty("holding", held.isEmpty() ? "" : net.minecraft.core.registries.BuiltInRegistries.ITEM
+                        .getKey(held.getItem()).getPath());
+                double moved = Math.hypot(other.getX() - other.xo, other.getZ() - other.zo);
+                String doing = other.isSleeping() ? "sleeping" : other.isPassenger() ? "riding" : other.isSwimming() ? "swimming"
+                        : other.getAbilities().flying || other.isFallFlying() ? "flying" : other.isShiftKeyDown() ? "sneaking"
+                        : other.swinging ? (held.getItem() instanceof net.minecraft.world.item.BlockItem ? "placing blocks"
+                        : "swinging at something (mining or fighting)") : other.isSprinting() ? "running"
+                        : moved > 0.02 ? "walking" : "standing still";
+                po.addProperty("doing", doing);
+            }
+            var server = mc.getSingleplayerServer(); // (hosting: your world's game saw what they did lately)
+            if (server != null) {
+                String lately = dev.kindredspirit.act.Actions.activityOf(other.getUUID());
+                if (!lately.isEmpty()) po.addProperty("lately", lately);
+            }
             players.add(po);
         }
         if (!players.isEmpty()) o.add("players", players);
+        o.addProperty("playerName", p.getGameProfile().getName()); // (who she lives with, for friends' turns)
         o.add("hazards", hazards(mc, p));
 
         // what she feels where she floats: rain or snow on her, the cold or the heat, the light

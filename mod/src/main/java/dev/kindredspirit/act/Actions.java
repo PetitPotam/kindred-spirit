@@ -53,6 +53,47 @@ public final class Actions {
     public static volatile double[] lastTarget;
     /** When the last thing found was an animal: its id, so a guided trip follows it as it walks. */
     public static volatile int lastTargetEntity = -1;
+    /** The player she found last (by name), so leading to them keeps up as they move, even far away. */
+    public static volatile String lastTargetPlayer;
+    /** Who last hurt whom (players, on this world's server): protect pushes a friend who just hit you, playfully. */
+    private static final Map<java.util.UUID, Object[]> hurtBy = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** What each player did lately, as the world's game saw it (placed, broke, hit, killed, got hurt): so she never
+     *  has to guess what a friend is doing. Kept two minutes, a few dozen entries each. */
+    private static final Map<java.util.UUID, java.util.Deque<Object[]>> did = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void playerDid(net.minecraft.world.entity.player.Player p, String what) {
+        if (!(p instanceof ServerPlayer)) return;
+        var q = did.computeIfAbsent(p.getUUID(), k -> new java.util.concurrent.ConcurrentLinkedDeque<>());
+        q.addLast(new Object[]{System.currentTimeMillis(), what});
+        while (q.size() > 40) q.pollFirst();
+    }
+
+    /** "placed 12 oak log, broke 3 stone, hit a sheep (the last 10 s ago)", or "" if nothing in two minutes. */
+    public static String activityOf(java.util.UUID id) {
+        var q = did.get(id);
+        if (q == null) return "";
+        long now = System.currentTimeMillis();
+        java.util.Map<String, Integer> n = new java.util.LinkedHashMap<>();
+        long last = 0;
+        for (Object[] e : q) {
+            if (now - (long) e[0] > 120000) continue;
+            n.merge((String) e[1], 1, Integer::sum);
+            last = Math.max(last, (long) e[0]);
+        }
+        if (n.isEmpty()) return "";
+        StringBuilder b = new StringBuilder();
+        n.forEach((k, v) -> {
+            String[] w = k.split(" ", 2);
+            b.append(b.length() > 0 ? ", " : "").append(w[0]).append(" ").append(v > 1 ? v + " " : "a ").append(w.length > 1 ? w[1] : "");
+        });
+        return b + " (the last " + Math.max(1, (now - last) / 1000) + " s ago)";
+    }
+
+    /** The world's game saw a player hurt another (registered on the server: see KindredSpiritClient). */
+    public static void playerHurt(ServerPlayer victim, ServerPlayer attacker) {
+        if (victim != attacker) hurtBy.put(victim.getUUID(), new Object[]{attacker.getUUID(), System.currentTimeMillis()});
+    }
 
     private static final Map<String, Object> STRUCTURES = Map.ofEntries(
             Map.entry("village", StructureTags.VILLAGE), Map.entry("mineshaft", StructureTags.MINESHAFT),
@@ -85,8 +126,26 @@ public final class Actions {
                 case FIND_ORE -> done(findOre(mc, str(args, "ore", "diamond")));
                 case FIND_ANIMAL -> done(findAnimal(mc, str(args, "animal", "sheep")));
                 case FIND_BLOCK -> done(findBlock(mc, str(args, "block", "flower")));
-                case FIND_PLAYER -> done(findPlayer(mc, str(args, "name", ""), str(args, "from", "")));
-                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER ->
+                case FIND_PLAYER -> { // the world's game knows everyone, even far away (your game only knows who's near)
+                    if (mc.getSingleplayerServer() == null && remote == null) yield done(findPlayer(mc, str(args, "name", ""), str(args, "from", "")));
+                    yield onServer(mc, a, args, power, style).thenApply(r -> {
+                        String err = r.has("error") ? r.get("error").getAsString() : "";
+                        if (err.contains("isn't done on the server")) { // (an older Kindred hosts: ask your own game)
+                            JsonObject[] out = new JsonObject[1];
+                            Minecraft.getInstance().executeBlocking(() -> out[0] = findPlayer(Minecraft.getInstance(),
+                                    str(args, "name", ""), str(args, "from", "")));
+                            return out[0];
+                        }
+                        if (r.has("x") && r.has("z")) {
+                            lastTarget = new double[]{r.get("x").getAsDouble() + 0.5, r.has("y") ? r.get("y").getAsDouble() + 0.5 : 64,
+                                    r.get("z").getAsDouble() + 0.5};
+                            lastTargetEntity = r.has("entity") ? r.get("entity").getAsInt() : -1;
+                            lastTargetPlayer = r.has("player") ? r.get("player").getAsString() : null;
+                        }
+                        return r;
+                    });
+                }
+                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER, COMMAND ->
                         onServer(mc, a, args, power, style);
                 case GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> done(ok()); // handled by the companion itself
             };
@@ -240,6 +299,7 @@ public final class Actions {
         }
         CompletableFuture<JsonObject> f = new CompletableFuture<>();
         java.util.UUID you = mc.player.getUUID();
+        args.addProperty("_power", power.name()); // (commands: what this power may run)
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(you);
             f.complete(sp == null ? error("player not found on the server") : serverSide(server, sp, a, args, style));
@@ -253,14 +313,20 @@ public final class Actions {
         try {
             return switch (a) {
                 case LOCATE -> locate(s, sp, str(args, "what", "village"));
-                case PROTECT -> protect(target(s, sp, str(args, "to", "")));
-                case PLACE_TORCH -> placeTorch(sp, style);
-                case HARVEST -> harvest(sp);
-                case BUILD -> Builder.start(s, sp, args, style);
+                case PROTECT -> args.has("poke") && args.get("poke").getAsBoolean()
+                        ? poke(sp, target(s, sp, str(args, "to", "")))
+                        : protect(target(s, sp, str(args, "to", "")));
+                // (for a friend: from where THEY stand, with THEIR inventory: "for" names them)
+                case PLACE_TORCH -> placeTorch(target(s, sp, str(args, "for", "")), style);
+                case HARVEST -> harvest(target(s, sp, str(args, "for", "")));
+                case BUILD -> Builder.start(s, target(s, sp, str(args, "for", "")), args, style);
                 case GIVE_ITEM -> give(target(s, sp, str(args, "to", "")), str(args, "item", ""), num(args, "count", 1));
                 case GIVE_EFFECT -> effect(target(s, sp, str(args, "to", "")), str(args, "effect", ""));
                 case SET_TIME -> setTime(s, str(args, "time", "day"));
                 case SET_WEATHER -> setWeather(s, str(args, "weather", "clear"));
+                case FIND_PLAYER -> findPlayerServer(s, sp, str(args, "name", ""), str(args, "from", ""));
+                case COMMAND -> Commands.run(s, target(s, sp, str(args, "for", "")), str(args, "command", ""), Abilities.power(str(args, "_power", "HELPER")),
+                        args.has("harmfulAsked") && args.get("harmfulAsked").getAsBoolean());
                 default -> error("That isn't done on the server.");
             };
         } catch (RuntimeException e) {
@@ -332,6 +398,31 @@ public final class Actions {
         }
         JsonObject r = ok();
         r.addProperty("pushedAway", n);
+        Object[] hb = hurtBy.get(sp.getUUID()); // a friend who just hit them: a playful shove (no harm)
+        if (hb != null && System.currentTimeMillis() - (long) hb[1] < 15000) {
+            ServerPlayer other = sp.server.getPlayerList().getPlayer((java.util.UUID) hb[0]);
+            if (other != null && other.level() == sp.level() && other.distanceTo(sp) <= 12) {
+                other.knockback(1.6, sp.getX() - other.getX(), sp.getZ() - other.getZ());
+                other.hurtMarked = true;
+                level.sendParticles(ParticleTypes.POOF, other.getX(), other.getY() + 1, other.getZ(), 10, 0.3, 0.4, 0.3, 0.02);
+                r.addProperty("pushedPlayer", other.getGameProfile().getName());
+                hurtBy.remove(sp.getUUID());
+            }
+        }
+        return r;
+    }
+
+    /** A playful poke on a player (on request): a small shove away from you, a puff, her giggle. No harm. */
+    static JsonObject poke(ServerPlayer you, ServerPlayer who) {
+        if (who == you) return error("Poke who? Name another player.");
+        double dx = who.getX() - you.getX(), dz = who.getZ() - you.getZ(), d = Math.max(0.1, Math.hypot(dx, dz));
+        who.knockback(0.9, -dx / d, -dz / d);
+        who.hurtMarked = true;
+        who.serverLevel().sendParticles(ParticleTypes.POOF, who.getX(), who.getY() + 1, who.getZ(), 10, 0.3, 0.4, 0.3, 0.02);
+        who.serverLevel().playSound(null, who.blockPosition(), net.minecraft.sounds.SoundEvents.CHICKEN_EGG,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1f, 1.6f);
+        JsonObject r = ok();
+        r.addProperty("poked", who.getGameProfile().getName());
         return r;
     }
 
@@ -426,13 +517,23 @@ public final class Actions {
             case "luck" -> net.minecraft.world.effect.MobEffects.LUCK;
             case "conduit_power" -> net.minecraft.world.effect.MobEffects.CONDUIT_POWER;
             case "dolphins_grace" -> net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE;
+            // playful ones, short: a friend slowed down, floating up a moment, glowing
+            case "slowness", "slow", "slow_down" -> net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN;
+            case "levitation", "levitate", "float", "fly_up" -> net.minecraft.world.effect.MobEffects.LEVITATION;
+            case "glowing", "glow", "outline" -> net.minecraft.world.effect.MobEffects.GLOWING;
             default -> null;
         };
+        if (effect == null && key.matches("poison|wither|instant_damage|harming|damage|blindness|nausea|hunger|weakness|"
+                + "darkness|bad_omen|mining_fatigue|unluck|bad_luck|infested|oozing|weaving|wind_charged")) {
+            return error("That one would hurt them: I only do kind or playful effects (slowness, a little levitation, glowing).");
+        }
         if (effect == null) return error("There's no effect called " + what + " I can give (haste, night vision, speed, "
                 + "regeneration, fire resistance, water breathing, jump boost, strength, resistance, slow falling, "
                 + "invisibility, or health and food).");
         boolean strong = key.equals("regeneration") || key.equals("regen") || key.equals("strength") || key.equals("resistance");
-        int seconds = strong ? 45 : 180;
+        int seconds = effect == net.minecraft.world.effect.MobEffects.LEVITATION ? 4
+                : effect == net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN ? 20
+                : effect == net.minecraft.world.effect.MobEffects.GLOWING ? 60 : strong ? 45 : 180;
         sp.addEffect(new net.minecraft.world.effect.MobEffectInstance(effect, seconds * 20, 0));
         r.addProperty("effect", key.replace('_', ' '));
         r.addProperty("seconds", seconds);
@@ -458,10 +559,96 @@ public final class Actions {
             return r;
         }
         JsonObject res = place(p, who.getX(), who.getY(), who.getZ());
+        lastTargetPlayer = who.getGameProfile().getName();
         lastTargetEntity = who.getId();
         res.addProperty("found", true);
         res.addProperty("player", who.getGameProfile().getName());
         return res;
+    }
+
+    /**
+     * Another player in the world, asked of the world's game (it knows everyone, near or far). A friend
+     * asking "where am I?" gets where they are from the player she lives with.
+     */
+    static JsonObject findPlayerServer(MinecraftServer server, ServerPlayer you, String name, String from) {
+        java.util.List<ServerPlayer> all = new java.util.ArrayList<>();
+        for (ServerPlayer o : server.getPlayerList().getPlayers()) if (o.isAlive() && !o.isSpectator()) all.add(o);
+        ServerPlayer asker = from.isBlank() ? you : java.util.Objects.requireNonNullElse(Players.match(all, from), you);
+        String n = name.toLowerCase(Locale.ROOT).trim();
+        boolean self = asker != you && (n.isEmpty() || n.matches("(me|myself|i|where am i)")
+                || Players.score(Players.squash(asker.getGameProfile().getName()), Players.squash(name)) >= 2);
+        if (self) { // "where am I?": from where the player she lives with stands
+            JsonObject r = place(you, asker.getX(), asker.getY(), asker.getZ());
+            r.addProperty("self", true);
+            String host = you.getGameProfile().getName();
+            String dir = r.get("direction").getAsString().replace("-", " on their ");
+            r.addProperty("where", r.get("distance").getAsLong() + " blocks from " + host + ", " + dir + " ("
+                    + r.get("compass").getAsString() + " of them)");
+            r.addProperty("player", asker.getGameProfile().getName());
+            r.addProperty("fromPlayer", you.getGameProfile().getName());
+            r.addProperty("note", "This is where " + asker.getGameProfile().getName() + " is, seen from "
+                    + you.getGameProfile().getName() + " (the player you live beside).");
+            if (asker.level() != you.level()) r.addProperty("otherDimension", asker.level().dimension().location().getPath());
+            return r;
+        }
+        java.util.List<ServerPlayer> others = new java.util.ArrayList<>();
+        for (ServerPlayer o : all) if (o != asker) others.add(o);
+        if (others.isEmpty()) return error("Nobody else is in this world right now.");
+        boolean meansYou = asker != you && (n.matches(".*\\b(player|host|you|your|owner)\\b.*")
+                || Players.score(Players.squash(you.getGameProfile().getName()), Players.squash(name)) >= 2);
+        ServerPlayer who = meansYou ? you : name.isBlank() && others.size() == 1 ? others.get(0) : Players.match(others, name);
+        if (who == null) {
+            JsonObject r = error("Nobody called " + name + " in this world.");
+            r.addProperty("hereNow", String.join(", ", others.stream().map(o -> o.getGameProfile().getName()).toList()));
+            return r;
+        }
+        if (who.level() != asker.level()) {
+            JsonObject r = error(who.getGameProfile().getName() + " is in another dimension ("
+                    + who.level().dimension().location().getPath().replace('_', ' ') + ").");
+            r.addProperty("player", who.getGameProfile().getName());
+            return r;
+        }
+        JsonObject res = place(asker, who.getX(), who.getY(), who.getZ());
+        lastTargetEntity = who.getId();
+        lastTargetPlayer = who.getGameProfile().getName();
+        res.addProperty("found", true);
+        res.addProperty("player", who.getGameProfile().getName());
+        res.addProperty("entity", who.getId());
+        var held = who.getMainHandItem();
+        res.addProperty("holding", held.isEmpty() ? "nothing" : BuiltInRegistries.ITEM.getKey(held.getItem()).getPath().replace('_', ' '));
+        String act = activityOf(who.getUUID());
+        res.addProperty("lately", act.isEmpty() ? "nothing the world noticed in the last two minutes" : act);
+        return res;
+    }
+
+    /** Where a player is now (for leading to someone who walks, even far away): the world's game knows. */
+    public static CompletableFuture<JsonObject> whereIs(Minecraft mc, String name) {
+        MinecraftServer server = mc.getSingleplayerServer();
+        JsonObject args = new JsonObject();
+        args.addProperty("name", name);
+        if (server == null) {
+            if (remote == null) return done(error("no world's game to ask"));
+            JsonObject req = new JsonObject();
+            req.add("args", args);
+            req.addProperty("power", "ADVISOR");
+            req.addProperty("style", "GROUNDED");
+            return remote.apply("find_player", req);
+        }
+        CompletableFuture<JsonObject> f = new CompletableFuture<>();
+        java.util.UUID you = mc.player.getUUID();
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayer(you);
+            ServerPlayer who = sp == null ? null : Players.match(server.getPlayerList().getPlayers(), name);
+            if (who == null) f.complete(error("gone"));
+            else {
+                JsonObject r = ok();
+                r.addProperty("x", who.getX());
+                r.addProperty("y", who.getY());
+                r.addProperty("z", who.getZ());
+                f.complete(r);
+            }
+        });
+        return f;
     }
 
     static JsonObject setTime(MinecraftServer server, String time) {

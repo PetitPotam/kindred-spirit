@@ -383,6 +383,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
         <div class="card c4"><h2>Mood <span class="sub">how good she feels, how stirred up</span></h2><div id="mood"></div></div>
         <div class="card c4"><h2>Powers</h2><div id="powers"></div></div>
         <div class="card c12" id="between-card"><h2>Between you</h2><div id="between"></div></div>
+        <div class="card c12" id="hearts-card" style="display:none"><h2>Her heart for each friend <span class="sub">how she feels about the others she's met</span></h2><div id="hearts" class="grid" style="gap:14px"></div></div>
         <div class="card c5"><h2>The game, as she sees it</h2><div id="game"></div></div>
         <div class="card c7"><h2>Conversation window <span class="sub" id="window-sub"></span></h2><div id="window"></div></div>
         <div class="card c12"><h2>What the AI was given last</h2><div id="sent"></div></div>
@@ -433,6 +434,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
           <div class="chips" id="mem-kinds"></div>
           <div id="mem-list"></div>
         </div>
+        <div class="card c12"><h2>Places she knows <span class="sub">on her own, named by you, and found when asked: from above, north up</span></h2><div id="mem-places"></div></div>
         <div class="card c12"><h2>Saved state <span class="sub">click one to see it</span></h2><div id="mem-docs"></div></div>
       </div>
     </section>
@@ -657,7 +659,7 @@ function friendsCard(d, gameOn) {
       <label><input type="checkbox" id="fr-guests" ${fr.lanGuests !== false ? "checked" : ""}> They see her and talk to her</label>
       <label><input type="checkbox" id="fr-powers" ${fr.lanGuestPowers !== false ? "checked" : ""}> They may ask for her powers</label>
     </div>
-    <div class="small muted" style="margin-top:6px">Gifts, effects, finding and leading, within her power and style. Nothing they say changes her bond with you.</div>`;
+    <div class="small muted" style="margin-top:6px">Gifts, effects, finding and leading, within her power and style. What they say and do moves her heart for them, not her bond with you, except this: when one of them hurts her in front of you, she notices whether you stand up for her.</div>`;
   const change = async (path, value, said) => {
     try { await post("/api/settings", {changes: [{where: "mod", path, value}]}); toast(said); }
     catch (e) { toast("Not changed: " + e.message); }
@@ -665,6 +667,25 @@ function friendsCard(d, gameOn) {
   $("fr-follow").onchange = (e) => change("follow", e.target.value, e.target.value ? "She'll stay with " + e.target.value : "She'll come back to you");
   $("fr-guests").onchange = (e) => change("lanGuests", e.target.checked, e.target.checked ? "Friends see her again" : "Friends no longer see her");
   $("fr-powers").onchange = (e) => change("lanGuestPowers", e.target.checked, e.target.checked ? "Friends may ask for her powers" : "Friends can only talk with her");
+}
+
+// her heart for each friend: the same five feelings, one small card each (brain/kindred/friends.py)
+const STANCE_WORDS = {new: "just met", warm: "likes them", easy: "easy with them", guarded: "likes them, a bit wary",
+  reliant: "counts on them", wounded: "hurt by them", cold: "doesn't like them", bitter: "resents them"};
+function heartsCard(list) {
+  $("hearts-card").style.display = list && list.length ? "" : "none";
+  if (!list || !list.length) return;
+  $("hearts").innerHTML = list.map((R) => {
+    const bad = ["cold", "bitter", "wounded"].includes(R.stance), inc = (R.incidents || []).filter((i) => i.state !== "repaired").slice(-2);
+    return `<div class="c4" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><b>${esc(R.name)}</b>
+        <span class="chip ${bad ? "bad" : R.stance === "warm" ? "good" : "plain"}">${esc(STANCE_WORDS[R.stance] || R.stance)}</span>
+        ${R.trusted ? `<span class="chip" title="the player told her to do what they ask">does what they ask</span>` : ""}</div>
+      ${FEELINGS.map(([k]) => `<div class="feel" style="--c:var(--f-${k});grid-template-columns:84px minmax(0,1fr) 26px;margin:4px 0"><span class="name small">${k}</span>
+        <div class="bar"><i style="width:${Math.max(0, Math.min(100, R[k] || 0))}%;background:var(--f-${k})"></i></div><span class="v">${Math.round(R[k] || 0)}</span></div>`).join("")}
+      ${inc.map((i) => `<div class="tiny muted" style="margin-top:4px">💢 ${esc(nice(i.kind))}${i.words ? " “" + esc(i.words) + "”" : ""} · ${esc(i.ago)}</div>`).join("")}
+      <div class="tiny faint" style="margin-top:4px">last seen ${R.last ? new Date(R.last * 1000).toLocaleString() : "–"}</div></div>`;
+  }).join("");
 }
 
 async function live() {
@@ -700,6 +721,7 @@ async function live() {
         ${gameOn ? `<span class="chip good">in ${esc((b.world || "").replace(/^(sp|sim):/, ""))}</span>` : `<span class="chip plain">not in a world</span>`}
       </div></div></div>`;
   friendsCard(d, gameOn);
+  heartsCard(H.friends);
   $("bond").innerHTML = feelings(H.relationship);
   const bt = between(H.relationship);
   $("between-card").style.display = bt ? "" : "none";
@@ -897,10 +919,45 @@ async function memoryTab() {
   $("mem-world").innerHTML = `<option value="all">All worlds</option>` + worlds.map((w) => `<option value="${esc(w)}" ${w === world ? "selected" : ""}>${esc(w.replace(/^sp:/, ""))} (${Object.values(memData.worlds[w]).reduce((a, b) => a + b, 0)})</option>`).join("");
   if (world === "all") $("mem-world").value = "all";
   renderMemory();
+  placesCard();
   const docs = memData.docs || [];
   $("mem-docs").innerHTML = docs.length ? `<div class="scroll-x"><table><tr><th>Saved</th><th class="num">Size</th><th class="num">Updated</th></tr>${docs.map((x) => `<tr class="click" data-key="${esc(x.key)}"><td class="mono">${esc(x.key)}</td><td class="num">${fmt(x.size)} B</td><td class="num">${new Date(x.updated * 1000).toLocaleString()}</td></tr>`).join("")}</table></div><pre id="doc-view" style="display:none"></pre>`
     : emptyState("No saved state yet", "(or restart the gateway to list it)");
 }
+// the places she knows (item 25): a map from above (north up) and a list to rename or forget one
+const PLACE_ICON = {build: "🔨", bed: "🛏", death: "☠", chest: "📦", workshop: "🛠", portal: "🌀", danger: "⚠", first: "✨",
+  friend: "🧑", found: "💎", place: "📍"};
+async function placesCard() {
+  let d;
+  try { d = await get("/api/places?world=" + encodeURIComponent(world && world !== "all" ? world : "")); } catch (e) { $("mem-places").innerHTML = emptyState("Can't reach her memory", e.message); return; }
+  const ps = (d.places || []).filter((p) => p.meta && p.meta.x != null && (!p.meta.dimension || p.meta.dimension.endsWith("overworld")));
+  const all = d.places || [];
+  if (!all.length) { $("mem-places").innerHTML = emptyState("No places yet", "She remembers where you build, sleep, die, find things and meet firsts."); return; }
+  const kindOf = (p) => p.kind === "spot" ? (p.meta.what || "").split(":")[0] : p.kind;
+  let map = "";
+  if (ps.length) {
+    const xs = ps.map((p) => p.meta.x), zs = ps.map((p) => p.meta.z);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+    const span = Math.max(40, x1 - x0, z1 - z0) * 1.15, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, W = 520, H = 300;
+    const X = (x) => W / 2 + (x - cx) / span * W, Z = (z) => H / 2 + (z - cz) / span * H * (W / H) * 0.57;
+    map = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:640px;background:var(--panel-2);border-radius:12px;border:1px solid var(--line)" role="img" aria-label="map of her places">
+      <text x="${W - 14}" y="18" text-anchor="end">N ↑ · ${Math.round(span)} blocks across</text>
+      ${ps.map((p) => `<g><title>${esc(p.text)} (${p.meta.x} ${p.meta.y} ${p.meta.z})</title><circle cx="${X(p.meta.x)}" cy="${Z(p.meta.z)}" r="${3 + (p.importance || 5) / 2}" fill="var(--accent)" opacity=".75"/>
+        <text x="${X(p.meta.x) + 8}" y="${Z(p.meta.z) + 4}" style="fill:var(--ink);font-size:11px">${PLACE_ICON[kindOf(p)] || "•"} ${esc(p.text.length > 28 ? p.text.slice(0, 27) + "…" : p.text)}</text></g>`).join("")}</svg>`;
+  }
+  const list = all.sort((a, b) => (b.importance || 0) - (a.importance || 0)).map((p) => `<div class="mem"><div>${PLACE_ICON[kindOf(p)] || "•"} ${esc(p.kind === "place" ? (p.meta.name || p.text) : p.text)}
+      <div class="tiny muted">${p.meta.x != null ? `${p.meta.x} ${p.meta.y} ${p.meta.z}` : ""}${p.meta.dimension && !p.meta.dimension.endsWith("overworld") ? " · " + esc(p.meta.dimension.replace("minecraft:", "")) : ""}${p.meta.visits > 1 ? " · seen " + p.meta.visits + "×" : ""}${p.meta.with && p.meta.with.length ? " · with " + esc(p.meta.with.join(", ")) : ""}${p.meta.last ? " · " + new Date(p.meta.last * 1000).toLocaleDateString() : ""} · ${p.kind === "spot" ? "on her own" : p.kind === "place" ? "named by you" : "found"}</div></div>
+      <div style="display:flex;gap:4px"><button class="btn sm ghost" data-rename="${p.id}">Rename</button><button class="btn sm ghost danger" data-forget="${p.id}">Forget</button></div></div>`).join("");
+  $("mem-places").innerHTML = `${map}<div style="margin-top:10px;max-height:360px;overflow:auto">${list}</div>`;
+}
+$("mem-places").onclick = async (ev) => {
+  const r = ev.target.closest("[data-rename]"), f = ev.target.closest("[data-forget]");
+  try {
+    if (f && confirm("Forget this place?")) { await post("/api/places", {action: "forget", id: f.dataset.forget}); toast("Forgotten"); placesCard(); }
+    if (r) { const t = prompt("A new name for this place:"); if (t) { await post("/api/places", {action: "rename", id: r.dataset.rename, text: t}); toast("Renamed"); placesCard(); } }
+  } catch (e) { toast("Not changed: " + e.message); }
+};
+
 function renderMemory() {
   const rows = memData.memories.filter((m) => world === "all" || (m.world || "(every world)") === world);
   const counts = {};
@@ -913,7 +970,7 @@ function renderMemory() {
     <div class="tiny muted">${new Date(m.updated * 1000).toLocaleString()}${m.uses ? ` · recalled ${m.uses}×` : ""}${m.meta && m.meta.expires ? (m.expired ? " · <b>faded</b> (passing feeling)" : " · passing, fades " + new Date(m.meta.expires * 1000).toLocaleString()) : ""}${m.meta && m.meta.imported_from ? " · imported from " + esc(m.meta.imported_from) : ""}${world === "all" ? " · " + esc(m.world || "every world") : ""}</div></div>
     <div>${dots(m.importance)}</div></div>`).join("")}</div>`).join("") || emptyState("No memories here yet", "");
 }
-$("mem-world").onchange = (ev) => { world = ev.target.value; renderMemory(); };
+$("mem-world").onchange = (ev) => { world = ev.target.value; renderMemory(); placesCard(); };
 $("mem-kinds").onclick = (ev) => { const b = ev.target.closest("[data-k]"); if (!b) return; const k = b.dataset.k; memKinds.has(k) ? memKinds.delete(k) : memKinds.add(k); renderMemory(); };
 let searchTimer = null;
 $("mem-q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(memSearch, 300); };
@@ -1161,14 +1218,26 @@ async function openSession(id) {
       return `<div class="row-you"><div class="bubble you"><div class="who">${t} You${e.spoken ? " 🎙" : ""}</div>${esc(e.text)}</div>${c ? `<details class="small"><summary>what went to the AI (${esc(c.model || c.kind)}, ${c.seconds}s, ${c.tokens_in || "?"} → ${c.tokens_out || "?"} tokens) and what came back</summary>
         <pre style="max-height:260px">${esc(c.input)}</pre><div style="margin-top:4px"><b>Came back:</b> ${tagsOf(c.reply)}</div>${c.actions ? `<div><b>Tools:</b> <span class="mono">${esc(JSON.stringify(c.actions))}</span></div>` : ""}</details>` : ""}</div>`;
     }
-    if (e.kind === "pip") return `<div class="row-pip"><div class="bubble pip"><div class="who">${t} ${esc(name())} <span class="tags"><span>${esc(SOURCE[e.source] || e.source || "")}</span>${e.mood ? `<span>${esc(e.mood)}</span>` : ""}</span>
+    if (e.kind === "pip") return `<div class="row-pip"><div class="bubble pip"><div class="who">${t} ${esc(name())} <span class="tags"><span>${esc(SOURCE[e.source] || e.source || "")}</span>${e.to && e.to !== "player" ? `<span>to ${esc(e.to)}</span>` : ""}${e.mood ? `<span>${esc(e.mood)}</span>` : ""}</span>
       <button class="play" data-say="${esc(e.text)}" data-mood="${esc(e.mood || "")}" title="hear it again" aria-label="hear it again">▶</button></div>${esc(e.text)}</div>${e.why ? `<div class="tiny muted" style="margin:2px 0 0 8px">why: ${esc(e.why)}</div>` : ""}</div>`;
     if (e.kind === "not_said") return `<div class="sys">${t} held back (${esc(e.reason)}): <i>${esc(e.text)}</i></div>`;
     if (e.kind === "cut") return `<div class="sys warn">${t} interrupted${e.by_player ? " by you" : ""}${e.rest ? ": " + esc(e.rest) : ""}</div>`;
-    if (e.kind === "tool") return `<div class="sys">${t} 🔧 <b>${esc(e.name)}</b> <span class="mono">${esc(e.args || "")}</span> → <span class="${e.ok ? "good" : "bad"}">${esc(e.result || "")}</span></div>`;
+    if (e.kind === "guest") return `<div class="row-you"><div class="bubble you" style="background:var(--code)"><div class="who">${t} ${esc(e.who || "a friend")} (friend, in chat)</div>${esc(e.text)}</div></div>`;
+    if (e.kind === "heard") return `<div class="sys">${t} 🎙 heard “${esc(e.raw)}”${e.kept ? ` → kept “${esc(e.kept)}”` : ""} · speech-to-text ${e.stt}s${e.trip != null ? ` · trip ${e.trip}s` : ""}</div>`;
+    if (e.kind === "timing") return `<div class="sys">${t} ⏱ from releasing the key: text ${e.to_text}s, first word ${e.to_first_word}s${e.waited ? ` (waited ${e.waited}s for her line)` : ""}</div>`;
+    if (e.kind === "decide" && (e.force || e.acts)) return `<div class="sys">${t} ⚙ ${e.acts ? "acted: " + esc([].concat(e.acts).join("; ")) : ""}${e.force ? ` · required ${esc(e.force)}${e.force_by ? " (" + esc(e.force_by) + ")" : ""}` : ""}${e.who && e.who !== "player" ? " · for " + esc(e.who) : ""}</div>`;
+    if (e.kind === "death") return `<div class="sys bad">${t} ☠ the player died${e.ctx && e.ctx.at ? " at " + esc(e.ctx.at.join(" ")) : ""}</div>`;
+    if (e.kind === "hurt") return `<div class="sys warn">${t} the player lost ${e.lost} health at once</div>`;
+    if (e.kind === "friend_near" || e.kind === "friend_gone") return `<div class="sys">${t} ${esc(e.who)} ${e.kind === "friend_near" ? "came near" : "went away"}</div>`;
+    if (e.kind === "settings" && e.changed) return `<div class="sys">${t} ⚙ settings changed: ${esc(Object.entries(e.changed).map(([k, v]) => k + "=" + v).join(", "))}</div>`;
+    if (e.kind === "learned") return `<div class="sys">${t} 📓 learned ${e.added || 0} things${e.diary ? ` · diary: ${esc(e.diary)}` : ""}</div>`;
+    if (e.kind === "place") return `<div class="sys">${t} 📍 ${esc(e.label || e.what)}${e.at ? " at " + esc(e.at.join(" ")) : ""}</div>`;
+    if (e.kind === "touch") return `<div class="sys">${t} ${e.what === "hit" ? "💢" : "🤚"} <b>${esc(e.who)}</b> ${e.what === "hit" ? "hit her" : "petted her"}</div>`;
+    if (e.kind === "tool") return `<div class="sys">${t} 🔧 <b>${esc(e.name)}</b>${e.who && e.who !== "player" ? ` <span class="chip plain">for ${esc(e.who)}</span>` : ""} <span class="mono">${esc(e.args || "")}</span> → <span class="${e.ok ? "good" : "bad"}">${esc(e.result || "")}</span></div>`;
     if (e.kind === "answer") return `<div class="sys">${t} first words after <b>${e.first_words}s</b></div>`;
     if (e.kind === "error") return `<div class="sys bad">${t} error: ${esc(e.text)}</div>`;
     if (e.kind === "alert") return `<div class="sys warn">${t} ⚠️ ${esc(e.text)}</div>`;
+    if (e.kind === "heart" && e.who && e.who !== "player") return `<div class="sys">${t} ♥ her feelings for <b>${esc(e.who)}</b> (${esc(e.why)}) → ${esc(STANCE_WORDS[e.stance] || e.stance || "")}</div>`;
     if (e.kind === "heart") return `<div class="sys">${t} ♥ <span class="delta ${e.change > 0 ? "up" : "down"}">${e.change > 0 ? "+" : ""}${e.change}</span>${esc(e.why)} → ${e.bond}${e.stance ? ", " + esc(e.stance) : ""}</div>`;
     return "";
   }).join("");
