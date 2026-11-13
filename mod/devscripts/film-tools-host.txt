@@ -1,0 +1,24 @@
+# Filming tools check (#144), host side: her HUD with F1 (ownhud), the recording's wall clock, the dev
+# player's name, and a friend's line in the recording. Needs her brain running (friends talk to her through it).
+#   ./gradlew :1.21.1:runClient -PdevScript=devscripts/film-tools-host.txt -PplayerName=Sam -PvideoSize=960x540
+# and at the same time, in another terminal:
+#   ./gradlew :1.21.1:runGuest -PguestScript=devscripts/film-tools-guest.txt -PguestVideoSize=640x360
+# Then: versions/1.21.1/run/recordings/film-tools/events.jsonl starts with "wall" and has a line
+# {"name":"friend","from":"Robin",...}; screenshots film-ownhud-on (heart meter shown) and film-ownhud-off (not).
+world Film Tools
+wait 200
+cmd time set day
+video
+ownhud on
+brain {"type": "bond", "value": 40, "level": "friend", "change": 0.6}
+wait 10
+screenshot film-ownhud-on
+record start film-tools
+cmd publish false survival 25599
+wait 1500
+record stop
+ownhud off
+brain {"type": "bond", "value": 41, "level": "friend", "change": 0.6}
+wait 10
+screenshot film-ownhud-off
+quit

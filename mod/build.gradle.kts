@@ -49,6 +49,8 @@ loom {
                 val (w, h) = prop("videoSize").split("x")
                 programArguments.addAll("--width", w, "--height", h)
             }
+            // the player's name in the dev game (otherwise a random "Player123"), e.g. -PplayerName=Sam
+            if (project.hasProperty("playerName")) programArguments.addAll("--username", prop("playerName"))
         }
         // a second game on the same computer, as a friend joining your LAN world (light mode checks):
         // ./gradlew :26.3:runGuest -PguestScript=devscripts/lan-guest.txt
@@ -59,6 +61,11 @@ loom {
             programArguments.addAll("--username", "Robin")
             if (project.hasProperty("guestScript"))
                 jvmArguments.add("-Dkindredspirit.devScript=${rootProject.file(prop("guestScript"))}")
+            // its window size, like videoSize, e.g. -PguestVideoSize=640x360 (two games recording at once)
+            if (project.hasProperty("guestVideoSize")) {
+                val (w, h) = prop("guestVideoSize").split("x")
+                programArguments.addAll("--width", w, "--height", h)
+            }
         }
     }
 }
