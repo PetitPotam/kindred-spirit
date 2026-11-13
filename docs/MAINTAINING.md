@@ -50,9 +50,10 @@ Minecraft, its Fabric API and Java (Kindred Spirit Setup reads it); in the repos
 The mod and the brain are released together with one version: a jar only works with a brain of the same
 release (the protocol between them is at the top of `brain/kindred/server.py`).
 
-**A new Minecraft version** is its own minor release: update `minecraft_version`, `fabric_version` and
-`loader_version` in `mod/gradle.properties`, fix what breaks, play it in the sandbox, and say so in the
-changelog. Dependabot never does this automatically.
+**A new Minecraft version** is its own minor release: add it next to the others in `mod/versions/` (how:
+[CONTRIBUTING.md](../CONTRIBUTING.md#several-minecraft-versions)), fix what breaks, play it in the sandbox, and say
+so in the changelog. `loader_version` (Fabric Loader, the same for every version) stays in `mod/gradle.properties`.
+Dependabot never does this automatically.
 
 ## Making a release
 
@@ -111,7 +112,9 @@ installs it too). Modrinth gets the same jars, one version entry each (`0.2.0+26
 - **The CurseForge app** shows a project only once it has at least one "Release" file: preview, alpha and beta versions
   are on the website but not in the app.
 
-After a release, friends who play with the host update with **Update Pip** (`scripts/update-pip-windows.cmd`).
+After a release, hosts on a Mac update with the Setup's **Updates** step (her brain, the mod and the Setup together),
+and friends who play with the host update with **Update Pip** (`scripts/update-pip-windows.cmd`), which still builds
+from `main` rather than downloading the release's jar.
 
 **An urgent fix:** a `fix/...` branch from `main`, a pull request, merge, then a patch release.
 
@@ -174,6 +177,7 @@ This repository is also a way to learn GitHub and CI/CD: every check below is a 
 | **Release** (`release.yml`) | a version tag on `main` | builds the jars and the Setup, makes the GitHub release, uploads to Modrinth and CurseForge | Releases; Actions tab |
 | **Website** (`website.yml`) | changes under `web/` | builds and checks the site on pull requests; deploys it when merged to `main` | the pull request's checks |
 | **CLA** (`cla.yml`) | pull requests | asks first-time contributors to sign the [CLA](../CLA.md) | a comment on the pull request |
+| **Issue triage** (`issue-triage.yml`, decisions in `scripts/triage_issue.py`) | an issue opened or edited | adds the area label from the form's "Which part is it about?"; for a bug report with neither the computer nor any logs, adds `needs-info` and one comment asking for them (it says it's automatic), and removes `needs-info` once they're there. No AI, and it only ever touches those labels | labels and one comment on the issue |
 | **Labeler**, **Stale** | pull requests; daily | labels pull requests by the folders they touch; nudges, then closes, inactive issues | labels; issue comments |
 | **Dependabot** (`dependabot.yml`) | weekly / monthly | update pull requests for actions, Python and Gradle dependencies (never Minecraft or Fabric), and security alerts | Pull requests; Security tab → Dependabot |
 | **Secret scanning and push protection** | every push | refuses a push that contains a key or token, and alerts on ones already in the history | Security tab → Secret scanning |
@@ -181,6 +185,11 @@ This repository is also a way to learn GitHub and CI/CD: every check below is a 
 | **Scorecard** (`scorecard.yml`) | pushes to `main`, weekly | the OpenSSF score of the repository's security practices; each finding explains how to fix it | Security tab → Code scanning (tool "Scorecard"); the badge in the README |
 | **The ruleset on `main`** (a setting) | every merge | pull requests only, squash, **CI passed** up to date with `main`, no force-push, no deletion, no bypass | Settings → Rules |
 | **The pre-push hook** (`.githooks/pre-push`) | on your computer, before a push | refuses a push to `main` from your own computer | your terminal |
+
+**GitHub Copilot** follows the same rules: `.github/copilot-instructions.md` points to AGENTS.md and has a review
+checklist, used by Copilot Chat and by Copilot code review where the plan includes it. With Copilot Free (turned on in
+your GitHub account's settings), open Copilot Chat on any issue, pull request or file and ask it to explain or
+summarise; it's a good way to learn the repository.
 
 Good first things to read: a failed run's log (Actions tab → the run → the red step), a CodeQL alert's
 explanation, and Scorecard's list of checks (https://github.com/ossf/scorecard/blob/main/docs/checks.md).

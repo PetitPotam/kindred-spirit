@@ -210,8 +210,8 @@ with `#`/`##` headings, then `kb.py crawl local`.
 
 The wiki describes the **latest** Java and Bedrock versions (26.x by now) and marks what differs:
 "70%[JE only], 75%[BE only]", "Frostbite[upcoming: JE 26.4]", "[until: JE 1.21.5]". Kindred Spirit
-runs on **Java 1.21.1** (`"edition_filter": "java"`, `"game_version": "1.21.1"` in the wiki's
-source config), so:
+was first made for **Java 1.21.1**, and the knowledge base still targets it (`"edition_filter": "java"`,
+`"game_version": "1.21.1"` in the wiki's source config), so:
 
 - **Facts for another edition are left out**: "70%[JE only], 75%[BE only]" is stored as "70%";
   "They are part of the monster family[Bedrock Edition only]." is dropped; a section headed
@@ -238,6 +238,12 @@ The first version flagged pages "outdated" by category words, which caught the w
 housekeeping categories ("Pages needing historical sounds", "Obsolete information" on one
 section): Creeper, Enderman, Skeleton, Redstone Repeater, Comparator and Hopper all ranked ×0.55
 and could never answer. Only exact category names count now.
+
+**On Minecraft 26.3** (supported since the beta) the knowledge base doesn't follow your game's version yet: things
+added after 1.21.1, like the Happy Ghast or the Copper Golem, are still marked `future`, and minecraft-data's
+recipes are 1.21.1's. Playing 26.3, you can put `{"minecraft-wiki": {"game_version": "26.3"}}` in
+`~/.kindred-spirit/knowledge/sources.json` (it's merged over the built-in config) before crawling the wiki. Following
+the game's version by itself is a known gap.
 
 What the wiki changed *between* 1.21.1 and its latest version on a current page is only in its
 History tables, which are dropped: a detail can still be newer than the player's game. The

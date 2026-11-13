@@ -235,8 +235,14 @@ help (a villager's real offers against your pockets). Next: LAN, repeating jobs 
 - Creator mode: flag moments, automatic screenshots; maybe OBS clips and an episode recap.
 
 ## Phase 8: Sharing
-- Installer and setup guide, including for your friends. (A Windows guide for friends joining in light
-  mode and a one-command update, `scripts/update-pip-windows.ps1`: done.)
+- Installer and setup guide, including for your friends. **Done for macOS:** Kindred Spirit Setup
+  ([SETUP.md](SETUP.md)), attached to every release from the beta on, with updates and going back. A Windows guide
+  for friends joining in light mode and a one-command update, `scripts/update-pip-windows.ps1`: done.
+- After the beta, in this order: a one-line install command
+  ([#127](https://github.com/PetitPotam/kindred-spirit/issues/127)), her brain as a Docker image that runs locally
+  ([#128](https://github.com/PetitPotam/kindred-spirit/issues/128)), a Setup for Windows
+  ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)) and Linux
+  ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)), then Homebrew, winget and Scoop.
 - More skins and shapes (little star, cube robot) and skin packs. (Ball, cube, wisp, fairy and custom PNG skins shipped in 0.1.)
 - LAN friends (shipped): one Pip on the host's computer. Friends with the mod see her as the host does
   (light mode, no AI of their own), friends without it see an Allay stand-in; everyone talks to her in
@@ -244,6 +250,9 @@ help (a villager's real offers against your pockets). Next: LAN, repeating jobs 
   with whoever the host asks. When a friend hosts, your Pip comes along (visiting: their game shows her
   and carries out her powers). Later: the stand-in wearing her skin, friends hearing her voice on their
   own computer. (Her own relationship with each friend: in progress, above.)
-- Port to the current Minecraft release (26.x): renderer, mixins and mappings need porting; friends then join on the latest version.
+- Port to the current Minecraft release: **done**, Minecraft 26.3 next to 1.21.1, one jar each from the same code
+  (Stonecutter). Newer versions are added the same way ([CONTRIBUTING.md](../CONTRIBUTING.md#several-minecraft-versions)).
 - Servers (last, after singleplayer and LAN): allowlist, server-safe behaviour, seed finder (cubiomes).
-- Publish on GitHub and Modrinth as **Kindred Spirit** (slug `kindred-spirit` is free as of 2026-11-11).
+- Publish on GitHub (done: releases with the jars and the Setup), Modrinth and CurseForge as **Kindred Spirit**:
+  their pages are drafted in [modrinth.md](modrinth.md) and [curseforge.md](curseforge.md), and every release uploads
+  there once the projects are live.

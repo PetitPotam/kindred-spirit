@@ -5,7 +5,7 @@
 
 **A cute AI companion for Minecraft Java that floats beside you, talks with you by voice, and never touches your world.**
 
-Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · early preview
+Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · beta · her brain runs on macOS for now
 
 [![CI](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PetitPotam/kindred-spirit/badge)](https://scorecard.dev/viewer/?uri=github.com/PetitPotam/kindred-spirit)
@@ -20,9 +20,12 @@ creeper sneaks behind you or your hearts run low.
 
 - **Your world stays yours.** The mod is client-side only: no new blocks, items or mobs, nothing
   saved in your world. Add or remove it any time.
-- **Bring your own AI.** One OpenAI-compatible address: Gemini by default; the gateway also has
-  presets for Ollama, Groq, OpenAI, OpenRouter and Mistral (only Gemini is tested so far).
+- **Bring your own AI.** Gemini with a free key by default, or another service with your key (OpenAI, Groq,
+  Mistral, OpenRouter, Claude API), a model on your computer with Ollama, or an AI subscription you already have
+  (Claude Code, Codex, Gemini CLI). Gemini is the one we've played with most; the others are less tried.
   Speech-to-text and voice run **locally**.
+- **One app to set her up.** On a Mac, [Kindred Spirit Setup](#setup-macos) installs her brain, her voice and
+  hearing, and Minecraft's side, explains every step, and updates them together.
 - **Light on your computer.** It adapts to your frame rate and hardware (see [Performance](#performance)).
 - **Made to be hacked on.** The mod is thin; the personality lives in a small Python "brain".
 
@@ -52,8 +55,9 @@ PetitPotam
 Kindred Spirit was inspired by Verity's companion, nothing else: I didn't care about its horror or its story.
 It isn't a fork: none of Verity's code or assets are used, and it's written from scratch for Fabric.
 
-> **Status: 0.1 preview.** It's playable and fun, but small. We're looking for contributors:
-> see [what to build next](#help-wanted) and the [design](docs/DESIGN.md).
+> **Status: beta.** It's playable and fun, and still young: some things haven't been tried by anyone on a real
+> computer yet ([what](#what-hasnt-been-tried-yet)). Contribute, playtest and send feedback, however you like:
+> see [helping](#helping) and the [design](docs/DESIGN.md).
 
 ## What works today
 
@@ -78,12 +82,12 @@ It isn't a fork: none of Verity's code or assets are used, and it's written from
 | It feels alive | looks where you look, looks back when you look at it, wanders around you when you stand still, dozes after a long quiet time, leans as it floats, blinks, its eyes move before its head, its face shows its mood (and it winks); hums little tunes with the game's note-block sounds; finds its way around walls and through doors instead of over the roof |
 | You can direct it | say or type "stay here", "come here", "follow me", "look at me", "do a spin"; pet it by sneaking while looking at it |
 | Skins | a slime, a soft cube, a fairy and a pixie with fluttering wings, a glowing wisp, a strawberry, a starry orb, Sprout with its leaves, or your own PNG ([how](docs/SKINS.md)) |
+| Her dashboard | press **K** in the game: a page on your computer with her heart and mood, your conversations, what she remembers, the buildings she knows, every AI call, and all her settings, changed live ([below](#watching-her-think)) |
 | Session logs | every play session gets a timeline and a summary in `~/.kindred-spirit/logs/sessions/`, shown on the dashboard, to see what went wrong |
 | Blueprints | **builds whole buildings from files** where you look, its door toward you: "build us a cozy cottage for three" (one she makes up, a bed each), or any `.nbt`, `.schem` or `.litematic` in `config/kindredspirit/blueprints/` ("a small desert house", "the plains smithy", "a circle to build on"). The game describes every file (what it is, its category, size, materials, a top and a front picture); she finds the right one by what you ask, describes the two or three best and asks which when several fit, and checks before a big one. Magic builds it in seconds; grounded first tells you the materials. She never builds over what you built. Browse, add and remove them on the dashboard's **Blueprints** page |
 
-In progress: Minecraft's own commands as her powers (instant building, flattening, a whole house), a
-memory of places with coordinates, a heart for each friend, blueprints. Not yet: mining and crafting
-jobs, the in-game settings screen. That's the [roadmap](docs/ROADMAP.md).
+Not yet: longer mining and crafting jobs, an in-game settings screen, undoing her builds
+([#129](https://github.com/PetitPotam/kindred-spirit/issues/129)). That's the [roadmap](docs/ROADMAP.md).
 
 ### What it may do: power and style
 
@@ -136,7 +140,9 @@ world for you: protect, gifts, effects, chopping, building, time and weather (`l
 side, on by default, lets them say no). Without the mod on the host's side, she's only with you:
 she talks, sees, finds and leads, but can't change their world.
 
-A friend setting up light mode on Windows: [PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md).
+A friend setting up light mode on Windows: [PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md) (Minecraft with
+Fabric, Fabric API and the Kindred jar; building the jar needs Java 25). On a Mac, the Setup's **Minecraft** step
+is all a friend needs.
 
 ### It shouldn't feel like a robot
 
@@ -209,12 +215,52 @@ bridge for a companion that by design never changes your world. So the mod carri
 bridge (~150 lines). MCPFabric stays the reference for later phases (actions, an MCP server for
 outside agents), where we may interoperate or borrow MIT code with credit.
 
-## Setup (macOS, about 10 minutes)
+## Setup (macOS)
 
-A Setup app you download and open, with no terminal, is on its way ([#82](https://github.com/PetitPotam/kindred-spirit/issues/82),
-[docs/SETUP.md](docs/SETUP.md)). Until a release includes it, set her up like this:
+**Kindred Spirit Setup** is an app you download and open, with no terminal and nothing else to install by hand. It
+opens a guide in your browser that explains each step, recommends a choice, tests it, and gives you a help prompt to
+paste into any AI assistant if something goes wrong:
 
-You need Minecraft Java Edition and [Homebrew](https://brew.sh). For the AI, use what you already
+1. From the newest [release](https://github.com/PetitPotam/kindred-spirit/releases), download
+   `Kindred-Spirit-Setup-<version>-macos-arm64.dmg` (Apple silicon: M1 and newer) or `...-macos-x86_64.dmg` (Intel).
+   It needs macOS 12 or newer and about 3 GB of free space.
+2. Drag it to Applications and open it. The first time, macOS says it can't check the app for malware, because the
+   project doesn't pay for Apple's yearly developer membership: on macOS 15 or newer, press **Done**, then **System
+   Settings → Privacy & Security → Open Anyway**; on macOS 12 to 14, Control-click the app → **Open**.
+3. Follow the steps: your computer, her brain, her AI, her instincts, voice and hearing, Minecraft (a launcher
+   profile for 26.3, recommended, or 1.21.1), saying hi to her in the game, her slow thinking, and whether she wakes
+   when you log in.
+
+Installed only the mod, from Modrinth say? In your own world, one chat message says that Pip needs her brain on
+this computer, with links to the Setup and to playing with a friend who hosts her (`/kindred hint off` hides it).
+
+Later, its **Updates** step installs a new version of her brain, the mod and the Setup together, keeps your settings
+and memories, and can go back to the version before. Everything, step by step: **[docs/SETUP.md](docs/SETUP.md)**.
+
+The Setup is attached to every release from the beta on. The first preview (0.2.0-preview) came before it: if the
+newest release has no `Kindred-Spirit-Setup-...dmg`, use the manual setup below.
+
+### What hasn't been tried yet
+
+The Setup is built and tested on GitHub's Apple silicon and Intel Macs with every release, and was tried on an
+Apple silicon Mac (how: [docs/TESTING-PLATFORMS.md](docs/TESTING-PLATFORMS.md)). Nobody has tried these yet, so
+reports are very welcome:
+
+- downloading the `.dmg` and getting past macOS's first-run warning, on macOS 15 or newer and on 12 to 14;
+- a real Intel Mac;
+- **Open Minecraft** with a real launcher and account, and whether macOS then asks for the microphone;
+- the microphone test with a real microphone;
+- her AI services with real keys through the Setup (its checks use a stand-in AI);
+- updating from one real release to the next.
+
+Not supported yet: hosting her brain on Windows ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)) or
+Linux ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)) (friends on Windows can join a Mac host's
+world), a signed and notarised app (that needs a paid Apple membership), and voices other than Kokoro, OpenAI's or
+subtitles only.
+
+### Manual setup (for contributors, or without the Setup)
+
+About 10 minutes. You need Minecraft Java Edition and [Homebrew](https://brew.sh). For the AI, use what you already
 have: a free [Gemini key](https://aistudio.google.com/apikey), your Claude subscription (Claude
 Code), another AI's command-line tool you pay for (Codex, Gemini CLI, Cursor), an API key (OpenAI,
 Claude API, Groq, OpenRouter, Mistral), or nothing at all with [Ollama](https://ollama.com) on your
@@ -251,13 +297,19 @@ Without questions: `scripts/setup.sh --defaults` (Gemini, everything else local)
 Your other profiles, mods and worlds are untouched. For the newest Minecraft, `--minecraft 26.3` adds a
 **Kindred Spirit (Fabric 26.3)** profile next to it, with its own folder (`minecraft-kindred-26.3`).
 
+(The Setup's Minecraft step makes the same profiles, with 26.3 recommended.)
+
 Then play: double-click **`scripts/play-mac.command`**. It starts everything and opens the launcher
 **from Terminal**, which matters on macOS: the launcher has no microphone permission of its own,
 so started from the Dock the game records silence. Pick the Kindred Spirit profile and press Play.
 
-**Linux:** the scripts are written to work there (`whisper-server` from [whisper.cpp](https://github.com/ggml-org/whisper.cpp)) but haven't been tried yet.
-**Windows:** not tested yet. The Python parts are cross-platform, but the start scripts are bash;
-a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
+**Linux:** `scripts/setup.sh` and her brain pass GitHub's install checks on Ubuntu (without her voice), and a real
+Minecraft client there says hi and she answers; nobody has played with her on Linux yet
+([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)). Hearing needs `whisper-server` from
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp).
+**Windows:** friends joining a host's world are covered ([PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md)); hosting
+her brain there isn't supported yet ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)): the Python
+parts are cross-platform, but the start scripts are bash.
 
 ### Controls
 
@@ -287,7 +339,8 @@ near me?", "where are the sheep? lead the way", "where's the nearest village? ta
 
 ## Watching her think
 
-`scripts/start.sh` also starts a dashboard at **http://127.0.0.1:11440** (press **K** in the game to open it): her heart and mood live,
+Her brain comes with a dashboard at **http://127.0.0.1:11440** (press **K** in the game to open it, or open Kindred
+Spirit Setup once she's set up; `scripts/start.sh` starts it in the manual setup): her heart and mood live,
 friends in your world (whom she stays with, what they may ask), powers waking up, what she says and
 does, every AI call with its tokens and cost, speech and voice timings, her memories per world (with a
 search that shows what she'd recall), past play sessions (replay what she said), **Try Pip** (talk to
@@ -297,7 +350,8 @@ gateway's special instructions. Changes apply live. See [docs/DASHBOARD.md](docs
 ## Settings
 
 - **Brain:** `~/.kindred-spirit/brain.toml` (name, personality, model, voice, chattiness, alerts).
-- **Mod:** `minecraft-kindred/config/kindredspirit.json` (skin, quality, subtitles, captions, position, size,
+- **Mod:** `config/kindredspirit.json` in the profile's game folder (`minecraft-kindred` for 1.21.1,
+  `minecraft-kindred-26.3` for 26.3, next to your `minecraft` folder) (skin, quality, subtitles, captions, position, size,
   volume, the guide arrow and sparkle trail (`guideArrow`, `guideTrail`), friends on LAN (`lanGuests`,
   `lanGuestPowers`, `lanVisitors`, `sharedPip`, `follow`), her HUD with the game's hidden (`hudWithHiddenGui`, for
   filming), and the liveliness switches under `"life"`).
@@ -358,6 +412,11 @@ Three levels, from fastest to most real:
    `devscripts/life-test.txt` does the same for its liveliness and every skin (eye contact, petting,
    gestures, stay and come, watching a creeper).
 
+4. **Install checks on every system:** `scripts/test-install.sh all` installs and starts her in a throwaway folder
+   on moved ports (the Setup app, her brain, Minecraft's side, and a real Minecraft client that says hi), the same
+   checks GitHub runs on clean macOS (Apple silicon and Intel), Linux and Windows machines with a stand-in AI. What
+   is checked where: [docs/TESTING-PLATFORMS.md](docs/TESTING-PLATFORMS.md).
+
 The demo video is made the same way: the sandbox films itself from a script and an editing script
 adds titles, captions and music. See [demo/README.md](demo/README.md).
 
@@ -369,15 +428,24 @@ By default everything runs on your computer except the AI you choose. When you t
 gateway sends your words, a short text description of your game, and the few memories that matter
 for that message to that provider. With Ollama nothing leaves your machine. Your voice stays on
 your machine with local Whisper, and your memories in `~/.kindred-spirit/memory/` (or on a gateway
-you deploy yourself).
-The bridge listens on 127.0.0.1 only and needs a token.
+you deploy yourself). On Gemini's free tier, Google may use what's sent to improve its products; a paid key, or
+Ollama on your own computer, avoids that. Her words come from that AI, and can be wrong.
+The bridge listens on 127.0.0.1 only and needs a token; her dashboard and the Setup's page only answer your own
+computer. The mod talks only to her brain on your computer (and, on LAN, to the host's game), and uses your microphone only while you hold the talk key.
 
-## Help wanted
+## Helping
 
-Ideas sized for a first contribution are in **[docs/GOOD_FIRST_ISSUES.md](docs/GOOD_FIRST_ISSUES.md)**
-(a settings screen, a PowerShell start script, more danger alerts, other shapes, a name tag, a
-wake word...). Bigger plans are in the [roadmap](docs/ROADMAP.md). Start with
-[CONTRIBUTING.md](CONTRIBUTING.md).
+Contribute, playtest and send feedback, however you like: any help is appreciated. A few ways in:
+
+- **Play and tell us how it went,** especially on an Intel Mac or with the Setup's first-run warning
+  ([what hasn't been tried yet](#what-hasnt-been-tried-yet)). An [issue](https://github.com/PetitPotam/kindred-spirit/issues)
+  with the Setup's "Copy a help prompt" text, or the terminal output, helps most.
+- **A first contribution:** issues labelled
+  [good first issue](https://github.com/PetitPotam/kindred-spirit/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22),
+  and small pieces in [docs/GOOD_FIRST_ISSUES.md](docs/GOOD_FIRST_ISSUES.md), each with where to start.
+- **Bigger plans** are in the [roadmap](docs/ROADMAP.md) and on the project's issues.
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
