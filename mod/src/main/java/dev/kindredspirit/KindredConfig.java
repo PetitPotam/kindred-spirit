@@ -50,6 +50,8 @@ public final class KindredConfig {
     public String follow = "";
     public String brainHost = "127.0.0.1";
     public int brainPort = 47811;
+    /** Her dashboard's port on this computer (KINDRED_DASHBOARD_PORT for the dashboard): the dashboard key opens it. */
+    public int dashboardPort = 11440;
     /** Empty = ~/.kindred-spirit/token, shared with the brain. */
     public String tokenFile = "";
     /** auto, low, medium or high. auto follows your frame rate and graphics setting. */
