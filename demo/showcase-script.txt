@@ -195,8 +195,12 @@ wait 60
 turnto companion 0.6
 wait 14
 walk 3
-wait 160
+wait 40
+camera back
+look 0 12
+wait 120
 mark places_end
+camera first
 
 # ---------------------------------------------------------------- her heart
 cmd tp @s 3000.5 150 2996.5 0 5
@@ -205,16 +209,21 @@ mark feelings
 turnto companion 0.5
 wait 14
 press attack
-wait 80
+wait 30
+camera back
+wait 50
 voice ../../demo/out/voices/s_sorry.wav
 wait 200
+camera first
 turnto companion 0.4
 wait 10
 sneak on
 wait 3
 sneak off
+camera back
 wait 90
 mark feelings_end
+camera first
 
 # ---------------------------------------------------------------- night
 cmd time set 18000
