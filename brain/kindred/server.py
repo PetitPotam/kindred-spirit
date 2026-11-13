@@ -393,6 +393,7 @@ class Brain:
         """What happens when the AI uses a tool: memory here, everything else in the game."""
         try:
             if name == "remember":
+                self.learn_nickname(args.get("fact", ""))
                 new = await self.memory.remember(args.get("fact", ""), args.get("about", "player"))
                 return {"ok": True, "remembered": True, "alreadyKnew": not new}
             if name == "forget":
@@ -442,6 +443,15 @@ class Brain:
         if self.offered is not None and name not in self.offered:
             # (amnesia) a power she hasn't discovered: the AI knows the name, she doesn't
             return {"ok": False, "error": "You don't know how to do that yet."}
+        args = self.real_names(args)  # nicknames she was taught ("follow Dumb") -> the player's name
+        said_now = (getattr(self, "last_player_text", "") or "").lower()
+        if name == "give_effect" and str(args.get("effect", "")).lower() in ("health", "food", "regeneration", "heal",
+                                                                             "saturation") \
+                and not intents.WANTS_CARE.search(said_now):
+            return {"ok": False, "error": "Nobody asked for healing or food just now: don't give it (you may offer it in words)."}
+        if name == "protect" and not args.get("poke") and not (self.snapshot or {}).get("hostiles") \
+                and not intents.action_hint(said_now, ["protect"]):
+            return {"ok": False, "error": "There are no monsters near, and nobody asked: nothing to push away."}
         if name in ("give_item", "give_effect"):
             # the same gift again, unasked (asked for "fancy emotes", she gave enchanted apples again and again):
             # only when their words ask for it (the item, "again", "another", "more")
@@ -1083,6 +1093,37 @@ class Brain:
                 "amnesia": h.get("amnesia"), "awakening": h.get("awakening"), "pranks": h.get("pranks"),
                 "fibs": h.get("fibs"), "auto_protect": h.get("auto_protect"), "voice": self.cfg.get("voice", {}).get("enabled"),
                 "small_talk": b.get("small_talk_minutes"), "model": self.cfg.get("ai", {}).get("model") or "gateway's"}
+
+    def real_names(self, args):
+        """A nickname in a tool's arguments ("Dumb", "Dumber") replaced by the player it means."""
+        nicks = self.heart.state.get("nicknames") or {}
+        if not nicks or not isinstance(args, dict):
+            return args
+        out = dict(args)
+        for k in ("name", "to", "for", "from"):
+            v = str(out.get(k) or "").strip().lower()
+            if v and v in nicks:
+                out[k] = nicks[v]
+        if "command" in out:
+            out["command"] = re.sub(r"\b(%s)\b" % "|".join(map(re.escape, nicks)), lambda m: nicks[m.group(0).lower()],
+                                    out["command"], flags=re.I)
+        return out
+
+    def learn_nickname(self, fact):
+        """"The player's nickname is Damb", "Robin's (riverrobin) nickname is Dumber": who is called what, so a
+        nickname works for her powers too."""
+        m = re.search(r"\b(?:nickname|called|call (?:him|her|them|me))\b(?: is)? ['\"]?([A-Za-z][\w ]{1,20}?)['\"]?[.,]?$",
+                      fact.strip(), re.I)
+        if not m:
+            return
+        nick = m.group(1).strip().lower()
+        s = self.snapshot or {}
+        who = s.get("playerName") if re.search(r"\b(the player|player's|me)\b", fact, re.I) else None
+        for p in s.get("players") or []:
+            if p.get("name") and (p["name"].lower() in fact.lower() or intents.same_person(fact.split("'")[0], p["name"])):
+                who = p["name"]
+        if who and nick != who.lower():
+            self.heart.state.setdefault("nicknames", {})[nick] = who
 
     def people_names(self):
         """Everyone she knows by name here: the player, friends near and met (for speech-to-text)."""
@@ -1988,6 +2029,10 @@ class Brain:
             if act.get("perform"):
                 asyncio.create_task(self.perform())
                 continue
+            if act.get("stop_all"):  # builds, leading, a show: all of it stops, really
+                asyncio.create_task(self.request("build", {"shape": "stop"}))
+                await self.send({"type": "act", "move": "stop"})
+                continue
             await self.send(dict(act, type="act"))
         moving = next((a["move"] for a in acts if a.get("move") in ("follow", "stay", "come")), None)
         vouched = intents.vouches_for(text, [p.get("name", "") for p in (self.snapshot or {}).get("players") or []],
@@ -2082,6 +2127,9 @@ class Brain:
                              + " | ".join(entries)) if entries else " Your diary is still empty: say so, simply."
                 note += await self.world_answer(text)  # how the world works: what it remembers, or listen
                 offered = self.heart.offered_tools(self.abilities, force or (asked if note_cross else None))
+                if force and force in intents.FAMILY:  # a clear request: its powers only (no healing, food or torches
+                    keep = intents.FAMILY[force]       # nobody asked for: 14 times in one evening)
+                    offered = [a for a in offered if a in keep or a not in tools.ABILITY_TOOLS]
                 if (moving or vouched) and not intents.LEADING.search(text):
                     # (the AI can't turn "follow me" into leading either; "do what Robin says" isn't "go to Robin")
                     offered = [a for a in offered if a not in ("guide", "follow_player")]
@@ -2153,7 +2201,7 @@ class Brain:
         if regard == "mean" and self.heart.bond < 12 and self.heart.p.get("can_vanish", True):
             await self.vanish(120, random.choice(intents_heart.VANISH_LINES))
 
-    GUEST_TOOLS = ("give_item", "give_effect", "command", "protect", "find_ore", "find_animal", "find_block", "find_player",
+    GUEST_TOOLS = ("give_item", "give_effect", "command", "build", "harvest", "place_torch", "protect", "find_ore", "find_animal", "find_block", "find_player",
                    "locate", "guide", "stop_guide", "set_time", "set_weather")
 
     async def answer_guest(self, who, text, powers=False):
@@ -2220,6 +2268,8 @@ class Brain:
                             second = await self.run_tool(name, dict(args or {}, to=host))
                             return {"ok": bool(first.get("ok") or second.get("ok")), who: first, host: second}
                         args = dict(args or {}, to=who)
+                    if name in ("build", "command", "harvest", "place_torch") and not (args or {}).get("for"):
+                        args = dict(args or {}, **{"for": who})  # (from where they stand, with their inventory)
                     if name == "find_player":  # (where someone is, from where they stand)
                         args = dict(args or {}, **{"from": who})
                         if str(args.get("name", "")).lower() in ("", "me", "myself", "i"):
