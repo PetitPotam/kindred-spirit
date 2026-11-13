@@ -3,6 +3,7 @@ from the release, another launcher's mods folder, and the "say hi" check. A thro
 folder; Fabric's installer and Modrinth are stand-ins (no network)."""
 import json
 import os
+from pathlib import Path
 
 import pytest
 
@@ -47,7 +48,8 @@ def home(tmp_path, monkeypatch):
 
 
 def minecraft(tmp_path):
-    mc = tmp_path / "Library" / "Application Support" / "minecraft"
+    from pathlib import Path
+    mc = Path(smc.ip.minecraft_dir())  # (~/Library/Application Support/minecraft on macOS, ~/.minecraft on Linux)
     mc.mkdir(parents=True)
     (mc / "launcher_profiles.json").write_text('{"profiles": {"mine": {"name": "My modpack"}}}')
     return mc
@@ -82,7 +84,8 @@ def test_a_profile_per_version_with_its_own_folder_and_the_matching_jar(home):
     assert profiles["mine"] == {"name": "My modpack"}  # the player's own profiles are untouched
     p = profiles["kindred-spirit-26.3"]
     assert p["lastVersionId"].endswith("-26.3") and p["gameDir"].endswith("minecraft-kindred-26.3")
-    mods = tmp_path / "Library" / "Application Support" / "minecraft-kindred-26.3" / "mods"
+    mods = Path(smc.profile_names("26.3")[1]) / "mods"
+    assert mods.parent.name.endswith("minecraft-kindred-26.3")
     assert sorted(os.listdir(mods)) == ["fabric-api-26.3.jar", "kindred-spirit-0.3.0+26.3.jar"]
     assert (mods / "kindred-spirit-0.3.0+26.3.jar").read_bytes() == b"jar 26.3"
     assert (mc / "launcher_profiles.json.before-kindred").exists()
@@ -91,7 +94,7 @@ def test_a_profile_per_version_with_its_own_folder_and_the_matching_jar(home):
     assert setup_steps.run("minecraft", "choose", {"choice": "1.21.1"})["ok"]
     profiles = json.loads((mc / "launcher_profiles.json").read_text())["profiles"]
     assert {"kindred-spirit", "kindred-spirit-26.3", "mine"} <= set(profiles)
-    assert profiles["kindred-spirit"]["gameDir"].endswith("minecraft-kindred")
+    assert profiles["kindred-spirit"]["gameDir"] == smc.profile_names("1.21.1")[1]
 
 
 def test_another_launchers_mods_folder(home):
