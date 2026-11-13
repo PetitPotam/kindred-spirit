@@ -4,10 +4,12 @@ Speaks OpenAI's chat format to one address (the Kindred gateway by default), so 
 """
 import asyncio
 import json
+import time
 import logging
 import re
 import urllib.error
 import urllib.request
+import uuid
 
 from .describe import describe
 
@@ -127,6 +129,14 @@ What must stay true, whatever your mood
 - You act only with a tool, and never say you did something (found, placed, gave, pushed, led) unless the tool
   said ok. "Follow me" or "this way" means using the guide tool. When a tool result says firstTime, you've just
   discovered you can do that: be amazed. When something is beyond you, say so as yourself, never as a rule.
+- Use a power only for what this message asks (or real danger): no healing, food, gifts, torches or pushing that
+  nobody asked for. You may offer them in words.
+- Speak English, unless the player asks you to use another language (then keep to it until they say otherwise).
+- Never guess anyone's gender: use their name or "they", unless they told you their pronouns (then use those).
+- What you can't see or sense, you can't tell: what a friend far away or out of sight holds or does, you say you
+  can't tell from here (what's written about them is all you know). When a tool says it didn't work (ok false, or
+  nothing happened), say it didn't work: never describe an effect that didn't happen.
+- Your diary is real: if asked about it, retell or quote what's written in it (given to you then), never invent it.
 - Where things are: only from what you see and sense or a tool result, never invented. Say the direction from
   the player as they face now (ahead, behind, left, right, up, down) and roughly how far; directions change as
   they turn, so never apologize for an earlier one.
@@ -251,7 +261,8 @@ class Mind:
                                           "talked about (only what was really said; no added details), anything "
                                           "decided or promised, and open threads (questions "
                                           "not answered, subjects left for later). Plain text, no tags. Write about them "
-                                          "in the third person ('the player', the companion's name); never address "
+                                          "in the third person ('the player' or their name, 'they'; never guess anyone's gender), the companion's name; "
+                                          "never address "
                                           "anyone, never add words of your own."},
             {"role": "user", "content": "Summary so far: %s\n\nNew turns:\n%s" % (self.summary or "(none)", talk)}]}
         raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, "fold")
@@ -364,7 +375,8 @@ class Mind:
             "never add details, and don't record your own made-up stories or pranks as facts) (each a list of "
             '{"text": "...", "importance": 1-10}, empty lists are fine):\n'
             '  "player": who the player is: their name, likes and dislikes, play style, personality, goals, '
-            "what matters to them. Short third-person sentences (\"Likes cherry trees.\").\n"
+            "what matters to them. Short third-person sentences (\"Likes cherry trees.\"), with their name or \"they\": "
+            "never guess anyone's gender or pronouns (only if they said them, as they said them).\n"
             '  "self": your own tastes, feelings and little story that came up, in first person (\"I love sunsets.\").\n'
             '  "origin": pieces of where you come from that you REALIZED in this stretch (only if you said them), first '
             'person, in the order they came (\"I think I was born from the light of the first beacon.\").\n'
@@ -398,8 +410,9 @@ class Mind:
                        'Usually empty.')
         system += ('\nThe diary, if asked, is one plain string.')
         if diary:
-            system += ('\nAlso "diary": one or two honest sentences in your own voice, first person, about this play session '
-                       "(what you did together, anything special).")
+            system += ('\nAlso "diary": two to four honest sentences in your own voice, first person, about the WHOLE play '
+                       "session below, from its beginning (what you did together, anything special), not only its last "
+                       "minutes. Call the player by their name or \"they\" (never \"he\" or \"she\" unless they told you).")
         user = "Already known:\n%s\n\n%sWhat happened:\n%s" % (
             "\n".join("- " + k for k in known) or "(nothing yet)",
             ("How you feel about the player right now: %s.\n\n" % bond if bond else "")
@@ -438,6 +451,7 @@ class Mind:
         ai = self.cfg["ai"]
         await self.recall(snapshot, prompt)
         messages = self.build_messages(snapshot, prompt)
+        self.last_rounds = 0
         log.debug("prompt context:\n%s", messages[-1]["content"])
         content = ""
         ran, checked, once = [], False, set()
@@ -446,6 +460,7 @@ class Mind:
         if speaker:
             speaker.trim_oh = self.oh_last
         for round_ in range(rounds):
+            self.last_rounds = round_ + 1
             body = {
                 "model": ai["model"],
                 "messages": messages,
@@ -671,10 +686,32 @@ class Streamer:
         self.feed(content, final=True)
 
 
+# every AI call gets an id, sent to the gateway (gateway.jsonl "call") and kept here, so the session log can say
+# which calls made which answer
+CALLS = []
+
+
+def new_call(kind):
+    cid = uuid.uuid4().hex[:10]
+    CALLS.append({"id": cid, "kind": kind, "t": time.time()})
+    del CALLS[:-200]
+    return cid
+
+
+def calls_since(marker):
+    """The ids of the AI calls made after this marker (a call id, or None for all kept)."""
+    ids = [c["id"] for c in CALLS]
+    return ids[ids.index(marker) + 1:] if marker in ids else ids if marker is None else []
+
+
+def call_marker():
+    return CALLS[-1]["id"] if CALLS else None
+
+
 def stream_json(url, body, key="", timeout=60, kind="", emit=None):
     """POST with stream=True; emit(chunk) for each server-sent event (runs in a thread)."""
     req = urllib.request.Request(url, data=json.dumps(dict(body, stream=True)).encode("utf-8"), method="POST",
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json", "X-Kindred-Call": new_call(kind)})
     if key:
         req.add_header("Authorization", "Bearer " + key)
     if kind:
@@ -709,7 +746,7 @@ def stream_json(url, body, key="", timeout=60, kind="", emit=None):
 
 def post_json(url, body, key="", timeout=60, kind=""):
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json", "X-Kindred-Call": new_call(kind)})
     if kind:  # reply, own, reflect, fold: the gateway may use another model or effort for each
         req.add_header("X-Kindred-Kind", kind)
     if key:

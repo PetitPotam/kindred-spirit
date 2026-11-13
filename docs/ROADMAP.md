@@ -184,17 +184,23 @@ Being built on the `claude/playtest-fixes` branch (33 items, from the session lo
   reacts; her glow in friends' worlds and on request.
 
 ## Phase 4: Expertise and understanding
-
-Being researched and started on the `blueprints` branch: blueprints and schematics (vanilla `.nbt`,
-Sponge `.schem`, Litematica; ghost previews, material lists, building from a blueprint, saving what
-you built as hers), then the items below.
-
-- Recipes and items (minecraft-data), wiki knowledge search.
-- Expert modes: survival, redstone, builder, speedrun.
-- Activity understanding (building, redstone, farming, mining) and a session journal.
-- Goals that survive restarts, routines, goal nudges.
+- **Building from blueprints** ([research and plan](research/blueprints.md)): started, a reader for
+  vanilla structure `.nbt`, Sponge `.schem` and Litematica `.litematic` files (turning, the front by
+  the door, build order, material list, saving). Next: in-game blueprints and building them, a house
+  generator ("a cozy cottage for three"), a ghost preview, "remember this house", understanding builds.
+- Recipes and items (minecraft-data), wiki knowledge search. Started: a crafting planner on the game's
+  own recipes and your pockets ("what am I missing for a piston?"), [design](research/blueprints.md#7-phase-4-expertise-and-understanding).
+- Expert modes: survival, redstone, builder, speedrun. Started: the modes, auto mode from what you're
+  doing, speedrun splits (brain, not wired yet).
+- Activity understanding (building, redstone, farming, mining) and a session journal. Started: rules
+  over what you did; the journal is the session log and diary.
+- Goals that survive restarts, routines, goal nudges. Started: shared goals per world with checks and
+  rare nudges; routines are repeating reminders.
 
 ## Phase 5: Grounded actions and jobs
+Started ([design](research/blueprints.md#8-phase-5-grounded-actions-and-jobs)): a job runner (mine
+whole veins nearest first, collect, craft a batch, get your things back after death) and trading help
+(a villager's real offers against your pockets); to be wired into her actions next.
 - Grounded tasks within the radius: break the tree in front of you, collect, craft.
 - Walk you somewhere; mine, collect and craft jobs.
 - Return your items after death; trading help.
@@ -212,7 +218,9 @@ you built as hers), then the items below.
   - a stand-in player run by the game's own server inside our mod (the "fake player" approach from mods
     like Carpet) with Baritone for walking and mining: more work, but one mod, nothing extra to install
     for friends, no account.
-  Singleplayer first, then LAN.
+  Singleplayer first, then LAN. **Chosen (2026-11-13):** the stand-in player inside the mod (an invisible
+  helper from Fabric API's fake player), tried in singleplayer: mining, crafting, collecting and trades
+  worked; not wired into her actions yet ([comparison](research/blueprints.md)).
 
 ## Phase 6: Voice and brain extras
 - Wake word, several languages, swappable speech services through the gateway.

@@ -51,4 +51,41 @@ class BuildPlanTest {
         assertEquals(BuildPlan.Shape.OUTLINE, BuildPlan.Shape.of("pen"));
         assertNull(BuildPlan.Shape.of("castle"));
     }
+
+    @org.junit.jupiter.api.Test
+    void aHouseHasAFloorWallsADoorwayAndARoof() {
+        var steps = BuildPlan.steps(BuildPlan.Shape.HOUSE, 0, 64, 0, FX, FZ, 0, 0, 0, 2, Integer.MIN_VALUE);
+        // for two: 7 x 7, walls 3 high, flat roof
+        long floor = steps.stream().filter(s -> s.y() == 64).count(), roof = steps.stream().filter(s -> s.y() == 68).count();
+        org.junit.jupiter.api.Assertions.assertEquals(49, floor);
+        org.junit.jupiter.api.Assertions.assertEquals(49, roof);
+        org.junit.jupiter.api.Assertions.assertEquals(1, steps.stream().filter(s -> s.kind() == 'D').count(), "one door");
+        org.junit.jupiter.api.Assertions.assertEquals(1, steps.stream().filter(s -> s.kind() == 'X').count(), "above the door: open");
+        org.junit.jupiter.api.Assertions.assertTrue(BuildPlan.steps(BuildPlan.Shape.HOUSE, 0, 64, 0, FX, FZ, 0, 0, 0, 4,
+                Integer.MIN_VALUE).stream().filter(s -> s.y() == 64).count() > 49, "a bigger house for four");
+    }
+
+    @org.junit.jupiter.api.Test
+    void aPortalIsTenObsidianThenFire() {
+        var steps = BuildPlan.steps(BuildPlan.Shape.PORTAL, 0, 64, 0, FX, FZ, 0, 0, 0, 1, Integer.MIN_VALUE);
+        org.junit.jupiter.api.Assertions.assertEquals(10, steps.stream().filter(s -> "obsidian".equals(s.block())).count());
+        org.junit.jupiter.api.Assertions.assertEquals('L', steps.get(steps.size() - 1).kind(), "lit last");
+    }
+
+    @org.junit.jupiter.api.Test
+    void clearingGoesFromTheTopDownAndFlatteningFillsTheGround() {
+        var clear = BuildPlan.steps(BuildPlan.Shape.CLEAR, 0, 70, 0, FX, FZ, 4, 4, 5, 1, 64);
+        org.junit.jupiter.api.Assertions.assertEquals(80, clear.size());
+        org.junit.jupiter.api.Assertions.assertEquals(69, clear.get(0).y(), "the top layer first");
+        org.junit.jupiter.api.Assertions.assertTrue(clear.stream().allMatch(s -> s.kind() == 'X' && s.y() >= 65), "above Y 64 only");
+        var flat = BuildPlan.steps(BuildPlan.Shape.FLATTEN, 0, 70, 0, FX, FZ, 4, 4, 5, 1, 64);
+        org.junit.jupiter.api.Assertions.assertEquals(16, flat.stream().filter(s -> s.kind() == 'F' && s.y() == 64).count());
+    }
+
+    @org.junit.jupiter.api.Test
+    void unknownShapesAreNamedHonestly() {
+        org.junit.jupiter.api.Assertions.assertNull(BuildPlan.Shape.of("castle"));
+        org.junit.jupiter.api.Assertions.assertEquals(BuildPlan.Shape.FLATTEN, BuildPlan.Shape.of("flatten"));
+        org.junit.jupiter.api.Assertions.assertEquals(BuildPlan.Shape.PLACE, BuildPlan.Shape.of("place"));
+    }
 }

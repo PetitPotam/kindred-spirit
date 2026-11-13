@@ -441,7 +441,8 @@ class Bonds:
             last = inc[-1]
             what = ("they said \"%s\"" % last["words"]) if last["words"] else {
                 "hit_deliberate": "they hit you on purpose", "hit_careless": "they hit you, carelessly",
-                "threat": "they threatened you"}.get(last["kind"], "they hurt you")
+                "threat": "they threatened you", "let_them": "they stood by and said nothing while someone hurt you"
+            }.get(last["kind"], "they hurt you")
             n = sum(1 for i in s["incidents"] if i["intent"] == "deliberate" and now - i["t"] < 3 * DAY)
             again = (" It's not the first time (%d times in the last days)." % n) if n >= 3 else ""
             if last["state"] == "probation":
