@@ -24,7 +24,8 @@ import build  # noqa: E402
 def home(tmp_path, monkeypatch):
     kh = tmp_path / "riverrobin" / ".kindred-spirit"
     kh.mkdir(parents=True)
-    monkeypatch.setattr(gw, "DIR", str(kh))
+    for name, rel in (("DIR", ""), ("STATE", "gateway.json"), ("SECRETS", "secrets.env"), ("LOCK", ".gateway.lock")):
+        monkeypatch.setattr(gw, name, str(kh / rel).rstrip("/"))  # every gateway file in the throwaway home
     monkeypatch.setenv("HOME", str(tmp_path / "riverrobin"))
     monkeypatch.setenv("KINDRED_HOME", str(kh))
     monkeypatch.setenv("KINDRED_APP_DIR", str(tmp_path / "app"))
