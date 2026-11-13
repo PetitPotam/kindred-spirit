@@ -121,8 +121,11 @@ public final class CraftPlanner {
             loop = from.loop;
         }
 
+        /** How much is left to gather; ore blocks count triple (only Silk Touch brings them home). */
         int missingTotal() {
-            return missing.values().stream().mapToInt(Integer::intValue).sum();
+            int n = 0;
+            for (Map.Entry<String, Integer> e : missing.entrySet()) n += e.getValue() * (e.getKey().endsWith("_ore") ? 3 : 1);
+            return n;
         }
 
         /** Takes what's there of an item; what's taken counts as the player's own until their stock runs out. */
@@ -213,6 +216,8 @@ public final class CraftPlanner {
         List<String> sorted = new ArrayList<>(alternatives);
         sorted.sort((a, b) -> {
             int c = Integer.compare(s.inv.getOrDefault(b, 0), s.inv.getOrDefault(a, 0));
+            if (c != 0) return c;
+            c = Integer.compare(usual(a), usual(b));
             return c != 0 ? c : a.compareTo(b);
         });
         if (sorted.size() == 1 || s.inv.getOrDefault(sorted.get(0), 0) >= amount) return sorted.get(0);
@@ -229,6 +234,13 @@ public final class CraftPlanner {
             }
         }
         return best;
+    }
+
+    /** When nothing's in the pockets, say what most people would use: oak, cobblestone, coal. */
+    static int usual(String id) {
+        String p = id.substring(id.indexOf(':') + 1);
+        if ((p.startsWith("oak_") || p.equals("cobblestone") || p.equals("coal") || p.equals("stick"))) return 0;
+        return 1;
     }
 
     /** The same recipe used in several places becomes one step (in the order first needed). */

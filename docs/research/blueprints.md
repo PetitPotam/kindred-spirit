@@ -430,8 +430,98 @@ words: what it did, what it skipped and why.
   all-powerful, off-by-default option for later; it adds entities to the world, which nothing else
   of hers does.
 
-**Done on this branch**: `mod/.../job/` (`Dig` with tests, `Jobs` runner: mine, collect, craft,
-return items, stop, status), `mod/.../trade/` (`TradeAdvice` with tests, `VillagerTrades`).
+**Done on this branch**: `mod/.../job/` (`Dig` with tests, `Hands`, the `Jobs` runner: mine, collect,
+craft, return items, stop, status), `mod/.../trade/` (`TradeAdvice` with tests, `VillagerTrades`),
+tried in the sandbox (section 9).
+
+**Never undo the player's work** (the MineCollab agents often destroyed each other's builds): jobs
+only take what was asked for (iron is iron ore, never a wall of iron blocks), never containers or the
+block under you, and once the places memory (playtest-fixes) marks building sites, mining and
+clearing skip blocks inside them unless the player points there.
+
+### Her "hands" for grounded jobs: the experiment
+
+**Priorities (the user, 2026-11-13):** singleplayer first, then LAN with friends; nothing designed for
+online servers until those feel right.
+
+**Mindcraft as a reference.** [Mindcraft](https://github.com/mindcraft-bots/mindcraft) (MIT, Node.js,
+[Mineflayer](https://github.com/PrismarineJS/mineflayer) bots that join as separate players; the
+paper is [MineCollab, arXiv 2504.17950](https://arxiv.org/abs/2504.17950)) has 41 actions and 14
+queries. The ones that matter for her jobs, and where Pip stands:
+
+| Mindcraft | What it does | Pip |
+|---|---|---|
+| `!collectBlocks(type, n)` | find and mine n blocks of a type | `Jobs.mine` (veins nearest first, her hands) |
+| `!craftRecipe(item, n)`, `!getCraftingPlan`, `!craftable` | craft, plan the tree, what can be made | `CraftPlanner` + `Jobs.craft` |
+| `!smeltItem`, `!clearFurnace` | use a furnace | in the planner (furnace near, coal); a real furnace job later |
+| `!givePlayer`, `!consume`, `!equip`, `!discard` | items | `give_item` (exists) |
+| `!putInChest`, `!takeFromChest`, `!viewChest` | chests | next: her hands can open containers (`openMenu`) |
+| `!goToPlayer`, `!followPlayer`, `!goToCoordinates`, `!goToRememberedPlace`, `!rememberHere`, `!savedPlaces` | moving, places | `guide`, `follow_player`, `name_place`, places (playtest-fixes) |
+| `!searchForBlock`, `!searchForEntity`, `!nearbyBlocks`, `!entities`, `!inventory`, `!stats` | sensing | `find_block`, `find_animal`, her senses, snapshot |
+| `!placeHere`, `!useOn` | place and use | `place` (playtest-fixes Builder), `Hands.useOn` |
+| `!attack`, `!attackPlayer` | fight | `protect` (pushes monsters) |
+| `!showVillagerTrades`, `!tradeWithVillager` | trading | `TradeAdvice` (advice; she doesn't trade for you) |
+| `!checkBlueprint`, `!getBlueprint`, `!getBlueprintLevel` | construction tasks | `Blueprint`, `Placement`, and `Verify` (below) |
+| `!goal`, `!endGoal`, `!setMode`, `!modes` | self-prompted goals, modes | `goals.py`, `expertise.py` |
+| `!searchWiki` | knowledge | her knowledge base |
+| `!newAction` | the AI writes JavaScript | off for Pip, as the roadmap says |
+
+**Its tasks** are the measure: `tasks/basic/single_agent.json` has, for example, `gather_oak_logs`
+(goal "Collect at least four logs", starting inventory a wooden axe, target `oak_log` x4, timeout 300
+s); crafting tasks are tech-tree goals with a depth and missing items; construction tasks are
+blueprints scored by edit distance. Pip's job tasks use the same fields (below).
+
+**Three ways to give her hands**, compared for singleplayer, then LAN:
+
+| | (a) Mineflayer bot steered by her brain | (b) Visible stand-in player in our mod + Baritone | (c) Invisible hands in our mod (chosen) |
+|---|---|---|---|
+| What it is | An extra Node.js program; a bot player joins the world; the brain sends it high-level commands (Mindcraft's skills, not its AI) | A server-side fake player added to the world like Carpet's `/player` (a ServerPlayer with a fake connection), walking and mining with Baritone | Fabric API's `FakePlayer` ([Fabric API](https://github.com/FabricMC/fabric), module `fabric-events-interaction-v0`): a server-side player that's never shown or ticked, used to break, place and use items exactly as the player would; her own floating body does the moving |
+| Bodies | Two: the spirit and a helper player | Two: the spirit and a stand-in | One: the spirit (her hands are invisible, like her magic) |
+| Install | Node.js 18-20 + `npm install` (mineflayer 4.x, pathfinder, collectblock, minecraft-data: dozens of packages) on the host; friends nothing | nothing extra | nothing extra (Fabric API is already required) |
+| Account | Vanilla LAN worlds authenticate players: checked in 1.21.1, `IntegratedServer.initServer` calls `setUsesAuthentication(true)`. An offline bot is refused unless our mod relaxes it for a local bot (a security hole if done carelessly) or the bot has its own Microsoft account. Mindcraft's README says online servers need one; its LAN instructions assume it works, which needs testing | none (the server makes the player) | none |
+| Walking, mining | Proven ([mineflayer-pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder), MIT; collectblock) | Baritone only drives the *local client* player; [Automatone](https://github.com/Ladysnake/Automatone) (LGPL-3.0, its server-side fork) stops at Minecraft 1.18, last release January 2024: a port, or our own pathfinder | She floats (no pathfinding); she reaches what's within the grounded radius around the player, as her design already says |
+| Real game rules | Yes (a real client) | Yes | Yes: tool speed and wear, drops, Fortune and Silk Touch, protection mods (Fabric's break events fire), all through `ServerPlayerGameMode` |
+| In the world | A player in the tab list, in sleep votes, seen by friends | The same | Nothing new: no entity, no player |
+| Versions | Mineflayer follows releases closely (Mindcraft: up to 1.21.11) | Carpet-style code ports with each version | Fabric API (ships for each version) |
+| LAN | Works if the account question is solved | Works | Works: it runs on the world's game, like her other powers (a visiting Pip asks the host's game) |
+| Licence | MIT | Carpet MIT (reference only), Baritone/Automatone LGPL-3.0 | Apache-2.0 (Fabric API), already a dependency |
+| Cost | A second program to install and keep running, a second protocol | The most work (pathfinding) | The least; prototyped below |
+
+**Recommendation: (c)**, her own body plus invisible hands. It matches who she is (a spirit
+that's drawn only on your screen and acts by "magic", grounded or not), keeps one mod and nothing for
+friends to install, needs no account, and the game's own rules make grounded work honest (a stone
+pickaxe is slow on iron and can't take diamonds). What (c) can't do is walk somewhere far on its own;
+that's the open question of autonomous helpers, and the answer there stays "only while you're near".
+(a) stays useful as **a test harness**: a Mineflayer bot could play the *player's* part in automatic
+job tasks later (it needs Node and the LAN account question answered first, so not now).
+(b) only if friends ask to *see* a helper; then a vanilla mob stand-in (the Allay she already uses
+for friends without the mod) with vanilla pathfinding is cheaper than a fake player with a ported
+Baritone.
+
+**Prototype (singleplayer).** `mod/.../job/Hands.java`: the stand-in (the owner's UUID with its own
+name, as Fabric recommends, so claims treat her work as the owner's), `breakTicks` (as long as the
+player's tool would take), `cracks`, `breakBlock` (through `gameMode.destroyBlock`, the drops go into
+the owner's pockets), `useOn` (placing or using an item on a block). Grounded mining in `Jobs` now
+goes through it: block by block, at the tool's real speed, the cracks showing, the tool wearing.
+Tried in the sandbox with `devscripts/jobs-check.txt` and the sandbox-only `/pipjob` command (see
+the results under section 9).
+
+### Measuring her jobs
+
+Two layers, aligned with the arch-review eval set (`brain/evals/`, on its branch: cases replayed
+through the brain with the game's part stubbed, checks that hold whatever the AI does, and checks on
+the AI's choices in live mode):
+
+1. **Choosing the job** (brain, no game): eval cases in that format: what the player says
+   ("get me some iron", "make me torches", "what can I sell to him?"), the snapshot, and the
+   expected tool call and arguments (`job` with `kind: mine, what: iron`), with the game's result
+   given. They join `brain/evals/cases/` once the job tools are wired.
+2. **Doing the job** (the sandbox game): MineCollab-style tasks, `{id, goal, initial_inventory,
+   setup (commands to build the test spot), job (the /pipjob or the tool call), target, count,
+   timeout}`, scored like MineCollab: 1 or 0 for gathering and crafting (the target is in the
+   pockets before the timeout), and for builds an edit distance between the blueprint and what's in
+   the world (`blueprint/Verify`). `devscripts/jobs-check.txt` is the first of these, by hand; a
+   runner that reads task files and writes a score table is the next step.
 
 ### Order and estimates
 
@@ -454,19 +544,40 @@ planner with grounded blueprint building (the material list and crafting what's 
 
 | Where | What | Tests |
 |---|---|---|
-| `mod/.../craft/CraftPlanner`, `Recipe` | The whole crafting tree from your pockets: steps in order, what's used, what's missing, stations, the inventory after; picks the alternative that leaves least to gather, mixes accepted items (1 oak + 2 birch planks), uses spares, ends recipe loops (ingots and blocks), bounded | `CraftPlannerTest` (9) |
-| `mod/.../craft/GameRecipes` | The game's crafting and smelting recipes as `Recipe`s; your pockets as counts (damaged or enchanted items never used up); carrying a plan out with real items | compiles; not run in a game |
+| `mod/.../craft/CraftPlanner`, `Recipe` | The whole crafting tree from your pockets: steps in order, what's used, what's missing, stations, the inventory after; picks the alternative that leaves least to gather, mixes accepted items (1 oak + 2 birch planks), uses spares, ends recipe loops (ingots and blocks), ore blocks last (only Silk Touch brings them), oak and cobblestone when nothing's in the pockets, bounded | `CraftPlannerTest` (10) |
+| `mod/.../craft/GameRecipes` | The game's crafting and smelting recipes as `Recipe`s; your pockets as counts (damaged or enchanted items never used up); carrying a plan out with real items | sandbox (below) |
 | `mod/.../job/Dig` | Which blocks a mining job takes: whole veins, nearest first, within the radius; names to block kinds ("iron", "diamonds", "logs") | `DigTest` (4) |
-| `mod/.../job/Jobs` | The job runner: mine, collect, craft, return items, stop, status; grounded vs magic; never containers, unbreakables or the block under you | compiles; not run in a game |
-| `mod/.../trade/TradeAdvice`, `VillagerTrades` | Offers ranked against your pockets with plain lines; reading a villager's real offers, profession and level | `TradeAdviceTest` (3) |
+| `mod/.../job/Hands` | Her invisible hands (Fabric API's `FakePlayer`): break at the player's tool speed with cracks, drops to the pockets, place or use an item, all through the game's player rules and protection events | sandbox (below) |
+| `mod/.../job/Jobs` | The job runner: mine (grounded through her hands, block by block; magic at once), collect, craft, return items, stop, status; never containers, unbreakables or the block under you | sandbox (below) |
+| `mod/.../job/JobsDev`, `devscripts/jobs-check.txt` | Sandbox only (`-Dkindredspirit.devScript`): a `/pipjob` command to try jobs, plans and trades before they're wired | the script below |
+| `mod/.../blueprint/Verify` | How much of a placed blueprint is really there (right, missing, wrong, not cleared, what's left in build order); the MineCollab-style build score | `BlueprintTest` (1 more, 20 in all) |
+| `mod/.../trade/TradeAdvice`, `VillagerTrades` | Offers ranked against your pockets with plain lines; reading a villager's real offers, profession and level | `TradeAdviceTest` (3), sandbox |
 | `brain/kindred/activity.py` | The main activity and a summary line, from `youDid` or structured events | `tests/test_phase4.py` |
 | `brain/kindred/goals.py` | Goals per world in the memory store, steps, checks, context, nudges | `tests/test_phase4.py` |
 | `brain/kindred/expertise.py` | Modes, guidance, which comments each keeps, `asked_mode`, speedrun `Splits` | `tests/test_phase4.py` (13 in all) |
 
+**Tried in the sandbox** (singleplayer, `./gradlew runClient -PdevScript=devscripts/jobs-check.txt`,
+2026-11-13), all through `/pipjob` and read from the game log:
+- grounded `mine iron 4` with a stone pickaxe: the 4-block vein (one block diagonal, one deepslate)
+  taken block by block at the pickaxe's speed, `raw_iron: 4` in the pockets;
+- `mine diamond 1` with that stone pickaxe: stopped, "needs a better tool for diamond ore";
+- `mine coal 3 magic`: the vein at once, `coal: 3`;
+- `plan piston 1` from a log, 4 cobblestone, raw iron and redstone: 4 oak planks, 1 iron ingot (smelt),
+  1 piston, needs a crafting table and a furnace; `craft piston 1` refused until both were placed
+  near, then made it (`piston: 1`);
+- `collect`: 3 apples and 2 bread lying around, into the pockets;
+- `trades` next to a farmer: "20 wheat → 1 emerald. You could do it 3 times (12 left)", the bread she
+  can't afford, the pumpkin trade sold out.
+
+Two bugs found that way and fixed: the stand-in isn't ticked, so the game took it for falling and
+mined 5 times slower (it now stands as the player stands); and the first run did nothing because the
+sandbox window was in the background and singleplayer pauses then (the sandbox's own options now
+keep it running). Not tried yet: returning items after a real death, LAN, protected areas.
+
 **Waits for the playtest-fixes branch** (it owns the files that wire things in: `act/Actions.java`,
 `act/Builder.java`, `KindredSpiritClient.java`, `brain/kindred/server.py`, `tools.py`, `mind.py`,
 `intents.py`, `sessionlog.py`):
-- `Jobs.tick(server)` next to `Builder.tick`; a `job` action (mine, collect, craft, return_items,
+- `Jobs.tick(server)` next to `Builder.tick` (JobsDev registers it in the sandbox only); a `job` action (mine, collect, craft, return_items,
   stop, status) and a `trades` action in Actions; a `craft_help` action returning the plan;
 - brain tools: `job`, `craft_help`, `trades`, `set_goal`, `goal_progress`, `drop_goal`, `set_mode`;
 - her prompt: `activity.summary()`, `expertise.guidance()`, `goals.context()`; `expertise.allows()`
@@ -483,6 +594,7 @@ planner with grounded blueprint building (the material list and crafting what's 
 - Baritone: [USAGE.md](https://github.com/cabaletta/baritone/blob/master/USAGE.md), [Settings](https://github.com/cabaletta/baritone/blob/master/src/api/java/baritone/api/Settings.java), [DefaultSchematicFormats (1.21.1)](https://github.com/cabaletta/baritone/blob/1.21.1/src/main/java/baritone/utils/schematic/format/DefaultSchematicFormats.java), [BuilderProcess](https://github.com/cabaletta/baritone/blob/master/src/main/java/baritone/process/BuilderProcess.java)
 - Create: [Saving a Schematic](https://github.com/Creators-of-Create/Create/wiki/Saving-a-Schematic), [Printing a Schematic](https://github.com/Creators-of-Create/Create/wiki/Printing-a-Schematic); [createmod.com terms](https://createmod.com/terms-of-service), [rules](https://createmod.com/rules)
 - Building Gadgets: [CurseForge](https://www.curseforge.com/minecraft/mc-mods/building-gadgets), [wiki: Template](https://github.com/Direwolf20-MC/BuildingGadgets/wiki/Template)
+- Hands: [Mindcraft](https://github.com/mindcraft-bots/mindcraft) (`src/agent/commands/actions.js`, `queries.js`, `tasks/basic/single_agent.json`), [MineCollab paper (arXiv 2504.17950)](https://arxiv.org/abs/2504.17950), [Mineflayer](https://github.com/PrismarineJS/mineflayer), [mineflayer-pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder), [Carpet](https://github.com/gnembon/fabric-carpet), [Automatone](https://github.com/Ladysnake/Automatone), [Fabric API](https://github.com/FabricMC/fabric) (`FakePlayer`); `IntegratedServer.initServer` read from the 1.21.1 game classes
 - Phases 4 and 5: [minecraft-data](https://github.com/PrismarineJS/minecraft-data), [prismarine-recipe](https://github.com/PrismarineJS/prismarine-recipe), [Mindcraft](https://github.com/kolbytn/mindcraft), [Voyager (arXiv 2305.16291)](https://arxiv.org/abs/2305.16291), [MineColonies request system](https://minecolonies.com/wiki/systems/request), [Baritone](https://github.com/cabaletta/baritone)
 - Build libraries: [Planet Minecraft Terms of Use](https://www.planetminecraft.com/terms_of_use/), [minecraft-schematics.com Terms](https://www.minecraft-schematics.com/terms/), [GrabCraft terms](https://www.grabcraft.com/terms-of-use-privacy-policy/)
 

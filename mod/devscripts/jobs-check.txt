@@ -1,0 +1,72 @@
+# Phase 5 jobs in singleplayer, through her hands (a server-side stand-in player) and the /pipjob
+# sandbox command (JobsDev). Check the game log for "[pipjob]" lines.
+world kindred-jobs
+wait 220
+cmd gamemode survival
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -12 196 -12 12 199 12 minecraft:stone
+cmd fill -12 200 -12 12 210 12 minecraft:air
+cmd tp @s 0.5 200 0.5 0 35
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+# an iron vein of 4 (one diagonal) and a coal vein of 3, a diamond, all within reach
+cmd setblock 3 199 2 minecraft:iron_ore
+cmd setblock 4 199 2 minecraft:iron_ore
+cmd setblock 4 198 2 minecraft:deepslate_iron_ore
+cmd setblock 5 197 3 minecraft:iron_ore
+cmd setblock -3 199 -3 minecraft:coal_ore
+cmd setblock -4 199 -3 minecraft:coal_ore
+cmd setblock -4 198 -3 minecraft:coal_ore
+cmd setblock 0 199 6 minecraft:diamond_ore
+cmd give @s minecraft:stone_pickaxe 1
+wait 20
+# grounded: the stone pickaxe takes the iron vein, block by block, at its own speed
+cmd pipjob mine iron 4
+wait 30
+screenshot jobs-01-mining
+wait 170
+cmd pipjob status
+# a diamond needs an iron pickaxe: the job stops and says so
+cmd pipjob mine diamond 1
+wait 60
+cmd pipjob status
+# magic: the coal vein at once
+cmd pipjob mine coal 3 magic
+wait 20
+cmd pipjob status
+# crafting from pockets: a piston from logs, cobblestone, raw iron, redstone (table, furnace, coal near)
+cmd clear @s
+cmd give @s minecraft:oak_log 1
+cmd give @s minecraft:cobblestone 4
+cmd give @s minecraft:raw_iron 1
+cmd give @s minecraft:redstone 1
+cmd give @s minecraft:coal 1
+cmd pipjob plan piston 1
+cmd pipjob craft piston 1
+wait 20
+cmd setblock 2 200 -2 minecraft:crafting_table
+cmd setblock 3 200 -2 minecraft:furnace
+cmd pipjob craft piston 1
+wait 20
+cmd pipjob status
+cmd pipjob plan torch 8
+# collecting what's lying around
+cmd summon item 2 201 2 {Item:{id:"minecraft:apple",count:3}}
+cmd summon item -2 201 1 {Item:{id:"minecraft:bread",count:2}}
+wait 40
+cmd pipjob collect
+wait 40
+cmd pipjob status
+# trading help: a farmer who buys wheat, sells bread, and one sold-out trade
+cmd give @s minecraft:wheat 64
+cmd summon villager 0.5 200 -4.5 {NoAI:1b,VillagerData:{profession:"minecraft:farmer",level:2,type:"minecraft:plains"},Offers:{Recipes:[{buy:{id:"minecraft:wheat",count:20},sell:{id:"minecraft:emerald",count:1},maxUses:16,uses:4},{buy:{id:"minecraft:emerald",count:1},sell:{id:"minecraft:bread",count:6},maxUses:16},{buy:{id:"minecraft:pumpkin",count:6},sell:{id:"minecraft:emerald",count:1},maxUses:12,uses:12}]}}
+wait 20
+cmd pipjob trades
+wait 20
+quit
