@@ -42,10 +42,14 @@ Unreleased into the new version's section.
   Minecraft. Friends pick theirs with `update-pip-windows.ps1 -Minecraft <version>` (it keeps the one they have),
   and `install_profile.py --minecraft 26.3` adds a profile of its own. Recording demo videos works on 1.21.1 only
   for now (#41).
+- Installed only the mod? In your own world, one chat message now says that Pip needs her brain on this computer,
+  with links to Kindred Spirit Setup and to playing with a friend who hosts her, and a "Don't show again"
+  (`/kindred hint off`). Mod Menu's description and links say the same (#92).
 - The Setup updates everything together: it checks GitHub Releases, shows what's new, installs the new version of
   her brain, the matching mod and the Setup itself, keeps your settings and memories, and can go back (#97).
 
 ### Fixed
+- The game tells her brain the mod's real version, not always 0.1.0 (#114).
 - `/kindred reset` now also forgets the places she noticed on her own (your bed, builds, where you died), so the
   new companion really starts fresh (#121).
 - Stopping her (`scripts/stop.sh`, the Setup's Stop, an update's restart) waits until her helpers have really exited,
