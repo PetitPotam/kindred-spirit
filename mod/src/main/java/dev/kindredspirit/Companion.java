@@ -157,10 +157,20 @@ public final class Companion {
         }
         HitResult myHit = mc.hitResult;
         Entity myTarget = mc.crosshairPickEntity;
+        if (myTarget != null && myTarget.getUUID().equals(dev.kindredspirit.guest.GuestBridge.hidden)) {
+            myTarget = null; // her own stand-in (for friends without the mod) floats where she is: it's not in the way
+            myHit = null;
+        }
         double inTheWay = Double.MAX_VALUE;
         if (myTarget != null) inTheWay = myTarget.distanceTo(p) - 0.3;
         else if (myHit != null && myHit.getType() == HitResult.Type.BLOCK) inTheWay = myHit.getLocation().distanceTo(p.getEyePosition());
         boolean struck = attack && !attackWasDown && !life.hidden() && life.aimedAt(me, inTheWay);
+        if (attack && !attackWasDown && a != p && System.getProperty("kindredspirit.devScript") != null) {
+            double dx = life.x - me.ex, dy = life.y - me.ey, dz = life.z - me.ez;
+            KindredSpiritClient.LOG.info("touch check (dev): along {} dist {} inTheWay {} target {} hidden {} struck {}",
+                    String.format("%.2f", dx * me.lx + dy * me.ly + dz * me.lz), String.format("%.2f", Math.sqrt(dx * dx + dy * dy + dz * dz)),
+                    inTheWay == Double.MAX_VALUE ? "nothing" : String.format("%.2f", inTheWay), myTarget, life.hidden(), struck);
+        }
         if (attack && !struck) life.playerSwings(s.now); // fighting or digging: she gets out of the way
         attackWasDown = attack;
         if (struck) {
