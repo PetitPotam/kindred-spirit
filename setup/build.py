@@ -47,6 +47,12 @@ PYTHONS = {  # target: (archive name, sha256, pip platform tag for the brain's l
 }
 PBS_URL = "https://github.com/astral-sh/python-build-standalone/releases/download/%s/%s"
 
+# Her hearing: whisper.cpp's server, built from source (MIT) when cmake is there (GitHub's macOS runners have it),
+# static and without "native" CPU tuning so it runs on any Mac of the target chip; Metal on Apple silicon. Pinned to
+# the release's commit; a build without it falls back to a whisper-server on the player's computer (Homebrew's).
+WHISPER_REPO = "https://github.com/ggml-org/whisper.cpp.git"
+WHISPER_TAG, WHISPER_COMMIT = "v1.9.5", "d1be6fde11ac6e0407606b4e42fe72d34add8037"
+
 # What goes in kindred/: what runs on the player's computer, nothing for development (tests, evals, the mod's source)
 CODE = ["brain/kindred", "brain/requirements.txt", "services", "scripts/start.sh", "scripts/stop.sh",
         "scripts/install_profile.py", "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
@@ -103,8 +109,36 @@ def extract(archive, dest):
             tar.extractall(dest)  # Python older than 3.11.4: the archive's hash was checked above
 
 
-def payload(stage, target, archive):
-    """stage/payload: python/, kindred/, VERSION."""
+def whisper_server(target, cache, dest):
+    """bin/whisper-server for the target, built once per version and chip (kept in the cache)."""
+    if not shutil.which("cmake") or not shutil.which("git"):
+        say("no cmake here: this build has no whisper-server (her hearing uses one on the player's computer)")
+        return
+    src = os.path.join(cache, "whisper.cpp-" + WHISPER_TAG)
+    if not os.path.isdir(src):
+        subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch", WHISPER_TAG, WHISPER_REPO, src], check=True)
+    got = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    if got != WHISPER_COMMIT:
+        raise SystemExit("whisper.cpp %s is commit %s, expected %s: refusing it" % (WHISPER_TAG, got, WHISPER_COMMIT))
+    arch = "arm64" if target.endswith("arm64") else "x86_64"
+    build = os.path.join(cache, "whisper-build-" + target)
+    binary = os.path.join(build, "bin", "whisper-server")
+    if not os.path.exists(binary):
+        say("her hearing: whisper.cpp %s's server for %s (a few minutes)" % (WHISPER_TAG, target))
+        subprocess.run(["cmake", "-S", src, "-B", build, "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=OFF",
+                        "-DWHISPER_BUILD_TESTS=OFF", "-DWHISPER_BUILD_EXAMPLES=ON", "-DWHISPER_BUILD_SERVER=ON",
+                        "-DGGML_NATIVE=OFF", "-DGGML_METAL=" + ("ON" if arch == "arm64" else "OFF"),
+                        "-DGGML_METAL_EMBED_LIBRARY=ON", "-DCMAKE_OSX_ARCHITECTURES=" + arch,
+                        "-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0"], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(["cmake", "--build", build, "--config", "Release", "--target", "whisper-server", "-j"],
+                       check=True, stdout=subprocess.DEVNULL)
+    os.makedirs(dest, exist_ok=True)
+    shutil.copy2(binary, os.path.join(dest, "whisper-server"))
+    shutil.copy2(os.path.join(src, "LICENSE"), os.path.join(dest, "whisper.cpp-LICENSE.txt"))
+
+
+def payload(stage, target, archive, cache=None, whisper=True):
+    """stage/payload: python/, kindred/, bin/ (whisper-server, when it could be built), VERSION."""
     out = os.path.join(stage, "payload")
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(out)
@@ -131,6 +165,8 @@ def payload(stage, target, archive):
             shutil.copy2(src, dst)
     with open(os.path.join(out, "VERSION"), "w", encoding="utf-8") as fh:
         fh.write(version() + "\n")
+    if whisper:
+        whisper_server(target, cache, os.path.join(out, "bin"))
     runnable = os.path.join(py, "bin", "python3")
     if target == "macos-" + ("arm64" if platform.machine() == "arm64" else "x86_64") and os.path.exists(runnable):
         # compiled once here, so the app starts quickly and never writes inside itself (it runs with -B)
@@ -217,13 +253,14 @@ def main(argv=None):
     ap.add_argument("--python-archive", help="a python-build-standalone archive you already have")
     ap.add_argument("--cache", default=os.path.join(HERE, "cache"), help="where downloads are kept")
     ap.add_argument("--out", default=os.path.join(HERE, "dist"))
+    ap.add_argument("--no-whisper", action="store_true", help="don't build whisper-server (needs cmake)")
     args = ap.parse_args(argv)
     if sys.version_info < (3, 11):
         raise SystemExit("build with Python 3.11 or newer")
     target = "%s-%s" % (args.system, args.arch)
     archive = python_archive(target, args.python_archive, args.cache)
     with tempfile.TemporaryDirectory(prefix="kindred-setup-") as stage:
-        payload(stage, target, archive)
+        payload(stage, target, archive, args.cache, whisper=not args.no_whisper)
         out = package_macos(stage, args.out, target, args.format)
     if os.path.isfile(out):
         say("done: %s" % write_checksum(out))

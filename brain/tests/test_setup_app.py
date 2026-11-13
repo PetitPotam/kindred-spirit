@@ -24,7 +24,8 @@ import build  # noqa: E402
 def home(tmp_path, monkeypatch):
     kh = tmp_path / "riverrobin" / ".kindred-spirit"
     kh.mkdir(parents=True)
-    monkeypatch.setattr(gw, "DIR", str(kh))
+    for name, rel in (("DIR", ""), ("STATE", "gateway.json"), ("SECRETS", "secrets.env"), ("LOCK", ".gateway.lock")):
+        monkeypatch.setattr(gw, name, str(kh / rel).rstrip("/"))  # every gateway file in the throwaway home
     monkeypatch.setenv("HOME", str(tmp_path / "riverrobin"))
     monkeypatch.setenv("KINDRED_HOME", str(kh))
     monkeypatch.setenv("KINDRED_APP_DIR", str(tmp_path / "app"))
@@ -50,7 +51,7 @@ def fake_payload(where, version="9.9.9"):
 def test_every_step_has_what_the_page_draws(home):
     out = setup_steps.overview()
     assert out["mode"] == "dashboard" and out["installed"] is None and out["home"].startswith("~")
-    assert [s["id"] for s in out["steps"]] == ["computer", "install", "start", "login"]
+    assert [s["id"] for s in out["steps"]] == ["computer", "install", "start", "ai", "thinking", "instincts", "voice", "hearing", "login"]
     for s in out["steps"]:
         assert s["title"] and len(s["why"]) > 40 and s["default"] and s["status"] in ("todo", "done", "problem")
         assert isinstance(s["actions"], list) and isinstance(s["facts"], list)
@@ -243,7 +244,7 @@ def test_the_dashboard_serves_the_setup_page_and_its_api(server):
     assert code == 200 and "Copy a help prompt" in page and "Test it" in page
     assert request(port, "GET", "/api/setup/hello")[1] == {"kindred": True, "setup": False, "version": setup_steps.own_version()}
     code, state = request(port, "GET", "/api/setup/state")
-    assert code == 200 and [s["id"] for s in state["steps"]] == ["computer", "install", "start", "login"]
+    assert code == 200 and [s["id"] for s in state["steps"]] == ["computer", "install", "start", "ai", "thinking", "instincts", "voice", "hearing", "login"]
     code, r = request(port, "POST", "/api/setup/run", {"step": "computer", "action": "choose", "choice": "medium"},
                       origin="http://127.0.0.1:%d" % port)
     assert code == 200 and r["ok"]

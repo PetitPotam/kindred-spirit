@@ -3,6 +3,9 @@
 
     python3 setup/smoke_test.py setup/dist/Kindred-Spirit-Setup-0.3.0-macos-arm64.dmg
     python3 setup/smoke_test.py "setup/dist/Kindred Spirit Setup.app"
+    python3 setup/smoke_test.py --models ...dmg     also download her models (~250 MB) and test her instincts, voice
+                                                    and hearing: for a clean machine (CI), since her helpers use fixed
+                                                    ports (8891, 8885, 8083) that a running Pip already has
 
 It opens the app (without a browser), then through the Setup's own page API: chooses the computer's profile,
 installs her brain, tests it, starts her (gateway, brain, dashboard), tests that, copies a help prompt and checks
@@ -23,7 +26,9 @@ import tempfile
 import time
 import urllib.request
 
-PORTS = {"setup": 11541, "gateway": 11537, "dashboard": 11540, "brain": 47911}
+PORTS = {"setup": 11541, "gateway": 11537, "dashboard": 11540, "brain": 47911, "ai": 11599}
+FAKE_KEY = "gsk_fake0000000000000000000000robin"  # a made-up key: the stand-in AI accepts anything
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def say(*a):
@@ -76,7 +81,26 @@ def app_from(path, work):
     return dest
 
 
+MODEL_PORTS = {"embeddings": 8891, "kokoro": 8885, "whisper": 8083}
+
+
+def wait_for(sid, minutes=20):
+    """A step's download in the background, until it's done (or failed)."""
+    deadline = time.time() + minutes * 60
+    while time.time() < deadline:
+        p = step(call("/api/setup/state"), sid).get("progress") or {}
+        if p.get("state") in ("done", "failed"):
+            assert p["state"] == "done", p
+            return
+        time.sleep(3)
+    raise AssertionError("%s's download took over %d minutes" % (sid, minutes))
+
+
 def main(argv):
+    models = "--models" in argv
+    argv = [a for a in argv if a != "--models"]
+    if models:
+        PORTS.update(MODEL_PORTS)
     if len(argv) != 1:
         raise SystemExit(__doc__)
     busy = [k for k, p in PORTS.items() if not free(p)]
@@ -88,6 +112,11 @@ def main(argv):
     os.makedirs(kh)
     with open(os.path.join(kh, "brain.toml"), "w", encoding="utf-8") as fh:  # her brain on the test's ports
         fh.write('[server]\nport = %d\n\n[gateway]\nurl = "http://127.0.0.1:%d/v1"\n' % (PORTS["brain"], PORTS["gateway"]))
+    with open(os.path.join(kh, "gateway.json"), "w", encoding="utf-8") as fh:  # "Groq" is the stand-in AI here
+        json.dump({"upstreams": {"groq": {"base": "http://127.0.0.1:%d/v1" % PORTS["ai"]}},
+                   "stt": {"use": "none"}, "tts": {"use": "none"}, "embeddings": {"use": "none"}}, fh)
+    fake_ai = subprocess.Popen([sys.executable, "-I", os.path.join(REPO, "brain", "tools", "fake_ai.py"), "--port",
+                                str(PORTS["ai"])], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     env = {"HOME": home, "KINDRED_HOME": kh, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "KINDRED_SETUP_NO_BROWSER": "1",
            "KINDRED_SETUP_PORT": str(PORTS["setup"]), "KINDRED_GATEWAY_PORT": str(PORTS["gateway"]),
            "KINDRED_DASHBOARD_PORT": str(PORTS["dashboard"]), "TMPDIR": work,
@@ -104,15 +133,30 @@ def main(argv):
         assert hello["setup"] is True, hello
         state = call("/api/setup/state")
         assert state["mode"] == "app" and state["installed"] is None, state
-        assert [s["id"] for s in state["steps"]][:4] == ["computer", "install", "start", "login"], state["steps"]
+        assert [s["id"] for s in state["steps"]] == ["computer", "install", "start", "ai", "thinking", "login"], state["steps"]
         assert opened() == "/setup", "before setup, opening the app shows the steps"
         for sid, action, extra in [("computer", "choose", {"choice": "auto"}), ("computer", "test", {}),
                                    ("install", "install", {}), ("install", "test", {}),
                                    ("start", "start", {}), ("start", "test", {}),
+                                   ("ai", "choose", {"choice": "groq", "key": FAKE_KEY}), ("ai", "test", {}),
+                                   ("thinking", "choose", {"choice": "off"}), ("thinking", "choose", {"choice": "same"}),
+                                   ] + ([("instincts", "choose", {"choice": "local"}), ("instincts", "wait", {}),
+                                         ("instincts", "test", {}),
+                                         ("voice", "choose", {"choice": "local_kokoro", "voice": "bf_lily"}),
+                                         ("voice", "wait", {}), ("voice", "test", {}),
+                                         ("hearing", "choose", {"choice": "local_whisper", "size": "tiny"}),
+                                         ("hearing", "wait", {}), ("hearing", "test", {})] if models else
+                                        [("instincts", "choose", {"choice": "none"}), ("instincts", "test", {}),
+                                         ("voice", "choose", {"choice": "none"}), ("voice", "test", {}),
+                                         ("hearing", "choose", {"choice": "none"}), ("hearing", "test", {})]) + [
                                    ("login", "choose", {"choice": "login"}), ("login", "test", {}),
                                    ("login", "choose", {"choice": "app"}), ("login", "test", {})]:
             t = time.time()
-            r = call("/api/setup/run", dict(step=sid, action=action, **extra))
+            if action == "wait":
+                wait_for(sid)
+                say("%s: downloaded (%.0f s)" % (sid, time.time() - t))
+                continue
+            r = call("/api/setup/run", dict(step=sid, action=action, **extra), timeout=300)
             say("%s / %s: %s (%.1f s)" % (sid, action, r["message"], time.time() - t))
             assert r["ok"], r
             if (sid, action) == ("login", "test") and extra == {}:
@@ -123,6 +167,13 @@ def main(argv):
             with urllib.request.urlopen("http://127.0.0.1:%d%s" % (PORTS["dashboard"], path), timeout=20) as r:
                 assert want in r.read().decode(), path
         say("her dashboard answers: its page, settings, live, sessions and the Setup steps")
+        if models:
+            req = urllib.request.Request("http://127.0.0.1:%d/api/setup/preview" % PORTS["setup"], method="POST",
+                                         data=b'{"voice": "af_heart"}', headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                wav = r.read()
+            assert wav[:4] == b"RIFF", wav[:40]
+            say("\"Hear it\" played another voice: %d KB" % (len(wav) // 1024))
         assert opened() == "http://127.0.0.1:%d/" % PORTS["dashboard"], "once set up, opening the app opens her dashboard"
         say("opening the app again goes to her dashboard")
         state = call("/api/setup/state")
@@ -130,7 +181,10 @@ def main(argv):
         assert all(s["status"] == "done" for s in state["steps"]), [(s["id"], s["status"]) for s in state["steps"]]
         assert os.path.islink(os.path.join(home, "Library", "Application Support", "Kindred Spirit", "current"))
         assert oct(os.stat(os.path.join(kh, "secrets.env")).st_mode & 0o777) == "0o600"
+        assert "GROQ_API_KEY=" + FAKE_KEY in open(os.path.join(kh, "secrets.env")).read()
+        assert FAKE_KEY not in json.dumps(call("/api/setup/state")), "a key is never shown back"
         prompt = call("/api/setup/help", {"step": "start", "error": "Traceback in %s/x.py, key AIzaSyFAKE0000000000000000000000" % home})["prompt"]
+        assert FAKE_KEY not in call("/api/setup/help", {"step": "ai"})["prompt"]
         assert home not in prompt and "AIzaSy" not in prompt and "Kindred Spirit Setup" in prompt, prompt
         say("help prompt: %d characters, nothing private in it" % len(prompt))
         r = call("/api/setup/run", {"step": "start", "action": "stop"})
@@ -145,6 +199,7 @@ def main(argv):
             rt = os.path.join(home, "Library", "Application Support", "Kindred Spirit", "current", "kindred", "scripts", "stop.sh")
             if os.path.exists(rt):
                 subprocess.run(["/bin/bash", rt], env=env, check=False)
+        fake_ai.terminate()
         try:
             call("/api/setup/quit", {}, timeout=5)
         except Exception:

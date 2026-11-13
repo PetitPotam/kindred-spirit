@@ -35,6 +35,8 @@ ROOT = os.path.dirname(HERE)  # the repository, or the payload's kindred/ folder
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "brain"))
 import kindred_gateway as gw  # noqa: E402  (KINDRED_HOME, the gateway's port)
+import setup_ai  # noqa: E402  (choosing her AI, #94)
+import setup_models  # noqa: E402  (her local models, #95)
 from kindred import hardware  # noqa: E402
 
 PAYLOAD = os.environ.get("KINDRED_SETUP_PAYLOAD") or ""  # the app's own copy: python/, kindred/, VERSION
@@ -515,14 +517,139 @@ def test_login():
     return _result(True, "She wakes when you log in.", tilde(login_item()))
 
 
+# ---------------------------------------------------------------------- her AI (#94): setup_ai.py does the work
+
+API_CHOICES = [k for k, v in setup_ai.PROVIDERS.items() if v["kind"] == "api"]
+
+
+def _ai_fields(choices_with_keys):
+    return [{"id": "key", "label": "Your key (it stays on this computer, only you can read it)", "type": "password",
+             "for": choices_with_keys, "placeholder": "paste it here"},
+            {"id": "model", "label": "Model (optional: empty is our pick for her)", "type": "text",
+             "for": [k for k in setup_ai.PROVIDERS if k != "gemini"], "placeholder": ""}]
+
+
+def step_ai():
+    name, _, s = setup_ai.current()
+    last = load_state().get("results", {}).get("ai") or {}
+    up = s["upstreams"].get(name) or {}
+    return {
+        "id": "ai", "title": "Her conversation (System 1)",
+        "why": "Pip talks with an AI service, through the gateway on your computer. This is the AI that answers you "
+               "and says things on her own, so it should be quick. Every choice works; the free Gemini key is the "
+               "easiest start, and you can change it any time.",
+        "default": "Gemini with a free key from Google (about 2 minutes to get one).",
+        "facts": [["In use", setup_ai.PROVIDERS.get(name, {}).get("label", name)],
+                  ["Model", up.get("model") or "the provider's default"]],
+        "choices": [dict(setup_ai.describe(k), recommended=(k == "gemini")) for k in setup_ai.PROVIDERS],
+        "chosen": name if name in setup_ai.PROVIDERS else "gemini",
+        "fields": _ai_fields(API_CHOICES),
+        "actions": [{"id": "choose", "label": "Use this", "primary": True}]
+                   + ([{"id": "pull", "label": "Download the model (Ollama)"}] if name == "ollama" else []),
+        "status": "done" if last.get("ok") else ("problem" if last and not last.get("ok") else "todo"),
+        "summary": ("%s answers." % setup_ai.PROVIDERS.get(name, {}).get("label", name)) if last.get("ok")
+                   else "Choose her AI, then test it.",
+    }
+
+
+def act_ai(action, body):
+    if action == "pull":
+        log = setup_ai.pull_ollama_model()
+        return _result(True, "Downloading %s in the background (a few GB): test again in a few minutes."
+                       % setup_ai.ollama_model(), tilde(log))
+    if action != "choose":
+        raise SetupError("unknown action")
+    name = str(body.get("choice") or "")
+    try:
+        setup_ai.apply(name, key=str(body.get("key") or ""), model=str(body.get("model") or ""))
+    except setup_ai.Problem as e:
+        raise SetupError(str(e))
+    tested = test_ai()
+    return dict(tested, message="Saved. " + tested["message"])
+
+
+def test_ai():
+    name, _, _ = setup_ai.current()
+    if name == "ollama" and setup_ai.ollama_has_model(setup_ai.ollama_model()) is False:
+        return _result(False, "Ollama hasn't got the model %s yet: press \"Download the model\"." % setup_ai.ollama_model())
+    try:
+        secs, text, tokens = setup_ai.call("reply")
+    except setup_ai.Problem as e:
+        return _result(False, setup_ai.explain(name, str(e)))
+    if not text:
+        return _result(False, setup_ai.explain(name, "The AI answered, but with nothing."))
+    return _result(True, "She answered in %.1f s: \"%s\"" % (secs, text[:120]),
+                   "%s; %s tokens for this test. Prices: see your provider's page (Gemini's free tier and Groq's are free "
+                   "up to their limits; a subscription's tool uses your plan; Ollama is free)."
+                   % (setup_ai.PROVIDERS.get(name, {}).get("label", name), tokens if tokens is not None else "?"),
+                   warn=secs > 6)
+
+
+def step_thinking():
+    main, reflect, s = setup_ai.current()
+    last = load_state().get("results", {}).get("thinking") or {}
+    choices = [{"value": "same", "label": "The same AI as her conversation", "recommended": True,
+                "note": "Simplest: nothing more to set up."},
+               {"value": setup_ai.OFF, "label": "Off",
+                "note": "She doesn't learn from your time together or write her story. Saves AI calls."}]
+    choices += [setup_ai.describe(k) for k in setup_ai.PROVIDERS]
+    return {
+        "id": "thinking", "title": "Her slow thinking (System 2)",
+        "why": "Now and then, in the background, Pip thinks about what happened: she learns what matters to you, "
+               "keeps her memories tidy and writes her own story. It's called rarely, so a slower, stronger AI suits "
+               "it; or simply the same one as her conversation.",
+        "default": "The same AI as her conversation.",
+        "facts": [["In use", "the same as her conversation" if reflect == "same" else
+                   "off" if reflect == setup_ai.OFF else setup_ai.PROVIDERS.get(reflect, {}).get("label", reflect)]],
+        "choices": choices, "chosen": reflect if reflect in ("same", setup_ai.OFF) or reflect in setup_ai.PROVIDERS else "same",
+        "fields": _ai_fields(API_CHOICES),
+        "actions": [{"id": "choose", "label": "Use this", "primary": True}],
+        "status": "done" if last.get("ok") else ("problem" if last and not last.get("ok") else "todo"),
+        "summary": "Chosen." if last.get("ok") else "Choose, then test.",
+    }
+
+
+def act_thinking(action, body):
+    if action != "choose":
+        raise SetupError("unknown action")
+    choice = str(body.get("choice") or "same")
+    try:
+        if choice in ("same", setup_ai.OFF):
+            setup_ai.thinking_choice(choice)
+        else:
+            setup_ai.apply(choice, key=str(body.get("key") or ""), model=str(body.get("model") or ""), kind="reflect")
+    except setup_ai.Problem as e:
+        raise SetupError(str(e))
+    tested = test_thinking()
+    return dict(tested, message="Saved. " + tested["message"])
+
+
+def test_thinking():
+    main, reflect, _ = setup_ai.current()
+    if reflect == setup_ai.OFF:
+        return _result(True, "Off: she won't learn from your time together until you choose an AI here.", warn=True)
+    try:
+        secs, text, _ = setup_ai.call("reflect")
+    except setup_ai.Problem as e:
+        return _result(False, setup_ai.explain(main if reflect == "same" else reflect, str(e)))
+    return _result(bool(text), "Her slow thinking answered in %.1f s." % secs if text else "The AI answered with nothing.")
+
+
 STEPS = {
     "computer": (step_computer, act_computer, test_computer),
     "install": (step_install, act_install, test_install),
     "start": (step_start, act_start, test_start),
+    "ai": (step_ai, act_ai, test_ai),
+    "thinking": (step_thinking, act_thinking, test_thinking),
+    "instincts": (setup_models.step_instincts, setup_models.act_instincts, setup_models.test_instincts),
+    "voice": (setup_models.step_voice, setup_models.act_voice, setup_models.test_voice),
+    "hearing": (setup_models.step_hearing, setup_models.act_hearing, setup_models.test_hearing),
     "login": (step_login, act_login, test_login),
 }
 LOGS_FOR = {"computer": (), "install": ("setup.out",), "start": ("gateway.out", "brain.out", "dashboard.out"),
-            "login": ("login.out",)}
+            "login": ("login.out",), "ai": ("gateway.out", "ollama-pull.out"), "thinking": ("gateway.out",),
+            "instincts": ("setup-models.out", "embed.out"), "voice": ("setup-models.out", "kokoro.out"),
+            "hearing": ("whisper.out",)}
 
 
 # ---------------------------------------------------------------------- her dashboard, and opening the app again

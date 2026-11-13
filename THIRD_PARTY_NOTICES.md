@@ -60,7 +60,7 @@ Her skins, textures and icon are original art made for this project (`scripts/ma
 | [soundfile](https://github.com/bastibe/python-soundfile) | writing audio | BSD-3-Clause |
 | [phonemizer](https://github.com/bootphon/phonemizer) with [eSpeak NG](https://github.com/espeak-ng/espeak-ng) | turning text into sounds for the voice (installed on your computer by the setup, not distributed) | GPL-3.0 (both) |
 | [fastembed](https://github.com/qdrant/fastembed) | local embeddings (her understanding and memory search) | Apache-2.0 |
-| [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-server`) | local speech-to-text (installed with Homebrew, not distributed) | MIT |
+| [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-server`) | local speech-to-text: built from source and carried inside Kindred Spirit Setup (with its licence), or installed with Homebrew | MIT |
 | [Pillow](https://python-pillow.org) | the demo video's cards | MIT-CMU (HPND) |
 | [Python](https://www.python.org) and its standard library | her brain, the gateway, the dashboard (standard library only), the knowledge base | PSF License |
 | [python-build-standalone](https://github.com/astral-sh/python-build-standalone) (Astral) | the self-contained Python inside Kindred Spirit Setup, which also bundles websockets and NumPy with their licence files | PSF License for Python; the build scripts MPL-2.0; the libraries it links each under their own licence (listed in the archive) |
@@ -71,7 +71,7 @@ Her skins, textures and icon are original art made for this project (`scripts/ma
 | Model | Used for | Licence |
 |---|---|---|
 | [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) by hexgrad (ONNX files and voices from [kokoro-onnx releases](https://github.com/thewh1teagle/kokoro-onnx/releases)) | her voice (`bf_lily`) and the demo's player voice | Apache-2.0 |
-| [Whisper](https://github.com/openai/whisper) large-v3-turbo by OpenAI, in ggml format from [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) | hearing you | MIT |
+| [Whisper](https://github.com/openai/whisper) large-v3-turbo (or tiny.en, base.en, small.en, chosen by the Setup) by OpenAI, in ggml format from [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) | hearing you | MIT |
 | [Silero VAD](https://github.com/snakers4/silero-vad) (ggml, [ggml-org/whisper-vad](https://huggingface.co/ggml-org/whisper-vad)) | finding where speech starts and ends | MIT |
 | [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5) | embeddings for understanding and memory | MIT |
 

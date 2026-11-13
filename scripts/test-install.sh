@@ -132,7 +132,12 @@ check_setup_app() {
   local arch py; arch="$(uname -m)"; [[ "$arch" == arm64 ]] || arch=x86_64; py="$(host_python)"
   if "$py" "$ROOT/setup/build.py" --arch "$arch" --out "$WORK/dist" > "$WORK/build.log" 2>&1; then ok "built: $(tail -1 "$WORK/build.log" | sed 's/.*done: //')"
   else bad "setup/build.py failed:"; tail -30 "$WORK/build.log"; return; fi
-  if "$py" "$ROOT/setup/smoke_test.py" "$WORK"/dist/*.dmg > "$WORK/smoke.log" 2>&1; then ok "installed and started from the .dmg (setup/smoke_test.py)"
+  local models=(); [[ -n "${KINDRED_TEST_MODELS:-}" ]] && models=(--models)  # downloads her models too (CI)
+  if "$py" "$ROOT/setup/smoke_test.py" ${models[@]+"${models[@]}"} "$WORK"/dist/*.dmg > "$WORK/smoke.log" 2>&1; then
+    ok "installed and started from the .dmg (setup/smoke_test.py${models:+ --models: her instincts, voice and hearing too})"
+    grep -E "^-- (instincts|voice|hearing|\"Hear)" "$WORK/smoke.log" | sed 's/^--/      /'
+  else bad "setup/smoke_test.py failed:"; cat "$WORK/smoke.log"; fi
+  if false; then :
   else bad "setup/smoke_test.py failed:"; cat "$WORK/smoke.log"; fi
   [[ -n "${KINDRED_KEEP_DMG:-}" ]] && cp "$WORK"/dist/* "$KINDRED_KEEP_DMG"/ 2>/dev/null
   return 0
