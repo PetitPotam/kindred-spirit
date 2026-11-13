@@ -44,11 +44,14 @@ These are not optional. A pull request that breaks one of them is closed.
    and in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Don't add dependencies without saying why.
    Contributions need the [CLA](CLA.md), signed by the human who submits them.
 9. **Say you're an AI.** The pull request says which AI tools made the change (the template asks).
-10. **One change per pull request**, small and focused, with a title that says what changes for the
-    player, a line under "Unreleased" in [CHANGELOG.md](CHANGELOG.md), and docs updated where players or
-    contributors will notice. The full process: [docs/MAINTAINING.md](docs/MAINTAINING.md).
-11. **Commit messages** explain *why*, not just what: a short title line, then the reason and what was
-    checked.
+10. **One change per pull request**, small and focused, on a branch named `type/issue-short-name`
+    (`feature/93-setup-app`; types `feature`, `fix`, `docs`, `ci`, `refactor`, `chore`, `release`), with a title
+    of at most 72 characters that says what changes for the player (no `feat:` prefixes), `Fixes #<number>` in
+    the description, a line under "Unreleased" in [CHANGELOG.md](CHANGELOG.md), and docs updated where players
+    or contributors will notice. The conventions: [CONTRIBUTING.md](CONTRIBUTING.md#branches-pull-requests-and-commits);
+    the process: [docs/MAINTAINING.md](docs/MAINTAINING.md).
+11. **The pull request's description** explains *why*, not just what, and what was checked: squash merging makes
+    its title and description the commit on `main`. Commits inside a branch can be short.
 12. **Work is tracked in issues** and on the project board "Kindred Spirit" (milestones: Singleplayer polish,
     LAN with friends, First public release, Later: online servers). Before starting, look for the issue;
     a bug, idea or feature you notice along the way gets an issue (with your human's OK) with labels and a

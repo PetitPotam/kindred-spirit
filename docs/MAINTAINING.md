@@ -15,7 +15,9 @@ For contributors: [CONTRIBUTING.md](../CONTRIBUTING.md). For AI agents: [AGENTS.
    ruleset once the repository is public (no bypass).
 3. **Checks that must pass before merging:**
    - **CI passed** (`.github/workflows/ci.yml`): the mod builds and its tests pass, the brain's tests
-     pass on Python 3.11 and 3.12, and the Windows update script parses;
+     pass on Python 3.11 and 3.12, the Windows update script parses, and the pull request follows the
+     conventions in CONTRIBUTING.md (a title over 72 characters fails; a branch name off the pattern or no
+     linked issue only warns);
    - **CLA** (`.github/workflows/cla.yml`): every contributor has signed [CLA.md](../CLA.md);
    - a review is **not** required: the maintainer (and agents working for the maintainer) merge their own pull
      requests once CI passes; contributors' pull requests are reviewed by the maintainer before merging
