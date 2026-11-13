@@ -42,6 +42,8 @@ Unreleased into the new version's section.
   Minecraft. Friends pick theirs with `update-pip-windows.ps1 -Minecraft <version>` (it keeps the one they have),
   and `install_profile.py --minecraft 26.3` adds a profile of its own. Recording demo videos works on 1.21.1 only
   for now (#41).
+- The Setup updates everything together: it checks GitHub Releases, shows what's new, installs the new version of
+  her brain, the matching mod and the Setup itself, keeps your settings and memories, and can go back (#97).
 
 ### Fixed
 - `/kindred reset` now also forgets the places she noticed on her own (your bed, builds, where you died), so the
