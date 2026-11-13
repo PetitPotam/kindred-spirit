@@ -454,6 +454,16 @@ class Brain:
                 return {"ok": False, "error": "You already gave that a moment ago, and they didn't ask for it again: "
                                               "don't give it again."}
             self.recent_gifts[key] = self.clock()
+        if name == "command":
+            # a harmful effect only when the one asking named it themselves ("give him poison")
+            said = (getattr(self, "last_player_text", "") or "").lower()
+            m = re.search(r"effect give \S+ (?:minecraft:)?(\w+)", str(args.get("command", "")))
+            args = dict(args, harmfulAsked=bool(m and m.group(1).replace("_", " ") in said))
+            if self.speaking_to and self.speaking_to != "player":  # a friend's turn: not on someone who didn't ask
+                host = (self.snapshot or {}).get("playerName", "")
+                if host and host.lower() in str(args.get("command", "")).lower() and not re.search(
+                        r"effect give \S+ (slowness|levitation|glowing)|particle|playsound", str(args.get("command", ""))):
+                    return {"ok": False, "error": "Not on %s: they didn't ask." % host}
         if name == "build" and not str(args.get("block") or "").strip() and args.get("shape") not in ("clear", "stop", "portal"):
             named = intents.block_named(self.recent_player + [getattr(self, "last_player_text", "")])
             if named:  # ("flatten it with dirt", then "do it": still dirt, not whatever is in their hand)
@@ -2143,7 +2153,7 @@ class Brain:
         if regard == "mean" and self.heart.bond < 12 and self.heart.p.get("can_vanish", True):
             await self.vanish(120, random.choice(intents_heart.VANISH_LINES))
 
-    GUEST_TOOLS = ("give_item", "give_effect", "protect", "find_ore", "find_animal", "find_block", "find_player",
+    GUEST_TOOLS = ("give_item", "give_effect", "command", "protect", "find_ore", "find_animal", "find_block", "find_player",
                    "locate", "guide", "stop_guide", "set_time", "set_weather")
 
     async def answer_guest(self, who, text, powers=False):

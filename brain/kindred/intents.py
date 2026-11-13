@@ -122,6 +122,8 @@ ACTION_HINTS = [
      r"axolotls?|parrots?|pandas?|animals?|mooshrooms?)\b", "find_animal"),
     (r"\b(find|where|any|nearest|closest|look for)\b.{0,40}\b(diamonds?|iron|gold|coal|copper|redstone|lapis|emeralds?|quartz|ancient debris|netherite)\b", "find_ore"),
     (r"\b(find|where|nearest|closest|locate)\b.{0,40}\b(village|mineshaft|shipwreck|ruined portal|monument|mansion|stronghold|fortress|bastion|temple|witch hut|igloo|outpost|ancient city|trail ruins|trial chambers?|end city|buried treasure|biome|grove|forest|desert|jungle|ocean|mushroom)", "locate"),
+    (r"\benchant\b|\bsummon\b|\bspawn (a|an|some|\d+) \w+|\b(teleport|tp) (me|us|him|her|them|\w+) (to|back|home|up)\b",
+     "command"),
     (r"\bmake it (day|night|morning|sunrise|sunset|noon)\b|\bset the time\b|\bskip the night\b", "set_time"),
     (r"\bremind me\b", "set_reminder"),
     (r"\b(this is|here is|here's) (my|our) \w+|\bremember (this|that) (place|spot)\b|\bcall this (place|spot)\b", "name_place"),

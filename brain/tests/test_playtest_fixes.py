@@ -556,3 +556,30 @@ def test_light_the_way_is_her_glow_not_a_torch():
     assert intents.match("you glow so nicely")[0] == []
     assert intents.action_hint("hey pip light the way", ["place_torch"]) is None
     assert intents.action_hint("place a torch here", ["place_torch"]) == "place_torch"
+
+
+# ---------------------------------------------------------------- item 30: Minecraft's own commands
+
+def test_commands_are_asked_for_in_everyday_words():
+    for t in ("enchant my axe with efficiency", "summon some zombies to scare walid", "teleport me home"):
+        assert intents.action_hint(t, ["command", "give_item"]) == "command", t
+
+
+def test_a_harmful_effect_only_when_named_by_the_one_asking(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.abilities, b.offered = ["command"], None
+    sent = []
+
+    async def request(name, args, timeout=25):
+        sent.append(args)
+        return {"ok": True}
+    b.request = request
+
+    async def run():
+        b.last_player_text = "give walid some poison for fun"
+        await b._run_tool("command", {"command": "/effect give Walid poison 5"})
+        b.last_player_text = "make walid faster"
+        await b._run_tool("command", {"command": "/effect give Walid poison 5"})
+    asyncio.run(run())
+    assert sent[0]["harmfulAsked"] is True and sent[1]["harmfulAsked"] is False

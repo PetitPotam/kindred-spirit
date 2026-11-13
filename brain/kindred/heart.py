@@ -70,7 +70,8 @@ POWER_NAMES = {"find_ore": "sense ores hidden underground", "find_animal": "feel
                "give_item": "make things appear out of nothing", "give_effect": "pour a little magic into someone",
                "find_player": "feel where someone is", "follow_player": "stay with someone", "set_time": "move the sun across the sky",
                "set_weather": "change the weather", "protect": "push monsters away",
-               "place_torch": "make light appear", "guide": "lead the way"}
+               "place_torch": "make light appear", "guide": "lead the way",
+               "build": "make blocks settle where you want them", "command": "speak the old words the world obeys"}
 SENSES = {"find_ore": "a faint humming under the ground, like little stars glittering in the rock",
           "find_animal": "tiny heartbeats all around, far away, like little drums in the grass",
           "harvest": "the wood and the stone hum, as if they'd come loose if you asked them nicely",

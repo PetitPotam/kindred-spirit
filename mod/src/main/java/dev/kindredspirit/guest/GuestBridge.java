@@ -183,6 +183,7 @@ public final class GuestBridge {
                     res = dev.kindredspirit.act.Actions.error("That isn't allowed.");
                 } else {
                     var args = m.has("args") && m.get("args").isJsonObject() ? m.getAsJsonObject("args") : new com.google.gson.JsonObject();
+                    args.addProperty("_power", power.name());
                     res = dev.kindredspirit.act.Actions.serverSide(server, from, a, args, style);
                 }
                 res.addProperty("type", "done");

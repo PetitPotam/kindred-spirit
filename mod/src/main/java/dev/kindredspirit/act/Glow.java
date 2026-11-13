@@ -46,15 +46,12 @@ public final class Glow {
         long now = System.currentTimeMillis();
         boolean bright = now < brightUntil;
         // dark: the brighter of the sky (night, caves, under a roof) and lamps or torches is below 7. Her own light never
-        // counts: once she's lit, only daylight or a real lamp near you (block light 13+, hers gives at most 11 there)
-        // turns her off, so she doesn't flicker on her own light
+        // counts: once she's lit, only daylight turns her off (she can't tell her light from a lamp's), so no flicker
         ServerLevel sl = server != null ? server.getLevel(mc.level.dimension()) : null;
         long tod = mc.level.getDayTime() % 24000;
         int skyDarken = sl != null ? sl.getSkyDarken() : (tod > 13000 && tod < 23000 ? 11 : 0); // (visiting: from the clock)
         int sky = mc.level.getBrightness(LightLayer.SKY, here) - skyDarken;
-        boolean dark = wasDark
-                ? sky < 7 && mc.level.getBrightness(LightLayer.BLOCK, mc.player.blockPosition()) < 13
-                : Math.max(sky, mc.level.getBrightness(LightLayer.BLOCK, here)) < 7;
+        boolean dark = wasDark ? sky < 7 : Math.max(sky, mc.level.getBrightness(LightLayer.BLOCK, here)) < 7;
         int block = mc.level.getBrightness(LightLayer.BLOCK, here);
         if (dark != wasDark) {
             wasDark = dark;
