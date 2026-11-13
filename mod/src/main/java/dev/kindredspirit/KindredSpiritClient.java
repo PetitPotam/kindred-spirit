@@ -68,6 +68,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private final VoiceRecorder recorder = new VoiceRecorder();
     private final VoicePlayer voice = new VoicePlayer();
     private KeyMapping talkKey;
+    private KeyMapping dashboardKey;
     private DevScript devScript;
 
     private String displayName;
@@ -170,6 +171,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
         return server != null && !server.isPublished();
     }
 
+    public KeyMapping dashboardKey() { return dashboardKey; }
+
     public Companion companion() {
         return companion;
     }
@@ -204,6 +207,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
         talkKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.kindredspirit.talk", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.kindredspirit"));
+        dashboardKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                "key.kindredspirit.dashboard", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.kindredspirit"));
 
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         // her stand-in (friends without the mod): a hit or a pat on it is a touch on her; it never takes items
@@ -688,6 +693,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
             dev.kindredspirit.act.Glow.tick(mc, cfg.glow && !life.hidden() && companion.life.presence > 0.5,
                     life.x, life.y, life.z);
         }
+
+        while (dashboardKey.consumeClick()) openDashboard();
 
         // push-to-talk: hold the key, speak, release
         boolean held = talkKey.isDown() && mc.screen == null;
@@ -1471,6 +1478,18 @@ public final class KindredSpiritClient implements ClientModInitializer {
     }
 
     // ------------------------------------------------------------------ HUD
+
+    /** The dashboard key: her dashboard in the browser, where her brain runs (a friend with only the mod: on the host's). */
+    private void openDashboard() {
+        String url = dev.kindredspirit.util.Dashboard.url(cfg.brainHost, cfg.dashboardPort);
+        if (!brainHere || url == null) {
+            notice("Her dashboard is on the computer where her brain runs", 5000);
+            return;
+        }
+        net.minecraft.Util.getPlatform().openUri(url);
+        notice(link.connected() ? "Opening her dashboard in your browser\u2026"
+                : "Opening her dashboard\u2026 If it doesn't load, open Kindred Spirit Setup to wake her brain", 6000);
+    }
 
     private void notice(String text, long ms) {
         notice = text;
