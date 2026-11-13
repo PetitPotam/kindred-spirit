@@ -71,6 +71,8 @@ The steps today:
 | **Her instincts (System 0)** | A small model on your Mac (bge-small, about 65 MB) that finds the memories that matter; or the AI's own service, or keyword search. |
 | **Her voice** | Kokoro on your Mac (about 400 MB with its program), with Lily's voice by default: **Hear it** plays each voice before you choose. Or OpenAI's voices, or subtitles only. |
 | **Her hearing** | Whisper on your Mac, sized for it (from 32 MB to 574 MB; you can pick another size), then **Test the microphone**: say something and see what she heard. Or Groq or OpenAI with your key, or typing. |
+| **Minecraft** | Adds a **Kindred Spirit** profile to the Minecraft Launcher, for the newest Minecraft (recommended) or an older one the mod supports, with Fabric Loader, Fabric API and the mod, in a game folder of its own (your other profiles, mods and worlds are untouched). Or puts the mod and Fabric API into another launcher's mods folder (Prism, CurseForge, MultiMC…). Quit the Minecraft Launcher first, and open it at least once before. |
+| **Say hi to her** | **Open Minecraft** starts the launcher; choose the Kindred Spirit profile, open a world and type "hi Pip" in the chat. The page sees the game reach her brain and her answer. |
 | **Her slow thinking (System 2)** | The AI she uses now and then to learn from your time together and write her story: the same one (recommended), another one, or off. |
 | **Every time you play** | Whether she wakes by herself when you log in to your Mac (off unless you choose it), or when you open Kindred Spirit Setup. |
 
@@ -82,8 +84,12 @@ Her models download in the background with a progress bar. Each file is checked 
 fingerprint (SHA-256) before it's used, and an interrupted download continues where it stopped: press **Use this**
 again. They go in `~/.kindred-spirit` (`embed/`, `kokoro/`, `whisper/`).
 
-Coming next, in the same guide: installing Minecraft's Fabric with the mod and saying hi to her once to check
-everything ([#96](https://github.com/PetitPotam/kindred-spirit/issues/96)).
+**Only joining a friend who hosts Pip on a LAN world?** You need just the **Minecraft** step: her brain, AI and
+models live on your friend's computer.
+
+**Talking by voice:** hold **V** in the game. Start Minecraft with **Open Minecraft** in the last step: macOS then
+asks for the microphone in Kindred Spirit Setup's name. Started from the Dock, the launcher has no microphone
+permission of its own and she hears silence.
 
 You can close the page at any time: Pip keeps running, and the Setup itself quits a few minutes later (or press
 **Close the Setup**).

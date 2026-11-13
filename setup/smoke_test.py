@@ -133,7 +133,8 @@ def main(argv):
         assert hello["setup"] is True, hello
         state = call("/api/setup/state")
         assert state["mode"] == "app" and state["installed"] is None, state
-        assert [s["id"] for s in state["steps"]] == ["computer", "install", "start", "ai", "thinking", "login"], state["steps"]
+        assert [s["id"] for s in state["steps"]] == ["computer", "install", "start", "ai", "thinking", "instincts", "voice",
+                                                     "hearing", "minecraft", "hello", "login"], state["steps"]
         assert opened() == "/setup", "before setup, opening the app shows the steps"
         for sid, action, extra in [("computer", "choose", {"choice": "auto"}), ("computer", "test", {}),
                                    ("install", "install", {}), ("install", "test", {}),
@@ -167,6 +168,19 @@ def main(argv):
             with urllib.request.urlopen("http://127.0.0.1:%d%s" % (PORTS["dashboard"], path), timeout=20) as r:
                 assert want in r.read().decode(), path
         say("her dashboard answers: its page, settings, live, sessions and the Setup steps")
+        mc = step(call("/api/setup/state"), "minecraft")
+        if mc["choices"]:  # the app carries the mod: install it into another launcher's (throwaway) mods folder
+            mods = os.path.join(work, "PrismLauncher", "instances", "Robin", "minecraft", "mods")
+            os.makedirs(mods)
+            version = mc["choices"][0]["value"]
+            r = call("/api/setup/run", {"step": "minecraft", "action": "choose", "choice": "folder",
+                                        "minecraft": version, "folder": mods}, timeout=300)
+            assert r["ok"], r
+            assert call("/api/setup/run", {"step": "minecraft", "action": "test"})["ok"]
+            say("the mod for Minecraft %s and Fabric API went into another launcher's mods folder: %s"
+                % (version, ", ".join(sorted(os.listdir(mods)))))
+        else:
+            say("this build carries no mod jars: the Minecraft step wasn't tried")
         if models:
             req = urllib.request.Request("http://127.0.0.1:%d/api/setup/preview" % PORTS["setup"], method="POST",
                                          data=b'{"voice": "af_heart"}', headers={"Content-Type": "application/json"})
@@ -178,7 +192,9 @@ def main(argv):
         say("opening the app again goes to her dashboard")
         state = call("/api/setup/state")
         assert state["dashboard"]["running"], state["dashboard"]
-        assert all(s["status"] == "done" for s in state["steps"]), [(s["id"], s["status"]) for s in state["steps"]]
+        # (saying hi needs Minecraft itself: not on a test machine)
+        assert all(s["status"] == "done" for s in state["steps"] if s["id"] not in ("minecraft", "hello")), \
+            [(s["id"], s["status"]) for s in state["steps"]]
         assert os.path.islink(os.path.join(home, "Library", "Application Support", "Kindred Spirit", "current"))
         assert oct(os.stat(os.path.join(kh, "secrets.env")).st_mode & 0o777) == "0o600"
         assert "GROQ_API_KEY=" + FAKE_KEY in open(os.path.join(kh, "secrets.env")).read()

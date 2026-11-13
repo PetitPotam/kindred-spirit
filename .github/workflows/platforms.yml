@@ -49,6 +49,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: true
+      - name: The mod, for the Setup to carry
+        run: ./gradlew build -x test --no-daemon --quiet
+        working-directory: mod
       - name: Kindred Spirit Setup (build the app with its whisper-server, install it, download her models, test)
         run: mkdir -p dist && KINDRED_KEEP_DMG="$PWD/dist" KINDRED_TEST_MODELS=1 scripts/test-install.sh setup-app
       - name: Her brain with scripts/setup.sh (the terminal install)

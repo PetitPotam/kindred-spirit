@@ -39,6 +39,10 @@ Unreleased into the new version's section.
   instincts (bge-small), her voice (Kokoro, with a preview of each voice) and her hearing (Whisper, with a microphone
   test). The Setup app now carries its own whisper-server, so hearing needs no Homebrew (#95).
 
+- The Setup installs Minecraft's side: a Kindred Spirit launcher profile for the newest Minecraft (or another one
+  the mod supports) with Fabric Loader, Fabric API and the matching mod, or the mod into another launcher's mods
+  folder; then "Say hi to her" checks the whole chain from the game to her answer (#96).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
