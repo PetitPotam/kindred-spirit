@@ -8,6 +8,27 @@ the licence of each, as far as we know it. If something is missing or wrong, ple
 Minecraft is a trademark of Mojang Synergies AB / Microsoft. Nothing from the game is shipped in this
 repository.
 
+## How this project was made: with AI, openly
+
+Kindred Spirit is written with **[Claude Code](https://www.anthropic.com/claude-code)**, Anthropic's agentic
+coding tool, used in the Claude desktop app. Its author directs the work: the ideas and design decisions, the
+playtests, the feedback, and the approval of every merge and download. Claude does most of the writing.
+
+- **What Claude wrote:** most of the code (the Fabric mod in Java, her brain and the local services in Python, the
+  dashboard), the tests, the documentation, the research summaries in `docs/research/`, the scripts that draw her
+  skins and make the demo video and its music, and the commit messages. Commits carry no AI co-author line, at the
+  owner's request; this section is that disclosure instead.
+- **Which model:** Claude Opus 5.5 (`claude-opus-5-5`), for the whole project so far. Some work ran in parallel
+  Claude Code sessions in their own git worktrees (titled "Fable: ..." in the work history: those were asked to
+  use Claude Fable 5.2 but, per the app's session records, ran on Claude Opus 5.5 too).
+- **How:** Claude Code's sessions and subagents, its web search and page reading for research (the sources are
+  cited where they're used), its built-in browser to check the dashboard, and scripted test games of Minecraft
+  for checks and the demo videos.
+- **Pip herself uses AI while you play:** her conversation is generated live by Google's Gemini; her deeper
+  thinking (learning, her diary, who she's becoming) by Anthropic's Claude through the Claude CLI; her voice by a
+  local speech model. What she says is AI-generated and can be wrong.
+- **Research summaries are AI-written** from the cited papers and pages; check the sources for anything that matters.
+
 ## In the mod (Java)
 
 | What | Used for | Licence |
@@ -20,6 +41,7 @@ repository.
 | [Gradle](https://gradle.org) (wrapper) | building | Apache-2.0 |
 | [JUnit 5](https://junit.org/junit5/) | the mod's tests | EPL-2.0 |
 | [Gson](https://github.com/google/gson) (comes with Minecraft) | JSON | Apache-2.0 |
+| [OpenJDK](https://openjdk.org) (Homebrew's build on the author's Mac; [Eclipse Temurin](https://adoptium.net) for friends on Windows) | compiling and running the build | GPL-2.0 with the Classpath Exception |
 
 Her skins, textures and icon are original art made for this project (`scripts/make_art.py` and by hand).
 
@@ -37,6 +59,7 @@ Her skins, textures and icon are original art made for this project (`scripts/ma
 | [fastembed](https://github.com/qdrant/fastembed) | local embeddings (her understanding and memory search) | Apache-2.0 |
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-server`) | local speech-to-text (installed with Homebrew, not distributed) | MIT |
 | [Pillow](https://python-pillow.org) | the demo video's cards | MIT-CMU (HPND) |
+| [Python](https://www.python.org) and its standard library | her brain, the gateway, the dashboard (standard library only), the knowledge base | PSF License |
 | [FFmpeg](https://ffmpeg.org) | recording and editing the demo video (installed separately) | LGPL-2.1+ / GPL-2.0+ depending on the build |
 
 ## Models (downloaded by `scripts/setup.sh` to your computer, never in this repository)
@@ -94,6 +117,17 @@ provider's terms, with the player's own account; nothing is shared between playe
 - **Ideas:** design notes from [MCPFabric](https://github.com/denfry/mcpfabric); the idea of a companion who is
   always there from [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je); Black & White's creature
   for learning from your reactions.
+
+## Tools and services for building, installing and updating
+
+| What | Used for | Terms |
+|---|---|---|
+| [Git](https://git-scm.com), [GitHub](https://github.com) and the [GitHub CLI](https://cli.github.com) | the repository, and friends cloning it | GPL-2.0 (Git), MIT (CLI); GitHub's terms |
+| [Homebrew](https://brew.sh) | installing whisper.cpp, OpenJDK and FFmpeg on macOS | BSD-2-Clause |
+| [Modrinth API](https://docs.modrinth.com) | `scripts/update-pip-windows.ps1` fetches Fabric API from Modrinth when it's missing | Modrinth's terms |
+| [Hugging Face](https://huggingface.co) and GitHub releases | where `scripts/setup.sh` downloads the models above | their terms |
+| [winget](https://learn.microsoft.com/windows/package-manager/) and PowerShell | the Windows guide and update script | MIT (winget) |
+| [Mermaid](https://mermaid.js.org) | the diagrams in the docs (drawn by GitHub) | MIT |
 
 ## The demo video
 
