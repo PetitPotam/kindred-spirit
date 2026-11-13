@@ -20,7 +20,7 @@
         ]
       },
       {
-        "source": "**/*.html",
+        "regex": "^/([^.]*|.*\\.html)$",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {

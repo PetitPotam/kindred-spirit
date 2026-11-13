@@ -43,12 +43,16 @@ function globToRegExp(glob) {
   }
   return new RegExp(`^/?${re}$`);
 }
-const headerRules = (hosting.headers || []).map((rule) => ({ re: globToRegExp(rule.source), headers: rule.headers }));
+// A rule has a "source" glob or a "regex"; like Firebase, both are matched against the address asked for.
+const headerRules = (hosting.headers || []).map((rule) => ({
+  re: rule.regex ? new RegExp(rule.regex) : globToRegExp(rule.source),
+  headers: rule.headers,
+}));
 
-function headersFor(filePath) {
+function headersFor(requestPath) {
   const out = {};
   for (const rule of headerRules) {
-    if (rule.re.test(filePath)) for (const { key, value } of rule.headers) out[key] = value;
+    if (rule.re.test(requestPath)) for (const { key, value } of rule.headers) out[key] = value;
   }
   delete out["Strict-Transport-Security"]; // not on plain http://127.0.0.1
   return out;
@@ -84,7 +88,7 @@ createServer((req, res) => {
     status = 404;
   }
   const size = statSync(found.abs).size;
-  const headers = { "Content-Type": TYPES[extname(found.abs)] || "application/octet-stream", ...headersFor(found.rel.startsWith("/") ? found.rel : `/${found.rel}`) };
+  const headers = { "Content-Type": TYPES[extname(found.abs)] || "application/octet-stream", ...headersFor(decodeURIComponent(path)) };
   const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
   if (range && status === 200) {
     const start = range[1] ? Number(range[1]) : 0;
