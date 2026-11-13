@@ -16,10 +16,19 @@ macOS on Apple silicon and on Intel, Linux and Windows. They run on clean machin
 
 "Not yet" is said out loud in the results (a notice on the run), never skipped silently.
 
-**Not covered by any of this yet:**
-- Opening the downloaded app by double-click, with macOS's first-run warning: that needs a person.
-- Her voice and hearing models.
+The Setup's checks (`setup/smoke_test.py --models` on the Macs) also download her models and test them: her
+instincts (bge-small), her voice (Kokoro, and each voice's preview) and her hearing (Whisper with the Setup's own
+whisper-server, which hears her own voice back).
+
+**Not covered by any of this yet** (these need a person; reports are very welcome):
+- Opening the downloaded app by double-click, with macOS's first-run warning (macOS 15 or newer, and 12 to 14).
+- A real Intel Mac (GitHub's `macos-15-intel` is the only Intel Mac so far).
+- **Open Minecraft** with a real launcher and account, and macOS's microphone question.
 - Playing for real with a microphone.
+- Her AI services with real keys (the checks use a stand-in AI).
+- A real release, and updating from one to the next.
+- A Minecraft client on Windows, or reliably on macOS (an experiment there, run on release tags and by hand: see
+  "The game itself"). On Linux both 26.3 and 1.21.1 are checked.
 
 ## On GitHub (the main tool)
 
@@ -88,7 +97,7 @@ On an Apple silicon Mac, [UTM](https://mac.getutm.app) (free) or Parallels Deskt
 **Ubuntu for ARM**. Windows 11 for ARM runs ordinary x64 programs too, through its own emulation.
 
 - **Ubuntu:** install Git, Python 3 and a JDK 25, clone the repository, and run `scripts/test-install.sh all`.
-- **Windows:** follow "Setting up a friend's Windows PC" in [AGENTS.md](../AGENTS.md) (Java 21, then
+- **Windows:** follow "Setting up a friend's Windows PC" in [AGENTS.md](../AGENTS.md) (Java 25, then
   `scripts\update-pip-windows.ps1`).
 - **Playing Minecraft itself in a virtual machine** needs 3D graphics: Parallels handles this better than UTM.
   It's fine for checking that the mod loads, but slow.
@@ -105,7 +114,7 @@ python3 setup/smoke_test.py setup/dist/Kindred-Spirit-Setup-*-macos-x86_64.dmg
 
 This shows the Intel build is complete and starts. It says nothing about speed on a real Intel Mac.
 
-## Help wanted
+## Trying it on your computer
 
 If you have a Windows PC, a Linux computer or an Intel Mac, trying the latest build and saying how it went (in an
 issue, with the "Copy a help prompt" text or the terminal output) helps more than anything else right now.

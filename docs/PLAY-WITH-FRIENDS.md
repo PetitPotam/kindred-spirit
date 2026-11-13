@@ -4,6 +4,8 @@ Your friend hosts Pip: her AI, her voice, her memory all run on their computer. 
 Minecraft with two small mod files. Then you see Pip exactly as they do and talk to her in chat.
 No Python, no AI keys, nothing else to install.
 
+On a Mac instead? [Kindred Spirit Setup](SETUP.md)'s **Minecraft** step installs all of this for you.
+
 What you need: **Minecraft Java Edition**, on the **same Wi-Fi / home network** as the host, and the **same
 Minecraft version as the host**. Kindred Spirit is made for **26.3** (the newest) and **1.21.1**: ask the host
 which one they play. Below, `<version>` means that one.
@@ -24,8 +26,9 @@ Both go in your mods folder: press `Win + R`, type `%APPDATA%\.minecraft\mods` a
 
 1. **Fabric API** for your version: from <https://modrinth.com/mod/fabric-api/versions>, pick your Minecraft
    version, download the newest file (its name ends in `+<version>.jar`) and put it in `mods`.
-2. **Kindred Spirit** for your version: the host can send you their file (its name ends in `+<version>.jar`,
-   e.g. `kindred-spirit-0.2.0-preview+26.3.jar`), or build it from this repository:
+2. **Kindred Spirit** for your version, the same release as the host's: the host can send you their file, or you
+   download it from the [releases page](https://github.com/PetitPotam/kindred-spirit/releases) (its name ends in
+   `+<version>.jar`, e.g. `kindred-spirit-<release>+26.3.jar`), or build it from this repository:
    - Install **Java 25** (Temurin JDK 25: <https://adoptium.net/temurin/releases/?version=25>, Windows,
      `.msi`). Only the build needs it; Minecraft keeps using its own Java.
    - In a terminal (PowerShell), in the folder where you cloned the repository (with your version, e.g.
@@ -61,7 +64,10 @@ Talking to her:
 
 - In chat: **`Pip, can you give me night vision?`** Start with her name. She answers in your chat
   as `[Pip] ...` (and out loud on the host's computer).
-- Your talk key (**V**) opens the chat with her name already typed.
+- Your talk key (**V**) opens the chat with her name already typed. **K** (her dashboard) says it's on the host's
+  computer.
+- In a world of your own, without the host, one chat message says Pip needs her brain on this computer: that's
+  for people who host her. **Don't show again** (or `/kindred hint off`) hides it.
 - She can find people and animals, lead the way, give you items and effects, and protect you, if
   the host allows it and her power and style allow it. Otherwise she just talks with you.
 
