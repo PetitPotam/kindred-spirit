@@ -13,6 +13,8 @@ on:
       - "brain/requirements*.txt"
       - "mod/src/main/**"
       - "mod/*.gradle"
+      - "mod/*.gradle.kts"
+      - "mod/versions/**"
       - "mod/gradle.properties"
       - ".github/workflows/platforms.yml"
   push:
@@ -42,7 +44,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - uses: actions/setup-java@v5 # Gradle runs on Java 25 (the mod targets Java 21)
+      - uses: actions/setup-java@v5 # Gradle runs on Java 25 (it builds the mod for every Minecraft version)
         with:
           distribution: temurin
           java-version: 25
@@ -111,8 +113,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "update-pip-windows.ps1 failed" }
           $mods = Join-Path $env:APPDATA ".minecraft\mods"
           Get-ChildItem $mods | Format-Table Name, Length
-          if (-not (Get-ChildItem $mods -Filter "kindred-spirit-*.jar")) { throw "no Kindred jar in $mods" }
-          if (-not (Get-ChildItem $mods -Filter "fabric-api-*+1.21.1.jar")) { throw "no Fabric API for 1.21.1 in $mods" }
+          $kindred = Get-ChildItem $mods -Filter "kindred-spirit-*.jar" | Select-Object -First 1
+          if (-not $kindred) { throw "no Kindred jar in $mods" }
+          $mc = [regex]::Match($kindred.Name, '\+([0-9.]+)\.jar$').Groups[1].Value  # (a fresh install: the newest Minecraft)
+          if (-not (Get-ChildItem $mods -Filter "fabric-api-*+$mc.jar")) { throw "no Fabric API for Minecraft $mc in $mods" }
           Write-Host "ok: the mod and Fabric API are in the mods folder"
       - name: Hosting her on Windows
         shell: pwsh
@@ -126,7 +130,7 @@ jobs:
     # Windows runners have no OpenGL 3.2 for Minecraft at all (docs/TESTING-PLATFORMS.md says what could change that).
     name: Minecraft client, ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: 60 # (one game per Minecraft version in mod/versions/)
     continue-on-error: ${{ matrix.experiment }}
     strategy:
       fail-fast: false
@@ -147,7 +151,7 @@ jobs:
           cache-read-only: true
       - name: A virtual screen and software OpenGL (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri libegl1 libegl-mesa0 # (EGL: 26.x)
       - name: The game opens a world, says hi, and she answers
         env:
           KINDRED_TEST_CLEAN_MACHINE: "1" # a fresh runner: nobody's Pip lives here

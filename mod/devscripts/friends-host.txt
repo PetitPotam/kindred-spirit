@@ -1,6 +1,6 @@
 # Two-game check of the playtest fixes and a heart for each person, host side (brain needed: brainPort of
 # the brain under test). Start the guest (friends-guest.txt) about 15 s after this one.
-# Screenshots: mod/run/screenshots/friends-*.png; read the brain's log for who did what.
+# Screenshots: mod/versions/26.3/run/screenshots/friends-*.png; read the brain's log for who did what.
 world Friends Test
 wait 200
 cmd time set day

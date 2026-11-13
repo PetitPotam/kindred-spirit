@@ -35,7 +35,8 @@ How pull requests are reviewed and merged, and how versions are made: [docs/MAIN
 ## Layout
 
 ```
-mod/        Fabric mod (Java 21 target, built with JDK 25, Mojang names). Thin: sees, draws, plays sound.
+mod/        Fabric mod for Minecraft 26.3 and 1.21.1 (one jar each, built with JDK 25, Mojang names).
+            Thin: sees, draws, plays sound.
   src/main/java/dev/kindredspirit/
     KindredSpiritClient.java   wiring: keys, events, commands, brain messages, HUD
     BrainLink.java             WebSocket to the brain (reconnects, never blocks the game)
@@ -49,8 +50,11 @@ mod/        Fabric mod (Java 21 target, built with JDK 25, Mojang names). Thin: 
     render/                    draws the companion from its skin and life (shapes built once, no model files)
     audio/                     push-to-talk recording and voice playback
     util/                      plain Java with unit tests (WAV, quality, directions, mesh...)
+    util/Mc.java               what Minecraft does differently from one version to the next, in one place
     DevScript.java             scripted sandbox tests
-  devscripts/                  test scripts for ./gradlew runClient
+  devscripts/                  test scripts for ./gradlew :26.3:runClient
+  versions/<minecraft>/        one folder per Minecraft version: gradle.properties (its Fabric API, Java, ranges)
+  stonecutter.gradle.kts       the version the code is written for, and renames shared by all files
 brain/      Python 3.11+ "brain"
   kindred/server.py            WebSocket server and the conversation flow
   kindred/mind.py              prompt, the tool loop, reflection (learning)
@@ -77,22 +81,50 @@ The protocol between mod and brain is documented at the top of `brain/kindred/se
 
 ```bash
 scripts/setup.sh                      # brain venv + local voice
-cd mod && ./gradlew build             # needs JDK 25 to build (the mod targets Java 21); Gradle comes with the wrapper
+cd mod && ./gradlew build             # needs JDK 25; makes one jar per Minecraft version in mod/build/libs/
 ```
 
 ## Before you open a pull request
 
 0. `scripts/test.sh` runs both of these from anywhere (or `scripts/test.sh brain` for the quick half)
-1. `cd mod && ./gradlew build` (compiles and runs the Java tests)
+1. `cd mod && ./gradlew build` (compiles and runs the Java tests, for every Minecraft version)
 2. `brain/.venv/bin/python -m pytest brain/tests`
 3. If you touched what you see or hear: try it in the sandbox,
-   `cd mod && ./gradlew runClient -PdevScript=devscripts/smoke-test.txt`, and attach a screenshot.
+   `cd mod && ./gradlew :26.3:runClient -PdevScript=devscripts/smoke-test.txt`, and attach a screenshot
+   (`:1.21.1:runClient` for the older game; a bare `runClient` would start one game per version).
 4. Keep changes focused; explain *why* in the description, and add a line under "Unreleased" in
    [CHANGELOG.md](CHANGELOG.md).
 
 CI runs steps 1 and 2 on every pull request. If you touched the install (setup, scripts, services), also run
 `scripts/test-install.sh all`: the same checks GitHub runs on macOS, Linux and Windows
 ([docs/TESTING-PLATFORMS.md](docs/TESTING-PLATFORMS.md)).
+
+## Several Minecraft versions
+
+The mod is built for each Minecraft version in `mod/versions/` from one source tree, with
+[Stonecutter](https://stonecutter.kikugie.dev) (a build-time Gradle plugin, LGPL-3.0). The code in `src/` is
+written for the newest version (26.3); Stonecutter makes the other versions' code from it at build time.
+
+- **Most code is the same everywhere.** Where the game changed, prefer a method in `util/Mc.java` (one place
+  per difference) over comments in the middle of your code.
+- **When a line must differ**, write the new version and keep the old one in a comment, like this:
+  ```java
+  //? if >=26.1 {
+  return sp.level();
+  //?} else {
+  /*return sp.serverLevel();
+  *///?}
+  ```
+  Simple renames that apply to every file (`ResourceLocation` → `Identifier`...) live in
+  `mod/stonecutter.gradle.kts` instead.
+- **Check every version:** `./gradlew build` compiles and tests all of them; `./gradlew :1.21.1:build` just one.
+  To read or debug the code as another version in your IDE, run the Gradle task "Set active project to
+  1.21.1", and switch back to 26.3 before committing (CI builds every version either way).
+- **A new Minecraft version:** add it to `versions(...)` in `mod/settings.gradle.kts`, copy a
+  `mod/versions/<v>/gradle.properties` and set its Fabric API and Java (from <https://fabricmc.net/develop>),
+  then `./gradlew :<v>:build` and fix what breaks with `//?` conditions or `Mc` methods. Try it in the sandbox,
+  and update the Minecraft versions players read about (README, docs/PLAY-WITH-FRIENDS.md, docs/modrinth.md,
+  docs/curseforge.md). The release workflow uploads each jar for its own version by itself.
 
 ## Branches, pull requests and commits
 

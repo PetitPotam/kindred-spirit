@@ -1,5 +1,5 @@
-# Life and skins: ./gradlew runClient -PdevScript=devscripts/life-test.txt (brain running)
-# Screenshots in mod/run/screenshots/life-*.png
+# Life and skins: ./gradlew :26.3:runClient -PdevScript=devscripts/life-test.txt (brain running)
+# Screenshots in mod/versions/26.3/run/screenshots/life-*.png
 world kindred-test
 wait 200
 cmd gamerule doDaylightCycle false

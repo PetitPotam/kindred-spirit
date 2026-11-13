@@ -4,7 +4,7 @@ This file is for AI agents (Codex, Claude Code, Copilot, Cursor, Gemini CLI, Jul
 repository. `CLAUDE.md`, `GEMINI.md` and `.github/copilot-instructions.md` point here. Humans: see
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Kindred Spirit is a Minecraft Java 1.21.1 Fabric mod (`mod/`, Java) with a companion called Pip, whose
+Kindred Spirit is a Minecraft Java Fabric mod (`mod/`, Java; one jar each for 26.3 and 1.21.1) with a companion called Pip, whose
 "brain" (`brain/`, Python), gateway, voice and dashboard (`services/`) run on the computer of whoever
 hosts her. How it fits together: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -62,10 +62,12 @@ These are not optional. A pull request that breaks one of them is closed.
 ## Working on the code
 
 - **All tests at once:** `scripts/test.sh` (or `scripts/test.sh brain` / `mod`), from any folder or worktree.
-- **Mod:** `cd mod && ./gradlew build` (builds and runs the Java tests; needs a JDK 25 to run Gradle, the
-  mod targets Java 21).
+- **Mod:** `cd mod && ./gradlew build` (builds a jar per Minecraft version and runs the Java tests for each;
+  needs a JDK 25). One source tree for every version with Stonecutter: write for 26.3, put version differences
+  in `util/Mc.java` or `//? if` blocks, and check with the full build
+  ([CONTRIBUTING.md](CONTRIBUTING.md#several-minecraft-versions)).
 - **Brain:** `scripts/setup.sh` once, then `cd brain && .venv/bin/python -m pytest -q`.
-- **Sandbox checks:** a dev client driven by a script, `cd mod && ./gradlew runClient
+- **Sandbox checks:** a dev client driven by a script, `cd mod && ./gradlew :26.3:runClient
   -PdevScript=devscripts/<script>.txt` (the scripts in `mod/devscripts/` show the steps available).
 - **Layout and common tasks** (a new alert, gesture, skin, action, provider): [CONTRIBUTING.md](CONTRIBUTING.md).
 - **The protocol** between the mod and the brain is at the top of `brain/kindred/server.py`. Changing it
@@ -76,30 +78,31 @@ These are not optional. A pull request that breaks one of them is closed.
 
 ## Setting up a friend's Windows PC
 
-To play with the host's Pip, the friend needs **no brain, no Python, no AI keys**: only Minecraft 1.21.1
-with Fabric, Fabric API, and the Kindred mod jar built from this repository. The full guide for the
-person is [docs/PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md); the steps for you:
+To play with the host's Pip, the friend needs **no brain, no Python, no AI keys**: only the **same Minecraft
+version as the host** (26.3 or 1.21.1; `<mc>` below) with Fabric, Fabric API, and the Kindred mod jar for that
+version, built from this repository. The full guide for the person is
+[docs/PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md); the steps for you:
 
 1. **Java 25 JDK** (to build the mod: Loom, its build tool, needs Java 25; the game itself uses the launcher's own
    Java). Check `java -version`; if missing or older than 25, install Eclipse Temurin 25 (e.g.
    `winget install EclipseAdoptium.Temurin.25.JDK`), then open a new terminal.
-2. **Build the mod** from the repository root, in PowerShell:
+2. **Build the mod** for their Minecraft version, from the repository root, in PowerShell:
    ```powershell
    git pull
    cd mod
-   .\gradlew.bat build
+   .\gradlew.bat :<mc>:build
    ```
-   The jar is `mod\build\libs\kindred-spirit-<version>+1.21.1.jar` (not the `-sources` one). The first
-   build downloads Gradle and Minecraft's files: a few minutes. Tests run as part of the build.
-3. **Minecraft 1.21.1 with Fabric** (the person clicks through these; guide them):
-   - Minecraft Launcher → Installations → New installation → version **release 1.21.1** → start once.
-   - Fabric installer for Windows from https://fabricmc.net/use/installer/ → Client, Minecraft 1.21.1,
+   The jar is `mod\build\libs\kindred-spirit-<version>+<mc>.jar`. The first build downloads Gradle and
+   Minecraft's files: a few minutes. Tests run as part of the build.
+3. **Minecraft `<mc>` with Fabric** (the person clicks through these; guide them):
+   - Minecraft Launcher → Installations → New installation → version **release `<mc>`** → start once.
+   - Fabric installer for Windows from https://fabricmc.net/use/installer/ → Client, Minecraft `<mc>`,
      newest loader, "Create profile" ticked → Install.
 4. **Mods folder** `%APPDATA%\.minecraft\mods` (create it if needed), containing exactly:
-   - Fabric API for 1.21.1 (`fabric-api-0.116.x+1.21.1.jar`, from
-     https://modrinth.com/mod/fabric-api/versions?g=1.21.1);
+   - Fabric API for `<mc>` (the file ending in `+<mc>.jar`, from
+     https://modrinth.com/mod/fabric-api/versions?g=<mc>);
    - the Kindred jar from step 2 (replace any older Kindred jar).
-5. They start the **fabric-loader-1.21.1** installation and join the host's LAN world from Multiplayer.
+5. They start the **fabric-loader-`<mc>`** installation and join the host's LAN world from Multiplayer.
 
 **Steps 2 and 4 in one command** (after Git, Java 25 and Fabric are set up), and the way to update
 whenever the host pushes changes (Minecraft closed):
@@ -108,8 +111,9 @@ whenever the host pushes changes (Minecraft closed):
 powershell -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1
 ```
 
-It gets the latest version from GitHub, builds the mod (tests skipped), replaces the Kindred jar in
-`%APPDATA%\.minecraft\mods`, and downloads Fabric API for 1.21.1 from Modrinth if it's missing.
+It gets the latest version from GitHub, builds the mod for the Minecraft version of the Kindred jar already
+installed (the newest, 26.3, the first time; `-Minecraft 1.21.1` picks another one), replaces the Kindred jar in
+`%APPDATA%\.minecraft\mods`, and downloads Fabric API for that version from Modrinth if it's missing.
 `scripts\update-pip-windows.cmd` does the same on a double-click; a desktop shortcut to it is handy. Keep
 their Kindred jar the same version as the host's: update after every push. In game they talk to Pip in
 chat: "Pip, ...".

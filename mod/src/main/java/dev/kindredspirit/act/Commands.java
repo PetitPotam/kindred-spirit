@@ -1,5 +1,6 @@
 package dev.kindredspirit.act;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSource;
@@ -113,7 +114,7 @@ public final class Commands {
         String c = command.trim().startsWith("/") ? command.trim().substring(1) : command.trim();
         String why = check(c, power, sp.getX(), sp.getY(), sp.getZ(), harmfulAsked);
         if (why != null) {
-            LOG.info("command refused for {}: /{} ({})", sp.getGameProfile().getName(), c, why);
+            LOG.info("command refused for {}: /{} ({})", sp.getGameProfile().name(), c, why);
             return Actions.error(why);
         }
         List<String> said = new ArrayList<>();
@@ -143,11 +144,10 @@ public final class Commands {
                 return false;
             }
         };
-        CommandSourceStack src = new CommandSourceStack(out, sp.position(), sp.getRotationVector(), sp.serverLevel(), 2,
-                sp.getGameProfile().getName(), sp.getDisplayName(), server, sp);
+        CommandSourceStack src = Mc.commandSource(sp, out);
         server.getCommands().performPrefixedCommand(src, c);
         String answer = String.join(" | ", said);
-        LOG.info("command for {}: /{} -> {}", sp.getGameProfile().getName(), c, answer.isEmpty() ? "(no answer)" : answer);
+        LOG.info("command for {}: /{} -> {}", sp.getGameProfile().name(), c, answer.isEmpty() ? "(no answer)" : answer);
         JsonObject r = failed[0] || answer.isEmpty() && !c.startsWith("particle") && !c.startsWith("playsound")
                 ? Actions.error(answer.isEmpty() ? "The game didn't answer (it may not have worked)." : answer)
                 : Actions.ok();

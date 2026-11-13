@@ -34,11 +34,13 @@ playtests, the feedback, and the approval of every merge and download. Claude do
 
 | What | Used for | Licence |
 |---|---|---|
-| [Minecraft Java Edition](https://www.minecraft.net) 1.21.1, by Mojang Studios | the game the mod runs in (not distributed) | [Minecraft EULA](https://www.minecraft.net/en-us/eula) |
-| Mojang's official mappings | building the mod (names of the game's code) | Mojang's mappings licence (development use) |
+| [Minecraft Java Edition](https://www.minecraft.net) 26.3 and 1.21.1, by Mojang Studios | the game the mod runs in (not distributed) | [Minecraft EULA](https://www.minecraft.net/en-us/eula) |
+| Mojang's official mappings | building the mod for 1.21.1 (names of the game's code; from 26.1 the game ships with them) | Mojang's mappings licence (development use) |
 | [Fabric Loader](https://github.com/FabricMC/fabric-loader) | loading the mod | Apache-2.0 |
 | [Fabric API](https://github.com/FabricMC/fabric) | events, networking, commands, the fake player for her "hands" | Apache-2.0 |
 | [Fabric Loom](https://github.com/FabricMC/fabric-loom) | the Gradle plugin that builds the mod | MIT |
+| [Stonecutter](https://stonecutter.kikugie.dev) | building one jar per Minecraft version from one source tree (build time only, not in the jar) | LGPL-3.0 |
+| [loom-back-compat](https://codeberg.org/KikuGie/loom-back-compat) | picking Loom with or without remapping per Minecraft version (build time only) | Unlicense |
 | [Gradle](https://gradle.org) (wrapper) | building | Apache-2.0 |
 | [JUnit 5](https://junit.org/junit5/) | the mod's tests | EPL-2.0 |
 | [Gson](https://github.com/google/gson) (comes with Minecraft) | JSON | Apache-2.0 |

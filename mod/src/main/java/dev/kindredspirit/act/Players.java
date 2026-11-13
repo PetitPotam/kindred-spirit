@@ -15,7 +15,7 @@ public final class Players {
         P best = null;
         int bestScore = 0;
         for (P p : players) {
-            int score = score(squash(p.getGameProfile().getName()), want);
+            int score = score(squash(p.getGameProfile().name()), want);
             if (score > bestScore) {
                 best = p;
                 bestScore = score;

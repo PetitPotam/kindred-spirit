@@ -10,7 +10,8 @@
 #                                       folder: Fabric Loader, Fabric API, the mod and the launcher profile
 #   scripts/test-install.sh setup-app   macOS: build Kindred Spirit Setup for this Mac's chip and run its smoke
 #                                       test (setup/smoke_test.py)
-#   scripts/test-install.sh client      a real Minecraft client (the dev client, ./gradlew runClient) with Fabric,
+#   scripts/test-install.sh client      a real Minecraft client (the dev client, ./gradlew :<version>:runClient, for
+#                                       every version in mod/versions/ or only $KINDRED_MINECRAFT) with Fabric,
 #                                       Fabric API and the mod opens a world, says hi, and she answers through her
 #                                       brain. Uses the default places (~/.kindred-spirit, port 47811), so it runs
 #                                       only on a clean machine (CI, a VM, Docker) with KINDRED_TEST_CLEAN_MACHINE=1,
@@ -163,26 +164,78 @@ check_client() {
   for t in $(seq 1 60); do ! free_port 47811 && break; sleep 0.5; done
   if free_port 47811; then bad "her brain didn't start"; cat "$WORK/start.log"; return; fi
   ok "her brain, the gateway and a stand-in AI are running"
-  printf '%s\n' "# scripts/test-install.sh client: open a world, say hi, wait for her answer, take a picture, quit" \
-    "world kindred-ci" "wait 300" "cmd gamerule doDaylightCycle false" "cmd time set 1000" \
-    "chat Hi Pip, are you there?" "waitsay 1200" "wait 60" "screenshot ci-answer" "wait 20" "quit" > "$WORK/client.txt"
-  # Minecraft's assets first, with a second try: Loom's parallel download sometimes trips over its own .part files
-  ( cd "$ROOT/mod" && { ./gradlew downloadAssets --no-daemon -q || ./gradlew downloadAssets --no-daemon -q; } ) > "$WORK/assets.log" 2>&1 \
-    || { bad "Minecraft's assets didn't download:"; tail -20 "$WORK/assets.log"; return; }
-  local run=(./gradlew runClient --no-daemon --console=plain "-PdevScript=$WORK/client.txt")
-  if [[ "$(uname -s)" == Linux && -z "${DISPLAY:-}" ]]; then run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}"); fi
-  ( cd "$ROOT/mod" && "${run[@]}" ) > "$WORK/client.log" 2>&1
-  local code=$?
-  local game="$ROOT/mod/run/logs/latest.log" brainlog="$KH/logs/brain.log"
-  if [[ $code == 0 ]]; then ok "the game started and quit by itself"; else bad "the game exited with $code:"; tail -40 "$WORK/client.log"; fi
-  grep -q "kindredspirit" "$game" 2>/dev/null && ok "Fabric loaded the mod (with Fabric API)" || bad "the mod isn't in the game's log"
-  if ls "$ROOT"/mod/run/crash-reports/*.txt >/dev/null 2>&1; then bad "the game crashed:"; tail -40 "$(ls -t "$ROOT"/mod/run/crash-reports/*.txt | head -1)"; fi
-  grep -q "game connected" "$brainlog" 2>/dev/null && ok "the game connected to her brain" || bad "the game never connected to her brain"
-  grep -q "mod .* on Minecraft" "$brainlog" 2>/dev/null && ok "$(grep -o 'mod .* on Minecraft .*' "$brainlog" | head -1)"
-  if grep -q "you: Hi Pip.*test answer" "$brainlog" 2>/dev/null; then ok "she answered in the game: $(grep -o 'you: Hi Pip.*' "$brainlog" | head -1)"
-  else bad "she didn't answer the hi:"; tail -30 "$brainlog" 2>/dev/null; fi
-  [[ -n "${KINDRED_KEEP_SCREENSHOT:-}" ]] && cp "$ROOT"/mod/run/screenshots/ci-answer*.png "$WORK/client.log" "$game" "$KINDRED_KEEP_SCREENSHOT"/ 2>/dev/null
+  # every Minecraft version the mod is built for (mod/versions/), or only KINDRED_MINECRAFT (e.g. 26.3)
+  local mc versions="${KINDRED_MINECRAFT:-$(ls "$ROOT/mod/versions")}"
+  for mc in $versions; do client_run "$mc" "$KH/logs/brain.log"; done
   bash "$ROOT/scripts/stop.sh" >/dev/null 2>&1
+  return 0
+}
+
+# One Minecraft version's dev client (./gradlew :<version>:runClient): open a world, say hi, check she answered.
+client_run() {
+  local mc="$1" brainlog="$2" runDir="$ROOT/mod/versions/$1/run"
+  step "Minecraft $mc"
+  # (the time stops with doDaylightCycle up to 1.21.x and advance_time after; the other line only prints an error)
+  printf '%s\n' "# scripts/test-install.sh client: open a world, say hi, wait for her answer, take a picture, quit" \
+    "world kindred-ci" "wait 300" "cmd gamerule doDaylightCycle false" "cmd gamerule advance_time false" "cmd time set 1000" \
+    "chat Hi Pip, are you there?" "waitsay 1200" "wait 60" "screenshot ci-answer" "wait 20" "quit" > "$WORK/client.txt"
+  local answered_before=0
+  answered_before=$(grep -c "you: Hi Pip.*test answer" "$brainlog" 2>/dev/null) || answered_before=0
+  # Minecraft's assets first, with a second try: Loom's parallel download sometimes trips over its own .part files
+  ( cd "$ROOT/mod" && { ./gradlew ":$mc:downloadAssets" --no-daemon -q || ./gradlew ":$mc:downloadAssets" --no-daemon -q; } ) \
+    > "$WORK/assets-$mc.log" 2>&1 || { bad "Minecraft $mc's assets didn't download:"; tail -20 "$WORK/assets-$mc.log"; return; }
+  local run=(./gradlew ":$mc:runClient" --no-daemon --console=plain "-PdevScript=$WORK/client.txt")
+  if [[ "$(uname -s)" == Linux ]]; then
+    # 26.x opens its window with SDL and asks for an sRGB-capable OpenGL 3.3 framebuffer, which Xvfb's GLX visuals
+    # don't offer ("Couldn't find matching GLX visual"); through EGL, Mesa has one. (1.21.x uses GLFW: no effect.)
+    run=(env SDL_VIDEO_FORCE_EGL=1 "${run[@]}")
+    [[ -z "${DISPLAY:-}" ]] && run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}")
+  fi
+  local limit="${KINDRED_CLIENT_MINUTES:-12}"
+  ( cd "$ROOT/mod" && "${run[@]}" ) > "$WORK/client-$mc.log" 2>&1 &
+  local pid=$! waited=0 code
+  # each game gets its own time limit, so a game that hangs fails fast and says which Minecraft it was
+  local game="$runDir/logs/latest.log" nobackend=""
+  rm -f "$game"
+  while kill -0 "$pid" 2>/dev/null && (( waited < limit * 60 )); do
+    sleep 5; waited=$((waited + 5))
+    # no graphics backend at all: the game shows an error box nobody can close here, so stop now and say why
+    if grep -q "Failed to create backend Vulkan" "$game" 2>/dev/null && ! grep -q "Backend: \|Using backend\|Created device" "$game" 2>/dev/null \
+        && grep -q "Failed to create backend OpenGL" "$game" 2>/dev/null; then nobackend=1; break; fi
+  done
+  if [[ -n "$nobackend" ]]; then
+    bad "Minecraft $mc found no graphics it can use here (OpenGL and Vulkan both failed):"
+    grep -A2 "Failed to create backend" "$game" | head -12
+    pkill -f "kindredspirit.devScript=$WORK/client.txt"; sleep 10
+    pkill -9 -f "kindredspirit.devScript=$WORK/client.txt"; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+    return 0
+  fi
+  if kill -0 "$pid" 2>/dev/null; then
+    bad "Minecraft $mc didn't finish in $limit minutes; where its threads were, the end of its log and Gradle's:"
+    local gpid
+    for gpid in $(pgrep -f "kindredspirit.devScript=$WORK/client.txt"); do
+      jcmd "$gpid" Thread.print 2>/dev/null | grep -A 25 -E '^"(Render thread|main|Server thread)"' | head -90
+    done
+    tail -60 "$game" 2>/dev/null; tail -30 "$WORK/client-$mc.log"
+    pkill -f "kindredspirit.devScript=$WORK/client.txt"; sleep 10
+    pkill -9 -f "kindredspirit.devScript=$WORK/client.txt"; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+    return 0
+  fi
+  wait "$pid"; code=$?
+  if [[ $code == 0 ]]; then ok "the game started and quit by itself"; else bad "the game exited with $code:"; tail -40 "$WORK/client-$mc.log"; tail -40 "$game" 2>/dev/null; fi
+  grep -q "kindredspirit" "$game" 2>/dev/null && ok "Fabric loaded the mod (with Fabric API)" || bad "the mod isn't in the game's log"
+  if ls "$runDir"/crash-reports/*.txt >/dev/null 2>&1; then bad "the game crashed:"; tail -40 "$(ls -t "$runDir"/crash-reports/*.txt | head -1)"; fi
+  grep -q "game connected" "$brainlog" 2>/dev/null && ok "the game connected to her brain" || bad "the game never connected to her brain"
+  grep -q "mod .* on Minecraft $mc" "$brainlog" 2>/dev/null && ok "$(grep -o "mod .* on Minecraft $mc.*" "$brainlog" | tail -1)" \
+    || bad "her brain didn't hear from Minecraft $mc"
+  local answered=0
+  answered=$(grep -c "you: Hi Pip.*test answer" "$brainlog" 2>/dev/null) || answered=0
+  if (( answered > answered_before )); then ok "she answered in the game: $(grep -o 'you: Hi Pip.*' "$brainlog" | tail -1)"
+  else bad "she didn't answer the hi:"; tail -30 "$brainlog" 2>/dev/null; fi
+  if [[ -n "${KINDRED_KEEP_SCREENSHOT:-}" ]]; then
+    mkdir -p "$KINDRED_KEEP_SCREENSHOT/$mc"
+    cp "$runDir"/screenshots/ci-answer*.png "$WORK/client-$mc.log" "$game" "$KINDRED_KEEP_SCREENSHOT/$mc"/ 2>/dev/null
+  fi
   return 0
 }
 

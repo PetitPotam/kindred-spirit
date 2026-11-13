@@ -1,11 +1,12 @@
 package dev.kindredspirit.trade;
 
+import dev.kindredspirit.util.Mc;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.npc.AbstractVillager;
-import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
@@ -28,7 +29,7 @@ public final class VillagerTrades {
 
     /** The nearest villager or wandering trader within {@code range} blocks, or null. */
     public static AbstractVillager nearest(ServerPlayer sp, double range) {
-        return sp.serverLevel().getEntitiesOfClass(AbstractVillager.class, new AABB(sp.blockPosition()).inflate(range),
+        return Mc.level(sp).getEntitiesOfClass(AbstractVillager.class, new AABB(sp.blockPosition()).inflate(range),
                         v -> v.isAlive() && !v.isBaby())
                 .stream().min(Comparator.comparingDouble(v -> v.distanceToSqr(sp))).orElse(null);
     }
@@ -46,9 +47,14 @@ public final class VillagerTrades {
     /** "Librarian (expert)", "Wandering trader". */
     public static String who(AbstractVillager v) {
         if (v instanceof Villager villager) {
-            String job = BuiltInRegistries.VILLAGER_PROFESSION.getKey(villager.getVillagerData().getProfession()).getPath();
-            String[] levels = {"novice", "apprentice", "journeyman", "expert", "master"};
+            //? if >=26.1 {
+            String job = villager.getVillagerData().profession().unwrapKey().map(k -> k.identifier().getPath()).orElse("none");
+            int lvl = Math.max(1, Math.min(5, villager.getVillagerData().level()));
+            //?} else {
+            /*String job = BuiltInRegistries.VILLAGER_PROFESSION.getKey(villager.getVillagerData().getProfession()).getPath();
             int lvl = Math.max(1, Math.min(5, villager.getVillagerData().getLevel()));
+            *///?}
+            String[] levels = {"novice", "apprentice", "journeyman", "expert", "master"};
             return (job.equals("none") ? "Villager" : cap(job.replace('_', ' '))) + " (" + levels[lvl - 1] + ")";
         }
         return "Wandering trader";
@@ -56,7 +62,7 @@ public final class VillagerTrades {
 
     public static Map<String, Integer> pockets(ServerPlayer sp) {
         Map<String, Integer> n = new HashMap<>();
-        for (ItemStack s : sp.getInventory().items) if (!s.isEmpty()) n.merge(id(s), s.getCount(), Integer::sum);
+        for (ItemStack s : Mc.items(sp)) if (!s.isEmpty()) n.merge(id(s), s.getCount(), Integer::sum);
         return n;
     }
 
@@ -66,7 +72,7 @@ public final class VillagerTrades {
         List<String> names = new ArrayList<>();
         for (var entry : e.entrySet()) {
             Holder<Enchantment> h = entry.getKey();
-            String key = h.unwrapKey().map(k -> k.location().getPath()).orElse("?");
+            String key = h.unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
             names.add(key.replace('_', ' ') + " " + entry.getIntValue());
         }
         return String.join(", ", names);

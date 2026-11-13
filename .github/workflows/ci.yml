@@ -16,7 +16,7 @@ concurrency: # a new push to the same pull request cancels the run still going f
 
 jobs:
   mod:
-    name: Mod (build and Java tests)
+    name: Mod (build and Java tests, every Minecraft version)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: gradle/actions/wrapper-validation@v4 # the Gradle wrapper jar is the real one
-      # Loom (the Fabric build plugin) runs on Java 25; the mod itself is compiled for Java 21
+      # Gradle and Loom run on Java 25; each jar is compiled for its Minecraft's Java (21 for 1.21.x, 25 for 26.x)
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -33,16 +33,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - run: ./gradlew build --no-daemon
+      # one jar per Minecraft version in mod/versions/, each with all the Java tests (Stonecutter, see CONTRIBUTING.md)
+      - run: ./gradlew build --no-daemon --continue
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-reports
-          path: mod/build/reports/tests/
+          path: mod/versions/*/build/reports/tests/
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: kindred-spirit-jar
+          name: kindred-spirit-jars
           path: mod/build/libs/*.jar
 
   brain:

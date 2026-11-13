@@ -1,5 +1,6 @@
 package dev.kindredspirit.act;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -48,13 +49,13 @@ public final class Pranks {
         return onServer(mc, server -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
             if (sp == null) return error("not here");
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = Mc.level(sp);
             BlockState state = level.getBlockState(pos);
             ItemStack item = new ItemStack(state.getBlock().asItem());
             if (state.isAir() || item.isEmpty() || !(item.getItem() instanceof BlockItem)) return error("nothing to borrow");
             String name = item.getHoverName().getString(); // before add(), which empties the stack
             level.removeBlock(pos, false);
-            if (!sp.getInventory().add(item)) sp.drop(item, false);
+            Mc.give(sp, item);
             stolenAt = pos;
             stolenState = state;
             lastPlaced = null;
@@ -71,7 +72,7 @@ public final class Pranks {
         return onServer(mc, server -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
             if (sp == null) return error("not here");
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = Mc.level(sp);
             if (!level.getBlockState(pos).isAir()) return error("something else is there now");
             level.setBlockAndUpdate(pos, state);
             ItemStack want = new ItemStack(state.getBlock().asItem());
@@ -93,9 +94,8 @@ public final class Pranks {
         return onServer(mc, server -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
             if (sp == null) return error("not here");
-            sp.knockback(0.6, fromX - sp.getX(), fromZ - sp.getZ());
-            sp.hurtMarked = true;
-            sp.serverLevel().playSound(null, sp.blockPosition(), SoundEvents.SLIME_JUMP_SMALL, SoundSource.NEUTRAL, 1f, 1.4f);
+            Mc.push(sp, 0.6, fromX - sp.getX(), fromZ - sp.getZ());
+            Mc.level(sp).playSound(null, sp.blockPosition(), SoundEvents.SLIME_JUMP_SMALL, SoundSource.NEUTRAL, 1f, 1.4f);
             return ok();
         });
     }
@@ -106,13 +106,12 @@ public final class Pranks {
             ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
             if (sp == null || sp.getHealth() < sp.getMaxHealth()) return error("not at full health");
             sp.hurt(sp.damageSources().magic(), 2f);
-            sp.knockback(0.4, fromX - sp.getX(), fromZ - sp.getZ());
-            sp.hurtMarked = true;
+            Mc.push(sp, 0.4, fromX - sp.getX(), fromZ - sp.getZ());
             Thread t = new Thread(() -> { // and she heals you right back
                 try { Thread.sleep(1500); } catch (InterruptedException ignored) { }
                 server.execute(() -> {
                     sp.heal(2f);
-                    sp.serverLevel().sendParticles(net.minecraft.core.particles.ParticleTypes.HEART, sp.getX(), sp.getY() + 1.8,
+                    Mc.level(sp).sendParticles(net.minecraft.core.particles.ParticleTypes.HEART, sp.getX(), sp.getY() + 1.8,
                             sp.getZ(), 4, 0.4, 0.3, 0.4, 0);
                 });
             }, "kindred-heal");
@@ -129,9 +128,9 @@ public final class Pranks {
             if (l == null) return error("no overworld");
             if ("rain".equals(weather)) {
                 if (l.isRaining()) return error("it's already raining");
-                l.setWeatherParameters(0, 2400, true, false); // two minutes of rain at most
+                Mc.weather(l, 0, 2400, true, false); // two minutes of rain at most
             } else {
-                l.setWeatherParameters(6000, 0, false, false);
+                Mc.weather(l, 6000, 0, false, false);
             }
             return ok();
         });

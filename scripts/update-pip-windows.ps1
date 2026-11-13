@@ -2,14 +2,16 @@
 # Run it after every update the host pushes (or double-click scripts\update-pip-windows.cmd).
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1 -Minecraft 26.3   (switch versions)
 #
-# Needs: Git (signed in to GitHub), Java 25 (Temurin, to build), Minecraft 1.21.1 with Fabric installed once.
-# Close Minecraft first: a running game keeps the old mod.
+# Needs: Git (signed in to GitHub), Java 25 (Temurin, to build), Minecraft with Fabric installed once, the same
+# Minecraft version as the host's. Without -Minecraft it keeps the version of the Kindred jar already installed
+# (the newest one the first time). Close Minecraft first: a running game keeps the old mod.
 #
 # For tests (.github/workflows/platforms.yml): -Here installs this copy as it is, without getting the latest
 # version, and $env:APPDATA can point to a throwaway folder.
-param([switch]$Here)
 
+param([string]$Minecraft = "", [switch]$Here)
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
@@ -26,6 +28,19 @@ if ($Here) {
     if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
 }
 
+# Which Minecraft: the one asked for, else the one the installed Kindred jar is for, else the newest the mod supports
+$mods = Join-Path $env:APPDATA ".minecraft\mods"
+$supported = Get-ChildItem "mod\versions" -Directory | ForEach-Object { $_.Name } | Sort-Object { [version]$_ }
+if (-not $Minecraft) {
+    $installed = Get-ChildItem $mods -Filter "kindred-spirit-*.jar" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($installed -and $installed.Name -match '\+([0-9.]+)\.jar$' -and $supported -contains $Matches[1]) { $Minecraft = $Matches[1] }
+    else { $Minecraft = $supported | Select-Object -Last 1 }
+}
+if ($supported -notcontains $Minecraft) {
+    throw "Kindred Spirit isn't made for Minecraft $Minecraft. It is for: $($supported -join ', ')."
+}
+Write-Host "     For Minecraft $Minecraft (another one: add -Minecraft <version>; this mod has $($supported -join ', '))."
+
 Write-Host "2/4  Building the mod (the first time takes a few minutes)..." -ForegroundColor Cyan
 # Loom, the build tool, needs Java 25: check first, so the message says what to install
 $java = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME "bin\java.exe" } else { "java" }
@@ -38,24 +53,22 @@ if ($major -lt 25) {
     throw "Building the mod needs Java 25, and this PC has $have. Install it with: winget install EclipseAdoptium.Temurin.25.JDK (or from https://adoptium.net), then open a new PowerShell window and run this again."
 }
 Push-Location mod
-& .\gradlew.bat build -x test --quiet
+& .\gradlew.bat ":${Minecraft}:build" -x test --quiet
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "The build failed: see the messages above." }
 Pop-Location
-$jar = Get-ChildItem "mod\build\libs\kindred-spirit-*.jar" | Where-Object { $_.Name -notlike "*-sources*" } |
-    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$jar = Get-ChildItem "mod\build\libs\kindred-spirit-*+$Minecraft.jar" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $jar) { throw "No mod file was built." }
 
 Write-Host "3/4  Installing it in Minecraft's mods folder..." -ForegroundColor Cyan
-$mods = Join-Path $env:APPDATA ".minecraft\mods"
 New-Item -ItemType Directory -Force $mods | Out-Null
 Get-ChildItem $mods -Filter "kindred-spirit-*.jar" -ErrorAction SilentlyContinue | Remove-Item -Force
 Copy-Item $jar.FullName $mods
 
 Write-Host "4/4  Checking Fabric API..." -ForegroundColor Cyan
-$want = (Select-String -Path "mod\gradle.properties" -Pattern "^fabric_version=(.+)$").Matches[0].Groups[1].Value.Trim()
+$want = (Select-String -Path "mod\versions\$Minecraft\gradle.properties" -Pattern "^fabric_version=(.+)$").Matches[0].Groups[1].Value.Trim()
 $have = Get-ChildItem $mods -Filter "fabric-api-*.jar" -ErrorAction SilentlyContinue
-if (-not ($have | Where-Object { $_.Name -like "*+1.21.1.jar" })) {
-    $versions = Invoke-RestMethod 'https://api.modrinth.com/v2/project/fabric-api/version?game_versions=%5B%221.21.1%22%5D&loaders=%5B%22fabric%22%5D'
+if (-not ($have | Where-Object { $_.Name -like "*+$Minecraft.jar" })) {
+    $versions = Invoke-RestMethod "https://api.modrinth.com/v2/project/fabric-api/version?game_versions=%5B%22$Minecraft%22%5D&loaders=%5B%22fabric%22%5D"
     $v = ($versions | Where-Object { $_.version_number -eq $want } | Select-Object -First 1)
     if (-not $v) { $v = $versions | Select-Object -First 1 }
     $file = $v.files | Where-Object { $_.primary } | Select-Object -First 1
@@ -67,4 +80,4 @@ if (-not ($have | Where-Object { $_.Name -like "*+1.21.1.jar" })) {
 
 Write-Host ""
 Write-Host "Done: $($jar.Name) is installed." -ForegroundColor Green
-Write-Host "Start the 'fabric-loader-1.21.1' installation in the Minecraft Launcher and join the LAN world."
+Write-Host "Start the 'fabric-loader-$Minecraft' installation in the Minecraft Launcher and join the LAN world."

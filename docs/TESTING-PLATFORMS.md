@@ -39,8 +39,9 @@ install.
 
 ### The game itself
 
-`scripts/test-install.sh client` starts the dev client (`./gradlew runClient`): Minecraft 1.21.1 with Fabric Loader,
-Fabric API and the mod, the same pieces a player installs, but from the build rather than the launcher. Then:
+`scripts/test-install.sh client` starts the dev client (`./gradlew :<version>:runClient`) for each Minecraft version the
+mod is built for (26.3 and 1.21.1; `KINDRED_MINECRAFT=26.3` for just one): Fabric Loader, Fabric API and the mod, the
+same pieces a player installs, but from the build rather than the launcher. Then, for each:
 
 1. it opens a test world and says "Hi Pip, are you there?";
 2. her brain (with the stand-in AI) answers;
@@ -56,7 +57,7 @@ It uses the default places (`~/.kindred-spirit`, port 47811), as the mod does, s
 - **Windows:** GitHub's Windows machines have no OpenGL 3.2, which Minecraft needs. Mesa's software OpenGL for
   Windows (the `mesa-dist-win` builds) could provide it; that's a later step.
 
-To run it for another Minecraft version later (#41), it only needs `./gradlew runClient` for that version.
+A new Minecraft version in `mod/versions/` is checked too, with nothing to change here.
 
 ## On your own computer
 

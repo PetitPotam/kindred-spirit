@@ -1,5 +1,6 @@
 package dev.kindredspirit.act;
 
+import dev.kindredspirit.util.Mc;
 import dev.kindredspirit.blueprint.BlockSpec;
 import dev.kindredspirit.blueprint.CatalogueIndex;
 import dev.kindredspirit.blueprint.Picture;
@@ -63,7 +64,7 @@ public final class BlueprintCatalogue {
     static int color(BlockSpec spec) {
         return colors.computeIfAbsent(spec, s -> {
             try {
-                BlockState st = BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK.asLookup(), s.toString(), false).blockState();
+                BlockState st = BlockStateParser.parseForBlock(Mc.blocks(), s.toString(), false).blockState();
                 MapColor c = st.getMapColor(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
                 return c == null || c == MapColor.NONE ? Picture.guessColor(s) : c.col;
             } catch (Exception e) {
