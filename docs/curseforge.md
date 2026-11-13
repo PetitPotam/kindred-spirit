@@ -19,7 +19,7 @@ Change this file and the page together, and keep it in step with modrinth.md: sa
 | Source | `https://github.com/PetitPotam/kindred-spirit` |
 | Issues | `https://github.com/PetitPotam/kindred-spirit/issues` |
 | Wiki (setup guide) | `https://kindred-spirit-pip.web.app` |
-| Files | uploaded by the release workflow: Minecraft 1.21.1, Fabric, Client, Java 21, Fabric API as a required dependency |
+| Files | uploaded by the release workflow, one per Minecraft version: 26.3 (Java 25) and 1.21.1 (Java 21), each Fabric, Client, Fabric API as a required dependency |
 
 Custom licence text, if AGPL-3.0 isn't in the list:
 
@@ -146,8 +146,9 @@ PetitPotam
 
 ## Good to know
 
-- Minecraft 1.21.1, Fabric Loader, and [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api).
-  Client-side: nothing is added to your world or its saves.
+- Minecraft 26.3 or 1.21.1 (one file for each: pick the one for your game), Fabric Loader, and
+  [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api). Client-side: nothing is added to your world
+  or its saves.
 - On multiplayer servers you don't host, she doesn't look through blocks for ores or anything else (that would be
   like x-ray). In your own worlds, a LAN world you host, or a friend's world that runs Kindred, she does.
 - Free software under the GNU AGPL-3.0. Pip's name, character and art have their own simple rules: anything kind

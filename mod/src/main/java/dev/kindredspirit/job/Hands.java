@@ -1,5 +1,6 @@
 package dev.kindredspirit.job;
 
+import dev.kindredspirit.util.Mc;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.core.BlockPos;
@@ -33,9 +34,9 @@ public final class Hands {
     private Hands() {}
 
     static FakePlayer of(ServerPlayer owner) {
-        ServerLevel level = owner.serverLevel();
+        ServerLevel level = Mc.level(owner);
         FakePlayer fp = FakePlayer.get(level, new GameProfile(owner.getUUID(), "[Pip]"));
-        fp.moveTo(owner.getX(), owner.getY(), owner.getZ(), owner.getYRot(), owner.getXRot());
+        Mc.place(fp, owner.getX(), owner.getY(), owner.getZ(), owner.getYRot(), owner.getXRot());
         // never ticked, so the game would think it's falling: mining is 5x slower off the ground.
         // Her hands stand where the player stands, as the player stands.
         fp.setOnGround(owner.onGround());
@@ -45,10 +46,10 @@ public final class Hands {
     /** Ticks it takes to break a block with this tool, as for the player (at least 1; -1: never). */
     public static int breakTicks(ServerPlayer owner, BlockPos at, ItemStack tool) {
         FakePlayer fp = of(owner);
-        BlockState st = owner.serverLevel().getBlockState(at);
+        BlockState st = Mc.level(owner).getBlockState(at);
         fp.setItemInHand(InteractionHand.MAIN_HAND, tool);
         try {
-            float perTick = st.getDestroyProgress(fp, owner.serverLevel(), at);
+            float perTick = st.getDestroyProgress(fp, Mc.level(owner), at);
             if (perTick <= 0) return -1;
             return Math.max(1, (int) Math.ceil(1.0f / perTick));
         } finally {
@@ -58,7 +59,7 @@ public final class Hands {
 
     /** Shows the cracks while she works on a block (stage 0-9, or -1 to clear). */
     public static void cracks(ServerPlayer owner, BlockPos at, int stage) {
-        owner.serverLevel().destroyBlockProgress(of(owner).getId(), at, stage);
+        Mc.level(owner).destroyBlockProgress(of(owner).getId(), at, stage);
     }
 
     /**
@@ -67,7 +68,7 @@ public final class Hands {
      * mode, unbreakable).
      */
     public static boolean breakBlock(ServerPlayer owner, BlockPos at, ItemStack tool, java.util.Map<String, Integer> got) {
-        ServerLevel level = owner.serverLevel();
+        ServerLevel level = Mc.level(owner);
         FakePlayer fp = of(owner);
         fp.setItemInHand(InteractionHand.MAIN_HAND, tool);
         boolean ok;
@@ -97,7 +98,7 @@ public final class Hands {
 
     /** Moves fresh drops near a spot into the owner's pockets (what doesn't fit stays on the ground). */
     static void pocket(ServerPlayer owner, AABB where, java.util.Map<String, Integer> got) {
-        List<ItemEntity> drops = owner.serverLevel().getEntitiesOfClass(ItemEntity.class, where,
+        List<ItemEntity> drops = Mc.level(owner).getEntitiesOfClass(ItemEntity.class, where,
                 e -> e.isAlive() && e.getAge() < 20);
         for (ItemEntity e : drops) {
             ItemStack stack = e.getItem().copy();

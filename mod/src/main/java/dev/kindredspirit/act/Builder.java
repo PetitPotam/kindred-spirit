@@ -1,5 +1,6 @@
 package dev.kindredspirit.act;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import dev.kindredspirit.KindredSpiritClient;
 import net.minecraft.client.Minecraft;
@@ -7,7 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -106,7 +107,7 @@ public final class Builder {
         if (hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK) {
             BlockPos at = bh.getBlockPos();
             if (shape.clears()) origin = at; // (clearing starts with the block you look at)
-            else origin = sp.serverLevel().getBlockState(at).canBeReplaced() ? at : at.relative(bh.getDirection());
+            else origin = Mc.level(sp).getBlockState(at).canBeReplaced() ? at : at.relative(bh.getDirection());
         } else {
             origin = sp.blockPosition().relative(sp.getDirection(), 2);
         }
@@ -122,7 +123,7 @@ public final class Builder {
             BlockPos at = new BlockPos(Integer.parseInt(spot[0]), Integer.parseInt(spot[1]), Integer.parseInt(spot[2]));
             Direction face = spot.length > 3 ? Direction.byName(spot[3]) : null;
             if (shape.clears()) origin = at;
-            else origin = sp.serverLevel().getBlockState(at).canBeReplaced() || face == null ? at : at.relative(face);
+            else origin = Mc.level(sp).getBlockState(at).canBeReplaced() || face == null ? at : at.relative(face);
         }
         boolean middle = "middle".equalsIgnoreCase(Actions.str(args, "at", ""));
         if (middle && lastMiddle == null) {
@@ -181,7 +182,7 @@ public final class Builder {
                 String id = BuiltInRegistries.ITEM.getKey(what).toString();
                 fill = new String[]{id, id}; // a floor of what they named (or what's in their pockets)
             } else {
-                fill = ground(sp.serverLevel(), ox, oz, lvl, Math.max(w, l) / 2);
+                fill = ground(Mc.level(sp), ox, oz, lvl, Math.max(w, l) / 2);
             }
             fillTop = fill[0];
             steps = BuildPlan.flattenArea(ox, oz, lvl, w, l, centered, round, f.getStepX(), f.getStepZ(),
@@ -243,7 +244,7 @@ public final class Builder {
             queue.clear();
             return;
         }
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         int budget = free ? (flattening ? MAGIC_PER_TICK * 8 : MAGIC_PER_TICK) : 1;
         BlockPos last = null;
         while (!queue.isEmpty() && budget > 0) {
@@ -321,7 +322,7 @@ public final class Builder {
         }
         if (!free) {
             for (ItemStack drop : Block.getDrops(st, level, at, null, sp, sp.getMainHandItem())) {
-                if (!sp.getInventory().add(drop)) sp.drop(drop, false);
+                Mc.give(sp, drop);
             }
         }
         level.destroyBlock(at, false, sp);
@@ -345,7 +346,7 @@ public final class Builder {
         if (!level.getBlockState(at).isAir()) return false;
         if (!free) {
             ItemStack lighter = null;
-            for (ItemStack s : sp.getInventory().items) if (s.is(Items.FLINT_AND_STEEL) || s.is(Items.FIRE_CHARGE)) lighter = s;
+            for (ItemStack s : Mc.items(sp)) if (s.is(Items.FLINT_AND_STEEL) || s.is(Items.FIRE_CHARGE)) lighter = s;
             if (lighter == null) return false;
             if (lighter.is(Items.FIRE_CHARGE)) lighter.shrink(1);
             else lighter.hurtAndBreak(1, sp, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
@@ -358,7 +359,7 @@ public final class Builder {
     /** An end portal frame with its eye, facing the middle (block: "dx,dz"). */
     private static boolean endFrame(ServerLevel level, BlockPos at, String facing) {
         String[] d = (facing == null ? "0,1" : facing).split(",");
-        Direction dir = Direction.getNearest(Integer.parseInt(d[0]), 0, Integer.parseInt(d[1]));
+        Direction dir = Mc.nearest(Integer.parseInt(d[0]), 0, Integer.parseInt(d[1]));
         return set(level, at, Blocks.END_PORTAL_FRAME.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.EndPortalFrameBlock.FACING, dir)
                 .setValue(net.minecraft.world.level.block.EndPortalFrameBlock.HAS_EYE, true));
@@ -388,7 +389,7 @@ public final class Builder {
         }
         BlockPos up = at.above();
         if (level.getBlockState(up).canBeReplaced() && !level.getBlockState(up).isAir()) level.destroyBlock(up, false);
-        level.setBlockAndUpdate(at, Blocks.FARMLAND.defaultBlockState().setValue(net.minecraft.world.level.block.FarmBlock.MOISTURE, 7));
+        level.setBlockAndUpdate(at, Blocks.FARMLAND.defaultBlockState().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.MOISTURE, 7));
         placed++;
         return true;
     }
@@ -397,7 +398,7 @@ public final class Builder {
     private static boolean water(ServerLevel level, ServerPlayer sp, BlockPos at) {
         if (!free) {
             boolean has = false;
-            for (ItemStack s : sp.getInventory().items) if (s.is(Items.WATER_BUCKET)) has = true;
+            for (ItemStack s : Mc.items(sp)) if (s.is(Items.WATER_BUCKET)) has = true;
             if (!has) {
                 level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState()); // (the hole, for their water)
                 return true;
@@ -458,7 +459,7 @@ public final class Builder {
         Item it = itemOf(id);
         if (it instanceof BlockItem && (free || count(sp, it) > 0)) return it;
         // "stone" when they hold cobblestone, "wood" when they have planks...: a block item they have whose name contains it
-        for (ItemStack s : sp.getInventory().items) {
+        for (ItemStack s : Mc.items(sp)) {
             if (s.getItem() instanceof BlockItem && BuiltInRegistries.ITEM.getKey(s.getItem()).getPath().contains(id)) {
                 return s.getItem();
             }
@@ -497,19 +498,19 @@ public final class Builder {
     }
 
     private static Item itemOf(String id) {
-        ResourceLocation key = ResourceLocation.tryParse(id.contains(":") ? id : "minecraft:" + id);
+        Identifier key = Identifier.tryParse(id.contains(":") ? id : "minecraft:" + id);
         return key == null ? null : BuiltInRegistries.ITEM.getOptional(key).orElse(null);
     }
 
     private static Item mostBlocks(ServerPlayer sp) {
         java.util.Map<Item, Integer> n = new java.util.HashMap<>();
-        for (ItemStack s : sp.getInventory().items) if (buildable(s.getItem())) n.merge(s.getItem(), s.getCount(), Integer::sum);
+        for (ItemStack s : Mc.items(sp)) if (buildable(s.getItem())) n.merge(s.getItem(), s.getCount(), Integer::sum);
         return n.entrySet().stream().max(java.util.Map.Entry.comparingByValue()).map(java.util.Map.Entry::getKey).orElse(null);
     }
 
     private static Item doorItem(ServerPlayer sp) {
-        for (ItemStack s : sp.getInventory().items) {
-            if (s.getItem() instanceof net.minecraft.world.item.DoubleHighBlockItem && s.is(net.minecraft.tags.ItemTags.DOORS)) {
+        for (ItemStack s : Mc.items(sp)) {
+            if (s.getItem() instanceof net.minecraft.world.item.DoubleHighBlockItem && s.is(Mc.itemTag("doors"))) {
                 return s.getItem();
             }
         }
@@ -521,18 +522,18 @@ public final class Builder {
     }
 
     private static boolean hasLighter(ServerPlayer sp) {
-        for (ItemStack s : sp.getInventory().items) if (s.is(Items.FLINT_AND_STEEL) || s.is(Items.FIRE_CHARGE)) return true;
+        for (ItemStack s : Mc.items(sp)) if (s.is(Items.FLINT_AND_STEEL) || s.is(Items.FIRE_CHARGE)) return true;
         return false;
     }
 
     private static int count(ServerPlayer sp, Item it) {
         int n = 0;
-        for (ItemStack s : sp.getInventory().items) if (s.is(it)) n += s.getCount();
+        for (ItemStack s : Mc.items(sp)) if (s.is(it)) n += s.getCount();
         return n;
     }
 
     private static boolean take(ServerPlayer sp, Item it) {
-        for (ItemStack s : sp.getInventory().items) {
+        for (ItemStack s : Mc.items(sp)) {
             if (s.is(it)) {
                 s.shrink(1);
                 return true;

@@ -1,5 +1,6 @@
 package dev.kindredspirit.act;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Pair;
 import dev.kindredspirit.util.Direction8;
@@ -13,7 +14,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -364,16 +365,16 @@ public final class Actions {
     @SuppressWarnings("unchecked")
     static JsonObject locate(MinecraftServer server, ServerPlayer sp, String what) {
         Player p = sp;
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         BlockPos from = sp.blockPosition();
         String key = what.toLowerCase(Locale.ROOT).replace("minecraft:", "").trim().replace(' ', '_');
         if (key.endsWith("s") && STRUCTURES.containsKey(key.substring(0, key.length() - 1))) key = key.substring(0, key.length() - 1);
         Object s = STRUCTURES.get(key);
         if (s != null) {
-            Registry<Structure> reg = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+            Registry<Structure> reg = Mc.registry(level, Registries.STRUCTURE);
             Optional<? extends HolderSet<Structure>> set = s instanceof TagKey<?> tag
-                    ? reg.getTag((TagKey<Structure>) tag)
-                    : reg.getHolder((ResourceKey<Structure>) s).map(HolderSet::direct);
+                    ? Mc.tag(reg, (TagKey<Structure>) tag)
+                    : Mc.holder(reg, (ResourceKey<Structure>) s).map(HolderSet::direct);
             if (set.isEmpty()) return error("There are no " + what + "s in this world.");
             Pair<BlockPos, Holder<Structure>> found = level.getChunkSource().getGenerator()
                     .findNearestMapStructure(level, set.get(), from, 100, false);
@@ -384,8 +385,8 @@ public final class Actions {
             return r;
         }
         // otherwise a biome, like "cherry grove" or "minecraft:mushroom_fields"
-        ResourceLocation id = ResourceLocation.tryParse(key.contains(":") ? key : "minecraft:" + key);
-        Registry<Biome> biomes = level.registryAccess().registryOrThrow(Registries.BIOME);
+        Identifier id = Identifier.tryParse(key.contains(":") ? key : "minecraft:" + key);
+        Registry<Biome> biomes = Mc.registry(level, Registries.BIOME);
         if (id == null || !biomes.containsKey(id)) {
             return error("I don't know a place called " + what + ". I can find structures like "
                     + String.join(", ", STRUCTURES.keySet()) + ", or any biome.");
@@ -401,7 +402,7 @@ public final class Actions {
 
     /** Knocks hostile mobs within 8 blocks away from you (no damage). */
     static JsonObject protect(ServerPlayer sp) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         int n = 0;
         // monsters within 10 blocks, and any that is after the player from further away (a skeleton or a
         // pillager shoots from 15 blocks; a witch throws from 10+)
@@ -409,11 +410,10 @@ public final class Actions {
                 && e.isAlive() && (e.distanceTo(sp) <= 10 || e.getTarget() == sp
                 || (e instanceof net.minecraft.world.entity.monster.RangedAttackMob && e.distanceTo(sp) <= 18)))) {
             m.setTarget(null); // dazed: it forgets about the player for a moment
-            m.knockback(2.2, sp.getX() - m.getX(), sp.getZ() - m.getZ());
+            Mc.push(m, 2.2, sp.getX() - m.getX(), sp.getZ() - m.getZ());
             // dazed for a few seconds, so it doesn't walk straight back (no damage)
             m.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                    net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 80, 2, false, false));
-            m.hurtMarked = true; // send the new velocity to the client right away
+                    Mc.effect(Mc.Effect.SLOWNESS), 80, 2, false, false));
             level.sendParticles(ParticleTypes.POOF, m.getX(), m.getY() + 0.5, m.getZ(), 8, 0.3, 0.3, 0.3, 0.02);
             n++;
         }
@@ -421,12 +421,11 @@ public final class Actions {
         r.addProperty("pushedAway", n);
         Object[] hb = hurtBy.get(sp.getUUID()); // a friend who just hit them: a playful shove (no harm)
         if (hb != null && System.currentTimeMillis() - (long) hb[1] < 15000) {
-            ServerPlayer other = sp.server.getPlayerList().getPlayer((java.util.UUID) hb[0]);
+            ServerPlayer other = Mc.server(sp).getPlayerList().getPlayer((java.util.UUID) hb[0]);
             if (other != null && other.level() == sp.level() && other.distanceTo(sp) <= 12) {
-                other.knockback(1.6, sp.getX() - other.getX(), sp.getZ() - other.getZ());
-                other.hurtMarked = true;
+                Mc.push(other, 1.6, sp.getX() - other.getX(), sp.getZ() - other.getZ());
                 level.sendParticles(ParticleTypes.POOF, other.getX(), other.getY() + 1, other.getZ(), 10, 0.3, 0.4, 0.3, 0.02);
-                r.addProperty("pushedPlayer", other.getGameProfile().getName());
+                r.addProperty("pushedPlayer", other.getGameProfile().name());
                 hurtBy.remove(sp.getUUID());
             }
         }
@@ -437,19 +436,18 @@ public final class Actions {
     static JsonObject poke(ServerPlayer you, ServerPlayer who) {
         if (who == you) return error("Poke who? Name another player.");
         double dx = who.getX() - you.getX(), dz = who.getZ() - you.getZ(), d = Math.max(0.1, Math.hypot(dx, dz));
-        who.knockback(0.9, -dx / d, -dz / d);
-        who.hurtMarked = true;
-        who.serverLevel().sendParticles(ParticleTypes.POOF, who.getX(), who.getY() + 1, who.getZ(), 10, 0.3, 0.4, 0.3, 0.02);
-        who.serverLevel().playSound(null, who.blockPosition(), net.minecraft.sounds.SoundEvents.CHICKEN_EGG,
+        Mc.push(who, 0.9, -dx / d, -dz / d);
+        Mc.level(who).sendParticles(ParticleTypes.POOF, who.getX(), who.getY() + 1, who.getZ(), 10, 0.3, 0.4, 0.3, 0.02);
+        Mc.level(who).playSound(null, who.blockPosition(), net.minecraft.sounds.SoundEvents.CHICKEN_EGG,
                 net.minecraft.sounds.SoundSource.PLAYERS, 1f, 1.6f);
         JsonObject r = ok();
-        r.addProperty("poked", who.getGameProfile().getName());
+        r.addProperty("poked", who.getGameProfile().name());
         return r;
     }
 
     /** A torch at your feet or right beside you. Grounded: uses one of your torches. */
     static JsonObject placeTorch(ServerPlayer sp, Abilities.Style style) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         boolean free = style == Abilities.Style.MAGIC || sp.getAbilities().instabuild;
         int slot = -1;
         if (!free) {
@@ -480,20 +478,20 @@ public final class Actions {
     /** Magic style only: makes items appear in your inventory (or at your feet if it's full). */
     static JsonObject give(ServerPlayer sp, String item, int count) {
         String key = item.toLowerCase(Locale.ROOT).trim().replace(' ', '_');
-        ResourceLocation id = ResourceLocation.tryParse(key.contains(":") ? key : "minecraft:" + key);
+        Identifier id = Identifier.tryParse(key.contains(":") ? key : "minecraft:" + key);
         if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) return error("There's no item called " + item + ".");
-        Item it = BuiltInRegistries.ITEM.get(id);
+        Item it = Mc.item(id);
         int n = Math.max(1, Math.min(count, it.getDefaultMaxStackSize() * 4)); // up to four stacks
         int left = n;
         while (left > 0) {
             int k = Math.min(left, it.getDefaultMaxStackSize());
             ItemStack stack = new ItemStack(it, k);
-            if (!sp.getInventory().add(stack)) sp.drop(stack, false);
+            Mc.give(sp, stack);
             left -= k;
         }
         JsonObject r = ok();
         r.addProperty("gave", n + " " + id.getPath());
-        r.addProperty("to", sp.getGameProfile().getName());
+        r.addProperty("to", sp.getGameProfile().name());
         return r;
     }
 
@@ -509,7 +507,7 @@ public final class Actions {
     static JsonObject effect(ServerPlayer sp, String what) {
         String key = what.toLowerCase(Locale.ROOT).trim().replace(' ', '_');
         JsonObject r = ok();
-        r.addProperty("to", sp.getGameProfile().getName());
+        r.addProperty("to", sp.getGameProfile().name());
         switch (key) {
             case "health", "heal", "hearts", "healing", "instant_health" -> {
                 sp.setHealth(sp.getMaxHealth());
@@ -524,22 +522,22 @@ public final class Actions {
             default -> { }
         }
         var effect = switch (key) {
-            case "haste", "dig_speed", "mining" -> net.minecraft.world.effect.MobEffects.DIG_SPEED;
+            case "haste", "dig_speed", "mining" -> Mc.effect(Mc.Effect.HASTE);
             case "night_vision", "see_in_the_dark" -> net.minecraft.world.effect.MobEffects.NIGHT_VISION;
-            case "speed", "swiftness", "fast" -> net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED;
+            case "speed", "swiftness", "fast" -> Mc.effect(Mc.Effect.SPEED);
             case "regeneration", "regen" -> net.minecraft.world.effect.MobEffects.REGENERATION;
             case "fire_resistance" -> net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE;
             case "water_breathing" -> net.minecraft.world.effect.MobEffects.WATER_BREATHING;
-            case "jump_boost", "jump", "leaping" -> net.minecraft.world.effect.MobEffects.JUMP;
-            case "strength" -> net.minecraft.world.effect.MobEffects.DAMAGE_BOOST;
-            case "resistance" -> net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE;
+            case "jump_boost", "jump", "leaping" -> Mc.effect(Mc.Effect.JUMP_BOOST);
+            case "strength" -> Mc.effect(Mc.Effect.STRENGTH);
+            case "resistance" -> Mc.effect(Mc.Effect.RESISTANCE);
             case "slow_falling", "feather_falling" -> net.minecraft.world.effect.MobEffects.SLOW_FALLING;
             case "invisibility" -> net.minecraft.world.effect.MobEffects.INVISIBILITY;
             case "luck" -> net.minecraft.world.effect.MobEffects.LUCK;
             case "conduit_power" -> net.minecraft.world.effect.MobEffects.CONDUIT_POWER;
             case "dolphins_grace" -> net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE;
             // playful ones, short: a friend slowed down, floating up a moment, glowing
-            case "slowness", "slow", "slow_down" -> net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN;
+            case "slowness", "slow", "slow_down" -> Mc.effect(Mc.Effect.SLOWNESS);
             case "levitation", "levitate", "float", "fly_up" -> net.minecraft.world.effect.MobEffects.LEVITATION;
             case "glowing", "glow", "outline" -> net.minecraft.world.effect.MobEffects.GLOWING;
             default -> null;
@@ -553,7 +551,7 @@ public final class Actions {
                 + "invisibility, or health and food).");
         boolean strong = key.equals("regeneration") || key.equals("regen") || key.equals("strength") || key.equals("resistance");
         int seconds = effect == net.minecraft.world.effect.MobEffects.LEVITATION ? 4
-                : effect == net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN ? 20
+                : effect == Mc.effect(Mc.Effect.SLOWNESS) ? 20
                 : effect == net.minecraft.world.effect.MobEffects.GLOWING ? 60 : strong ? 45 : 180;
         sp.addEffect(new net.minecraft.world.effect.MobEffectInstance(effect, seconds * 20, 0));
         r.addProperty("effect", key.replace('_', ' '));
@@ -567,7 +565,7 @@ public final class Actions {
      * 'Take me to a flat field': she finds it, then guide leads there.
      */
     static JsonObject findFlat(ServerPlayer sp, int size) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         int n = Math.max(6, Math.min(48, size));
         BlockPos me = sp.blockPosition();
         double best = Double.MAX_VALUE;
@@ -623,18 +621,18 @@ public final class Actions {
         for (Player o : all) if (o != p) others.add(o);
         if (others.isEmpty()) return error("Nobody else is here: it's just the two of you.");
         boolean meansYou = p != you && (name.toLowerCase(Locale.ROOT).matches(".*\\b(player|host|you|your|owner)\\b.*")
-                || Players.score(Players.squash(you.getGameProfile().getName()), Players.squash(name)) >= 2);
+                || Players.score(Players.squash(you.getGameProfile().name()), Players.squash(name)) >= 2);
         Player who = meansYou ? you : name.isBlank() && others.size() == 1 ? others.get(0) : Players.match(others, name);
         if (who == null) {
             JsonObject r = error("Nobody called " + name + " here.");
-            r.addProperty("hereNow", String.join(", ", others.stream().map(o -> o.getGameProfile().getName()).toList()));
+            r.addProperty("hereNow", String.join(", ", others.stream().map(o -> o.getGameProfile().name()).toList()));
             return r;
         }
         JsonObject res = place(p, who.getX(), who.getY(), who.getZ());
-        lastTargetPlayer = who.getGameProfile().getName();
+        lastTargetPlayer = who.getGameProfile().name();
         lastTargetEntity = who.getId();
         res.addProperty("found", true);
-        res.addProperty("player", who.getGameProfile().getName());
+        res.addProperty("player", who.getGameProfile().name());
         return res;
     }
 
@@ -648,43 +646,43 @@ public final class Actions {
         ServerPlayer asker = from.isBlank() ? you : java.util.Objects.requireNonNullElse(Players.match(all, from), you);
         String n = name.toLowerCase(Locale.ROOT).trim();
         boolean self = asker != you && (n.isEmpty() || n.matches("(me|myself|i|where am i)")
-                || Players.score(Players.squash(asker.getGameProfile().getName()), Players.squash(name)) >= 2);
+                || Players.score(Players.squash(asker.getGameProfile().name()), Players.squash(name)) >= 2);
         if (self) { // "where am I?": from where the player she lives with stands
             JsonObject r = place(you, asker.getX(), asker.getY(), asker.getZ());
             r.addProperty("self", true);
-            String host = you.getGameProfile().getName();
+            String host = you.getGameProfile().name();
             String dir = r.get("direction").getAsString().replace("-", " on their ");
             r.addProperty("where", r.get("distance").getAsLong() + " blocks from " + host + ", " + dir + " ("
                     + r.get("compass").getAsString() + " of them)");
-            r.addProperty("player", asker.getGameProfile().getName());
-            r.addProperty("fromPlayer", you.getGameProfile().getName());
-            r.addProperty("note", "This is where " + asker.getGameProfile().getName() + " is, seen from "
-                    + you.getGameProfile().getName() + " (the player you live beside).");
-            if (asker.level() != you.level()) r.addProperty("otherDimension", asker.level().dimension().location().getPath());
+            r.addProperty("player", asker.getGameProfile().name());
+            r.addProperty("fromPlayer", you.getGameProfile().name());
+            r.addProperty("note", "This is where " + asker.getGameProfile().name() + " is, seen from "
+                    + you.getGameProfile().name() + " (the player you live beside).");
+            if (asker.level() != you.level()) r.addProperty("otherDimension", asker.level().dimension().identifier().getPath());
             return r;
         }
         java.util.List<ServerPlayer> others = new java.util.ArrayList<>();
         for (ServerPlayer o : all) if (o != asker) others.add(o);
         if (others.isEmpty()) return error("Nobody else is in this world right now.");
         boolean meansYou = asker != you && (n.matches(".*\\b(player|host|you|your|owner)\\b.*")
-                || Players.score(Players.squash(you.getGameProfile().getName()), Players.squash(name)) >= 2);
+                || Players.score(Players.squash(you.getGameProfile().name()), Players.squash(name)) >= 2);
         ServerPlayer who = meansYou ? you : name.isBlank() && others.size() == 1 ? others.get(0) : Players.match(others, name);
         if (who == null) {
             JsonObject r = error("Nobody called " + name + " in this world.");
-            r.addProperty("hereNow", String.join(", ", others.stream().map(o -> o.getGameProfile().getName()).toList()));
+            r.addProperty("hereNow", String.join(", ", others.stream().map(o -> o.getGameProfile().name()).toList()));
             return r;
         }
         if (who.level() != asker.level()) {
-            JsonObject r = error(who.getGameProfile().getName() + " is in another dimension ("
-                    + who.level().dimension().location().getPath().replace('_', ' ') + ").");
-            r.addProperty("player", who.getGameProfile().getName());
+            JsonObject r = error(who.getGameProfile().name() + " is in another dimension ("
+                    + who.level().dimension().identifier().getPath().replace('_', ' ') + ").");
+            r.addProperty("player", who.getGameProfile().name());
             return r;
         }
         JsonObject res = place(asker, who.getX(), who.getY(), who.getZ());
         lastTargetEntity = who.getId();
-        lastTargetPlayer = who.getGameProfile().getName();
+        lastTargetPlayer = who.getGameProfile().name();
         res.addProperty("found", true);
-        res.addProperty("player", who.getGameProfile().getName());
+        res.addProperty("player", who.getGameProfile().name());
         res.addProperty("entity", who.getId());
         var held = who.getMainHandItem();
         res.addProperty("holding", held.isEmpty() ? "nothing" : BuiltInRegistries.ITEM.getKey(held.getItem()).getPath().replace('_', ' '));
@@ -733,8 +731,8 @@ public final class Actions {
             default -> 1000; // "day"
         };
         for (ServerLevel l : server.getAllLevels()) { // the next time it is that time, never backwards
-            long now = l.getDayTime(), target = now / 24000 * 24000 + t;
-            l.setDayTime(target < now ? target + 24000 : target);
+            long now = Mc.dayTime(l), target = now / 24000 * 24000 + t;
+            Mc.setDayTime(l, target < now ? target + 24000 : target);
         }
         JsonObject r = ok();
         r.addProperty("time", time);
@@ -745,9 +743,9 @@ public final class Actions {
         ServerLevel l = server.getLevel(Level.OVERWORLD);
         if (l == null) return error("No overworld?");
         switch (weather.toLowerCase(Locale.ROOT).trim()) {
-            case "rain" -> l.setWeatherParameters(0, 6000, true, false);
-            case "thunder", "storm" -> l.setWeatherParameters(0, 6000, true, true);
-            default -> l.setWeatherParameters(12000, 0, false, false);
+            case "rain" -> Mc.weather(l, 0, 6000, true, false);
+            case "thunder", "storm" -> Mc.weather(l, 0, 6000, true, true);
+            default -> Mc.weather(l, 12000, 0, false, false);
         }
         JsonObject r = ok();
         r.addProperty("weather", weather);
@@ -785,7 +783,7 @@ public final class Actions {
      * blocks, never anything that holds items (chests, furnaces...).
      */
     static JsonObject harvest(ServerPlayer sp) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         net.minecraft.world.phys.HitResult hit = sp.pick(6, 1f, false);
         BlockPos start = hit instanceof net.minecraft.world.phys.BlockHitResult bh
                 && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK ? bh.getBlockPos() : null;
@@ -826,7 +824,7 @@ public final class Actions {
             net.minecraft.world.level.block.state.BlockState st = level.getBlockState(b);
             for (ItemStack drop : Block.getDrops(st, level, b, level.getBlockEntity(b), sp, tool)) {
                 got.merge(BuiltInRegistries.ITEM.getKey(drop.getItem()).getPath(), drop.getCount(), Integer::sum);
-                if (!sp.getInventory().add(drop)) sp.drop(drop, false);
+                Mc.give(sp, drop);
             }
             level.destroyBlock(b, false, sp);
             broken++;

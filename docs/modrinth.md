@@ -96,8 +96,8 @@ friends on LAN, to the host's game).
 
 ## Good to know
 
-- Minecraft 1.21.1, Fabric Loader, and [Fabric API](https://modrinth.com/mod/fabric-api). Client-side: nothing is
-  added to your world or its saves.
+- Minecraft 26.3 or 1.21.1 (one file for each: pick the one for your game), Fabric Loader, and
+  [Fabric API](https://modrinth.com/mod/fabric-api). Client-side: nothing is added to your world or its saves.
 - On multiplayer servers you don't host, she doesn't look through blocks for ores or anything else (that would be
   like x-ray). In your own worlds, a LAN world you host, or a friend's world that runs Kindred, she does.
 - Free software under the GNU AGPL-3.0. Pip's name, character and art have their own simple rules: anything kind

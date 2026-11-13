@@ -1,6 +1,6 @@
 # A short silent demo of her hands, jobs and blueprints in singleplayer (no brain needed: her actions run
-# directly and her lines are shown as subtitles). Records mod/run/recordings/jobs-demo (needs ffmpeg).
-#   ./gradlew runClient -PdevScript=devscripts/demo-jobs.txt -PvideoSize=960x540
+# directly and her lines are shown as subtitles). Records mod/versions/1.21.1/run/recordings/jobs-demo (needs ffmpeg).
+#   ./gradlew :1.21.1:runClient -PdevScript=devscripts/demo-jobs.txt -PvideoSize=960x540
 world kindred-jobs-demo
 wait 220
 cmd gamemode survival

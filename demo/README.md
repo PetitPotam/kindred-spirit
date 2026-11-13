@@ -8,7 +8,7 @@ and AI), so every take is a little different.
 scripts/start.sh --background                       # the brain and voices
 cd demo && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ..
 brain/.venv/bin/python demo/make_voices.py          # the player's lines (a second Kokoro voice)
-cd mod && ./gradlew runClient -PdevScript=../demo/demo-script.txt -PvideoSize=960x540 && cd ..
+cd mod && ./gradlew :1.21.1:runClient -PdevScript=../demo/demo-script.txt -PvideoSize=960x540 && cd ..
 demo/.venv/bin/python demo/make_video.py            # -> demo/out/kindred-spirit-demo.mp4
 ```
 
@@ -23,7 +23,7 @@ her memories of a longer journey with a made-up player, written by `seed_journey
 ```bash
 brain/.venv/bin/python demo/seed_journey.py         # her memories "weeks later" (made up, its own world)
 brain/.venv/bin/python demo/make_voices.py t_       # the player's lines for the tour
-cd mod && ./gradlew runClient -PdevScript=../demo/tour-script.txt -PvideoSize=960x540 && cd ..
+cd mod && ./gradlew :1.21.1:runClient -PdevScript=../demo/tour-script.txt -PvideoSize=960x540 && cd ..
 demo/.venv/bin/python demo/make_video.py tour       # -> demo/out/kindred-spirit-tour.mp4
 ```
 
@@ -34,7 +34,7 @@ feelings, her glow at night, skins, and a card about playing with friends on LAN
 
 ```bash
 brain/.venv/bin/python demo/make_voices.py s_       # the player's lines for the showcase
-cd mod && ./gradlew runClient -PdevScript=../demo/showcase-script.txt -PvideoSize=960x540 && cd ..
+cd mod && ./gradlew :1.21.1:runClient -PdevScript=../demo/showcase-script.txt -PvideoSize=960x540 && cd ..
 demo/.venv/bin/python demo/make_video.py showcase   # -> demo/out/kindred-spirit-showcase.mp4
 ```
 

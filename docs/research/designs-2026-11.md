@@ -204,7 +204,7 @@ from the session log.
   one person or two, with the world changing between them), so job tests like MineCollab's (gather oak
   logs, a tech-tree goal, build this) can be written as cases whose checks are what reached the game.
   A check on the world afterwards (blocks placed, items held) needs the mod's dev client
-  (`./gradlew runClient -PdevScript=...`): a possible next step for the blueprints work.
+  (`./gradlew :26.3:runClient -PdevScript=...`): a possible next step for the blueprints work.
 - **Her logs as training data.** MineCollab fine-tuned a small model on successful sessions and matched much
   larger ones. Keep the session logs complete and clean enough for that (who said what, what she knew,
   which tools, what worked: the playtest-fixes log changes do most of it), so that a small local System 1,

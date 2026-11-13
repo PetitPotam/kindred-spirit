@@ -51,7 +51,7 @@ body:
     id: versions
     attributes:
       label: Kindred Spirit / Minecraft / Fabric Loader / Fabric API versions
-      placeholder: "0.1.0-preview / 1.21.1 / 0.16.14 / 0.116.18"
+      placeholder: "0.2.0-preview / 26.3 / 0.20.1 / 0.166.2"
     validations:
       required: true
   - type: input

@@ -13,6 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AdvancementToastMixin {
     @Inject(method = "<init>", at = @At("TAIL"))
     private void kindredspirit$earned(AdvancementHolder holder, CallbackInfo ci) {
-        holder.value().display().ifPresent(d -> KindredSpiritClient.get().advancement(d.getTitle().getString()));
+        //? if >=26.1 {
+        holder.value().display().ifPresent(d -> KindredSpiritClient.get().advancement(d.title().getString()));
+        //?} else {
+        /*holder.value().display().ifPresent(d -> KindredSpiritClient.get().advancement(d.getTitle().getString()));
+        *///?}
     }
 }

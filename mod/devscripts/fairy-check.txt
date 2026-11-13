@@ -1,4 +1,4 @@
-# The fairy and pixie skins from a few angles. Screenshots: mod/run/screenshots/fairy-*.png
+# The fairy and pixie skins from a few angles. Screenshots: mod/versions/26.3/run/screenshots/fairy-*.png
 world kindred-test
 wait 200
 cmd gamemode creative

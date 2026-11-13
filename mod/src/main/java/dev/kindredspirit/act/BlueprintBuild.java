@@ -1,5 +1,6 @@
 package dev.kindredspirit.act;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import dev.kindredspirit.KindredSpiritClient;
 import dev.kindredspirit.blueprint.BlockSpec;
@@ -85,7 +86,7 @@ public final class BlueprintBuild {
                     + "(and any schematic you put in the blueprints folder).");
         }
         // where: the ground the player looks at (the porch goes there, the door just behind it)
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         BlockPos base;
         HitResult hit = sp.pick(24, 1f, false);
         if (hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK) {
@@ -150,7 +151,7 @@ public final class BlueprintBuild {
         int seconds = free ? plan.size() * MAGIC_EVERY / 20 : p.steps(true).size() * GROUNDED_EVERY / 20;
         r.addProperty("seconds", Math.max(1, seconds));
         r.addProperty("doorAt", "where you're looking, facing you");
-        LOG.info("blueprint {} for {} at {} {} {} ({} commands, {})", bp.name(), sp.getGameProfile().getName(), base.getX(),
+        LOG.info("blueprint {} for {} at {} {} {} ({} commands, {})", bp.name(), sp.getGameProfile().name(), base.getX(),
                 base.getY(), base.getZ(), plan.size(), free ? "magic" : "grounded");
         return r;
     }
@@ -202,7 +203,7 @@ public final class BlueprintBuild {
         return st.isAir() || st.canBeReplaced() || st.is(BlockTags.DIRT) || st.is(BlockTags.SAND) || st.is(BlockTags.LEAVES)
                 || st.is(BlockTags.LOGS) || st.is(BlockTags.BASE_STONE_OVERWORLD) || st.is(BlockTags.FLOWERS)
                 || st.is(BlockTags.SAPLINGS) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK) || st.is(Blocks.CLAY)
-                || st.is(BlockTags.ICE) || st.is(BlockTags.COAL_ORES)
+                || st.is(BlockTags.ICE) || st.is(Mc.blockTag("coal_ores"))
                 || st.is(BlockTags.IRON_ORES) || st.is(BlockTags.COPPER_ORES) || st.is(Blocks.MOSS_BLOCK)
                 || st.is(Blocks.SUGAR_CANE) || st.is(Blocks.BAMBOO) || st.is(Blocks.PUMPKIN) || st.is(Blocks.MELON);
     }
@@ -260,7 +261,7 @@ public final class BlueprintBuild {
             queue.clear();
             return;
         }
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         if (magic) {
             // nothing to clear there: no command, and no wait for it
             while (!queue.isEmpty() && queue.peek().first().kind() == Placement.Kind.CLEAR && queue.peek().steps().stream()
@@ -322,7 +323,7 @@ public final class BlueprintBuild {
         if (s.kind() == Placement.Kind.CLEAR) {
             if (now.isAir()) return true;
             for (ItemStack drop : Block.getDrops(now, level, at, level.getBlockEntity(at), sp, sp.getMainHandItem())) {
-                if (!sp.getInventory().add(drop)) sp.drop(drop, false);
+                Mc.give(sp, drop);
             }
             level.destroyBlock(at, false, sp);
             return true;
@@ -330,7 +331,7 @@ public final class BlueprintBuild {
         BlockState st = state(s.state());
         if (st == null) return true; // a block this game doesn't know: skipped
         for (Map.Entry<String, Integer> e : Materials.of(s.state()).entrySet()) {
-            Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(e.getKey()));
+            Item it = Mc.item(net.minecraft.resources.Identifier.parse(e.getKey()));
             for (int i = 0; i < e.getValue(); i++) if (!take(sp, it)) return false;
         }
         if (!now.isAir() && !now.canBeReplaced()) level.destroyBlock(at, true, sp);
@@ -341,7 +342,7 @@ public final class BlueprintBuild {
 
     static BlockState state(BlockSpec spec) {
         try {
-            return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK.asLookup(), spec.toString(), false).blockState();
+            return BlockStateParser.parseForBlock(Mc.blocks(), spec.toString(), false).blockState();
         } catch (Exception e) {
             LOG.info("unknown block in a blueprint: {}", spec);
             return null;
@@ -349,7 +350,7 @@ public final class BlueprintBuild {
     }
 
     private static boolean take(ServerPlayer sp, Item it) {
-        for (ItemStack s : sp.getInventory().items) {
+        for (ItemStack s : Mc.items(sp)) {
             if (s.is(it)) {
                 s.shrink(1);
                 return true;

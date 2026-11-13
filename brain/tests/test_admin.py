@@ -28,9 +28,12 @@ def test_memory_import_forget_and_reset_in_game(stubs):
         assert "Alex" in await m.context(snap(), "what's my name?")
         assert "Forgot 1" in await b.admin_text("forget", "Alex")
         await m.remember("Likes cherry wood.")
+        await m.spot("bed", "your bed", 10, 64, -3)  # a place she noticed herself (#121)
+        assert await m.spots()
         assert "confirm" in await b.admin_text("reset", "")
         assert "brand-new" in await b.admin_text("reset", "confirm")
         assert b.heart.bond == 30 and "cherry" not in await m.context(snap(), "cherry")
+        assert not await m.spots(), "a brand-new companion doesn't know your bed, builds or deaths (#121)"
         assert "Alex" in (await m.store.call("list", kinds=["player"], world="sp:Old"))["results"][0]["text"], \
             "only this world's companion was reset"
     asyncio.run(run())

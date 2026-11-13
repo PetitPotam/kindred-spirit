@@ -1,5 +1,5 @@
-# Sandbox smoke test: ./gradlew runClient -PdevScript=devscripts/smoke-test.txt
-# Needs the brain running (scripts/start.sh). Screenshots land in mod/run/screenshots/.
+# Sandbox smoke test: ./gradlew :26.3:runClient -PdevScript=devscripts/smoke-test.txt
+# Needs the brain running (scripts/start.sh). Screenshots land in mod/versions/26.3/run/screenshots/.
 world kindred-test
 wait 240
 cmd gamerule doDaylightCycle false

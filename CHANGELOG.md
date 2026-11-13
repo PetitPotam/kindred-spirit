@@ -24,35 +24,42 @@ Unreleased into the new version's section.
   Controls → Kindred Spirit). On a friend's computer with only the mod, it says the dashboard is on the host's (#107).
 - Releases are uploaded to CurseForge too, from the same GitHub release, once the project exists there (its page is
   in docs/curseforge.md).
-
-### Fixed
-- Friends building the mod on Windows need Java 25, not Java 21 (the build tool requires it): the guides say so, and
-  Update Pip checks Java first and says what to install (#109).
 - Her live dashboard is part of the Setup: once she's set up, opening Kindred Spirit Setup wakes her and opens her
   dashboard; an "Open her dashboard" button in the steps; and, if you choose it, she wakes when you log in (#111).
-
 - The Setup chooses her AI: for her conversation (System 1), Gemini's free key by default with a guided way to get
   one, another service with your key, Ollama on your Mac, or Claude Code, Codex or Gemini CLI; for her slow thinking
   (System 2), the same, another one, or off. Each choice is tested with a real call; keys stay in secrets.env (#94).
-
 - The Setup downloads her local models, sized for the computer, with progress, a SHA-256 check and resume: her
   instincts (bge-small), her voice (Kokoro, with a preview of each voice) and her hearing (Whisper, with a microphone
   test). The Setup app now carries its own whisper-server, so hearing needs no Homebrew (#95).
-
 - The Setup installs Minecraft's side: a Kindred Spirit launcher profile for the newest Minecraft (or another one
   the mod supports) with Fabric Loader, Fabric API and the matching mod, or the mod into another launcher's mods
   folder; then "Say hi to her" checks the whole chain from the game to her answer (#96).
-
 - Every release now carries Kindred Spirit Setup for macOS (Apple silicon and Intel), built and smoke-tested by CI
   from the release's own mod files, with a SHA-256 for each file and a note saying what was tested where (#98).
-
+- **Minecraft 26.3**, the newest release, next to 1.21.1: one jar for each, built from the same code (with
+  Stonecutter) and tested in CI for every version; releases upload each jar to Modrinth and CurseForge for its own
+  Minecraft. Friends pick theirs with `update-pip-windows.ps1 -Minecraft <version>` (it keeps the one they have),
+  and `install_profile.py --minecraft 26.3` adds a profile of its own. Recording demo videos works on 1.21.1 only
+  for now (#41).
 - The Setup updates everything together: it checks GitHub Releases, shows what's new, installs the new version of
   her brain, the matching mod and the Setup itself, keeps your settings and memories, and can go back (#97).
+
+### Fixed
+- `/kindred reset` now also forgets the places she noticed on her own (your bed, builds, where you died), so the
+  new companion really starts fresh (#121).
+- Stopping her (`scripts/stop.sh`, the Setup's Stop, an update's restart) waits until her helpers have really exited,
+  and forces one that doesn't, so starting again never finds a port still taken (whisper-server is slow to let go).
+- Friends building the mod on Windows need Java 25, not Java 21 (the build tool requires it): the guides say so, and
+  Update Pip checks Java first and says what to install (#109).
 
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
 - One convention for branches, pull request titles and issue links (CONTRIBUTING.md), checked on every pull request.
+- Building the mod needs a JDK 25 (it already did) and makes one jar per Minecraft version; the sandbox game is
+  `./gradlew :26.3:runClient` (or `:1.21.1:runClient`), in `mod/versions/<version>/run/`. The 1.21.1 jar now asks for
+  exactly 1.21.1, not any 1.21.x, which it never ran on. The mod tells her brain the real Minecraft version.
 
 ## [0.2.0-preview] - 2026-11-13
 
