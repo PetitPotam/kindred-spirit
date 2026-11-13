@@ -7,15 +7,20 @@ For contributors: [CONTRIBUTING.md](../CONTRIBUTING.md). For AI agents: [AGENTS.
 
 1. **An issue first** for anything bigger than a small fix, so nobody builds something that won't be
    merged. Issues are triaged on the project board (below).
-2. **A branch and a pull request.** Contributors work on a fork; the maintainer on a branch
-   (`fix/...`, `feature/...`). Nobody pushes to `main` directly (the ruleset enforces it once it's on;
-   the maintainer can bypass it in an emergency).
+2. **A branch and a pull request, for everyone.** Contributors work on a fork; the maintainer and AI agents on a
+   branch (`fix/...`, `feature/...`, `docs/...`, `release/...`). **Nobody pushes to `main` directly**, the maintainer
+   included: no change to the mod, the brain, the website or the version reaches `main` (and so no release and no
+   website deploy happens) without a pull request whose CI passed. Enforced by `.githooks/pre-push` on the
+   maintainer's computer now (`git config core.hooksPath .githooks`, done by `scripts/setup.sh`), and by GitHub's
+   ruleset once the repository is public (no bypass).
 3. **Checks that must pass before merging:**
    - **CI passed** (`.github/workflows/ci.yml`): the mod builds and its tests pass, the brain's tests
      pass on Python 3.11 and 3.12, and the Windows update script parses;
    - **CLA** (`.github/workflows/cla.yml`): every contributor has signed [CLA.md](../CLA.md);
-   - **a review by the maintainer** (`.github/CODEOWNERS`);
-   - conversations resolved, branch up to date with `main`.
+   - a review is **not** required: the maintainer (and agents working for the maintainer) merge their own pull
+     requests once CI passes; contributors' pull requests are reviewed by the maintainer before merging
+     (`.github/CODEOWNERS` asks for it);
+   - the branch up to date with `main`.
 4. **Squash and merge.** One pull request becomes one commit on `main`, titled with the pull request's
    title (what changes for the player). The branch is deleted after merging.
 5. **The changelog** line goes in with the change, under "Unreleased" in [CHANGELOG.md](../CHANGELOG.md).
@@ -46,14 +51,17 @@ changelog. Dependabot never does this automatically.
 
 ## Making a release
 
+A release is a pull request too, in two steps:
+
 ```bash
-scripts/release.sh 0.2.0        # on an up-to-date main, nothing uncommitted
-git push origin main v0.2.0
+scripts/release.sh 0.3.0        # on an up-to-date main: opens the "Release 0.3.0" pull request
+scripts/release.sh tag 0.3.0    # after that pull request is merged: tags it on main and pushes the tag
 ```
 
-The script sets `mod_version`, turns "Unreleased" into the version's changelog section, builds, commits
-"Release 0.2.0" and tags `v0.2.0`. Pushing the tag runs `.github/workflows/release.yml`: it builds the
-jar again and makes the GitHub release with that changelog section. A version with a `-` (0.3.0-beta.1)
+The first step makes a `release/0.3.0` branch that sets `mod_version` and turns "Unreleased" into the version's
+changelog section, builds it, pushes it and opens its pull request. Merge it once CI passes. The second tags the
+merged commit on `main`; the tag runs `.github/workflows/release.yml`, which refuses a tag that isn't on `main`,
+builds the jar again, makes the GitHub release with that changelog section, and uploads it to Modrinth. A version with a `-` (0.3.0-beta.1)
 is marked as a pre-release.
 
 **Modrinth.** The same tag also publishes the version on Modrinth, once the project exists there: create it on
@@ -110,7 +118,8 @@ nothing merges without CI, the CLA and a review. Beyond that:
 
 - **Pin an issue** for the problem everyone hits ("Pip doesn't answer: check your AI key"), and close
   duplicates with a link to it.
-- **Turn on Discussions** for questions and showing off, so issues stay for bugs and ideas.
+- **Discussions** are on (Q&A, Ideas, Show and tell...): point questions there, so issues stay for bugs and
+  planned work; a good idea from a discussion becomes an issue.
 - **Saved replies** in GitHub for the answers you write ten times.
 - **First-time contributors' workflows need approval** (Settings → Actions → General): keep it on.
 - **Big pull requests nobody discussed:** thank, and ask for an issue first. It's fine to say no.
@@ -121,8 +130,8 @@ nothing merges without CI, the CLA and a review. Beyond that:
 
 - Merging: squash only, the pull request title as the commit title, branches deleted after merge,
   "update branch" suggested.
-- A ruleset on `main`: pull requests only, the **CI passed** and **CLA** checks, one approving review,
-  conversations resolved, no force-pushes, no deletion; the maintainer can bypass it.
+- A ruleset on `main`: pull requests only (squash), the **CI passed** check up to date with `main`, no approval
+  required, no force-pushes, no deletion, and no bypass for anyone.
   (GitHub only enforces rulesets on a private repository with a paid plan; on the free plan they apply
   once the repository is public.)
 - Dependabot alerts and security updates, private vulnerability reporting.

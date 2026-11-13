@@ -1,0 +1,12 @@
+#!/bin/sh
+# Every change reaches main through a pull request (docs/MAINTAINING.md): no direct pushes to main, for anyone.
+# GitHub enforces the same rule once the repository is public; until then this hook does, on this computer.
+# Installed by: git config core.hooksPath .githooks (scripts/setup.sh does it)
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "Pushing to main directly isn't allowed: push a branch and open a pull request (docs/MAINTAINING.md)." >&2
+    echo "  git switch -c fix/what-it-is && git push -u origin HEAD && gh pr create --fill" >&2
+    exit 1
+  fi
+done
+exit 0

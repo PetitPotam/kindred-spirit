@@ -20,7 +20,10 @@ These are not optional. A pull request that breaks one of them is closed.
 
 1. **Ask before you act outside the working copy.** Never push, open or merge pull requests, publish
    releases, create tags, change repository settings or post comments unless your human asked for that
-   exact thing. Never push to `main`: work on a branch (`fix/...`, `feature/...`) and open a pull request.
+   exact thing. **Never push to `main`**, even when asked to "push": work on a branch (`fix/...`, `feature/...`),
+   push the branch and open a pull request; merge it (squash) only once CI passes and only if your human wants it
+   merged. A new version only through `scripts/release.sh` (a release pull request, then its tag). The website
+   deploys only from `main`, so it changes only through a merged pull request too.
 2. **Never rewrite history** (`push --force`, `rebase` of pushed commits, `reset --hard` of someone's work,
    `filter-branch`) and never delete branches, tags or files you didn't create, unless your human asked.
 3. **No secrets, no personal data.** No API keys, tokens, `.env` contents, real names, real player names,

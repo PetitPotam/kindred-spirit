@@ -12,6 +12,7 @@
 # Puts the brain's Python environment in brain/.venv and everything per-user in ~/.kindred-spirit.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+git -C "$ROOT" config core.hooksPath .githooks 2>/dev/null || true  # (no direct pushes to main: docs/MAINTAINING.md)
 KH="${KINDRED_HOME:-$HOME/.kindred-spirit}"
 MODE="${1:-guide}"
 [[ "$MODE" == "guide" && ! -t 0 ]] && MODE="--defaults"  # not in a terminal: nobody to answer questions

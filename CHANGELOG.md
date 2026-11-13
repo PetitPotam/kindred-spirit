@@ -9,6 +9,10 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+### Changed
+- Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
+  for anyone); a release is a "Release X" pull request, then its tag.
+
 ## [0.2.0-preview] - 2026-11-13
 
 The first preview of Kindred Spirit. Pip is a little spirit who floats beside you in Minecraft 1.21.1 (Fabric),
