@@ -197,6 +197,31 @@ BLUEPRINT_DIRS = [os.path.expanduser(p) for p in os.environ.get("KINDRED_BLUEPRI
     os.path.expanduser("~/Library/Application Support/minecraft-kindred/schematics")]
 
 
+ENCH_OLD = re.compile(r"\{\s*id\s*:\s*\"?(?:minecraft:)?([a-z_]+)\"?\s*,\s*lvl\s*:\s*(\d+)\w?\s*\}")
+
+
+def modern_give(name, args, can_command):
+    """An item written the old way ("netherite_sword{Enchantments:[{id:sharpness,lvl:5}]}", in give_item or /give)
+    becomes Minecraft 1.21's /give with components (netherite_sword[enchantments={levels:{sharpness:5}}]);
+    every enchanted gift failed that way in the 2026-11-13 session."""
+    if name == "give_item":
+        item = str(args.get("item", ""))
+        if "{" not in item and "[" not in item:
+            return name, args
+        if not can_command:
+            return name, dict(args, item=re.split(r"[{\[]", item, 1)[0])
+        who = args.get("to") or "@s"
+        cmd = "/give %s %s %d" % (who, item, int(args.get("count") or 1))
+        return modern_give("command", {"command": cmd}, can_command)
+    cmd = str(args.get("command", ""))
+    m = re.match(r"(/?give\s+\S+\s+)([a-z_:]+)\{(.*)\}(\s+\d+)?\s*$", cmd)
+    if not m or "nchantments" not in m.group(3):
+        return name, args
+    levels = ",".join("%s:%s" % (e, l) for e, l in ENCH_OLD.findall(m.group(3)))
+    new = "%s%s[enchantments={levels:{%s}}]%s" % (m.group(1), m.group(2), levels, m.group(4) or "")
+    return name, dict(args, command=new.strip())
+
+
 def find_blueprints(query, dirs=None, limit=15):
     """The blueprint files she can build (the mod reads the same folders), matching the words asked."""
     names = []
@@ -483,6 +508,8 @@ class Brain:
             # (amnesia) a power she hasn't discovered: the AI knows the name, she doesn't
             return {"ok": False, "error": "You don't know how to do that yet."}
         args = self.real_names(args)  # nicknames she was taught ("follow Dumb") -> the player's name
+        if name in ("give_item", "command"):  # old item syntax ({Enchantments:[...]}) -> Minecraft 1.21's components
+            name, args = modern_give(name, args, "command" in self.abilities)
         said_now = (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()
         if name == "give_effect" and str(args.get("effect", "")).lower() in ("health", "food", "regeneration", "heal",
                                                                              "saturation") \
@@ -497,7 +524,8 @@ class Brain:
             what = str(args.get("item") or args.get("effect") or "").lower().replace("minecraft:", "")
             key = (name, what, str(args.get("to") or "").lower())
             said = (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()
-            asked_again = re.search(r"\b(again|another|more|also|too|one more|extra)\b", said) or any(
+            asked_again = re.search(r"\b(again|another|more|also|too|one more|extra|stack|stacks|lots?|bunch|"
+                                    r"plenty|full|need|all of)\b", said) or any(
                 w and w in said for w in re.split(r"[_ ]", what) if len(w) > 2)
             if self.clock() - self.recent_gifts.get(key, -1e9) < 180 and not asked_again:
                 return {"ok": False, "error": "You already gave that a moment ago, and they didn't ask for it again: "
@@ -521,6 +549,10 @@ class Brain:
             death = await self.death_spot()
             if death:  # where she remembers they died (the mod also remembers the last death it saw)
                 args = dict(args, **death)
+        if name == "guide" and not intents.ASKS_TO_GO.search(
+                (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()):
+            # (on 'Hey, Pep' and 'I'm hurt' she set off for a base from the last session: lead only when asked)
+            return {"ok": False, "error": "Nobody asked to be led anywhere just now: don't lead (you may offer it in words)."}
         if name == "guide":
             args = await self.guide_target(args)
             if args.get("refuse"):
@@ -1123,6 +1155,16 @@ class Brain:
         said_numbers = bool(re.search(r"-?\d{2,}", getattr(self, "last_player_text", "")))
         if "x" in args and "z" in args and said_numbers:
             return {k: args[k] for k in ("x", "y", "z") if k in args}
+        if "x" in args and "z" in args:  # coordinates of a place she remembers (her own memory, not made up)
+            known = (await self.safe(self.memory.spots())) or []
+            known += (await self.safe(self.memory.places())) or []
+            for k in known:
+                m = k.get("meta") or {}
+                try:
+                    if abs(float(args["x"]) - m["x"]) <= 3 and abs(float(args["z"]) - m["z"]) <= 3:
+                        return {c: m[c] for c in ("x", "y", "z") if c in m}
+                except (KeyError, TypeError, ValueError):
+                    continue
         # what she just found or located, from here (in a friend's world the game that found it is theirs,
         # so "the last thing found" isn't known to yours): coordinates she was given count too
         last = getattr(self, "last_found", None)

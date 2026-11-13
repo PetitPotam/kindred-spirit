@@ -212,6 +212,11 @@ def player_hint(text, names, allowed):
     return None, named[0]
 
 
+# words that ask her to lead or show the way (a guide nobody asked for is refused)
+ASKS_TO_GO = re.compile(r"\b(lead|guide|take|bring|show|way|where|follow (you|her|pip)|go (to|back|home)|get (me|us) "
+                        r"(to|back|home)|back to|find|direction|which way|how do i get|go there|let'?s go|walk me)\b")
+
+
 NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
            "ten": 10, "twelve": 12, "twenty": 20}
 
