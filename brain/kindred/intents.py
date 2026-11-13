@@ -149,6 +149,11 @@ ACTION_HINTS = [
      r"\bflat\b.{0,20}\b(field|area|place|spot|land|ground|plain|plains|space|zone)\b|\b(field|area|place|spot|ground|"
      r"land)\b.{0,15}\b(that'?s|is|which is)? ?flat\b|\bflat (one|enough)\b", "find_flat"),
     (r"\bend portal\b|\bportal to the end\b", "build"),
+    (r"\b(build|make|create|place|put|do)\b.{0,30}\b(circle|ring|oval|triangle|star|heart|cross|spiral|diamond shape|"
+     r"pentagon|hexagon|octagon|polygon|sphere|ball|orb|dome|cylinder|cone|pyramid|ziggurat|torus|donut|doughnut|arch|"
+     r"ramp|cube|shape)s?\b", "build"),
+    (r"\bmake (it|this|that|here|the (ground|land|area|place|spot)) (all )?flat\b|\blevel (out )?(the )?(ground|land|area)\b|"
+     r"\bflatten\b", "build"),
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(build|make|plant|set up|start|"
      r"create)\b.{0,20}\b(farm|field of|crops?|wheat|carrots?|potato(es)?|beetroots?)\b|\bplant (some |the )?seeds\b", "build"),
     (r"\b(give|gimme|get|cast|put)\b.{0,25}\b(haste|night ?vision|speed|swiftness|regen(eration)?|fire resistance|"
@@ -230,6 +235,11 @@ HUSH = re.compile(r"^\W*(pip,? )?(s?h(u)?sh+|shh+|hush|quiet|be quiet|quiet plea
                   r"you talk too much|too long)(,? pip)?\W*$", re.I)
 HUSH_ALWAYS = re.compile(r"^\W*(pip,? )?(s?h(u)?sh+|shh+|hush|quiet|be quiet|quiet please|stop talking|shut up|shut it|"
                          r"silence|zip it|you talk too much)(,? pip)?\W*$", re.I)
+# "what can you build?": answered from what she really has (her shapes and the blueprint catalogue), #69
+CAN_BUILD = re.compile(r"\bwhat (else |other \w+ |kinds? of \w+ |sorts? of \w+ |\w+ )?(can|could|do) you (build|make|"
+                       r"create|construct)\b|\bwhat (structures|buildings|builds|houses|things) (can|could|do) you\b|"
+                       r"\b(most complex|biggest|best) (structure|building|thing) you can (build|make)\b|"
+                       r"\bwhat (other |else |more )?(\w+ )?(structures?|buildings?|builds?) (can|could) you (do|build|make)\b", re.I)
 # where the player comes back to life: their bed (the last one slept in), else the world's spawn (the game knows it)
 SPAWN = re.compile(r"\b(spawn( ?point)?|respawn|(my|the|our) bed|where (i|we) (last )?slept|slept (in|into))\b", re.I)
 # thanks and praise, nothing else: words back, never the last tool again ("Amazing." rebuilt the house she just made)
@@ -363,7 +373,8 @@ BACK_TO_SPOT = re.compile(r"\bwhere (i|we|you) (died|saw|met|found|built|were bu
 # speech-to-text: what it should expect (names, Minecraft words), and names it mishears, put right afterwards
 MC_WORDS = ("Minecraft, creeper, zombie, skeleton, enderman, ender pearl, Nether, the End, villager, diamond, "
             "netherite, redstone, obsidian, crafting table, furnace, pickaxe, axe, coordinates, biome, cherry grove, "
-            "spawn, Elytra, totem, enchant, efficiency, potion, torch, wolf, sheep, cow.")
+            "spawn, Elytra, totem, enchant, efficiency, potion, torch, wolf, sheep, cow, shipwreck, savanna, taiga, "
+            "pillager, watchtower, igloo, blueprint, village, cottage, end portal, wheat farm, flatten.")
 HER_NAME_MISHEARD = re.compile(r"^\s*(q|pep|peep|pib|bip|pipp|pit|piv|beep|pipe)\b[,!.]?\s*", re.I)
 
 
@@ -395,7 +406,13 @@ def fix_names(text, her_name, people):
 MC_FIXES = [(re.compile(r"\b(under ?pair|under ?pearl|ender ?pair|end of pearl)s?\b", re.I), "ender pearl"),
             (re.compile(r"\b(nether ?right|nether ?white)\b", re.I), "netherite"),
             (re.compile(r"\b(red stone)\b", re.I), "redstone"),
-            (re.compile(r"\b(ellie ?tra|ely ?tra)\b", re.I), "elytra")]
+            (re.compile(r"\b(ellie ?tra|ely ?tra)\b", re.I), "elytra"),
+            # blueprint words, from the 2026-11-13 playtest (#70)
+            (re.compile(r"\b(chip ?rack|ship ?rack|ship ?reck|shit ?wreck)s?\b", re.I), "shipwreck"),
+            (re.compile(r"\b(sefana|savana|savannah|sevana|safana)\b", re.I), "savanna"),
+            (re.compile(r"\b(appell it your tower|a pillage tower|pillage watchtower|pillager watch tower)\b", re.I),
+             "pillager watchtower"),
+            (re.compile(r"\b(pillar ?ger|pill ?ager|pilla ?jer)s?\b", re.I), "pillager")]
 
 
 # a clear request's powers (its "family"): the others aren't offered that turn (unasked healing, food, torches)

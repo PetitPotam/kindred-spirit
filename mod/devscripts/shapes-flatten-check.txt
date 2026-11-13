@@ -1,0 +1,61 @@
+# #74 flatten (by radius, the ground's own blocks) and #58 shapes (sphere, star, stepped pyramid, standing heart).
+world kindred-shapes
+wait 220
+cmd gamemode spectator
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd tp @s 600.5 120 600.5 0 10
+wait 60
+cmd spreadplayers 600 600 0 2 false @s
+wait 60
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power allpowerful
+type /kindred style magic
+act {"move": "follow"}
+wait 100
+camera back
+look 0 35
+wait 20
+screenshot shapes-00-before-flatten
+camera first
+chat flatten everything within 10 blocks of me please
+wait 400
+camera back
+look 0 35
+wait 20
+screenshot shapes-01-flattened
+camera first
+look 0 40
+chat build a hollow sphere of glass, radius 4
+wait 300
+camera back
+look 0 20
+wait 20
+screenshot shapes-02-sphere
+camera first
+cmd tp @s ~ ~ ~ 180 40
+wait 20
+chat make a star of gold blocks on the ground, 15 wide
+wait 300
+cmd tp @s ~ ~12 ~ 180 70
+wait 20
+screenshot shapes-03-star
+cmd tp @s ~ ~-12 ~ 90 30
+wait 30
+chat build a stepped pyramid of sandstone, 9 wide
+wait 300
+camera back
+look 90 20
+wait 20
+screenshot shapes-04-pyramid
+camera first
+cmd tp @s ~ ~ ~ 270 10
+wait 20
+chat make a heart of red wool standing up like a sign, 9 wide
+wait 300
+screenshot shapes-05-heart
+quit

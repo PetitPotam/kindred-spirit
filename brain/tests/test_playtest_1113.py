@@ -286,12 +286,12 @@ def test_when_her_hands_are_free_she_does_what_was_kept(stubs):  # #72
     async def answer(text, *a, **k):
         done.append(text)
     b.answer = answer
-    b.task_queue = [("place a bell over there", b.clock())]
+    b.task_queue = [("place a bell over there", b.clock(), "4 70 -2 up")]
 
     async def run():
         await b.next_task("building a farm")
     asyncio.run(run())
-    assert done == ["place a bell over there"] and b.task_queue == []
+    assert done == ["place a bell over there"] and b.task_queue == [] and b.kept_spot == "4 70 -2 up"
 
 
 def test_what_are_you_doing_has_a_true_answer():  # #72
@@ -308,3 +308,46 @@ def test_after_a_hush_she_doesnt_pick_the_topic_back_up(stubs):  # #73
     b.send = send
     asyncio.run(b.hush("shh"))
     assert any("hushed you" in x for _, x in b.recent)
+
+
+def test_a_kept_task_is_built_where_they_looked_when_they_asked(stubs):  # #76
+    b = _brain(stubs, ["build"])
+    b.snapshot = {"task": dict(SHIP_TASK), "lookingAt": {"block": "minecraft:grass_block", "x": 4, "y": 70, "z": -2,
+                                                         "face": "up"}}
+    asked = _record(b)
+
+    async def run():
+        b.last_player_text = b.asking_text = "put a bell right here"
+        await b._run_tool("build", {"shape": "place", "block": "bell"})
+        b.snapshot = {}  # (the ship is done; they've walked away)
+        b.kept_spot = b.task_queue.pop(0)[2]
+        await b._run_tool("build", {"shape": "place", "block": "bell"})
+    asyncio.run(run())
+    assert asked[-1][1]["at"] == "4 70 -2 up" and b.kept_spot is None
+
+
+def test_what_can_you_build_comes_from_what_she_has(stubs):  # #69
+    for t in ("What can you build exactly?", "What is the most complex structure you can build?",
+              "What other complex structure can you do?", "what kind of houses can you make"):
+        assert intents.CAN_BUILD.search(t), t
+    assert not intents.CAN_BUILD.search("I can build a house")
+    b = _brain(stubs, ["build", "blueprint"])
+    text = b.what_i_can_build()
+    assert "crop farm" in text and "end portal" in text and "cottage" in text
+
+
+def test_blueprint_words_misheard_are_put_right():  # #70
+    assert intents.fix_names("Build the chip rack, please.", "Pip", []) == "Build the shipwreck, please."
+    assert "savanna" in intents.fix_names("Build, please, a Sefana village with a bell.", "Pip", [])
+    assert "pillager watchtower" in intents.fix_names("Appell it your tower, please.", "Pip", [])
+    assert "shipwreck" in intents.stt_prompt("Pip", [])
+
+
+def test_shapes_and_flattening_are_build_requests():  # #58, #74
+    for t in ("build a big sphere of glass", "make me a heart out of red wool", "can you make a stone pyramid here",
+              "build a hollow dome over us", "flatten everything within 10 blocks of me", "level the land please"):
+        assert intents.action_hint(t, ["build", "blueprint", "find_flat"]) == "build", t
+    from kindred import tools
+    build = tools.ABILITY_TOOLS["build"]["function"]["parameters"]["properties"]
+    assert {"sphere", "star", "stepped_pyramid", "torus"} <= set(build["shape"]["enum"])
+    assert {"radius", "hollow", "vertical", "sides"} <= set(build)

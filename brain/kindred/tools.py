@@ -60,20 +60,33 @@ ABILITY_TOOLS = {
                  "'width' x 'length'), wall (a row 'width' long, 'height' high), floor ('width' x 'length', flat), "
                  "outline (the border of 'width' x 'length', 'height' high, like a pen), house (floor, walls, a door, a "
                  "roof, sized for 'people'), portal (a nether portal: 10 obsidian, then lit), clear (everything in "
-                 "'width' x 'length' goes, from where they stand up, or above 'level'), end_portal (a working end portal: twelve frames with eyes around it, open to the End; magic only), farm (a crop farm: tilled ground with water in the middle and crops planted, 'width' x 'length', 9 x 9 by default; 'block' is the crop: wheat, carrots, potatoes or beetroots), flatten (clear, and fill holes "
-                 "in the ground at that level with 'block'). 'stop' stops. Use the block they named, in this or an "
+                 "'width' x 'length' goes, from where they stand up, or above 'level'), end_portal (a working end portal: twelve frames with eyes around it, open to the End; magic only), farm (a crop farm: tilled ground with water in the middle and crops planted, 'width' x 'length', 9 x 9 by default; 'block' is the crop: wheat, carrots, potatoes or beetroots), flatten (make land flat for "
+                 "building: everything above goes, dips are filled; 'radius' for around the player ('flatten everything "
+                 "within 10 blocks'), else 'width' x 'length' in front, 12 x 12 by default; with magic and no 'block' it's "
+                 "filled with the ground that's there, grass on dirt, sand on sandstone; a named 'block' makes a floor; "
+                 "what someone built and water are left alone. It changes their world: only when they asked or said "
+                 "yes), or any geometric shape at any size: circle, ring, oval, triangle, star, heart, cross, spiral, "
+                 "diamond, hexagon (or polygon with 'sides'), sphere, dome, cylinder (a round tower), cone, pyramid, "
+                 "stepped_pyramid, torus (a donut), arch, ramp, cube; sized with 'width'/'length'/'height' or 'radius' "
+                 "(9 or so if they don't say: pick what fits the place), 'hollow' for an outline or a shell, 'vertical' "
+                 "to stand a flat shape up like a sign. 'stop' stops. Use the block they named, in this or an "
                  "earlier message. If what they want isn't one of these shapes, say you can't build that yet: never "
                  "build something else and call it done (a blueprint they chose is built with blueprint, never imitated "
                  "with build). If the size isn't clear, ask first. 'at': 'middle' puts it in the middle of what you "
                  "just built ('the bell in the middle of the farm'), else it goes where they look.",
                  {"shape": {"type": "string", "enum": ["place", "pillar", "corners", "wall", "floor", "outline", "house",
-                                                       "portal", "end_portal", "farm", "clear", "flatten", "stop"]},
+                                                       "portal", "end_portal", "farm", "clear", "flatten", "stop",
+                                                       "circle", "ring", "oval", "triangle", "star", "heart", "cross", "spiral", "diamond", "pentagon", "hexagon", "octagon", "polygon", "sphere", "dome", "cylinder", "cone", "pyramid", "stepped_pyramid", "torus", "arch", "ramp", "cube"]},
                   "block": {"type": "string", "description": "the block or item, e.g. cobblestone, oak_planks, campfire, "
                             "red_bed; empty = the one in their hand (or the one they have most of)"},
                   "height": {"type": "integer"}, "width": {"type": "integer", "description": "to their right"},
                   "length": {"type": "integer", "description": "forward"},
                   "people": {"type": "integer", "description": "house: how many it's for"},
                   "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"},
+                  "radius": {"type": "integer", "description": "flatten: around the player; a round shape: its radius"},
+                  "hollow": {"type": "boolean", "description": "a shape's outline (flat) or shell (3D) only"},
+                  "vertical": {"type": "boolean", "description": "a flat shape standing up, like a sign"},
+                  "sides": {"type": "integer", "description": "polygon: how many sides"},
                   "at": {"type": "string", "enum": ["look", "middle"],
                          "description": "look (default): where they look; middle: the middle of what you just built"}},
                  ["shape"]),

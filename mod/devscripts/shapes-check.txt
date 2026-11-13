@@ -1,0 +1,60 @@
+# #58 shapes on a sky platform, each in its own spot, seen from above or the side; then #74 leaves and stumps.
+world kindred-shapes-2
+wait 220
+cmd gamemode spectator
+cmd time set 1000
+cmd weather clear
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -40 198 -40 40 198 40 minecraft:grass_block
+cmd fill -40 199 -40 40 230 40 minecraft:air
+cmd gamemode survival
+cmd clear @s
+cmd effect give @s minecraft:resistance infinite 4 true
+type /kindred power allpowerful
+type /kindred style magic
+act {"move": "follow"}
+wait 100
+cmd tp @s -20.5 199 -30.5 0 45
+wait 20
+chat make a star of gold blocks on the ground, 15 wide
+wait 200
+cmd gamemode spectator
+cmd tp @s -20.5 222 -22.5 0 90
+wait 30
+screenshot shapes2-01-star
+cmd gamemode survival
+cmd tp @s 10.5 199 -30.5 0 45
+wait 20
+chat build a stepped pyramid of sandstone, 9 wide
+wait 200
+cmd tp @s 10.5 199 -40.5 0 15
+wait 30
+screenshot shapes2-02-pyramid
+cmd tp @s -20.5 199 0.5 0 30
+wait 20
+chat make a heart of red wool standing up like a sign, 11 wide
+wait 200
+cmd tp @s -20.5 203 -8.5 0 5
+wait 30
+screenshot shapes2-03-heart
+cmd tp @s 15.5 199 5.5 0 30
+wait 20
+chat build a donut of cyan concrete, 13 wide
+wait 200
+cmd gamemode spectator
+cmd tp @s 15.5 218 12.5 0 90
+wait 30
+screenshot shapes2-04-donut
+cmd gamemode survival
+cmd tp @s 0.5 199 20.5 0 30
+wait 20
+chat a round tower of stone bricks, 7 wide and 12 high, hollow
+wait 200
+cmd tp @s 0.5 203 12.5 0 15
+wait 30
+screenshot shapes2-05-tower
+quit

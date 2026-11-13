@@ -41,7 +41,9 @@ public final class BuildPlan {
     }
 
     public enum Shape {
-        PILLAR, CORNERS, WALL, FLOOR, OUTLINE, PLACE, HOUSE, PORTAL, CLEAR, FLATTEN, END_PORTAL, FARM;
+        PILLAR, CORNERS, WALL, FLOOR, OUTLINE, PLACE, HOUSE, PORTAL, CLEAR, FLATTEN, END_PORTAL, FARM,
+        /** any geometric shape from {@link Shapes}: circle, star, heart, sphere, pyramid... (#58) */
+        FORM;
 
         public static Shape of(String s) {
             String k = s == null ? "" : s.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
@@ -58,7 +60,7 @@ public final class BuildPlan {
                 case "farm", "crop_farm", "field", "crops", "garden", "wheat_farm", "farmland" -> FARM;
                 case "clear", "remove", "dig", "erase", "empty" -> CLEAR;
                 case "flatten", "level", "flat", "squash" -> FLATTEN;
-                default -> null;
+                default -> Shapes.of(k) != null ? FORM : null;
             };
         }
 
@@ -70,7 +72,8 @@ public final class BuildPlan {
 
     /** The shapes she knows, in words, for an honest "I can't build that". */
     public static final String KNOWN = "a pillar, corners, a wall, a floor, an outline, one block or item where you look, "
-            + "a house, a nether portal, an end portal, a crop farm, or clearing / flattening an area";
+            + "a house, a nether portal, an end portal, a crop farm, clearing / flattening an area, or a shape: "
+            + String.join(", ", Shapes.FORMS.keySet()).replace('_', ' ');
 
     /** As before: positions only (the simple shapes). */
     public static List<int[]> positions(Shape shape, int ox, int oy, int oz, int fx, int fz,
@@ -191,6 +194,39 @@ public final class BuildPlan {
         if (l > 1) for (int r = w - 2; r >= 0; r--) c.add(new int[]{r, l - 1});
         if (w > 1) for (int f = l - 2; f >= 1; f--) c.add(new int[]{0, f});
         return c;
+    }
+
+    public static final int MAX_FLAT_SIDE = 49; // flattening: up to 24 blocks around you
+
+    /**
+     * Flattening an area (#74): every block above {@code level} goes (from the top down, 'X'), and the ground is filled
+     * up to {@code level} from {@code depth} layers below (from the bottom up, 'F'): {@code under} below, {@code top} on
+     * top (the area's own ground: grass on dirt, sand on sandstone; or one block for a floor).
+     *
+     * @param centered the area around (ox, oz) (a radius: "everything within 10 blocks of me"); else in front of it,
+     *                 (ox, oz) the middle of its near edge, going the way (fx, fz) faces
+     * @param round    a circle (or an oval) instead of a rectangle
+     */
+    public static List<Step> flattenArea(int ox, int oz, int level, int width, int length, boolean centered, boolean round,
+                                         int fx, int fz, int height, int depth, String top, String under) {
+        int w = clamp(width, 1, MAX_FLAT_SIDE), l = clamp(length, 1, MAX_FLAT_SIDE);
+        int h = clamp(height, 1, MAX_HEIGHT), d = clamp(depth, 1, 8);
+        int rx = -fz, rz = fx;
+        List<int[]> cells = new ArrayList<>();
+        for (int f = 0; f < l; f++) for (int r = 0; r < w; r++) {
+            double cr = r - (w - 1) / 2.0, cf = centered ? f - (l - 1) / 2.0 : f - (l - 1) / 2.0;
+            if (round && (cr * cr) / Math.max(0.25, (w / 2.0) * (w / 2.0)) + (cf * cf) / Math.max(0.25, (l / 2.0) * (l / 2.0)) > 1.0) {
+                continue;
+            }
+            int rr = r - w / 2, ff = centered ? f - l / 2 : f;
+            cells.add(new int[]{ox + rr * rx + ff * fx, oz + rr * rz + ff * fz});
+        }
+        List<Step> out = new ArrayList<>();
+        for (int y = level + h; y > level; y--) for (int[] c : cells) out.add(new Step(c[0], y, c[1], 'X'));
+        for (int y = level - d + 1; y <= level; y++) {
+            for (int[] c : cells) out.add(new Step(c[0], y, c[1], 'F', y == level ? top : under));
+        }
+        return out;
     }
 
     /** The middle of a build, on top: the centre column, one above its highest block there (the bell "in the middle of

@@ -199,6 +199,10 @@ public final class Snapshot {
             BlockPos bp = bh.getBlockPos();
             look.addProperty("block", BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(bp).getBlock()).toString());
             look.addProperty("distance", round1(Math.sqrt(bp.getCenter().distanceToSqr(p.getEyePosition()))));
+            look.addProperty("x", bp.getX());
+            look.addProperty("y", bp.getY());
+            look.addProperty("z", bp.getZ());
+            look.addProperty("face", bh.getDirection().getName()); // (a task kept for later is done where you looked)
         } else if (hit instanceof EntityHitResult eh) {
             look.addProperty("entity", BuiltInRegistries.ENTITY_TYPE.getKey(eh.getEntity().getType()).toString());
         }

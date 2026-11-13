@@ -5,6 +5,7 @@ import dev.kindredspirit.KindredSpiritClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -47,6 +48,7 @@ public final class Builder {
     private static final Deque<BuildPlan.Step> queue = new ArrayDeque<>();
     private static Item item;
     private static boolean free;
+    private static boolean flattening; // (never clears what someone built, leaves water alone, faster with magic)
     private static Abilities.Style style = Abilities.Style.GROUNDED;
     private static UUID owner; // who asked: their inventory, their reach (a visiting Pip builds for her owner)
     private static int tick, placed, cleared, skipped;
@@ -114,6 +116,14 @@ public final class Builder {
             origin = new BlockPos(sp.blockPosition().getX(), origin.getY(), sp.blockPosition().getZ())
                     .relative(f.getCounterClockWise(), w / 2);
         }
+        // "x y z face": where they looked when they asked (a task kept while her hands were busy, #76)
+        String[] spot = Actions.str(args, "at", "").trim().split("\\s+");
+        if (spot.length >= 3 && spot[0].matches("-?\\d+") && spot[1].matches("-?\\d+") && spot[2].matches("-?\\d+")) {
+            BlockPos at = new BlockPos(Integer.parseInt(spot[0]), Integer.parseInt(spot[1]), Integer.parseInt(spot[2]));
+            Direction face = spot.length > 3 ? Direction.byName(spot[3]) : null;
+            if (shape.clears()) origin = at;
+            else origin = sp.serverLevel().getBlockState(at).canBeReplaced() || face == null ? at : at.relative(face);
+        }
         boolean middle = "middle".equalsIgnoreCase(Actions.str(args, "at", ""));
         if (middle && lastMiddle == null) {
             return Actions.error("I haven't built anything yet to put it in the middle of: I'll put it where you look if you like.");
@@ -131,6 +141,52 @@ public final class Builder {
                 Actions.num(args, "height", shape == BuildPlan.Shape.FLOOR ? 1 : shape == BuildPlan.Shape.HOUSE ? 0 : 3),
                 Actions.num(args, "people", 2), level);
 
+        String form = shape == BuildPlan.Shape.FORM ? Shapes.of(shapeName) : null;
+        if (form != null) { // any shape, any size (#58): from the spot they look at, forward and up
+            int[] d = Shapes.defaults(form);
+            int radius = Actions.num(args, "radius", 0);
+            int w = radius > 0 ? 2 * radius + 1 : Actions.num(args, "width", d[0]);
+            int l = radius > 0 ? 2 * radius + 1 : Actions.num(args, "length", args.has("width") && !Shapes.is3d(form)
+                    && !form.equals("rectangle") ? w : d[1]);
+            int h = Actions.num(args, "height", Shapes.is3d(form) && (args.has("width") || radius > 0)
+                    && (form.equals("sphere") || form.equals("cube") || form.equals("cone")) ? w : d[2]);
+            boolean hollow = Actions.str(args, "hollow", "").equalsIgnoreCase("true");
+            boolean vertical = Actions.str(args, "vertical", "").equalsIgnoreCase("true");
+            int cap = isFree ? Shapes.MAX_CELLS : 1024;
+            List<int[]> cells = Shapes.cells(form, w, l, h, hollow, vertical, Actions.num(args, "sides", 6),
+                    Actions.num(args, "thickness", 1));
+            if (cells.size() > cap) {
+                return Actions.error("That's " + cells.size() + " blocks: too many " + (isFree ? "" : "to place by hand ")
+                        + "(at most " + cap + "). A smaller size, or hollow?");
+            }
+            int rx = -f.getStepZ(), rz = f.getStepX();
+            List<BuildPlan.Step> formSteps = new java.util.ArrayList<>(cells.size());
+            for (int[] c : cells) {
+                formSteps.add(new BuildPlan.Step(origin.getX() + c[0] * rx + c[2] * f.getStepX(), origin.getY() + c[1],
+                        origin.getZ() + c[0] * rz + c[2] * f.getStepZ(), 'B'));
+            }
+            steps = formSteps;
+        }
+        String fillTop = null;
+        if (shape == BuildPlan.Shape.FLATTEN) { // by size or radius, filled with the ground's own blocks (#74)
+            int radius = Actions.num(args, "radius", 0);
+            boolean centered = radius > 0;
+            int w = radius > 0 ? 2 * radius + 1 : Actions.num(args, "width", 12);
+            int l = radius > 0 ? 2 * radius + 1 : Actions.num(args, "length", 12);
+            boolean round = radius > 0 && !Actions.str(args, "round", "true").equalsIgnoreCase("false");
+            int lvl = args.has("level") ? Actions.num(args, "level", 0) : sp.getBlockY() - 1;
+            int ox = sp.getBlockX() + (centered ? 0 : f.getStepX()), oz = sp.getBlockZ() + (centered ? 0 : f.getStepZ());
+            String[] fill;
+            if (!wanted.isBlank() || !isFree) {
+                String id = BuiltInRegistries.ITEM.getKey(what).toString();
+                fill = new String[]{id, id}; // a floor of what they named (or what's in their pockets)
+            } else {
+                fill = ground(sp.serverLevel(), ox, oz, lvl, Math.max(w, l) / 2);
+            }
+            fillTop = fill[0];
+            steps = BuildPlan.flattenArea(ox, oz, lvl, w, l, centered, round, f.getStepX(), f.getStepZ(),
+                    Actions.num(args, "height", 20), Actions.num(args, "depth", 4), fill[0], fill[1]);
+        }
         long needed = steps.stream().filter(s -> s.kind() == 'B' || s.kind() == 'F' || s.kind() == 'P' || s.kind() == 'C').count();
         int have = isFree || what == null ? Integer.MAX_VALUE : count(sp, what);
         if (needed > 0 && have == 0) {
@@ -140,7 +196,9 @@ public final class Builder {
         queue.clear();
         queue.addAll(steps);
         total = steps.size();
-        doing = (shape.clears() ? "clearing" : "building a " + shape.name().toLowerCase(Locale.ROOT).replace('_', ' '));
+        flattening = shape == BuildPlan.Shape.FLATTEN;
+        doing = shape == BuildPlan.Shape.FLATTEN ? "flattening the ground" : shape.clears() ? "clearing"
+                : "building a " + (form != null ? form : shape.name().toLowerCase(Locale.ROOT)).replace('_', ' ');
         if (!shape.clears() && shape != BuildPlan.Shape.PLACE) lastMiddle = BuildPlan.middleTop(steps);
         item = what;
         free = isFree;
@@ -149,9 +207,14 @@ public final class Builder {
         placed = cleared = skipped = 0;
         tick = 0;
         JsonObject r = Actions.ok();
-        r.addProperty("building", shape.name().toLowerCase(Locale.ROOT));
+        r.addProperty("building", form != null ? form.replace('_', ' ') : shape.name().toLowerCase(Locale.ROOT));
         if (what != null) r.addProperty("block", name(what));
         if (shape.clears()) r.addProperty("clearing", "up to " + steps.stream().filter(s -> s.kind() == 'X').count() + " blocks");
+        if (fillTop != null) {
+            r.addProperty("fill", fillTop.replace("minecraft:", "").replace('_', ' '));
+            r.addProperty("block", fillTop.replace("minecraft:", "").replace('_', ' '));
+            r.addProperty("note", "Anything someone built is left as it is, and so is water.");
+        }
         if (needed > 0) r.addProperty("blocks", needed);
         if (!isFree && needed > 0 && have < needed) {
             r.addProperty("youHaveOnly", have);
@@ -165,7 +228,7 @@ public final class Builder {
         }
         if (shape == BuildPlan.Shape.END_PORTAL) r.addProperty("portal", "twelve frames with their eyes, and the way to the End open");
         if (shape == BuildPlan.Shape.HOUSE) r.addProperty("door", isFree || hasDoor(sp) ? "a door" : "a doorway (no door in your pockets)");
-        double perSecond = isFree ? MAGIC_PER_TICK * 20.0 : 20.0 / GROUNDED_EVERY;
+        double perSecond = isFree ? MAGIC_PER_TICK * 20.0 * (shape == BuildPlan.Shape.FLATTEN ? 8 : 1) : 20.0 / GROUNDED_EVERY;
         r.addProperty("seconds", Math.max(1, Math.round(steps.size() / perSecond)));
         r.addProperty("startsAt", origin.getX() + " " + origin.getY() + " " + origin.getZ());
         return r;
@@ -181,7 +244,7 @@ public final class Builder {
             return;
         }
         ServerLevel level = sp.serverLevel();
-        int budget = free ? MAGIC_PER_TICK : 1;
+        int budget = free ? (flattening ? MAGIC_PER_TICK * 8 : MAGIC_PER_TICK) : 1;
         BlockPos last = null;
         while (!queue.isEmpty() && budget > 0) {
             BuildPlan.Step s = queue.poll();
@@ -220,6 +283,14 @@ public final class Builder {
         Item it = s.block() != null ? itemOf(s.block()) : item;
         if (!(it instanceof BlockItem bi)) return false;
         BlockState here = level.getBlockState(at);
+        if (s.kind() == 'F' && flattening && !here.getFluidState().isEmpty()) {
+            skipped++;
+            return false; // (water stays: a flattened field doesn't fill the lake beside it)
+        }
+        if (s.kind() == 'F' && flattening && (here.is(BlockTags.LEAVES) || here.is(BlockTags.LOGS))) {
+            level.destroyBlock(at, !free, sp); // (a tree's stump or fallen leaves at ground level: ground instead)
+            here = level.getBlockState(at);
+        }
         if (!here.canBeReplaced() || !level.getEntitiesOfClass(LivingEntity.class, new AABB(at)).isEmpty()) {
             skipped++;
             return false; // solid already, or you / an animal is there: next one
@@ -243,6 +314,10 @@ public final class Builder {
         BlockState st = level.getBlockState(at);
         if (st.isAir() || !st.getFluidState().isEmpty() || st.getDestroySpeed(level, at) < 0 || level.getBlockEntity(at) != null) {
             return false;
+        }
+        if (flattening && !BlueprintBuild.natural(st)) {
+            skipped++;
+            return false; // never what someone built
         }
         if (!free) {
             for (ItemStack drop : Block.getDrops(st, level, at, null, sp, sp.getMainHandItem())) {
@@ -389,6 +464,31 @@ public final class Builder {
             }
         }
         return it instanceof BlockItem ? it : null;
+    }
+
+    /** The ground around (x, z) at the level: the most common natural top block there, and what goes under it
+     *  (grass on dirt, sand on sandstone, snow on dirt...), so a flattened field looks like the land around it. */
+    private static String[] ground(ServerLevel level, int x, int z, int lvl, int reach) {
+        java.util.Map<net.minecraft.world.level.block.Block, Integer> seen = new java.util.HashMap<>();
+        int step = Math.max(1, reach / 6);
+        for (int dx = -reach; dx <= reach; dx += step) for (int dz = -reach; dz <= reach; dz += step) {
+            for (int y = lvl + 6; y >= lvl - 6; y--) { // the surface near the level here
+                BlockState st = level.getBlockState(new BlockPos(x + dx, y, z + dz));
+                if (st.isAir() || st.canBeReplaced() || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS)) continue;
+                if (st.is(BlockTags.DIRT) || st.is(BlockTags.SAND) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK)
+                        || st.is(BlockTags.BASE_STONE_OVERWORLD) || st.is(BlockTags.TERRACOTTA) || st.is(Blocks.CLAY)) {
+                    seen.merge(st.getBlock(), 1, Integer::sum);
+                }
+                break;
+            }
+        }
+        net.minecraft.world.level.block.Block top = seen.entrySet().stream().max(java.util.Map.Entry.comparingByValue())
+                .map(java.util.Map.Entry::getKey).orElse(Blocks.GRASS_BLOCK);
+        net.minecraft.world.level.block.Block under = top == Blocks.SAND ? Blocks.SANDSTONE
+                : top == Blocks.RED_SAND ? Blocks.RED_SANDSTONE
+                : top.defaultBlockState().is(BlockTags.DIRT) || top == Blocks.SNOW_BLOCK ? Blocks.DIRT : top;
+        if (top == Blocks.SNOW_BLOCK) top = Blocks.GRASS_BLOCK; // (snowy plains: grass, the snow falls again by itself)
+        return new String[]{BuiltInRegistries.BLOCK.getKey(top).toString(), BuiltInRegistries.BLOCK.getKey(under).toString()};
     }
 
     /** A block to build with: not seeds, saplings, flowers or crops (wheat seeds in your hand made an outline of wheat). */

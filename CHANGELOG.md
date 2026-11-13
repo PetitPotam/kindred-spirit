@@ -10,6 +10,15 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **Any shape, any size:** "a hollow sphere of glass, radius 4", "a star of gold 15 wide", "a stepped pyramid",
+  "a heart standing up like a sign": circles, rings, ovals, triangles, stars, hearts, crosses, spirals, diamonds,
+  polygons, spheres, domes, cylinders, cones, pyramids, a torus, arches, ramps, cubes; hollow or solid.
+- **Flatten land:** "flatten everything within 10 blocks of me", or a size in front of you: hills and trees go,
+  dips are filled with the ground that's there (grass on dirt, sand on sandstone), or with a block you name for a
+  floor; never what someone built, never water. When a blueprint has no room, she offers to flatten a spot or to
+  find open ground nearby.
+- "What can you build?" is answered from what she really has; blueprint words are heard better ("chip rack" is a
+  shipwreck); a task kept while she was busy is built where you looked when you asked.
 - **Busy hands:** while she builds or works, a new task is kept and done right after ("Ship's first! I'll put
   the bell down the second I'm done"); "stop" or "do this first" switches. Her task and its progress show at
   the top right (`showTask` in kindredspirit.json).

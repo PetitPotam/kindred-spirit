@@ -126,4 +126,21 @@ class BuildPlanTest {
         assertArrayEquals(new int[]{5, 68, 5}, BuildPlan.middleTop(pillar), "on top of the pillar");
         assertNull(BuildPlan.middleTop(List.of()));
     }
+
+    @Test
+    void flatteningClearsFromTheTopAndFillsFromTheBottomWithTheGroundsOwnBlocks() {
+        var steps = BuildPlan.flattenArea(0, 0, 64, 5, 5, true, false, FX, FZ, 3, 2, "minecraft:grass_block", "minecraft:dirt");
+        assertEquals(25 * 3, steps.stream().filter(s -> s.kind() == 'X').count());
+        assertEquals(67, steps.get(0).y(), "the top layer goes first");
+        var fill = steps.stream().filter(s -> s.kind() == 'F').toList();
+        assertEquals(50, fill.size());
+        assertEquals(63, fill.get(0).y(), "filled from the bottom up");
+        assertTrue(fill.stream().filter(s -> s.y() == 64).allMatch(s -> "minecraft:grass_block".equals(s.block())));
+        assertTrue(fill.stream().filter(s -> s.y() == 63).allMatch(s -> "minecraft:dirt".equals(s.block())));
+        assertTrue(steps.stream().allMatch(s -> Math.abs(s.x()) <= 2 && Math.abs(s.z()) <= 2), "centred on the player");
+        var round = BuildPlan.flattenArea(0, 0, 64, 21, 21, true, true, FX, FZ, 1, 1, "a", "b");
+        long cells = round.stream().filter(s -> s.kind() == 'F').count();
+        assertTrue(cells > 300 && cells < 380, "a circle of radius 10 is about 314 blocks: " + cells);
+        assertTrue(round.stream().noneMatch(s -> Math.abs(s.x()) == 10 && Math.abs(s.z()) == 10), "no corners");
+    }
 }

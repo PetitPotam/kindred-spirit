@@ -552,8 +552,10 @@ class Brain:
         task = (self.snapshot or {}).get("task")
         if task and name in TASK_TOOLS and str(args.get("shape") or args.get("what") or args.get("kind") or "") != "stop":
             if not BUSY_OVERRIDE.search(said_now):
-                if said_now and said_now not in [t for t, _ in self.task_queue]:
-                    self.task_queue = (self.task_queue + [(said_now, self.clock())])[-3:]
+                look = (self.snapshot or {}).get("lookingAt") or {}
+                spot = "%s %s %s %s" % (look["x"], look["y"], look["z"], look.get("face", "up")) if "x" in look else None
+                if said_now and said_now not in [t for t, *_ in self.task_queue]:
+                    self.task_queue = (self.task_queue + [(said_now, self.clock(), spot)])[-3:]
                 self.session.event("busy", what=task.get("what"), kept=said_now or None)
                 return {"ok": False, "busy": task.get("what"), "kept": True,
                         "error": "Your hands are busy: %s (%s of %s). This is kept: you'll do it right after, by "
@@ -564,6 +566,9 @@ class Brain:
                                {"kind": "stop"} if str(task.get("what", "")).split(" ")[0] not in ("building", "clearing")
                                else {"shape": "stop"})
             self.session.event("task_switched", what=task.get("what"))
+        if name == "build" and getattr(self, "kept_spot", None) and not args.get("at"):
+            args = dict(args, at=self.kept_spot)
+        self.kept_spot = None if name == "build" else getattr(self, "kept_spot", None)
         if name == "give_item" and "job" in self.abilities and intents.action_hint(said_now, ["job"]) \
                 and re.search(r"\b(my|our) (stuff|things|items|loot|gear|inventory|drops)\b", said_now):
             return {"ok": False, "error": "They want their own things back, not copies: use job with kind "
@@ -597,7 +602,11 @@ class Brain:
             self.recent_builds[str(args.get("what") or "cottage").lower()] = self.clock()
             self.blueprint_offer = None
         if name == "blueprint" and result.get("inTheWay"):
-            result["error"] = (result.get("error") or "") + " For room nearby: find_flat (the size is set for you), then guide."
+            side = (self.blueprint_size or (12, 0))[0] + 2
+            result["error"] = (result.get("error") or "") + (
+                " Offer them two ways, and wait for their answer: look for open ground nearby (find_flat, the size is "
+                "set for you, then guide), or flatten a spot right here (build flatten, width and length %d). Flattening "
+                "changes their world: only after they say yes." % side)
         m = re.search(r"\(?(?:The player can switch with )?(/kindred [a-z ]+?)\.?\)", result.get("error") or "")
         if m:  # the way to unlock it is for the player, as a hint in chat: never in her mouth
             await self.send({"type": "notice", "text": "Tip: %s lets %s do this" % (m.group(1), self.cfg["name"])})
@@ -2188,13 +2197,37 @@ class Brain:
         """Her hands are free: what they asked while she was busy, in order, as if they asked again now."""
         await asyncio.sleep(1.5)  # (the snapshot after the last block: let "done!" land first)
         while self.task_queue:
-            text, when = self.task_queue.pop(0)
+            text, when, spot = self.task_queue.pop(0)
+            self.kept_spot = spot  # (built where they looked when they asked, not where they look now)
             if self.clock() - when > 600:
                 continue  # asked ten minutes ago: likely not wanted any more
             self.session.event("task_next", text=text, after=finished)
             self.recent.append((self.clock(), "you finished %s; now what they asked meanwhile: \"%s\"" % (finished, text)))
             await self.answer(text)
             return
+
+    def what_i_can_build(self):
+        """What she can really build, for "what can you build?" (she answered "pillars, walls, floors" with 251
+        blueprints in her catalogue, #69)."""
+        parts = []
+        if "build" in self.abilities:
+            parts.append("shapes on the spot: a pillar, a wall, a floor, an outline, corners, a simple house, a nether "
+                         "portal, a crop farm, an end portal (magic only), clearing and flattening land; and any geometric shape at "
+                         "any size: circles, stars, hearts, spirals, spheres, domes, round towers, cones, pyramids, a donut, "
+                         "an arch, hollow or solid")
+        if "blueprint" in self.abilities:
+            parts.append("a cozy cottage for any number of people")
+            try:
+                cat = find_blueprints("")
+                kinds = ", ".join("%d %s" % (n, k + ("s" if n > 1 and not k.endswith("s") else ""))
+                                  for k, n in sorted((cat.get("kinds") or {}).items(), key=lambda kv: -kv[1]) if n)
+                if cat.get("total"):
+                    parts.append("%d blueprints you can look up by what they are (%s), the biggest a pillager "
+                                 "watchtower and shipwrecks" % (cat["total"], kinds))
+            except Exception:
+                pass
+        return ("What you can really build (answer from this: a few highlights in your words, then offer to look one "
+                "up): " + "; ".join(parts) + ".") if parts else ""
 
     def talking(self):
         """Whether she's talking, about to (an answer being written), or was cut off a moment ago."""
@@ -2386,6 +2419,8 @@ class Brain:
                     note += (" Your diary, newest first (retell or quote it, in your voice; don't invent other entries): "
                              + " | ".join(entries)) if entries else " Your diary is still empty: say so, simply."
                 note += await self.world_answer(text)  # how the world works: what it remembers, or listen
+                if intents.CAN_BUILD.search(text) and ("build" in self.abilities or "blueprint" in self.abilities):
+                    note += " " + self.what_i_can_build()
                 offered = self.heart.offered_tools(self.abilities, force or (asked if note_cross else None))
                 self.discovered = list(offered)  # (what she knows, before this answer's filters)
                 if force and force in intents.FAMILY:  # a clear request: its powers only (no healing, food or torches
