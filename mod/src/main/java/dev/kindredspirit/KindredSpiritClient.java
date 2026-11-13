@@ -225,11 +225,33 @@ public final class KindredSpiritClient implements ClientModInitializer {
             }
             return net.minecraft.world.InteractionResult.PASS;
         });
+        // what each player does, as your world's game sees it (so what she says about a friend is real)
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, be) ->
+                Actions.playerDid(player, "broke " + state.getBlock().getName().getString().toLowerCase(java.util.Locale.ROOT)));
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            var item = player.getItemInHand(hand);
+            if (!world.isClientSide && item.getItem() instanceof net.minecraft.world.item.BlockItem) {
+                Actions.playerDid(player, "placed " + item.getHoverName().getString().toLowerCase(java.util.Locale.ROOT));
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (source.getEntity() instanceof net.minecraft.server.level.ServerPlayer killer && entity != killer) {
+                Actions.playerDid(killer, "killed " + entity.getType().getDescription().getString().toLowerCase(java.util.Locale.ROOT));
+            }
+        });
         // a friend hitting you, seen by your world's game: protect then pushes them away (playfully)
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (entity instanceof net.minecraft.server.level.ServerPlayer victim
                     && source.getEntity() instanceof net.minecraft.server.level.ServerPlayer attacker) {
                 Actions.playerHurt(victim, attacker);
+            }
+            if (source.getEntity() instanceof net.minecraft.server.level.ServerPlayer attacker && entity != attacker
+                    && !(entity instanceof net.minecraft.server.level.ServerPlayer)) {
+                Actions.playerDid(attacker, "hit " + entity.getType().getDescription().getString().toLowerCase(java.util.Locale.ROOT));
+            }
+            if (entity instanceof net.minecraft.server.level.ServerPlayer victim && amount >= 2) {
+                Actions.playerDid(victim, "got hurt");
             }
             return true;
         });

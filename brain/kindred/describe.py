@@ -49,6 +49,8 @@ def _doing(o):
         bits.append("holding " + (o["holding"].replace("_", " ") if o["holding"] else "nothing"))
     if o.get("doing"):
         bits.append(o["doing"])
+    if o.get("lately"):
+        bits.append("lately: " + o["lately"])
     return " (%s)" % ", ".join(bits) if bits else ""
 
 

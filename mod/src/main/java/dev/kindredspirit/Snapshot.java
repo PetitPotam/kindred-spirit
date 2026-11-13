@@ -261,6 +261,11 @@ public final class Snapshot {
                         : moved > 0.02 ? "walking" : "standing still";
                 po.addProperty("doing", doing);
             }
+            var server = mc.getSingleplayerServer(); // (hosting: your world's game saw what they did lately)
+            if (server != null) {
+                String lately = dev.kindredspirit.act.Actions.activityOf(other.getUUID());
+                if (!lately.isEmpty()) po.addProperty("lately", lately);
+            }
             players.add(po);
         }
         if (!players.isEmpty()) o.add("players", players);

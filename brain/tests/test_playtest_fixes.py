@@ -462,3 +462,26 @@ def test_recall_a_place_by_description_and_lead_there(stubs):
     to_cow, to_death = aio.run(run())
     assert to_cow == {"x": 50, "y": 70, "z": -20}
     assert to_death == {"x": 900, "y": 12, "z": -50}
+
+
+# ---------------------------------------------------------------- items 13, 17, 4 sharpened
+
+def test_what_a_friend_did_lately_comes_from_the_world():
+    from kindred.describe import describe
+    from fixtures import snap
+    s = snap()
+    s["players"] = [{"name": "Walid", "distance": 5, "direction": "left", "seen": True, "holding": "oak_log",
+                     "doing": "placing blocks", "lately": "placed 12 oak log, broke 3 stone (the last 4 s ago)"}]
+    assert "lately: placed 12 oak log, broke 3 stone" in describe(s)
+
+
+def test_a_playful_poke_is_a_protect_with_poke():
+    assert intents.action_hint("can you poke him or hit him playfully?", ["protect", "give_effect"]) == "protect"
+    from kindred.tools import ABILITY_TOOLS
+    assert "poke" in ABILITY_TOOLS["protect"]["function"]["parameters"]["properties"]
+
+
+def test_she_never_invents_what_she_cant_sense_or_what_didnt_happen():
+    from kindred.mind import system_prompt
+    p = system_prompt("Pip", "")
+    assert "you can't tell" in p and "say it didn't work" in p
