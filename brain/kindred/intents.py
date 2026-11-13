@@ -25,6 +25,9 @@ RULES = [
     (r"\b(go|float|move|fly|stay)( over)?( to)?( on)?( my| the)? right\b", {"side": "right"}, "float on the player's right"),
     (r"\b(above|over) (me|my head|my shoulder)\b", {"side": "above"}, "float above the player's shoulder"),
     (r"\b(stop (guiding|leading)( me)?|you can stop( now)?|we'?re here)\b", {"move": "stop"}, "stop leading the way"),
+    # "stop everything you're doing": she said "Done! I'm frozen" and the build went on
+    (r"\bstop (everything|all of it|all that|what(ever)? you'?re doing|doing that|it|the tool|building|the build)\b|"
+     r"\b(cancel|quit) (it|that|everything|the build(ing)?)\b", {"stop_all": True}, "stop everything she was doing"),
     # looking
     (r"\blook at me\b", {"look": "me", "seconds": 4}, "look at the player"),
     (r"\blook (at )?(that|this|there|over there)\b", {"look": "there", "seconds": 4}, "look where the player looks"),
@@ -330,6 +333,16 @@ MC_FIXES = [(re.compile(r"\b(under ?pair|under ?pearl|ender ?pair|end of pearl)s
             (re.compile(r"\b(red stone)\b", re.I), "redstone"),
             (re.compile(r"\b(ellie ?tra|ely ?tra)\b", re.I), "elytra")]
 
+
+# a clear request's powers (its "family"): the others aren't offered that turn (unasked healing, food, torches)
+_SEEK_FAMILY = ("guide", "locate", "find_animal", "find_block", "find_ore", "find_player", "stop_guide", "follow_player")
+_MAKE = ("build", "command", "harvest", "place_torch")
+_GIVE = ("give_item", "give_effect", "command")
+FAMILY = {**{t: _SEEK_FAMILY for t in _SEEK_FAMILY}, **{t: _MAKE for t in ("build", "harvest")}, **{t: _GIVE for t in _GIVE},
+          "command": _MAKE + _GIVE, "protect": ("protect", "standing_request", "follow_player"),
+          "place_torch": ("place_torch", "build", "command")}
+# asking for care: healing, food
+WANTS_CARE = re.compile(r"\b(heal|health|hearts?|hurt|dying|hungry|food|eat|starving|regen\w*|save me|help me)\b", re.I)
 
 # the player stepping in for her ("stop hitting Pip", "leave her alone", "be nice to her")
 DEFEND = re.compile(r"\b(stop|quit|don'?t|do not|no)\b.{0,12}\b(hit(ting)?|hurt(ing)?|punch(ing)?|attack(ing)?|"

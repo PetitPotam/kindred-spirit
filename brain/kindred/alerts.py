@@ -74,7 +74,7 @@ class Alerts:
     CREEPER_COOLDOWN = 20.0
     LOW_HEALTH = 6.0           # 3 hearts
     HEALTH_REARM = 12.0        # warn again only after healing back above 6 hearts...
-    LOW_HEALTH_REMIND = 90.0   # ...or after this long still low
+    LOW_HEALTH_REMIND = 240.0  # ...or after this long still low (9 reminders in 30 minutes was nagging), or lower still
     MIN_GAP = 3.0              # never two warnings closer than this
     LAVA_COOLDOWN = 15.0
     DROP_COOLDOWN = 180.0      # (walking along cliffs or building at an edge shouldn't nag)
@@ -134,8 +134,10 @@ class Alerts:
         health = s.get("health", 20)
         if health > self.LOW_HEALTH:
             return None
-        if not self.health_armed and not self._ready("low_health", self.LOW_HEALTH_REMIND, now):
-            return None
+        if not self.health_armed and not self._ready("low_health", self.LOW_HEALTH_REMIND, now) \
+                and health >= getattr(self, "health_warned", 99) - 3:
+            return None  # (still low, not much lower: she said it already)
+        self.health_warned = health
         hearts = health / 2  # in words she'd say: "about 2", "barely 1"
         hearts_text = ("barely 1" if hearts <= 1 else "about %d" % round(hearts)) if hearts != int(hearts) else "%d" % hearts
         close = [m for m in s.get("hostiles") or [] if m.get("distance", 99) <= 12]

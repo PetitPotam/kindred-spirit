@@ -583,3 +583,73 @@ def test_a_harmful_effect_only_when_named_by_the_one_asking(stubs):
         await b._run_tool("command", {"command": "/effect give Walid poison 5"})
     asyncio.run(run())
     assert sent[0]["harmfulAsked"] is True and sent[1]["harmfulAsked"] is False
+
+
+# ---------------------------------------------------------------- from reviewing all of the 2026-11-12 sessions (34-39)
+
+def test_unasked_healing_food_and_pushing_are_refused(stubs):  # 34
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.abilities, b.offered = ["give_effect", "protect"], None
+    b.snapshot = {"hostiles": []}
+    asked = []
+
+    async def request(name, args, timeout=25):
+        asked.append(name)
+        return {"ok": True}
+    b.request = request
+
+    async def run():
+        b.last_player_text = "can you build the house here please"
+        heal = await b._run_tool("give_effect", {"effect": "health"})
+        push = await b._run_tool("protect", {})
+        b.last_player_text = "I'm dying, heal me"
+        heal2 = await b._run_tool("give_effect", {"effect": "health"})
+        return heal, push, heal2
+    heal, push, heal2 = asyncio.run(run())
+    assert heal["ok"] is False and push["ok"] is False and heal2["ok"]
+    assert asked == ["give_effect"]
+    assert "give_effect" not in intents.FAMILY["build"]
+
+
+def test_stop_everything_really_stops(stubs):  # 36
+    assert intents.match("Stop everything that you are doing.")[0] == [{"stop_all": True}]
+    stubs.ai_script = [{"role": "assistant", "content": "[calm] Stopped."}]
+    asked = []
+    from test_heart import _brain
+    b = _brain(stubs)
+
+    async def request(name, args, timeout=25):
+        asked.append((name, args))
+        return {"ok": True}
+    b.request = request
+    sent = []
+
+    async def send(msg):
+        sent.append(msg)
+    b.send = send
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer("stop everything you're doing")
+        await asyncio.sleep(0.01)
+    asyncio.run(run())
+    assert ("build", {"shape": "stop"}) in asked and {"type": "act", "move": "stop"} in sent
+
+
+def test_nicknames_work_for_her_powers(stubs):  # 37
+    from test_heart import _brain
+    b = _brain(stubs)
+    b.snapshot = {"playerName": "TamBoudX", "players": [{"name": "waterwalid"}]}
+    b.learn_nickname("The player's nickname is Dumb.")
+    b.learn_nickname("Walid's (waterwalid) nickname is Dumber.")
+    assert b.real_names({"name": "Dumb"}) == {"name": "TamBoudX"}
+    assert b.real_names({"to": "dumber"}) == {"to": "waterwalid"}
+    assert b.real_names({"command": "/give Dumber bread"})["command"] == "/give waterwalid bread"
+
+
+def test_friends_can_have_her_build_for_them_and_she_keeps_to_english():  # 35, 39
+    from kindred.server import Brain
+    assert "build" in Brain.GUEST_TOOLS and "command" in Brain.GUEST_TOOLS
+    from kindred.mind import system_prompt
+    assert "Speak English, unless the player asks" in system_prompt("Pip", "")

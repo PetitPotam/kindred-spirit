@@ -316,15 +316,16 @@ public final class Actions {
                 case PROTECT -> args.has("poke") && args.get("poke").getAsBoolean()
                         ? poke(sp, target(s, sp, str(args, "to", "")))
                         : protect(target(s, sp, str(args, "to", "")));
-                case PLACE_TORCH -> placeTorch(sp, style);
-                case HARVEST -> harvest(sp);
-                case BUILD -> Builder.start(s, sp, args, style);
+                // (for a friend: from where THEY stand, with THEIR inventory: "for" names them)
+                case PLACE_TORCH -> placeTorch(target(s, sp, str(args, "for", "")), style);
+                case HARVEST -> harvest(target(s, sp, str(args, "for", "")));
+                case BUILD -> Builder.start(s, target(s, sp, str(args, "for", "")), args, style);
                 case GIVE_ITEM -> give(target(s, sp, str(args, "to", "")), str(args, "item", ""), num(args, "count", 1));
                 case GIVE_EFFECT -> effect(target(s, sp, str(args, "to", "")), str(args, "effect", ""));
                 case SET_TIME -> setTime(s, str(args, "time", "day"));
                 case SET_WEATHER -> setWeather(s, str(args, "weather", "clear"));
                 case FIND_PLAYER -> findPlayerServer(s, sp, str(args, "name", ""), str(args, "from", ""));
-                case COMMAND -> Commands.run(s, sp, str(args, "command", ""), Abilities.power(str(args, "_power", "HELPER")),
+                case COMMAND -> Commands.run(s, target(s, sp, str(args, "for", "")), str(args, "command", ""), Abilities.power(str(args, "_power", "HELPER")),
                         args.has("harmfulAsked") && args.get("harmfulAsked").getAsBoolean());
                 default -> error("That isn't done on the server.");
             };
