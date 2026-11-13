@@ -260,6 +260,7 @@ a PowerShell version is a [good first issue](docs/GOOD_FIRST_ISSUES.md).
 | | |
 |---|---|
 | **V** (hold) | talk; release to send (change it in Controls → Kindred Spirit) |
+| **K** | open her dashboard in your browser (on the computer where her brain runs) |
 | just type in chat | talk to her (on a server, start with her name); or `/kindred <text>`, `/ks <text>` |
 | `/kindred status` | brain connection, skin, mode, quality level, mood |
 | `/kindred reconnect` | after restarting the brain |
@@ -281,7 +282,7 @@ near me?", "where are the sheep? lead the way", "where's the nearest village? ta
 
 ## Watching her think
 
-`scripts/start.sh` also starts a dashboard at **http://127.0.0.1:11440**: her heart and mood live,
+`scripts/start.sh` also starts a dashboard at **http://127.0.0.1:11440** (press **K** in the game to open it): her heart and mood live,
 friends in your world (whom she stays with, what they may ask), powers waking up, what she says and
 does, every AI call with its tokens and cost, speech and voice timings, her memories per world (with a
 search that shows what she'd recall), past play sessions (replay what she said), **Try Pip** (talk to

@@ -142,4 +142,15 @@ class UtilTest {
     private static double[] cross(double[] u, double[] v) {
         return new double[]{u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]};
     }
+
+    @Test
+    void dashboardOpensOnlyWhereHerBrainRuns() {
+        assertEquals("http://127.0.0.1:11440/", Dashboard.url("127.0.0.1", 11440));
+        assertEquals("http://127.0.0.1:11440/", Dashboard.url(" LocalHost ", 11440));
+        assertEquals("http://127.0.0.1:12000/", Dashboard.url("", 12000));
+        assertEquals("http://127.0.0.1:11440/", Dashboard.url("::1", 11440));
+        assertNull(Dashboard.url("192.168.1.20", 11440)); // a brain on another computer: its dashboard answers only there
+        assertNull(Dashboard.url("127.0.0.1", 0));
+        assertNull(Dashboard.url("127.0.0.1", 70000));
+    }
 }
