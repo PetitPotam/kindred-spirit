@@ -26,6 +26,8 @@ Unreleased into the new version's section.
   in docs/curseforge.md).
 
 ### Fixed
+- Stopping her (`scripts/stop.sh`, the Setup's Stop, an update's restart) waits until her helpers have really exited,
+  and forces one that doesn't, so starting again never finds a port still taken (whisper-server is slow to let go).
 - Friends building the mod on Windows need Java 25, not Java 21 (the build tool requires it): the guides say so, and
   Update Pip checks Java first and says what to install (#109).
 - Her live dashboard is part of the Setup: once she's set up, opening Kindred Spirit Setup wakes her and opens her

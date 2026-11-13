@@ -220,8 +220,11 @@ def main(argv):
             call("/api/setup/quit", {}, timeout=5)
         except Exception:
             pass
-        time.sleep(1)
-        busy = [k for k, p in PORTS.items() if not free(p)]
+        for _ in range(40):  # (helpers take a moment to let go of their ports)
+            busy = [k for k, p in PORTS.items() if not free(p)]
+            if not busy:
+                break
+            time.sleep(0.25)
         if ok and busy:
             ok = False
             print("still running after stop: %s" % ", ".join(busy))
