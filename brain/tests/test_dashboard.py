@@ -31,3 +31,11 @@ def test_keys_are_never_shown():
                             "access_key": "hunter2", "voice": "af_sky"})
     assert out["key"] == "(hidden)" and out["access_key"] == "(hidden)"
     assert out["upstreams"]["gemini"]["key"] == "env:GEMINI_API_KEY" and out["voice"] == "af_sky"
+
+
+def test_kindred_mod_config_points_at_another_game(tmp_path):
+    """While filming with the dev game, its settings file is the one the Settings page shows and changes."""
+    dev = str(tmp_path / "run" / "config" / "kindredspirit.json")
+    assert dashboard.mod_configs({"KINDRED_MOD_CONFIG": dev}) == [dev]
+    usual = dashboard.mod_configs({})
+    assert len(usual) == 3 and all(p.endswith("kindredspirit.json") for p in usual) and dev not in usual

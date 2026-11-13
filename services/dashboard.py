@@ -47,7 +47,7 @@ DIR = kindred_gateway.DIR
 LOGS = kindred_gateway.LOG_DIR
 GATEWAY = "http://127.0.0.1:%d/v1" % kindred_gateway.LISTEN_PORT
 PAGE = os.path.join(HERE, "dashboard.html")
-SESSIONS = os.path.join(LOGS, "sessions")
+SESSIONS = os.environ.get("KINDRED_SESSION_DIR") or os.path.join(LOGS, "sessions")  # where the brain writes them
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "brain"))
 from kindred import config as brain_config  # noqa: E402  (her settings, with their defaults)
 from kindred import blueprints  # noqa: E402  (her blueprint folders and their catalogue)
@@ -85,7 +85,8 @@ LABELS = {
     "allowMoodWeather": "Her moods may change the weather", "glow": "Her glow lights the dark", "guideArrow": "Arrow while she leads",
     "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her", "lanGuestPowers": "Friends may ask for her powers", "follow": "Whom she stays with on LAN ('' = you)", "sharedPip": "In a friend's world: their Pip or your own", "lanVisitors": "A friend's Pip may use her powers in your world", "noBrainHint": "Say how to meet Pip when this computer has no brain",
     "quality": "Quality", "worldSubtitles": "Subtitles above her", "hudCaptions": "Captions on the screen",
-    "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
+    "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)",
+    "hudWithHiddenGui": "Her HUD even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
     "voiceVolume": "Her voice volume", "offsetRight": "Floats to your right (blocks)", "offsetForward": "Floats ahead (blocks)",
     "offsetUp": "Floats up (blocks)", "size": "Size", "maxRecordSeconds": "Longest push-to-talk (seconds)",
     "life.wander": "Wanders when you stand still", "life.drift": "Drifts beside you", "life.switchSides": "Switches shoulders",
@@ -126,6 +127,7 @@ HELP = {
     "quality": "Auto lowers her detail if your frame rate drops.",
     "showBond": "A small heart meter appears for a moment when the bond changes.",
     "hudCaptions": "Her lines at the bottom of the screen too, like subtitles in a film.",
+    "hudWithHiddenGui": "Her heart meter, guide arrow, task line and notices stay when F1 hides the game's HUD (for filming).",
     "offsetRight": "Negative: your left.", "size": "1 is about a slime's head.",
     "life.wander": "Drifts around you when you stand still.", "life.drift": "0 still, 1 normal, 2 lively.",
     "life.switchSides": "Moves to your other shoulder now and then.", "life.glances": "Looks at animals, items and around.",
@@ -486,9 +488,19 @@ def session_one(sid):
 # written them to its settings file
 MOD_NEW = {"lanGuests": True, "lanGuestPowers": True, "follow": "", "sharedPip": "host", "lanVisitors": True}
 
-MOD_CONFIGS = [os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit.json"),
-               os.path.expanduser("~/.minecraft-kindred/config/kindredspirit.json"),
-               os.path.join(os.environ.get("APPDATA", ""), "minecraft-kindred", "config", "kindredspirit.json")]
+
+def mod_configs(env=None):
+    """Where the mod's settings file may be: KINDRED_MOD_CONFIG if set (e.g. the dev game's
+    mod/versions/1.21.1/run/config/kindredspirit.json while filming), else the launcher folders."""
+    env = os.environ if env is None else env
+    if env.get("KINDRED_MOD_CONFIG"):
+        return [os.path.expanduser(env["KINDRED_MOD_CONFIG"])]
+    return [os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit.json"),
+            os.path.expanduser("~/.minecraft-kindred/config/kindredspirit.json"),
+            os.path.join(env.get("APPDATA", ""), "minecraft-kindred", "config", "kindredspirit.json")]
+
+
+MOD_CONFIGS = mod_configs()
 # what one million tokens cost (USD), to estimate; change with KINDRED_PRICE_IN / KINDRED_PRICE_OUT
 PRICE_IN = float(os.environ.get("KINDRED_PRICE_IN", "0.25"))
 PRICE_OUT = float(os.environ.get("KINDRED_PRICE_OUT", "1.50"))

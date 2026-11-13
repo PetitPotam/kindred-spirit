@@ -10,6 +10,11 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- Filming tools for the new demo video (#144): the setting `hudWithHiddenGui` (off) and the dev-script step
+  `ownhud on|off` keep her own HUD with F1; the recording's start event has the computer's clock (`wall`), `fps`
+  and `size`, and a friend's line to her on LAN is recorded with `from`; `-PplayerName=` names the dev player and
+  `-PguestVideoSize=` sizes the guest's window; the dashboard reads another game's settings with
+  `KINDRED_MOD_CONFIG`; session logs follow `KINDRED_HOME`.
 - Install checks on every system, on GitHub's clean machines and with no AI key: the Setup app on Apple silicon and
   Intel Macs, her brain and Minecraft's side on macOS and Linux, a friend's install on Windows
   (`.github/workflows/platforms.yml`, `scripts/test-install.sh`, docs/TESTING-PLATFORMS.md). Also runs locally, and

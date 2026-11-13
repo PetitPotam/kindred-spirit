@@ -56,7 +56,11 @@ import java.util.Deque;
  *
  * For demo videos:
  *   video               HUD hidden (subtitles stay), chat log off, FOV 75, Fancy, no view bobbing
+ *   ownhud on|off       her own HUD (heart meter, guide arrow, listening, her task line, notices) stays with the
+ *                       game's HUD hidden, for this run only (the setting hudWithHiddenGui, not saved)
  *   record start NAME   record the screen to mod/versions/<version>/run/recordings/NAME (needs ffmpeg; 1.21.x only for now); record stop
+ *                       (events.jsonl starts with the computer's clock, "wall", to line up other recordings;
+ *                       a friend's line to her on LAN is saved with "from": who said it)
  *   mark NAME           a named moment in the recording (the editing script cuts on them)
  *   turn YAW PITCH SEC  turn the camera smoothly (eased), instead of "look" which snaps
  *   turnto companion SEC  turn smoothly to look at the companion
@@ -280,6 +284,7 @@ public final class DevScript {
                 mc.options.bobView().set(false);
                 KindredSpiritClient.get().config().chatLog = false;
             }
+            case "ownhud" -> KindredSpiritClient.get().config().hudWithHiddenGui = !arg.trim().equals("off");
             case "record" -> {
                 String[] a = arg.trim().split("\\s+");
                 if (a[0].equals("start")) {
