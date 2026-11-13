@@ -71,6 +71,7 @@ issue and pull request on it: *Triage → To do → In progress → In review �
 | `bug`, `idea`, `content` | the kind of issue (`content`: a blueprint or skin to share) |
 | `mod`, `brain`, `services`, `docs`, `ci` | which part (pull requests are labelled automatically) |
 | `lan` | about playing with friends |
+| `versions` | another Minecraft version or mod loader (see "A new Minecraft version" above) |
 | `priority: high`, `priority: low` | after triage |
 | `good first issue`, `help wanted` | a good place to start / help welcome |
 | `needs-info` | waiting for the author: reminded after 21 days, closed 14 days later |

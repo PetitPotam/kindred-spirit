@@ -18,7 +18,21 @@ body:
     id: area
     attributes:
       label: Which part is it about?
-      options: ["Talking and personality", "Helping (building, mining, crafting...)", "Memory", "Voice and hearing", "Friends and LAN", "Skins and looks", "Dashboard", "Setup", "Other"]
+      options:
+        - "In game: how she moves, looks and reacts"
+        - "In game: subtitles, HUD, settings screen, /kindred commands"
+        - "Talking and personality"
+        - "Helping (mining, chopping, crafting, trading...)"
+        - "Building and blueprints"
+        - "Memory"
+        - "Voice and hearing"
+        - "Friends and LAN"
+        - "Skins and looks"
+        - "Dashboard"
+        - "Setup and installing"
+        - "Performance (FPS, lag, memory)"
+        - "Another Minecraft version or mod loader (NeoForge, Quilt...)"
+        - "Other"
   - type: textarea
     id: world
     attributes:
