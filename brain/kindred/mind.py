@@ -4,10 +4,12 @@ Speaks OpenAI's chat format to one address (the Kindred gateway by default), so 
 """
 import asyncio
 import json
+import time
 import logging
 import re
 import urllib.error
 import urllib.request
+import uuid
 
 from .describe import describe
 
@@ -443,6 +445,7 @@ class Mind:
         ai = self.cfg["ai"]
         await self.recall(snapshot, prompt)
         messages = self.build_messages(snapshot, prompt)
+        self.last_rounds = 0
         log.debug("prompt context:\n%s", messages[-1]["content"])
         content = ""
         ran, checked, once = [], False, set()
@@ -451,6 +454,7 @@ class Mind:
         if speaker:
             speaker.trim_oh = self.oh_last
         for round_ in range(rounds):
+            self.last_rounds = round_ + 1
             body = {
                 "model": ai["model"],
                 "messages": messages,
@@ -676,10 +680,32 @@ class Streamer:
         self.feed(content, final=True)
 
 
+# every AI call gets an id, sent to the gateway (gateway.jsonl "call") and kept here, so the session log can say
+# which calls made which answer
+CALLS = []
+
+
+def new_call(kind):
+    cid = uuid.uuid4().hex[:10]
+    CALLS.append({"id": cid, "kind": kind, "t": time.time()})
+    del CALLS[:-200]
+    return cid
+
+
+def calls_since(marker):
+    """The ids of the AI calls made after this marker (a call id, or None for all kept)."""
+    ids = [c["id"] for c in CALLS]
+    return ids[ids.index(marker) + 1:] if marker in ids else ids if marker is None else []
+
+
+def call_marker():
+    return CALLS[-1]["id"] if CALLS else None
+
+
 def stream_json(url, body, key="", timeout=60, kind="", emit=None):
     """POST with stream=True; emit(chunk) for each server-sent event (runs in a thread)."""
     req = urllib.request.Request(url, data=json.dumps(dict(body, stream=True)).encode("utf-8"), method="POST",
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json", "X-Kindred-Call": new_call(kind)})
     if key:
         req.add_header("Authorization", "Bearer " + key)
     if kind:
@@ -714,7 +740,7 @@ def stream_json(url, body, key="", timeout=60, kind="", emit=None):
 
 def post_json(url, body, key="", timeout=60, kind=""):
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json", "X-Kindred-Call": new_call(kind)})
     if kind:  # reply, own, reflect, fold: the gateway may use another model or effort for each
         req.add_header("X-Kindred-Kind", kind)
     if key:

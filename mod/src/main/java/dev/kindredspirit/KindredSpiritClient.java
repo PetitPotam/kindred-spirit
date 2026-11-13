@@ -137,6 +137,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
     private void eventBy(String name, String by) {
         if (!name.equals("hit") && !name.equals("petted")) return;
+        LOG.info("{} {} Pip", by, name.equals("hit") ? "hit" : "petted");
         JsonObject o = new JsonObject();
         o.addProperty("type", "event");
         o.addProperty("event", name);
@@ -810,6 +811,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         JsonObject o = new JsonObject();
         o.addProperty("type", "voice");
         o.addProperty("peak", peak);
+        o.addProperty("releasedAt", System.currentTimeMillis()); // (the brain logs how long the trip took)
         if (sharing) o.addProperty("relay", true); // (light mode: your words go to the host's Pip, in chat)
         o.addProperty("wav", Base64.getEncoder().encodeToString(wav));
         link.send(o);
@@ -899,6 +901,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 }
             });
             case "mood" -> mc.execute(() -> companion.mood = Mood.parse(str(msg, "mood"), companion.mood));
+            case "chat_line" -> mc.execute(() -> { // her answer to a friend, in chat only (it never waits for her voice)
+                String text = str(msg, "text"), to = str(msg, "to");
+                logChat(herLine(to.isEmpty() ? text : "(to " + to + ") " + text));
+                GuestBridge.say(mc.getSingleplayerServer(), text);
+                sayVisiting(text);
+                LOG.info("Pip, in chat to {}: {}", to, text);
+            });
             case "act" -> mc.execute(() -> applyAct(msg));
             case "bond" -> mc.execute(() -> {
                 bond = msg.get("value").getAsInt();
@@ -1174,7 +1183,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
         String id = str(msg, "id"), action = str(msg, "action");
         JsonObject args = msg.has("args") && msg.get("args").isJsonObject() ? msg.getAsJsonObject("args") : new JsonObject();
         java.util.function.Consumer<JsonObject> reply = res -> {
-            if (id.equals("dev")) LOG.info("dev action {} -> {}", action, res);
+            String r = res.toString(); // (Pip's actions in the game log too, briefly)
+            LOG.info("{}action {} {} -> {}", id.equals("dev") ? "dev " : "", action, args, r.length() > 300 ? r.substring(0, 300) + "..." : r);
             res.addProperty("type", "done");
             res.addProperty("id", id);
             link.send(res);

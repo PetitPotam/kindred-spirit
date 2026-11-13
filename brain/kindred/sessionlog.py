@@ -16,6 +16,51 @@ import time
 DIR = os.environ.get("KINDRED_SESSION_DIR") or os.path.expanduser("~/.kindred-spirit/logs/sessions")
 
 
+ASKED_AGAIN = re.compile(r"\b(i (told|said|asked) you|again|not that|i said|no,? (i|not|that)|wrong|you didn'?t|why (are|did)n'?t "
+                         r"you|still not|i meant)\b", re.I)
+
+
+def extra_rows(ev):
+    """What a playtest is analysed with: per person, what failed and why, what had to be asked twice or corrected, how
+    much System 0 did alone, the settings at the start, and the time from releasing the talk key to her first word."""
+    rows = []
+    people = {}
+    for e in ev:
+        if e["kind"] in ("you", "guest"):
+            people.setdefault("you" if e["kind"] == "you" else e.get("who", "a friend"), []).append(e)
+    for who, msgs in people.items():
+        rows.append("| %s | %d messages |" % (who, len(msgs)))
+    failed = [e for e in ev if e["kind"] == "tool" and not e.get("ok", True)]
+    if failed:
+        rows.append("| failed tools | %s |" % "; ".join("%s (%s): %s" % (e.get("name"), e.get("who", "player"),
+                                                                       str(e.get("result", ""))[:80]) for e in failed[:8]))
+    again = [e for e in ev if e["kind"] in ("you", "guest") and ASKED_AGAIN.search(e.get("text", ""))]
+    if again:
+        rows.append("| asked again or corrected | %d: %s |" % (len(again), " / ".join(
+            "%s \"%s\"" % (fmt_t(e["t"]), e.get("text", "")[:60]) for e in again[:6])))
+    decided = [e for e in ev if e["kind"] == "decide"]
+    if decided:
+        alone = sum(1 for e in decided if e.get("acts") and not e.get("ai", True))
+        forced = sum(1 for e in decided if e.get("force"))
+        rows.append("| System 0 | acted at once on %d of %d messages, required a tool %d times |" % (
+            sum(1 for e in decided if e.get("acts")), len(decided), forced) + ("" if not alone else " (%d alone)" % alone))
+    timing = [e for e in ev if e["kind"] == "timing" and e.get("to_first_word") is not None]
+    if timing:
+        med = lambda xs: sorted(xs)[len(xs) // 2]  # noqa: E731
+        rows.append("| from releasing the talk key | text after %.1fs, first word after %.1fs (median of %d; trip %.1fs, "
+                    "speech-to-text %.1fs) |" % (med([e.get("to_text", 0) for e in timing]),
+                                                med([e["to_first_word"] for e in timing]), len(timing),
+                                                med([e.get("trip", 0) for e in timing]), med([e.get("stt", 0) for e in timing])))
+    first = next((e for e in ev if e["kind"] == "settings"), None)
+    if first:
+        rows.append("| settings at start | %s |" % ", ".join("%s=%s" % (k, v) for k, v in (first.get("now") or {}).items()))
+    return rows
+
+
+def fmt_t(t):
+    return "%02d:%02d" % (t // 60, t % 60)
+
+
 def felt_rows(ev, words_per_second=2.6):
     """What waiting felt like, per person (you, and each friend): from the message to her first word, and to the end
     of her answer as spoken (estimated from its words). Thinking is rarely the slow part: queues and long lines are."""
@@ -36,10 +81,16 @@ def felt_rows(ev, words_per_second=2.6):
     return rows
 
 
+# events that carry where things stood (who was near, health, the play mode): the ones you analyse a playtest by
+CONTEXT_KINDS = {"you", "guest", "tool", "alert", "heart", "touch", "death", "hurt", "cut", "error", "answer", "decide",
+                 "friend_near", "friend_gone", "arrived", "wrong_way", "vanish", "place", "settings", "where", "timing"}
+
+
 class SessionLog:
     def __init__(self, directory=None, clock=time.time):
         self.dir, self.clock = directory or os.environ.get("KINDRED_SESSION_DIR") or DIR, clock
         self.events, self.path, self.world, self.started = [], None, None, None
+        self.context = None  # () -> {"at": [x, y, z], "dim", "biome", "hp", "food", "near", "mode"} (set by the brain)
 
     def start(self, world):
         self.finish()
@@ -55,6 +106,11 @@ class SessionLog:
             return
         e = {"t": round(self.clock() - (self.started if self.started is not None else self.clock()), 2), "kind": kind}
         e.update({k: v for k, v in data.items() if v not in (None, "")})
+        if kind in CONTEXT_KINDS and self.context and "ctx" not in e:
+            try:
+                e["ctx"] = self.context()
+            except Exception:  # (never lose an event for its context)
+                pass
         self.events.append(e)
         try:
             with open(self.path + ".jsonl", "a") as fh:
@@ -108,7 +164,7 @@ class SessionLog:
                  "| tools | %d used, %d failed |" % (len(tools), len(failed)),
                  "| answers | %d, first words after %.1fs on average, %d slower than 4s |" % (
                      len(answers), sum(a.get("first_words", 0) for a in answers) / max(1, len(answers)), len(slow)),
-                 "| errors | %d |" % len(errors)] + felt_rows(ev) + [""]
+                 "| errors | %d |" % len(errors)] + felt_rows(ev) + extra_rows(ev) + [""]
         flags = []
         if len(said) / minutes > 3:
             flags.append("She talked a lot: more than 3 lines a minute.")

@@ -1187,6 +1187,15 @@ async function openSession(id) {
     if (e.kind === "not_said") return `<div class="sys">${t} held back (${esc(e.reason)}): <i>${esc(e.text)}</i></div>`;
     if (e.kind === "cut") return `<div class="sys warn">${t} interrupted${e.by_player ? " by you" : ""}${e.rest ? ": " + esc(e.rest) : ""}</div>`;
     if (e.kind === "guest") return `<div class="row-you"><div class="bubble you" style="background:var(--code)"><div class="who">${t} ${esc(e.who || "a friend")} (friend, in chat)</div>${esc(e.text)}</div></div>`;
+    if (e.kind === "heard") return `<div class="sys">${t} 🎙 heard “${esc(e.raw)}”${e.kept ? ` → kept “${esc(e.kept)}”` : ""} · speech-to-text ${e.stt}s${e.trip != null ? ` · trip ${e.trip}s` : ""}</div>`;
+    if (e.kind === "timing") return `<div class="sys">${t} ⏱ from releasing the key: text ${e.to_text}s, first word ${e.to_first_word}s${e.waited ? ` (waited ${e.waited}s for her line)` : ""}</div>`;
+    if (e.kind === "decide" && (e.force || e.acts)) return `<div class="sys">${t} ⚙ ${e.acts ? "acted: " + esc([].concat(e.acts).join("; ")) : ""}${e.force ? ` · required ${esc(e.force)}${e.force_by ? " (" + esc(e.force_by) + ")" : ""}` : ""}${e.who && e.who !== "player" ? " · for " + esc(e.who) : ""}</div>`;
+    if (e.kind === "death") return `<div class="sys bad">${t} ☠ the player died${e.ctx && e.ctx.at ? " at " + esc(e.ctx.at.join(" ")) : ""}</div>`;
+    if (e.kind === "hurt") return `<div class="sys warn">${t} the player lost ${e.lost} health at once</div>`;
+    if (e.kind === "friend_near" || e.kind === "friend_gone") return `<div class="sys">${t} ${esc(e.who)} ${e.kind === "friend_near" ? "came near" : "went away"}</div>`;
+    if (e.kind === "settings" && e.changed) return `<div class="sys">${t} ⚙ settings changed: ${esc(Object.entries(e.changed).map(([k, v]) => k + "=" + v).join(", "))}</div>`;
+    if (e.kind === "learned") return `<div class="sys">${t} 📓 learned ${e.added || 0} things${e.diary ? ` · diary: ${esc(e.diary)}` : ""}</div>`;
+    if (e.kind === "place") return `<div class="sys">${t} 📍 ${esc(e.label || e.what)}${e.at ? " at " + esc(e.at.join(" ")) : ""}</div>`;
     if (e.kind === "touch") return `<div class="sys">${t} ${e.what === "hit" ? "💢" : "🤚"} <b>${esc(e.who)}</b> ${e.what === "hit" ? "hit her" : "petted her"}</div>`;
     if (e.kind === "tool") return `<div class="sys">${t} 🔧 <b>${esc(e.name)}</b>${e.who && e.who !== "player" ? ` <span class="chip plain">for ${esc(e.who)}</span>` : ""} <span class="mono">${esc(e.args || "")}</span> → <span class="${e.ok ? "good" : "bad"}">${esc(e.result || "")}</span></div>`;
     if (e.kind === "answer") return `<div class="sys">${t} first words after <b>${e.first_words}s</b></div>`;
