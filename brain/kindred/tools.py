@@ -85,6 +85,26 @@ ABILITY_TOOLS = {
                        {"effect": {"type": "string"},
                         "to": {"type": "string", "description": "another player's name; empty = the player"}},
                        ["effect"]),
+    "command": _fn("command", "Run one of Minecraft's own commands (the old words the world obeys), as the player, "
+                   "from where they stand; the game's exact answer comes back. Use it when it's the simplest way: building "
+                   "in one go, gifts, enchanting, effects, and (all-powerful) mobs, teleporting, time, weather. Only what "
+                   "they asked for; for another player only if that player asked, or playful things the player asked "
+                   "for. Never @e, @a or @r; ~ coordinates are from the player (~ ~ ~ = their feet, ^ ^ ^3 = 3 ahead).\n"
+                   "  /fill <x1 y1 z1> <x2 y2 z2> <block> [hollow|outline|replace|keep|destroy]  e.g. /fill ~-8 ~ ~-8 ~8 ~10 ~8 "
+                   "air (clear everything around, from their feet up), /fill ~-6 ~-1 ~-6 ~6 ~-1 ~6 dirt (flatten the ground), "
+                   "/fill ~2 ~ ~2 ~8 ~4 ~8 oak_planks hollow (a room)\n"
+                   "  /setblock <x y z> <block>[states]  e.g. /setblock ^ ^ ^2 campfire\n"
+                   "  /clone <x1 y1 z1> <x2 y2 z2> <x y z>   copy a build\n"
+                   "  /give <player> <item> [count]  e.g. /give Robin golden_apple 2\n"
+                   "  /enchant <player> <enchantment> [level]  the item in their hand, e.g. /enchant Robin efficiency 3\n"
+                   "  /effect give <player> <effect> [seconds] [level]  e.g. /effect give Robin speed 60 1; harmful ones "
+                   "(slowness, poison, levitation...) only if asked for by name, at most 10 s\n"
+                   "  /particle <name> <x y z>, /playsound <sound> master <player>  for fun\n"
+                   "  /locate structure <id> | biome <id>\n"
+                   "  all-powerful only: /summon <mob> <x y z> (a few, never dangerous ones), /tp <player> <x y z | player>, "
+                   "/time set day|noon|night|midnight, /weather clear|rain|thunder, /spawnpoint <player>",
+                   {"command": {"type": "string", "description": "the command, e.g. /fill ~-3 ~ ~-3 ~3 ~ ~3 stone"}},
+                   ["command"]),
     "find_player": _fn("find_player", "Find another player here in the world (a friend on the player's LAN world) "
                        "by name, even said roughly. Then guide can lead the way to them as they move.",
                        {"name": {"type": "string", "description": "their name, or 'player' for the player you live beside"}},

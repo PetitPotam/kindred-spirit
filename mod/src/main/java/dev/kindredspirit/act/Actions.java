@@ -145,7 +145,7 @@ public final class Actions {
                         return r;
                     });
                 }
-                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER ->
+                case LOCATE, PROTECT, PLACE_TORCH, HARVEST, BUILD, GIVE_ITEM, GIVE_EFFECT, SET_TIME, SET_WEATHER, COMMAND ->
                         onServer(mc, a, args, power, style);
                 case GUIDE, STOP_GUIDE, FOLLOW_PLAYER -> done(ok()); // handled by the companion itself
             };
@@ -299,6 +299,7 @@ public final class Actions {
         }
         CompletableFuture<JsonObject> f = new CompletableFuture<>();
         java.util.UUID you = mc.player.getUUID();
+        args.addProperty("_power", power.name()); // (commands: what this power may run)
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(you);
             f.complete(sp == null ? error("player not found on the server") : serverSide(server, sp, a, args, style));
@@ -323,6 +324,8 @@ public final class Actions {
                 case SET_TIME -> setTime(s, str(args, "time", "day"));
                 case SET_WEATHER -> setWeather(s, str(args, "weather", "clear"));
                 case FIND_PLAYER -> findPlayerServer(s, sp, str(args, "name", ""), str(args, "from", ""));
+                case COMMAND -> Commands.run(s, sp, str(args, "command", ""), Abilities.power(str(args, "_power", "HELPER")),
+                        args.has("harmfulAsked") && args.get("harmfulAsked").getAsBoolean());
                 default -> error("That isn't done on the server.");
             };
         } catch (RuntimeException e) {
