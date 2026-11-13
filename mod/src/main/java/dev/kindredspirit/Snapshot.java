@@ -243,6 +243,9 @@ public final class Snapshot {
             JsonObject po = new JsonObject();
             po.addProperty("name", other.getGameProfile().getName());
             po.addProperty("distance", round1(other.distanceTo(p)));
+            po.addProperty("x", Math.round(other.getX())); // (where she last saw them, for her memory of places)
+            po.addProperty("y", Math.round(other.getY()));
+            po.addProperty("z", Math.round(other.getZ()));
             po.addProperty("direction", Direction8.relative(p.getYRot(), other.getX() - p.getX(), other.getZ() - p.getZ()));
             boolean seen = sees(mc, her, other);
             po.addProperty("seen", seen);

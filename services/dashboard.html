@@ -434,6 +434,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
           <div class="chips" id="mem-kinds"></div>
           <div id="mem-list"></div>
         </div>
+        <div class="card c12"><h2>Places she knows <span class="sub">on her own, named by you, and found when asked: from above, north up</span></h2><div id="mem-places"></div></div>
         <div class="card c12"><h2>Saved state <span class="sub">click one to see it</span></h2><div id="mem-docs"></div></div>
       </div>
     </section>
@@ -918,10 +919,45 @@ async function memoryTab() {
   $("mem-world").innerHTML = `<option value="all">All worlds</option>` + worlds.map((w) => `<option value="${esc(w)}" ${w === world ? "selected" : ""}>${esc(w.replace(/^sp:/, ""))} (${Object.values(memData.worlds[w]).reduce((a, b) => a + b, 0)})</option>`).join("");
   if (world === "all") $("mem-world").value = "all";
   renderMemory();
+  placesCard();
   const docs = memData.docs || [];
   $("mem-docs").innerHTML = docs.length ? `<div class="scroll-x"><table><tr><th>Saved</th><th class="num">Size</th><th class="num">Updated</th></tr>${docs.map((x) => `<tr class="click" data-key="${esc(x.key)}"><td class="mono">${esc(x.key)}</td><td class="num">${fmt(x.size)} B</td><td class="num">${new Date(x.updated * 1000).toLocaleString()}</td></tr>`).join("")}</table></div><pre id="doc-view" style="display:none"></pre>`
     : emptyState("No saved state yet", "(or restart the gateway to list it)");
 }
+// the places she knows (item 25): a map from above (north up) and a list to rename or forget one
+const PLACE_ICON = {build: "🔨", bed: "🛏", death: "☠", chest: "📦", workshop: "🛠", portal: "🌀", danger: "⚠", first: "✨",
+  friend: "🧑", found: "💎", place: "📍"};
+async function placesCard() {
+  let d;
+  try { d = await get("/api/places?world=" + encodeURIComponent(world && world !== "all" ? world : "")); } catch (e) { $("mem-places").innerHTML = emptyState("Can't reach her memory", e.message); return; }
+  const ps = (d.places || []).filter((p) => p.meta && p.meta.x != null && (!p.meta.dimension || p.meta.dimension.endsWith("overworld")));
+  const all = d.places || [];
+  if (!all.length) { $("mem-places").innerHTML = emptyState("No places yet", "She remembers where you build, sleep, die, find things and meet firsts."); return; }
+  const kindOf = (p) => p.kind === "spot" ? (p.meta.what || "").split(":")[0] : p.kind;
+  let map = "";
+  if (ps.length) {
+    const xs = ps.map((p) => p.meta.x), zs = ps.map((p) => p.meta.z);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+    const span = Math.max(40, x1 - x0, z1 - z0) * 1.15, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, W = 520, H = 300;
+    const X = (x) => W / 2 + (x - cx) / span * W, Z = (z) => H / 2 + (z - cz) / span * H * (W / H) * 0.57;
+    map = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:640px;background:var(--panel-2);border-radius:12px;border:1px solid var(--line)" role="img" aria-label="map of her places">
+      <text x="${W - 14}" y="18" text-anchor="end">N ↑ · ${Math.round(span)} blocks across</text>
+      ${ps.map((p) => `<g><title>${esc(p.text)} (${p.meta.x} ${p.meta.y} ${p.meta.z})</title><circle cx="${X(p.meta.x)}" cy="${Z(p.meta.z)}" r="${3 + (p.importance || 5) / 2}" fill="var(--accent)" opacity=".75"/>
+        <text x="${X(p.meta.x) + 8}" y="${Z(p.meta.z) + 4}" style="fill:var(--ink);font-size:11px">${PLACE_ICON[kindOf(p)] || "•"} ${esc(p.text.length > 28 ? p.text.slice(0, 27) + "…" : p.text)}</text></g>`).join("")}</svg>`;
+  }
+  const list = all.sort((a, b) => (b.importance || 0) - (a.importance || 0)).map((p) => `<div class="mem"><div>${PLACE_ICON[kindOf(p)] || "•"} ${esc(p.kind === "place" ? (p.meta.name || p.text) : p.text)}
+      <div class="tiny muted">${p.meta.x != null ? `${p.meta.x} ${p.meta.y} ${p.meta.z}` : ""}${p.meta.dimension && !p.meta.dimension.endsWith("overworld") ? " · " + esc(p.meta.dimension.replace("minecraft:", "")) : ""}${p.meta.visits > 1 ? " · seen " + p.meta.visits + "×" : ""}${p.meta.with && p.meta.with.length ? " · with " + esc(p.meta.with.join(", ")) : ""}${p.meta.last ? " · " + new Date(p.meta.last * 1000).toLocaleDateString() : ""} · ${p.kind === "spot" ? "on her own" : p.kind === "place" ? "named by you" : "found"}</div></div>
+      <div style="display:flex;gap:4px"><button class="btn sm ghost" data-rename="${p.id}">Rename</button><button class="btn sm ghost danger" data-forget="${p.id}">Forget</button></div></div>`).join("");
+  $("mem-places").innerHTML = `${map}<div style="margin-top:10px;max-height:360px;overflow:auto">${list}</div>`;
+}
+$("mem-places").onclick = async (ev) => {
+  const r = ev.target.closest("[data-rename]"), f = ev.target.closest("[data-forget]");
+  try {
+    if (f && confirm("Forget this place?")) { await post("/api/places", {action: "forget", id: f.dataset.forget}); toast("Forgotten"); placesCard(); }
+    if (r) { const t = prompt("A new name for this place:"); if (t) { await post("/api/places", {action: "rename", id: r.dataset.rename, text: t}); toast("Renamed"); placesCard(); } }
+  } catch (e) { toast("Not changed: " + e.message); }
+};
+
 function renderMemory() {
   const rows = memData.memories.filter((m) => world === "all" || (m.world || "(every world)") === world);
   const counts = {};
@@ -934,7 +970,7 @@ function renderMemory() {
     <div class="tiny muted">${new Date(m.updated * 1000).toLocaleString()}${m.uses ? ` · recalled ${m.uses}×` : ""}${m.meta && m.meta.expires ? (m.expired ? " · <b>faded</b> (passing feeling)" : " · passing, fades " + new Date(m.meta.expires * 1000).toLocaleString()) : ""}${m.meta && m.meta.imported_from ? " · imported from " + esc(m.meta.imported_from) : ""}${world === "all" ? " · " + esc(m.world || "every world") : ""}</div></div>
     <div>${dots(m.importance)}</div></div>`).join("")}</div>`).join("") || emptyState("No memories here yet", "");
 }
-$("mem-world").onchange = (ev) => { world = ev.target.value; renderMemory(); };
+$("mem-world").onchange = (ev) => { world = ev.target.value; renderMemory(); placesCard(); };
 $("mem-kinds").onclick = (ev) => { const b = ev.target.closest("[data-k]"); if (!b) return; const k = b.dataset.k; memKinds.has(k) ? memKinds.delete(k) : memKinds.add(k); renderMemory(); };
 let searchTimer = null;
 $("mem-q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(memSearch, 300); };

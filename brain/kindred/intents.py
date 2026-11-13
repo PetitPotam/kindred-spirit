@@ -278,6 +278,11 @@ def pronouns_said(text):
 
 DIARY = re.compile(r"\b(your|ur|her|pip'?s) diary\b|\bdiary\b.{0,20}\b(write|wrote|say|read|tell)\b|\bwhat did you write\b", re.I)
 
+# a place she remembers on her own, asked for in words ("back to where I died", "where we saw the first cow")
+BACK_TO_SPOT = re.compile(r"\bwhere (i|we|you) (died|saw|met|found|built|were building|was building|slept|started)\b|"
+                          r"\b(the )?first (\w+ ){0,2}(we|i) (saw|met|found)\b|\bwhat i was building\b|"
+                          r"\b(my|our|the) (bed|chest|building|build|portal|house)\b", re.I)
+
 # the player stepping in for her ("stop hitting Pip", "leave her alone", "be nice to her")
 DEFEND = re.compile(r"\b(stop|quit|don'?t|do not|no)\b.{0,12}\b(hit(ting)?|hurt(ing)?|punch(ing)?|attack(ing)?|"
                     r"bully(ing)?|being mean|being rude|insult(ing)?|tease|teasing|picking on)\b|\bleave (her|pip|it|them)"

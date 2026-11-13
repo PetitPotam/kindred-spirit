@@ -396,3 +396,69 @@ def test_an_answer_never_waits_long_for_her_own_line(stubs):  # items 27 and 32
     assert {"type": "chat_line", "text": "A friend's answer, in chat right away.", "to": "Walid"} in sent
     assert waited < 1, "a 12 s line is cut (and finished later), not waited for"
     assert any(m.get("type") == "say" and m.get("text") == "Your answer, now." for m in sent)
+
+
+# ---------------------------------------------------------------- item 25: places she remembers on her own
+
+def test_spots_merge_nearby_and_the_moving_ones_move():
+    import asyncio as aio
+    from gateway_stub import memory
+    m = memory()
+
+    async def run():
+        await m.open_world("sp:Places")
+        a, new_a = await m.spot("build", "where you were building", 100, 64, 100)
+        b, new_b = await m.spot("build", "where you were building", 110, 64, 105)   # same site, 11 blocks on
+        c, new_c = await m.spot("build", "where you were building", 400, 64, 400)   # another site
+        d1, _ = await m.spot("death", "where you died", 0, 30, 0)
+        d2, new_d2 = await m.spot("death", "where you died", 900, 12, -50)          # only the latest death
+        cow, _ = await m.spot("first:cow", "where we met our first cow", 50, 70, -20)
+        again, new_again = await m.spot("first:cow", "where we met our first cow", 300, 70, 300)  # a first stays first
+        return new_a, new_b, new_c, new_d2, new_again, await m.spots()
+    new_a, new_b, new_c, new_d2, new_again, spots = aio.run(run())
+    assert new_a and not new_b and new_c and not new_d2 and not new_again
+    by = {}
+    for r in spots:
+        by.setdefault(r["meta"]["what"], []).append(r["meta"])
+    assert len(by["build"]) == 2 and len(by["death"]) == 1 and by["death"][0]["x"] == 900
+    assert by["first:cow"][0]["x"] == 50 and by["first:cow"][0]["visits"] == 2
+
+
+def test_she_captures_places_from_what_the_game_says(stubs):
+    from test_heart import _brain
+    b = _brain(stubs)
+    seen = []
+    b.remember_spot = lambda what, label, at, who="player", feel=None, source="own": seen.append((what, label, at))
+    base = {"health": 20, "where": {"x": 10, "y": 64, "z": 10, "dimension": "minecraft:overworld", "biome": "minecraft:cherry_grove"}}
+    b.spots_from(dict(base, placedRecently=20, youDid=["placed a red bed"],
+                      players=[{"name": "Walid", "x": 30, "y": 64, "z": 5}]), 100)
+    b.spots_from(dict(base, where=dict(base["where"], dimension="minecraft:the_nether", x=1, z=1), players=[]), 110)
+    whats = [w for w, _, _ in seen]
+    assert "build" in whats and "bed" in whats, whats
+    assert ("friend:walid", "where Walid was last", (30, 64, 5)) in seen
+    assert any(w == "portal:nether" and at == (10, 64, 10) for w, _, at in seen), "the portal where you left the overworld"
+
+
+def test_asking_to_go_back_to_a_place_she_remembers():
+    for t in ("take me back to where I died", "lead me to where we saw the first cow", "back to what I was building"):
+        assert intents.BACK_TO_SPOT.search(t), t
+    assert not intents.BACK_TO_SPOT.search("lead me to the village")
+
+
+def test_recall_a_place_by_description_and_lead_there(stubs):
+    import asyncio as aio
+    from test_heart import _brain
+    b = _brain(stubs)
+
+    async def run():
+        await b.memory.open_world("sp:Places")
+        await b.memory.spot("first:cow", "where we met our first cow", 50, 70, -20)
+        await b.memory.spot("death", "where you died", 900, 12, -50)
+        b.last_player_text = "take me back to where we met our first cow"
+        to_cow = await b.guide_target({"to": "first cow"})
+        b.last_player_text = "take me back to where I died"
+        to_death = await b.guide_target({})
+        return to_cow, to_death
+    to_cow, to_death = aio.run(run())
+    assert to_cow == {"x": 50, "y": 70, "z": -20}
+    assert to_death == {"x": 900, "y": 12, "z": -50}

@@ -217,6 +217,7 @@ class Brain:
         self.voice_timing = None     # (released at, arrived, stt seconds): the last spoken message, for its timing
         self.last_wait = 0.0         # how long her last answer waited for the line she was saying
         self.guest_pending = {}      # friend -> what they said while she was busy (answered together)
+        self.spot_said, self.friends_seen, self.prev_dim, self.prev_spot_pos = {}, {}, None, None
         self.recent_gifts = {}       # (tool, what, to) -> when: never the same gift again unasked
         self.notified = []
         self.idle_since = clock()
@@ -589,6 +590,9 @@ class Brain:
 
         Small things (a new item, a biome) are skipped when she spoke recently; moments that matter
         (a baby, a new pet, a first meeting, a death) wait their turn for up to a minute instead."""
+        if event == "first_meet" and detail:  # a first, remembered where it was (even if she says nothing now)
+            sp = detail.replace("minecraft:", "").replace("_", " ")
+            self.remember_spot("first:" + sp, "where we met our first %s" % sp, None)
         waits = 30 if event in WORTH_WAITING else 0
         gap = 45 if event in WORTH_WAITING else 150  # (her own comments leave room: she isn't a radio)
 
@@ -1013,11 +1017,19 @@ class Brain:
             for f in (found or {}).get("results", []):
                 if to in f["meta"].get("what", "").lower():
                     return {k: f["meta"][k] for k in ("x", "y", "z")}
+            spot = await self.safe(self.memory.find_spot(to + " " + getattr(self, "last_player_text", "")))
+            if spot:  # a place she remembers on her own ("the first cow", "what I was building", "where I died")
+                self.session.event("place", what="guide", label=spot["text"], at=[spot["meta"].get(k) for k in "xyz"])
+                return {k: spot["meta"][k] for k in ("x", "y", "z")}
             if "find_player" in self.abilities and to not in ("home", "base", "back"):
                 # a friend's name: the world's game finds them (even far away) and she follows them as they walk
                 r = await self.request("find_player", {"name": to})
                 if r.get("ok") and r.get("found", True) and not r.get("self"):
                     return {}  # (the mod leads to the player it just found, and keeps up with them)
+        if not to and intents.BACK_TO_SPOT.search(getattr(self, "last_player_text", "")):
+            spot = await self.safe(self.memory.find_spot(getattr(self, "last_player_text", "")))
+            if spot:  # "take me back to where I died" with no place named in the call
+                return {k: spot["meta"][k] for k in ("x", "y", "z")}
         # the animal named in the request, else the one you were just talking about ("where are the
         # cows?" ... "lead the way"): your last messages, then her last answer
         said = [to + " " + getattr(self, "last_player_text", "")] + self.recent_player[::-1][:3] + \
@@ -1057,6 +1069,50 @@ class Brain:
                 "amnesia": h.get("amnesia"), "awakening": h.get("awakening"), "pranks": h.get("pranks"),
                 "fibs": h.get("fibs"), "auto_protect": h.get("auto_protect"), "voice": self.cfg.get("voice", {}).get("enabled"),
                 "small_talk": b.get("small_talk_minutes"), "model": self.cfg.get("ai", {}).get("model") or "gateway's"}
+
+    def remember_spot(self, what, label, at, who="player", feel=None, source="own"):
+        """A place she keeps on her own (item 25): in her memory, and in the session log with who and where."""
+        w = (self.snapshot or {}).get("where") or {}
+        x, y, z = at if at else (w.get("x"), w.get("y"), w.get("z"))
+        if x is None:
+            return
+
+        async def go():
+            rec, new = await self.memory.spot(what, label, x, y, z, w.get("dimension", "minecraft:overworld"),
+                                              w.get("biome"), who, feel, source) if self.memory else (None, False)
+            if rec and new:
+                self.session.event("place", what=what, label=label, at=[round(x), round(y), round(z)], who=who)
+        asyncio.create_task(self.safe(go()))
+
+    def spots_from(self, s, now):
+        """Places she notices on her own, from what the game already says: where you build, your bed, chests and
+        crafting places, portals, deaths, friends last seen."""
+        w = s.get("where") or {}
+        if w.get("x") is None:
+            return
+        biome = (w.get("biome") or "").replace("minecraft:", "").replace("_", " ")
+        if (s.get("placedRecently") or 0) >= 15 and now - self.spot_said.get("build", -1e9) > 60:
+            self.spot_said["build"] = now
+            self.remember_spot("build", "where you were building%s" % (" (in the %s)" % biome if biome else ""), None)
+        for d in s.get("youDid") or []:
+            d = d.lower()
+            for rx, what, label in ((r"placed .*\bbed\b", "bed", "your bed"), (r"placed .*\b(chest|barrel)\b", "chest",
+                                     "your chest"), (r"placed .*\b(crafting table|furnace|anvil|enchanting table)\b",
+                                     "workshop", "where you craft")):
+                if re.search(rx, d) and now - self.spot_said.get(what, -1e9) > 20:
+                    self.spot_said[what] = now
+                    self.remember_spot(what, label, None)
+        dim = w.get("dimension")
+        if self.prev_dim and dim and dim != self.prev_dim and self.prev_spot_pos:
+            px, py, pz = self.prev_spot_pos  # through a portal: where it was on the side you came from
+            other = dim.replace("minecraft:", "").replace("the_", "")
+            self.remember_spot("portal:" + other, "the portal to the %s" % other, (px, py, pz))
+        self.prev_dim, self.prev_spot_pos = dim, (w["x"], w.get("y", 64), w["z"])
+        here = {p.get("name"): p for p in s.get("players") or [] if p.get("name") and "x" in p}
+        for name, p in self.friends_seen.items():
+            if name not in here:  # out of sight now: where she saw them last
+                self.remember_spot("friend:" + name.lower(), "where %s was last" % name, (p["x"], p["y"], p["z"]), who=name)
+        self.friends_seen = here
 
     def log_world(self, s, now):
         """Cheap context in the session log: settings when they change, friends coming and going, where you are every
@@ -1313,6 +1369,7 @@ class Brain:
         self.save_snapshot(s)
         if "health" in s:
             self.log_world(s, self.clock())
+            self.spots_from(s, self.clock())
         await self.heart_watch(s)
         now = self.clock()
         s["recent"] = ["%s (%d seconds ago)" % (x, now - t) for t, x in self.recent if now - t < 90]
@@ -1324,6 +1381,8 @@ class Brain:
             if alert:
                 log.info("alert %s: %s", alert.kind, alert.text)
                 self.session.event("alert", what=alert.kind, text=alert.text)
+                if alert.kind in ("lava", "drop"):
+                    self.remember_spot("danger", "a %s near here" % ("lava pool" if alert.kind == "lava" else "big drop"), None)
                 asyncio.create_task(self.say(alert.text, alert.mood, instant=True,
                                              why="a warning: %s" % alert.kind.replace("_", " ")))
                 return
@@ -1419,6 +1478,9 @@ class Brain:
             self.last_pos = pos
         biome = w.get("biome")
         if self.prev_biome and biome and biome != self.prev_biome:
+            if biome not in self.heart.state.get("biomes_together", []):  # a first: remembered where it was
+                b = biome.replace("minecraft:", "").replace("_", " ")
+                self.remember_spot("first:biome:" + b, "the first %s we found" % b, None)
             place = self.heart.lore_place(biome, w.get("dimension"))  # a place from the old stories: the first time
             asyncio.create_task(self.notice("lore_place", place) if place else self.notice("biome", biome))
             if place or biome not in self.heart.state.setdefault("biomes_together", []):
@@ -1431,6 +1493,8 @@ class Brain:
             abs(w["x"] - self.prev_where[0]) + abs(w["z"] - self.prev_where[1]) > 24
         if prev is not None and prev > 0 and health <= 0:
             self.session.event("death")
+            self.remember_spot("death", "where you died%s" % (" (your things may still be there)" if s.get("gamemode")
+                                                              != "creative" else ""), None, feel="scared")
             self.happened("The player died", now)
             asyncio.create_task(self.notice("death"))
         elif prev is not None and (prev <= 0 or (prev < 8 and health >= s.get("maxHealth", 20) and jumped)):

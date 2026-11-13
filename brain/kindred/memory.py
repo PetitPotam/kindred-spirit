@@ -304,6 +304,66 @@ class Memory:
                 return
         await self.add("found", "We found %s" % what, 5, {"x": x, "y": y, "z": z, "dimension": dimension, "what": what})
 
+    # ------------------------------------------------------------------ places she remembers on her own (item 25)
+
+    SPOT_CAP = 150
+    # what -> (how far apart two sightings may be and still be the same spot, importance); "one" = only ever one
+    SPOT_KINDS = {"build": (24, 7), "bed": ("one", 8), "death": ("one", 6), "chest": (8, 5), "workshop": (8, 5),
+                  "portal": (12, 7), "danger": (10, 4), "first": ("one", 6), "friend": ("one", 3), "found": (8, 5)}
+
+    async def spot(self, what, label, x, y, z, dimension="minecraft:overworld", biome=None, who="player", feel=None,
+                   source="own"):
+        """A place she remembers, with coordinates: one record per spot (sightings of the same thing nearby merge, and
+        the record moves to the latest for a building site, a bed, a death). Returns (record, new?)."""
+        kind = what.split(":", 1)[0]
+        merge, imp = self.SPOT_KINDS.get(kind, (10, 5))
+        now = self.clock()
+        try:
+            rows = (await self.store.call("list", kinds=["spot"], world=self.world_id, limit=self.SPOT_CAP + 50))["results"]
+        except Exception:
+            return None, False
+        same = None
+        for r in rows:
+            m = r.get("meta") or {}
+            if m.get("what") != what or m.get("dimension", dimension) != dimension:
+                continue
+            if merge == "one" or math.hypot(m.get("x", 0) - x, m.get("z", 0) - z) <= merge:
+                same = r
+                break
+        if same:
+            m = dict(same.get("meta") or {})
+            moves = kind in ("build", "bed", "death", "friend")  # (where it is now; firsts and finds keep the first)
+            if moves:
+                m.update({"x": round(x), "y": round(y), "z": round(z)})
+            m.update({"last": now, "visits": m.get("visits", 1) + 1})
+            if who and who not in (m.get("with") or []):
+                m["with"] = (m.get("with") or []) + [who]
+            await self.store.call("update", id=same["id"], text=label if moves else same["text"], meta=m)
+            return dict(same, meta=m), False
+        meta = {"what": what, "x": round(x), "y": round(y), "z": round(z), "dimension": dimension, "biome": biome,
+                "first": now, "last": now, "visits": 1, "with": [who] if who else [], "feel": feel, "source": source}
+        r = await self.add("spot", label, imp, {k: v for k, v in meta.items() if v is not None})
+        if len(rows) >= self.SPOT_CAP:  # the least important (then oldest) fade
+            old = sorted(rows, key=lambda r: (r.get("importance", 5), (r.get("meta") or {}).get("last", 0)))[0]
+            await self.store.call("delete", id=old["id"], kinds=["spot"])
+        return {"text": label, "meta": meta, "id": r.get("id")}, True
+
+    async def spots(self, limit=200):
+        try:
+            return (await self.store.call("list", kinds=["spot"], world=self.world_id, limit=limit))["results"]
+        except Exception:
+            return []
+
+    async def find_spot(self, words):
+        """A place she remembers, by description ("where we saw our first cow", "what I was building")."""
+        try:
+            hits = (await self.store.call("search", query=words, kinds=["spot", "place", "found"], world=self.world_id,
+                                          k=3))["results"]
+        except Exception:
+            return None
+        hits = [h for h in hits if "x" in (h.get("meta") or {})]
+        return hits[0] if hits and hits[0].get("score", 0) > 0.3 else None
+
     async def places(self):
         return (await self.store.call("list", kinds=["place"], world=self.world_id, limit=30))["results"]
 
@@ -372,7 +432,7 @@ class Memory:
             lst("list", kinds=["habit"], world=self.world_id, limit=4, order="important"),
             lst("list", kinds=["reminder"], world=self.world_id, limit=6),
             lst("list", kinds=["place"], world=self.world_id, limit=8),
-            lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary"],
+            lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary", "spot"],
                 world=self.world_id, k=8))
         now = self.clock()
         player, me, origin, tastes, cores, habits, reminders, places, recalled = (
@@ -400,6 +460,19 @@ class Memory:
             lines.append("The player's habits: " + " ".join(m["text"].rstrip(".") + "." for m in habits))
         if places:
             lines.append("Named places: " + "; ".join(m["meta"].get("name", m["text"]) + rel(m["meta"]) for m in places) + ".")
+        known = await self.spots(120)
+        if known and "x" in where:  # the places she knows on her own: the nearest and most important few
+            def score(m):
+                mm = m.get("meta") or {}
+                if mm.get("dimension") and where.get("dimension") and mm["dimension"] != where["dimension"]:
+                    return 1e9
+                return math.hypot(mm.get("x", 0) - where["x"], mm.get("z", 0) - where["z"]) / (1 + m.get("importance", 5) / 3)
+            near = sorted(known, key=score)[:6]
+            near = [m for m in near if score(m) < 1e9]
+            seen |= {m["id"] for m in near}
+            if near:
+                lines.append("Places you know (from what you saw together; lead there with guide 'to' = its words): "
+                             + "; ".join(m["text"] + rel(m["meta"]) for m in near) + ".")
         if reminders:
             lines.append("Reminders you hold: " + "; ".join("%s (%s)" % (m["text"], m["meta"].get("when", "")) for m in reminders) + ".")
         extra = [m for m in recalled if m["id"] not in seen and m["score"] > 0.2][:6]
