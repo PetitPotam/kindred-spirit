@@ -203,3 +203,33 @@ def test_lead_to_animals_in_sight_not_to_where_they_were_first_met(stubs):
     assert asyncio.run(b.guide_target({"to": "sheep"})) == {"entity": 7}
     b.last_player_text = "Take me back to where we met our first sheep"
     assert asyncio.run(b.guide_target({"to": "sheep"})) == {"x": 0, "y": 64, "z": 0}
+
+
+def test_a_friends_request_is_judged_by_their_own_words(stubs):
+    """2026-11-13 friend-hosts check: Walid asked "can you give me night vision?" and the repeat guard,
+    reading the player's last words, refused it as unasked."""
+    from test_heart import _brain
+    stubs.ai_script = [
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "t1", "type": "function", "function": {"name": "give_effect", "arguments": '{"effect": "night_vision"}'}}]},
+        {"role": "assistant", "content": "[happy] Owl eyes!"}]
+    b = _brain(stubs)
+    b.abilities = ["give_effect"]
+    b.last_player_text = "what a nice day"
+    b.recent_gifts[("give_effect", "night_vision", "walid")] = b.clock() - 60
+    asked = []
+
+    async def send(msg):
+        pass
+    b.send = send
+
+    async def request(name, args):
+        asked.append(name)
+        return {"ok": True}
+    b.request = request
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer_guest("Walid", "Pip, can you give me night vision please?", powers=True)
+    asyncio.run(run())
+    assert asked == ["give_effect"]

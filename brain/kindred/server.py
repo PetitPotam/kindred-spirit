@@ -451,7 +451,7 @@ class Brain:
             # (amnesia) a power she hasn't discovered: the AI knows the name, she doesn't
             return {"ok": False, "error": "You don't know how to do that yet."}
         args = self.real_names(args)  # nicknames she was taught ("follow Dumb") -> the player's name
-        said_now = (getattr(self, "last_player_text", "") or "").lower()
+        said_now = (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()
         if name == "give_effect" and str(args.get("effect", "")).lower() in ("health", "food", "regeneration", "heal",
                                                                              "saturation") \
                 and not intents.WANTS_CARE.search(said_now):
@@ -464,7 +464,7 @@ class Brain:
             # only when their words ask for it (the item, "again", "another", "more")
             what = str(args.get("item") or args.get("effect") or "").lower().replace("minecraft:", "")
             key = (name, what, str(args.get("to") or "").lower())
-            said = (getattr(self, "last_player_text", "") or "").lower()
+            said = (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()
             asked_again = re.search(r"\b(again|another|more|also|too|one more|extra)\b", said) or any(
                 w and w in said for w in re.split(r"[_ ]", what) if len(w) > 2)
             if self.clock() - self.recent_gifts.get(key, -1e9) < 180 and not asked_again:
@@ -473,7 +473,7 @@ class Brain:
             self.recent_gifts[key] = self.clock()
         if name == "command":
             # a harmful effect only when the one asking named it themselves ("give him poison")
-            said = (getattr(self, "last_player_text", "") or "").lower()
+            said = (getattr(self, "asking_text", "") or getattr(self, "last_player_text", "") or "").lower()
             m = re.search(r"effect give \S+ (?:minecraft:)?(\w+)", str(args.get("command", "")))
             args = dict(args, harmfulAsked=bool(m and m.group(1).replace("_", " ") in said))
             if self.speaking_to and self.speaking_to != "player":  # a friend's turn: not on someone who didn't ask
@@ -2051,7 +2051,7 @@ class Brain:
         she answers on instinct, at once, and the AI hears the exchange in the conversation afterwards."""
         started = self.clock()
         async with self.talk_lock:  # (in turn with her other answers: a line never jumps a queue)
-            self.last_player_text = text
+            self.last_player_text = self.asking_text = text
             self.recent_player = (self.recent_player + [text])[-3:]
             for said in heard or [text]:  # (the same words again and again still mean less each time)
                 self.heart.hear(said)
@@ -2102,7 +2102,7 @@ class Brain:
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
             try:
-                self.last_player_text = text
+                self.last_player_text = self.asking_text = text
                 force = None
                 offer = self.heart.take_offer(self.clock()) if intents.YES.match(text) else None
                 if offer and offer["what"] in self.abilities:
@@ -2283,6 +2283,7 @@ class Brain:
         self.guest_pending.setdefault(who, []).append(text)
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
+            self.asking_text = text  # (the guards read the words of whoever is asking: here the friend)
             waiting = self.guest_pending.pop(who, [])
             if not waiting:
                 return  # (answered together with their earlier message)
