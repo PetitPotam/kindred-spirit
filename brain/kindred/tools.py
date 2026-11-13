@@ -73,7 +73,10 @@ ABILITY_TOOLS = {
                   "level": {"type": "integer", "description": "clear / flatten: a Y level ('above Y 64': 64)"}}, ["shape"]),
     "blueprint": _fn("blueprint", "Build a whole house where the player is looking: a cottage made for how many people "
                      "it's for (a bed each, a chest, a crafting table, a furnace, windows, a door facing them, a stair roof), "
-                     "or a blueprint file by its exact name from find_blueprint (a village house, an igloo, a ship...). Use the cottage for any house, home, hut, cabin or cottage they describe. In "
+                     "or a blueprint file by its exact name from find_blueprint (a village house, an igloo, a ship...). For a "
+                     "house in general ('a house', 'a cozy cottage for three'), the cottage; for a particular kind ('a "
+                     "desert house', 'the plains smithy', 'a ship', 'something big'), look it up with find_blueprint first, "
+                     "and if several fit or you're not sure, ask which one before building; confirm a big one first. In "
                      "magic style it rises in a few seconds; in grounded style it needs the materials in their pockets, and "
                      "if something's missing you get the list (and what they could craft): tell them what to gather. It "
                      "never builds over something built: then say so. 'stop' stops.",
@@ -193,12 +196,17 @@ MEMORY_TOOLS = [
 ]
 
 
-FIND_BLUEPRINT = _fn("find_blueprint", "Look up which blueprints (buildings saved as files) you can build: Minecraft's "
-                     "own village houses for each biome (plains, desert, savanna, taiga, snowy: small and medium houses, "
-                     "libraries, temples, smithies, farms, fountains...), an igloo, ruined portals, shipwrecks, a "
-                     "pillager watchtower, and any the player added. Search by words ('desert library', 'ship', "
-                     "'small house'); then build one with blueprint, giving its exact name as 'what'.",
-                     {"query": {"type": "string", "description": "words to look for; empty = what kinds there are"}})
+FIND_BLUEPRINT = _fn("find_blueprint", "Look up the blueprints (buildings saved as files) you can build, by what they "
+                     "are: Minecraft's own village buildings for each biome (plains, desert, savanna, taiga, snowy: small "
+                     "and bigger houses, workshops like a smithy, a library, a temple, crop fields and animal pens, wells), "
+                     "an igloo, ruined portals, shipwrecks, a pillager watchtower, circles to build on, and any the player "
+                     "added. Search the way they asked ('a small desert house', 'something big', 'a house for three', "
+                     "'the plains smithy', 'a ship'); you get a few, best first, each with what it is in plain words and "
+                     "its size. If several fit or you aren't sure which they mean, describe the two or three best in a few "
+                     "words (how they look, how big) and ask which one before building; for a big one (marked big), "
+                     "confirm first. Then build it with blueprint, giving its exact name as 'what'.",
+                     {"query": {"type": "string", "description": "what they asked for, in their words; empty = what "
+                                "kinds there are"}})
 
 
 def for_abilities(abilities):

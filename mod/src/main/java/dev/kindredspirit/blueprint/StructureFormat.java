@@ -50,8 +50,15 @@ public final class StructureFormat {
             if (pos == null || st < 0 || st >= palette.size()) {
                 throw new BlueprintException("structure file with a broken block entry");
             }
-            b.set(pos[0], pos[1], pos[2], palette.get(st));
-            b.blockEntity(pos[0], pos[1], pos[2], Nbt.compound(block, "nbt"));
+            BlockSpec state = palette.get(st);
+            Map<String, Object> nbt = Nbt.compound(block, "nbt");
+            BlockSpec fin = finalState(state, nbt);
+            if (fin != state) {
+                b.set(pos[0], pos[1], pos[2], fin);
+                continue;
+            }
+            b.set(pos[0], pos[1], pos[2], state);
+            b.blockEntity(pos[0], pos[1], pos[2], nbt);
         }
         for (Object o : Nbt.list(root, "entities")) {
             if (!(o instanceof Map<?, ?>)) continue;
@@ -60,6 +67,22 @@ public final class StructureFormat {
             if (pos != null) b.entity(pos[0], pos[1], pos[2], Nbt.compound(e, "nbt"));
         }
         return b.build();
+    }
+
+    /**
+     * What a template's helper blocks become when the game places it: a jigsaw block (how villages join their
+     * pieces) turns into its {@code final_state} (a stair, a path, or "leave as is"), a structure block (a data
+     * marker, like a shipwreck's loot spot) into air. Anything else stays as it is.
+     */
+    static BlockSpec finalState(BlockSpec state, Map<String, Object> nbt) {
+        if (state.path().equals("structure_block") && state.name().startsWith("minecraft:")) return BlockSpec.AIR;
+        if (!state.path().equals("jigsaw") || !state.name().startsWith("minecraft:")) return state;
+        String fin = nbt == null ? "" : Nbt.string(nbt, "final_state", "");
+        try {
+            return fin.isBlank() ? BlockSpec.AIR : Renames.apply(BlockSpec.parse(fin));
+        } catch (IllegalArgumentException e) {
+            return BlockSpec.AIR;
+        }
     }
 
     /** {Name, Properties} as structure files, Litematica palettes and the game's NbtUtils write it. */

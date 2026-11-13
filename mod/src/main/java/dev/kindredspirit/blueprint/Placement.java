@@ -14,7 +14,8 @@ import java.util.Map;
  * with its door where you look), {@link Anchor#FRONT_LEFT} starts there and goes to the right (like
  * her simple shapes). The blueprint's bottom layer is at the origin's height.
  *
- * <p><b>Order.</b> First, if asked, the cells the template marks as air are cleared, top down (a hill
+ * <p><b>Order.</b> First, if asked, the cells the template marks as air are cleared, top down, above its
+ * bottom layer (which sits in the ground and never digs it) (a hill
  * where the house goes). Then the frame, bottom layer first, row by row back and forth so she drifts
  * smoothly instead of jumping. Then the details that hang on something or would flow (torches,
  * doors, beds, carpets, rails, redstone, plants, water), bottom up, once what they hang on is there.
@@ -105,7 +106,9 @@ public final class Placement {
                     BlockSpec s = b.at(x, y, z);
                     if (s == null) continue;
                     if (s.isAir()) {
-                        if (clearAir) clear.add(new Step(x + dx, y + dy, z + dz, Kind.CLEAR, s, null));
+                        // the bottom layer sits in the ground: air there leaves the ground as it is (a Litematica
+                        // circle stores air in every empty cell: it would dig a square hole around itself)
+                        if (clearAir && y > 0) clear.add(new Step(x + dx, y + dy, z + dz, Kind.CLEAR, s, null));
                         continue;
                     }
                     Kind kind = secondHalf(s) ? Kind.SECOND_HALF : needsSupport(s) ? Kind.DETAIL : Kind.BLOCK;

@@ -17,6 +17,8 @@ disk or behind the gateway; nothing new is collected:
             a short list of them can be changed here (brain: picked up live; gateway: next call)
   sessions  each play session (logs/sessions): the timeline, what went in and out of the AI, and
             her voice for every line, to play again
+  blueprints  the buildings she can build from files, by category, with the pictures and descriptions the
+            game writes next to them (catalogue.json); add a file, move one to the trash, bring it back
 
 Standard library only, like the gateway.
 """
@@ -44,6 +46,7 @@ PAGE = os.path.join(HERE, "dashboard.html")
 SESSIONS = os.path.join(LOGS, "sessions")
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "brain"))
 from kindred import config as brain_config  # noqa: E402  (her settings, with their defaults)
+from kindred import blueprints  # noqa: E402  (her blueprint folders and their catalogue)
 
 # what can be changed from the dashboard: everything in her brain settings (listed from its
 # defaults, so new settings appear on their own), the mod's settings, and the gateway's main choices
@@ -839,6 +842,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, {"sessions": sessions_list()})
             if url.path == "/api/sessions/one":
                 return self.send(200, session_one(q.get("id", "")))
+            if url.path == "/api/blueprints":
+                return self.send(200, blueprints.overview())
+            if url.path == "/api/blueprints/picture":
+                dirs = blueprints.DIRS
+                i = int(q.get("d", 0)) if str(q.get("d", "0")).isdigit() else -1
+                png = blueprints.picture(dirs[i], q.get("f", "")) if 0 <= i < len(dirs) else None
+                return self.send(200, png, "image/png") if png else self.send(404, {"error": "no such picture"})
             if url.path == "/api/knowledge":
                 return self.send(200, knowledge_overview())
             if url.path == "/api/knowledge/section":
@@ -855,11 +865,30 @@ def _post(handler):
     if not handler.host_ok():
         return
     url = urlparse(handler.path)
-    if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles", "/api/places"):
+    if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles", "/api/places",
+                        "/api/blueprints/add", "/api/blueprints/remove", "/api/blueprints/restore"):
         return handler.send(404, {"error": "not found"})
     if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
         return handler.send(403, {"error": "only from the dashboard itself"})
-    body = json.loads(handler.rfile.read(int(handler.headers.get("Content-Length") or 0)) or b"{}")
+    length = int(handler.headers.get("Content-Length") or 0)
+    if length > blueprints.MAX_BYTES * 2:
+        return handler.send(413, {"error": "too big"})
+    body = json.loads(handler.rfile.read(length) or b"{}")
+    if url.path.startswith("/api/blueprints/"):  # her blueprint folders: add a file, move one to the trash, back
+        try:
+            dirs = blueprints.DIRS
+            i = int(body.get("d", 0))
+            if not 0 <= i < len(dirs):
+                raise ValueError("no such folder")
+            if url.path.endswith("/add"):
+                import base64
+                return handler.send(200, blueprints.add(dirs[i], body.get("name"), base64.b64decode(body.get("data") or ""),
+                                                        bool(body.get("replace"))))
+            if url.path.endswith("/remove"):
+                return handler.send(200, blueprints.remove(dirs[i], body.get("name")))
+            return handler.send(200, blueprints.restore(dirs[i], body.get("name")))
+        except (ValueError, TypeError, OSError) as e:
+            return handler.send(400, {"error": str(e)})
     if url.path == "/api/speak":  # play a line again: her voice, made again from the text
         req = urllib.request.Request(GATEWAY + "/audio/speech", method="POST", headers={"Content-Type": "application/json"},
                                      data=json.dumps({"input": str(body.get("text", ""))[:600],

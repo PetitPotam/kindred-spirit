@@ -12,6 +12,7 @@ isn't already on your computer or behind your gateway.
 | **Speech & voice** | each time speech-to-text heard you (and what it heard), each voice line, average times, problems | `logs/gateway.log` |
 | **Memory** | her memories per world, by kind, with importance, passing feelings and when they fade, what was imported from another world; a search box that shows what would come to her mind for any sentence (the same search she uses); her saved state (bond, conversations) | the gateway's memory API (works with a remote memory too) |
 | **Knowledge** | what the world remembers (the knowledge base): how many pages and passages from which sources and licenses, its size, whether learning while playing is on; a box to ask any question as the player would and see what she'd be told and whether it counts as known; **Learn this** to make it read the pages that answer a question now; what she learned while you played; the latest pages | the gateway's `/knowledge/` API and the knowledge file (read-only) |
+| **Blueprints** | every building she can build from a file, by category (houses, workshops, farms and pens, wells, portals, ships, towers, shapes...): a picture from above and from the front, what it is in plain words, its size, blocks, beds and main materials, where it comes from and its licence (from `SOURCES.txt`), and the words to say to her; search the way you'd ask her ("a small desert house"); **Add a file** (`.nbt`, `.schem`, `.litematic`) and **Remove** (to the folder's `.trash`, put back from the Trash list) | her blueprints folder's `catalogue.json` and `.catalogue/*.png`, written by the game ([below](#blueprints)) |
 | **Settings** | which AI, speech-to-text, voice, embeddings and memory are in use, the gateway's special instructions (persona, facts, next-reply hint, paused), `brain.toml`, the mod's settings. Keys are never shown, only their names | `gateway.json`, `brain.toml`, `kindredspirit.json` |
 
 Cost estimates use Gemini 3.1 Flash-Lite's list prices ($0.25 per million tokens sent, $1.50 per
@@ -34,6 +35,23 @@ every line she said (and why: answering you, on her own, on instinct, a warning)
 back, interruptions, tools and their results, heart changes, errors, how long answers took, and,
 under each thing you said, *what went to the AI and what came back*. ▶ next to a line says it
 again with her current voice (made again from the text; no audio is stored).
+
+## Blueprints
+
+Her blueprints folder is `config/kindredspirit/blueprints/` in the game folder (with the profile from
+`scripts/setup.sh`: `~/Library/Application Support/minecraft-kindred/config/kindredspirit/blueprints/`); she also
+reads `schematics/`, where Litematica and Create keep theirs. While the game runs, it describes every file in
+`catalogue.json` next to them (a category, a biome or style, what it is: "a plains smithy (the armorer's), with a
+blast furnace", the size, blocks, beds, main materials, tags, the words to say) and draws two pictures of each in
+`.catalogue/` with Minecraft's own map colours: once at startup, then within half a minute of any change (a file
+added here or by hand). Her `find_blueprint` power searches that catalogue. A `SOURCES.txt` in the folder says where
+files come from, as lines `- name_*, other: where, licence` (continued on indented lines): each entry shows its
+source.
+
+**Add a file** copies it into the folder (at most 16 MB, never over a file with the same name); it shows as *new*
+until the game has described it. **Remove** moves the file to the folder's `.trash/` (nothing is deleted:
+**Put it back** returns it; empty the trash yourself if you like). Files the game can't read are listed with the
+reason.
 
 ## Try Pip (a simulator)
 
