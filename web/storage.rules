@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Cloud Storage for Firebase: everything is denied, except reading single files under public/ (the showcase
+// video). Nobody can list the bucket or write to it through Firebase; files are uploaded from the Firebase console
+// or the gcloud CLI by the owner.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /public/{file} {
+      allow get: if true;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

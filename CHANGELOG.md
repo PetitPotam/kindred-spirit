@@ -26,6 +26,9 @@ Unreleased into the new version's section.
   talk key, stop her at once; the rest is dropped. Hushed twice, she keeps it short for a while.
 - **Your bed:** "lead me to my spawn point / my bed" goes to where you come back to life.
 - **"In the middle of what you just built":** "put a bell in the middle of the farm".
+- A website for Pip (`web/`, for Firebase Hosting): who she is and the showcase video, guides (setup, playing,
+  friends on LAN, configuring, FAQ), roadmap, contributing and credits pages, draft privacy, cookie, terms and
+  copyright pages, Google Analytics only after consent, and a workflow that checks it and deploys previews and main.
 - A crop farm (tilled ground, water, crops planted), a working end portal, and "find a flat field" that
   leads you to the flattest open ground nearby.
 - Builds from blueprints: Minecraft's own structures and CC0 circles, from your local blueprints folder.

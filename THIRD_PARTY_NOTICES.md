@@ -17,7 +17,7 @@ playtests, the feedback, and the approval of every merge and download. Claude do
 
 - **What Claude wrote:** most of the code (the Fabric mod in Java, her brain and the local services in Python, the
   dashboard), the tests, the documentation, the research summaries in `docs/research/`, the scripts that draw her
-  skins and make the demo video and its music, and the commit messages. Commits carry no AI co-author line, at the
+  skins and make the demo video and its music, the website (`web/`), and the commit messages. Commits carry no AI co-author line, at the
   owner's request; this section is that disclosure instead.
 - **Which model:** Claude Opus 5.5 (`claude-opus-5-5`), for the whole project so far. Some work ran in parallel
   Claude Code sessions in their own git worktrees (titled "Fable: ..." in the work history: those were asked to
@@ -129,9 +129,14 @@ provider's terms, with the player's own account; nothing is shared between playe
 | [Hugging Face](https://huggingface.co) and GitHub releases | where `scripts/setup.sh` downloads the models above | their terms |
 | [winget](https://learn.microsoft.com/windows/package-manager/) and PowerShell | the Windows guide and update script | MIT (winget) |
 | [Mermaid](https://mermaid.js.org) | the diagrams in the docs (drawn by GitHub) | MIT |
+| [Firebase Hosting](https://firebase.google.com/docs/hosting) and [Cloud Storage for Firebase](https://firebase.google.com/docs/storage) | hosting the website (`web/`) and its showcase video | Google's terms |
+| [Google Analytics 4](https://marketingplatform.google.com/about/analytics/) | counting the website's visits, only for visitors who accept it | Google's terms |
+| [action-hosting-deploy](https://github.com/FirebaseExtended/action-hosting-deploy) | deploying the website from GitHub Actions | Apache-2.0 |
+| [html-validate](https://html-validate.org) and [Lighthouse CI](https://github.com/GoogleChrome/lighthouse-ci) (through [treosh/lighthouse-ci-action](https://github.com/treosh/lighthouse-ci-action)) | checking the website in CI (downloaded by CI, not distributed) | MIT, Apache-2.0, MIT |
 
 ## The demo video
 
 The background music is generated from scratch by `demo/make_music.py` (no samples). The cards use Apple's
 SF Pro Rounded system font on the computer that edits the video (not distributed). The player's voice in
-the demo is synthesized with Kokoro.
+the demo is synthesized with Kokoro. The website's captions for the showcase were transcribed locally with
+whisper.cpp (Whisper large-v3-turbo) and corrected by hand; its stills are frames of the showcase.

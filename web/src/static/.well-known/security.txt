@@ -1,0 +1,5 @@
+# Kindred Spirit: how to report a security problem privately (see SECURITY.md in the repository).
+Contact: https://github.com/PetitPotam/kindred-spirit/security/advisories/new
+Policy: https://github.com/PetitPotam/kindred-spirit/blob/main/SECURITY.md
+Preferred-Languages: en
+Expires: 2027-11-13T00:00:00Z

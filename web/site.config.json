@@ -1,0 +1,22 @@
+{
+  "siteName": "Kindred Spirit",
+  "siteUrl": "https://kindred-spirit-pip.web.app",
+  "repo": "https://github.com/PetitPotam/kindred-spirit",
+  "owner": "https://github.com/PetitPotam",
+  "measurementId": "G-B12DYE25BF",
+  "video": {
+    "provider": "file",
+    "src": "https://firebasestorage.googleapis.com/v0/b/kindred-spirit-pip.firebasestorage.app/o/public%2Fkindred-spirit-showcase-720p.mp4?alt=media",
+    "youtubeId": "",
+    "size": "23 MB",
+    "duration": "3:54"
+  },
+  "guides": [
+    ["install", "Install and set up"],
+    ["playing", "Playing with Pip"],
+    ["friends", "Friends on LAN"],
+    ["configure", "Configure her"],
+    ["faq", "FAQ and troubleshooting"]
+  ],
+  "legalUpdated": "13 November 2026"
+}

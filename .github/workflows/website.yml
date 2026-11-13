@@ -1,0 +1,130 @@
+name: Website
+# The website in web/ (https://kindred-spirit-pip.web.app). On a pull request that touches it: build it, check its
+# pages and links, validate the HTML, run Lighthouse, and deploy a preview (a temporary address, posted on the pull
+# request). On main: deploy the live site. Deploying needs the FIREBASE_SERVICE_ACCOUNT_KINDRED_SPIRIT_PIP secret
+# (web/README.md says how to make it); without it the deploy steps are skipped and the checks still run. Pull
+# requests from forks never get the secret, so they get the checks but no preview.
+on:
+  pull_request:
+    paths: ["web/**", ".github/workflows/website.yml"]
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/website.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: # a new push to the same pull request cancels the run still going for the old one; live deploys queue
+  group: website-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  FIREBASE_PROJECT: kindred-spirit-pip
+  FIREBASE_TOOLS_VERSION: 15.34.1 # pinned: the deploy action would otherwise use whatever is newest
+  HTML_VALIDATE_VERSION: 11.17.0
+
+jobs:
+  check:
+    name: Website (build and check)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node build.mjs # no dependencies to install
+      - run: node check.mjs # links, ids, headings, alt text, no inline scripts, no personal data
+      - name: Validate the HTML
+        run: npx --yes "html-validate@${HTML_VALIDATE_VERSION}" "dist/**/*.html"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: website
+          path: web/dist/
+          retention-days: 7
+
+  lighthouse:
+    name: Website (Lighthouse)
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: website
+          path: web/dist/
+      # Accessibility below 95 fails the check; performance, best practices and SEO only warn. Reports are kept as
+      # an artifact of the run, never uploaded to a public server.
+      - uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # 12.6.2
+        with:
+          configPath: web/lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false
+
+  preview:
+    name: Website (preview)
+    needs: check
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # the action comments the preview address on the pull request
+      checks: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Is the deploy secret set?
+        id: secret
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KINDRED_SPIRIT_PIP }}
+        run: |
+          if [ -n "$SERVICE_ACCOUNT" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::No FIREBASE_SERVICE_ACCOUNT_KINDRED_SPIRIT_PIP secret: no preview deploy (see web/README.md)."; fi
+      # firebase.json's predeploy builds and checks the site again before uploading it.
+      - if: steps.secret.outputs.ok == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0.11.0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KINDRED_SPIRIT_PIP }}
+          projectId: ${{ env.FIREBASE_PROJECT }}
+          entryPoint: web
+          expires: 7d
+          firebaseToolsVersion: ${{ env.FIREBASE_TOOLS_VERSION }}
+
+  live:
+    name: Website (deploy live)
+    needs: [check, lighthouse]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: website
+      url: https://kindred-spirit-pip.web.app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Is the deploy secret set?
+        id: secret
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KINDRED_SPIRIT_PIP }}
+        run: |
+          if [ -n "$SERVICE_ACCOUNT" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::No FIREBASE_SERVICE_ACCOUNT_KINDRED_SPIRIT_PIP secret: the live site was not deployed (see web/README.md)."; fi
+      - if: steps.secret.outputs.ok == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0.11.0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KINDRED_SPIRIT_PIP }}
+          projectId: ${{ env.FIREBASE_PROJECT }}
+          entryPoint: web
+          channelId: live
+          firebaseToolsVersion: ${{ env.FIREBASE_TOOLS_VERSION }}

@@ -323,7 +323,7 @@ def main():
     run(["ffmpeg", "-y", "-v", "error", "-ss", str(marks.get(cut["end_at"], marks["meet"]) + 2), "-i", video,
          "-frames:v", "1", end_still])
     card(Image.open(end_still).convert("RGB"), os.path.join(TMP, "end.png"), "Kindred Spirit",
-         [("Open source (MIT) · contributors welcome", 50, "Semibold", (240, 236, 255)),
+         [("Free software (AGPL-3.0) · contributors welcome", 50, "Semibold", (240, 236, 255)),
           ("Fabric 1.21.1 · client-side, nothing added to your world", 34, "Medium", (206, 200, 236)),
           ("local voice (Whisper + Kokoro) · bring your own AI", 34, "Medium", (206, 200, 236)),
           (REPO, 40, "Bold", (160, 236, 170))],

@@ -1,0 +1,130 @@
+---
+title: Configure her
+description: Change what Pip may do, how lively she is, how she looks, which AI and voice she uses, her heart, and watch it all on her dashboard.
+section: guides
+layout: guide
+---
+<h1>Configure her</h1>
+<p class="lede">Everything has a sensible default, so you can skip this page. When you're curious: almost every setting
+  can be changed while you play, in game, in a file, or on her dashboard.</p>
+
+<h2 id="power-style">Power and style</h2>
+<p><code>/kindred power advisor|helper|allpowerful</code> and <code>/kindred style grounded|magic</code> decide what she
+  may do, from only talking and finding things to changing time and weather. The table is in
+  <a href="/guides/playing#what-she-may-do">Playing with Pip</a>.</p>
+
+<h2 id="life">Her liveliness</h2>
+<p>Pip moves like a small living thing: she springs instead of snapping, notices before she reacts, moves her eyes
+  before her head, drifts, wanders and dozes. <strong>Every one of these is a switch</strong>, from a calm companion who
+  just floats beside you to a curious one who wanders and plays. <code>/kindred life</code> lists them;
+  <code>/kindred life &lt;name&gt; &lt;value&gt;</code> changes one (saved right away); <code>/kindred life reset</code>
+  puts them back.</p>
+<table>
+  <thead><tr><th scope="col">Switch</th><th scope="col">Default</th><th scope="col">What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>wander</code></td><td>on</td><td>wanders around you when you stand still</td></tr>
+    <tr><td><code>drift</code></td><td>1</td><td>gentle drifting beside you: 0 still, 1 normal, 2 lively</td></tr>
+    <tr><td><code>switchSides</code></td><td>on</td><td>switches shoulders now and then</td></tr>
+    <tr><td><code>glances</code></td><td>on</td><td>glances at animals, items and around (off: looks where you look)</td></tr>
+    <tr><td><code>lookBack</code></td><td>on</td><td>looks back at you when you look at her</td></tr>
+    <tr><td><code>eyeContactReactions</code></td><td>on</td><td>gets happy or shy when you hold her gaze</td></tr>
+    <tr><td><code>petting</code></td><td>on</td><td>sneak while looking at her to pet her</td></tr>
+    <tr><td><code>watchThreats</code></td><td>on</td><td>turns to watch nearby monsters</td></tr>
+    <tr><td><code>moodGestures</code></td><td>on</td><td>hops when excited, looks up while thinking</td></tr>
+    <tr><td><code>aiGestures</code></td><td>on</td><td>plays the gestures the AI adds to her replies</td></tr>
+    <tr><td><code>dozeAfterSeconds</code></td><td>90</td><td>dozes off after this many quiet seconds; 0 = never</td></tr>
+    <tr><td><code>turnSlack</code></td><td>32</td><td>degrees you can turn before she floats back to your side</td></tr>
+    <tr><td><code>keepOutOfView</code></td><td>on</td><td>never parks in the middle of your view</td></tr>
+  </tbody>
+</table>
+
+<h2 id="skins">Skins</h2>
+<p>Switch with <code>/kindred skin &lt;name&gt;</code>; <code>/kindred skins</code> lists them. Built in:
+  <code>slime</code> (glassy, her colour follows her mood), <code>slime_cube</code>, <code>wisp</code>,
+  <code>strawberry</code>, <code>starry</code>, <code>fairy</code>, <code>pixie</code> and <code>sprout</code>.</p>
+<h3 id="your-own-skin">Make your own in a minute</h3>
+<ol>
+  <li>Draw an image twice as wide as it is tall, for example 64×32. It wraps around her like a world map around a
+    globe; <strong>her face is a quarter of the way across from the left</strong>, in the middle vertically.</li>
+  <li>Put it in your game folder under <code>config/kindredspirit/skins/</code>, for example
+    <code>peach.png</code>.</li>
+  <li>In game: <code>/kindred skins reload</code>, then <code>/kindred skin peach</code>.</li>
+</ol>
+<p>The mod draws her eyes, mouth and cheeks on top, so a plain texture already gets a cute face. Add a
+  <code>peach.json</code> next to it to choose the shape (<code>ball</code>, <code>cube</code>, <code>wisp</code>,
+  <code>fairy</code>), the tint, a glassy shell, the face colours, size, glow, wings and a little sprout:</p>
+<pre><code>{
+  "name": "Peach",
+  "shape": "ball",
+  "texture": "peach.png",
+  "tint": "none",
+  "cheeks": "#FF9E9E",
+  "glow": false
+}</code></pre>
+<p>Skins can also travel in a resource pack. Every field: <a href="{{blob}}/docs/SKINS.md">docs/SKINS.md</a>.</p>
+
+<h2 id="settings">Where the settings live</h2>
+<table>
+  <thead><tr><th scope="col">What</th><th scope="col">Where</th></tr></thead>
+  <tbody>
+    <tr><td>Her brain: name, personality wishes, chattiness, alerts, heart</td><td><code>~/.kindred-spirit/brain.toml</code></td></tr>
+    <tr><td>The mod: skin, quality, subtitles, captions, position, size, volume, guide arrow and sparkle trail, friends on LAN, her liveliness (<code>"life"</code>)</td><td><code>minecraft-kindred/config/kindredspirit.json</code></td></tr>
+    <tr><td>AI, speech-to-text, voice, embeddings, memory storage</td><td>the gateway: <code>~/.kindred-spirit/gateway.json</code> (keys in <code>secrets.env</code>)</td></tr>
+    <tr><td>All of the above, live, with each default and profiles</td><td>the dashboard's Settings page</td></tr>
+  </tbody>
+</table>
+<p><strong>Quality:</strong> <code>quality = "auto"</code> steps down to a simpler look when the game drops below 30
+  FPS for a few seconds, and climbs back when things are smooth. Or set <code>low</code>, <code>medium</code> or
+  <code>high</code> yourself.</p>
+
+<h2 id="ai-voice">AI, voice and hearing: the gateway</h2>
+<p>Pip talks to the outside world through one address on your computer, the gateway. Behind it, each part can be a
+  free tool on your computer or a service you already use, switched in one command without restarting the game:</p>
+<pre><code>G="brain/.venv/bin/python services/kindred_gateway.py"
+$G check                  # tests every part
+$G use ai ollama          # or gemini, claude, anthropic, groq, openai, openrouter, mistral
+$G use stt groq           # speech-to-text: local_whisper, groq, openai
+$G use tts openai         # voice: local_kokoro, openai
+$G voice bf_emma          # another voice, or a blend like bf_lily*0.7+bf_emma*0.3</code></pre>
+<p>Her default voice is Kokoro's British <code>bf_lily</code>, a little brighter than normal, with moods: excited,
+  calm, sad and whisper. Everything about providers, keys and voices:
+  <a href="{{blob}}/docs/GATEWAY.md">docs/GATEWAY.md</a>.</p>
+<h3 id="special-instructions">Special instructions</h3>
+<p>Steer her from the game without touching any file:</p>
+<ul>
+  <li><code>/kindred persona Speaks like a pirate.</code> standing rules for how she behaves and speaks</li>
+  <li><code>/kindred fact The base is at the lake.</code> facts she knows to be true</li>
+  <li><code>/kindred hint Tease them about the creeper.</code> for her next reply only</li>
+  <li><code>/kindred pause</code> / <code>resume</code>, and <code>/kindred instructions</code> to see what's set</li>
+</ul>
+
+<h2 id="heart">Her heart</h2>
+<p>In <code>brain.toml</code>, section <code>[heart]</code> (all optional), for example:</p>
+<pre><code>[heart]
+same_companion_in_every_world = false  # true: one Pip who follows you between worlds
+amnesia = true               # she discovers her powers with you; false: she knows them from the start
+awakening = "slow"           # or "instant"
+favours = true               # she may ask a small favour while a power wakes up
+pranks = true                # playful pranks once you're friends
+mischief_when_angry = "spicy"  # off | mild | spicy
+can_vanish = true            # disappears for a while when mistreated
+weather_follows_mood = true  # her tears bring rain, an apology brings the sun back (singleplayer)</code></pre>
+<p>All of them, and how her heart works: <a href="{{blob}}/docs/HEART.md">docs/HEART.md</a>.</p>
+
+<h2 id="dashboard">The dashboard</h2>
+<p><code>scripts/start.sh</code> also starts a small dashboard. Open <strong>http://127.0.0.1:11440</strong> in your
+  browser while you play, or after. It listens only on your computer.</p>
+<ul>
+  <li><strong>Live:</strong> her bond and mood, friends in your world, powers waking up, what she sees, and exactly
+    what was sent to the AI last.</li>
+  <li><strong>Conversation, AI calls, Speech &amp; voice:</strong> everything she said and did, every AI call with its
+    tokens and estimated cost, speech timings.</li>
+  <li><strong>Memory and Knowledge:</strong> her memories per world, with a search that shows what she'd recall, and
+    what she knows about Minecraft.</li>
+  <li><strong>Blueprints:</strong> every building she can build, with pictures; add and remove files.</li>
+  <li><strong>Sessions:</strong> replay past play sessions, and see what went wrong.</li>
+  <li><strong>Try Pip:</strong> talk to her without the game, in a pretend world.</li>
+  <li><strong>Settings:</strong> every setting with its default, profiles to save and compare ("calm Pip", "chaotic
+    Pip"). Changes apply live. Keys are never shown.</li>
+</ul>
+<p>More: <a href="{{blob}}/docs/DASHBOARD.md">docs/DASHBOARD.md</a>.</p>
