@@ -79,7 +79,8 @@ friends on LAN need only the mod.
   `./gradlew :26.3:runClient` (or `:1.21.1:runClient`), in `mod/versions/<version>/run/`.
 - Releases build and smoke-test the Setup for both Mac chips from the release's own jars and attach it with a SHA-256
   and a note saying what was tested where; they upload each jar to Modrinth and CurseForge for its own Minecraft
-  once those projects are live (#98).
+  once those projects are live (#98). The Setup gets the release's jars from one flat folder, and a build asked for
+  a release's jars stops if they aren't there, rather than making a Setup without the mod (#155).
 - CodeQL and OpenSSF Scorecard check the repository, and docs/MAINTAINING.md explains every check (#124).
 - New issues get their area label automatically, and a bug report missing the computer and the logs gets a friendly
   request for them; GitHub Copilot follows the project's rules and review checklist (#126).
