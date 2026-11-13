@@ -36,7 +36,9 @@ class CraftPlannerTest {
             Recipe.of("piston", 1, CRAFTING_TABLE, PLANKS, PLANKS, PLANKS, "cobblestone", "cobblestone", "cobblestone",
                     "cobblestone", "iron_ingot", "redstone"),
             Recipe.of("torch", 4, HAND, "coal|charcoal", "stick"),
-            Recipe.of("charcoal", 1, FURNACE, "oak_log|birch_log")));
+            Recipe.of("charcoal", 1, FURNACE, "oak_log|birch_log"),
+            Recipe.of("coal", 1, FURNACE, "coal_ore|deepslate_coal_ore"),
+            Recipe.of("iron_ingot", 1, FURNACE, "iron_ore|deepslate_iron_ore")));
 
     @Test
     void aPistonFromLogsAndRawIron() {
@@ -54,11 +56,19 @@ class CraftPlannerTest {
     void whatsMissingWhenYouHaveNothing() {
         CraftPlanner.Plan p = P.plan("stone_pickaxe", 1, Map.of());
         assertFalse(p.canMakeNow());
-        assertEquals(3, p.missing().entrySet().stream().filter(e -> e.getKey().equals("blackstone")
-                || e.getKey().equals("cobblestone") || e.getKey().equals("cobbled_deepslate")).mapToInt(Map.Entry::getValue).sum(),
-                "three stone of some kind: " + p.missing());
-        assertEquals(1, p.missing().entrySet().stream().filter(e -> e.getKey().endsWith("_log"))
-                .mapToInt(Map.Entry::getValue).sum(), "one log for the sticks: " + p.missing());
+        assertEquals(Map.of("cobblestone", 3, "oak_log", 1), p.missing(),
+                "with nothing in the pockets she names what most people use: cobblestone, an oak log");
+    }
+
+    @Test
+    void oreBlocksAreTheLastResort() {
+        CraftPlanner.Plan torches = P.plan("torch", 8, Map.of());
+        assertFalse(torches.missing().keySet().stream().anyMatch(k -> k.endsWith("_ore")),
+                "not 'smelt coal ore' (only Silk Touch brings ore home): " + torches.missing());
+        CraftPlanner.Plan ingot = P.plan("iron_ingot", 1, Map.of());
+        assertEquals(Map.of("raw_iron", 1), ingot.missing());
+        CraftPlanner.Plan withOre = P.plan("iron_ingot", 1, Map.of("iron_ore", 1));
+        assertTrue(withOre.canMakeNow(), "but an ore block in the pockets is fine to smelt");
     }
 
     @Test

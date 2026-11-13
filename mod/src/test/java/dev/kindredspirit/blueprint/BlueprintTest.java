@@ -265,6 +265,39 @@ class BlueprintTest {
         assertEquals(List.of(0, 1, 2, 2, 1, 0), xs);
     }
 
+    // --- checking a build ------------------------------------------------------------------------------
+
+    @Test
+    void verifyScoresABuildLikeMineCollab() throws IOException {
+        Placement p = Placement.inFront(sample("cottage.nbt"), 0, 64, 0, 0, -1, Placement.Anchor.FRONT_CENTER);
+        Map<String, String> world = new java.util.HashMap<>();
+        for (Placement.Step s : p.steps(false)) world.put(s.x() + "," + s.y() + "," + s.z(), s.state().toString());
+        Verify.World w = (x, y, z) -> world.getOrDefault(x + "," + y + "," + z, "minecraft:air");
+        Verify.Result all = Verify.check(p, w, true, false);
+        assertEquals(1.0, all.score(), 1e-9);
+        assertTrue(all.todo().isEmpty());
+
+        // two blocks missing, one wrong kind, one stair-like block facing the wrong way
+        List<Placement.Step> steps = p.steps(false);
+        Placement.Step a = steps.get(0), b = steps.get(1), c = steps.get(2);
+        world.remove(a.x() + "," + a.y() + "," + a.z());
+        world.remove(b.x() + "," + b.y() + "," + b.z());
+        world.put(c.x() + "," + c.y() + "," + c.z(), "minecraft:dirt");
+        Placement.Step torch = steps.stream().filter(s -> s.state().path().equals("wall_torch")).findFirst().orElseThrow();
+        world.put(torch.x() + "," + torch.y() + "," + torch.z(), "minecraft:wall_torch[facing=north]");
+        Verify.Result r = Verify.check(p, w, true, false);
+        assertEquals(2, r.missing());
+        assertEquals(2, r.wrong());
+        assertEquals(r.total() - 4, r.correct());
+        assertEquals(4, r.todo().size());
+        assertEquals(a, r.todo().get(0), "what's left comes in build order");
+        assertEquals(1, Verify.check(p, w, false, false).wrong(), "without properties, only the dirt is wrong");
+
+        // the inside should be cleared: a stray block there counts
+        world.put(p.steps(true).get(0).x() + "," + p.steps(true).get(0).y() + "," + p.steps(true).get(0).z(), "minecraft:stone");
+        assertEquals(1, Verify.check(p, w, true, true).notCleared());
+    }
+
     // --- saving what she builds ----------------------------------------------------------------------
 
     @Test

@@ -31,9 +31,9 @@ import java.util.function.Predicate;
  * batch, get your things back where you died. One job at a time, run a little every server tick, so
  * you see it happen and can say "stop". Every job remembers who asked (their pockets, their reach).
  *
- * <p><b>Grounded</b> (her default): within {@link #GROUNDED_RADIUS} blocks of you; mining uses the tool
- * in your hand (it wears, and a block that needs a better tool is skipped and said so), drops go to your
- * pockets; crafting uses your items and needs a crafting table or furnace nearby (or in your pockets)
+ * <p><b>Grounded</b> (her default): within {@link #GROUNDED_RADIUS} blocks of you; mining goes through
+ * her {@link Hands} with the tool in your hand, as slowly as it would for you (the cracks show), the
+ * tool wears, a block that needs a better tool stops the job and says so, drops go to your pockets; crafting uses your items and needs a crafting table or furnace nearby (or in your pockets)
  * and fuel for smelting. <b>Magic</b>: a wider reach, no tool needed, faster.
  *
  * <p>Never breaks unbreakable blocks, anything that holds items (chests, barrels, furnaces), or blocks
@@ -49,9 +49,20 @@ public final class Jobs {
     static final int MAGIC_PER_TICK = 4;
     static final int MAX_BLOCKS = 256;
 
+    enum Result { DONE, SKIPPED, WORKING }
+
     private interface Work {
-        /** One unit of work; false when it couldn't be done (counted as skipped). */
+        /** One tick of work: done, skipped (couldn't), or still working on it (mining a hard block). */
+        Result run(ServerPlayer sp);
+    }
+
+    /** Work that's done in one go: true done, false skipped. */
+    private interface Quick {
         boolean run(ServerPlayer sp);
+    }
+
+    private static Work quick(Quick q) {
+        return sp -> q.run(sp) ? Result.DONE : Result.SKIPPED;
     }
 
     private static final class Job {
@@ -60,7 +71,7 @@ public final class Jobs {
         final boolean magic;
         final Deque<Work> work = new ArrayDeque<>();
         final Map<String, Integer> got = new TreeMap<>();
-        int done, skipped, total;
+        int done, skipped, total, pause;
         String stoppedBecause;
 
         Job(String kind, String what, UUID owner, boolean magic) {
@@ -72,7 +83,6 @@ public final class Jobs {
     }
 
     private static Job job;
-    private static int tick;
     private static CraftPlanner planner;
     private static MinecraftServer plannerFor;
 
@@ -91,7 +101,10 @@ public final class Jobs {
         List<int[]> cells = Dig.find(world, c.getX(), c.getY(), c.getZ(), radius, kind, Math.max(1, Math.min(count, MAX_BLOCKS)));
         if (cells.isEmpty()) return error("There's no " + what + " within " + radius + " blocks.");
         Job j = new Job("mine", what, sp.getUUID(), magic);
-        for (int[] p : cells) j.work.add(s -> breakBlock(s, new BlockPos(p[0], p[1], p[2]), j));
+        for (int[] p : cells) {
+            BlockPos at = new BlockPos(p[0], p[1], p[2]);
+            j.work.add(magic ? quick(s -> breakBlock(s, at, j)) : new Mining(at, j));
+        }
         return start(j, cells.size());
     }
 
@@ -115,7 +128,7 @@ public final class Jobs {
                 e -> e.isAlive() && !e.getItem().isEmpty());
         if (items.isEmpty()) return error("There's nothing lying around" + (kind.equals("return_items") ? " where you died anymore." : " here."));
         Job j = new Job(kind, what, sp.getUUID(), magic);
-        for (ItemEntity e : items) j.work.add(s -> pickUp(s, e, j));
+        for (ItemEntity e : items) j.work.add(quick(s -> pickUp(s, e, j)));
         return start(j, items.size());
     }
 
@@ -142,14 +155,14 @@ public final class Jobs {
             if (fuel > 0 && !takeFuel(sp, fuel, true)) return error("Smelting needs fuel: " + fuel + " coal or charcoal.");
         }
         Job j = new Job("craft", id, sp.getUUID(), magic);
-        j.work.add(s -> {
+        j.work.add(quick(s -> {
             if (!magic && !takeFuel(s, (plan.smeltedItems() + 7) / 8, true)) return false;
             CraftPlanner.Plan done = GameRecipes.carryOut(s, planner(s.getServer()), id, n);
             if (!done.canMakeNow()) return false; // something left their pockets meanwhile: nothing changed
             if (!magic) takeFuel(s, (done.smeltedItems() + 7) / 8, false);
             j.got.merge(id.substring(id.indexOf(':') + 1), n, Integer::sum);
             return true;
-        });
+        }));
         JsonObject r = start(j, 1);
         r.add("steps", toJson(stepsOf(plan)));
         return r;
@@ -158,7 +171,8 @@ public final class Jobs {
     public static JsonObject stop() {
         if (job == null) return error("I'm not doing a job.");
         job.stoppedBecause = "asked";
-        JsonObject r = status();
+        JsonObject r = status(job);
+        last = r;
         job = null;
         return r;
     }
@@ -167,8 +181,13 @@ public final class Jobs {
         if (job == null) {
             JsonObject r = ok();
             r.addProperty("job", "none");
+            if (last != null) r.add("last", last);
             return r;
         }
+        return status(job);
+    }
+
+    private static JsonObject status(Job job) {
         JsonObject r = ok();
         r.addProperty("job", job.kind);
         r.addProperty("what", job.what);
@@ -187,7 +206,6 @@ public final class Jobs {
     private static JsonObject start(Job j, int total) {
         j.total = total;
         job = j;
-        tick = 0;
         JsonObject r = ok();
         r.addProperty("job", j.kind);
         r.addProperty("what", j.what);
@@ -202,18 +220,95 @@ public final class Jobs {
     public static void tick(MinecraftServer server) {
         Job j = job;
         if (j == null) return;
-        if (!j.magic && ++tick % GROUNDED_EVERY != 0) return;
         ServerPlayer sp = server.getPlayerList().getPlayer(j.owner);
         if (sp == null) {
             job = null; // they left
             return;
         }
-        int budget = j.magic ? MAGIC_PER_TICK : 1;
-        while (budget-- > 0 && !j.work.isEmpty() && j.stoppedBecause == null) {
-            if (j.work.poll().run(sp)) j.done++;
-            else j.skipped++;
+        if (j.magic) {
+            for (int budget = MAGIC_PER_TICK; budget > 0 && !j.work.isEmpty() && j.stoppedBecause == null; budget--) {
+                count(j, j.work.poll().run(sp));
+            }
+        } else if (j.pause > 0) {
+            j.pause--; // a breath between blocks, so you see each one go
+        } else if (!j.work.isEmpty() && j.stoppedBecause == null) {
+            Result r = j.work.peek().run(sp);
+            if (r != Result.WORKING) {
+                j.work.poll();
+                count(j, r);
+                j.pause = GROUNDED_EVERY - 1;
+            }
         }
-        if (j.work.isEmpty() || j.stoppedBecause != null) job = null; // finished: the brain asks status() or hears it
+        if (j.work.isEmpty() || j.stoppedBecause != null) {
+            last = status(j);
+            job = null; // finished: the brain asks status() or hears it
+        }
+    }
+
+    private static JsonObject last;
+
+    /** How the last job ended (what it got, what stopped it), once it's over. */
+    public static JsonObject lastResult() {
+        return last;
+    }
+
+    private static void count(Job j, Result r) {
+        if (r == Result.DONE) j.done++;
+        else if (r == Result.SKIPPED) j.skipped++;
+    }
+
+    /**
+     * Grounded mining of one block: with the tool in the player's hand, taking as long as it would take
+     * them (the cracks show), through her hands so the game's rules and protections apply.
+     */
+    private static final class Mining implements Work {
+        final BlockPos at;
+        final Job j;
+        int ticks, needed = -2;
+
+        Mining(BlockPos at, Job j) {
+            this.at = at;
+            this.j = j;
+        }
+
+        @Override
+        public Result run(ServerPlayer sp) {
+            ServerLevel level = sp.serverLevel();
+            BlockState st = level.getBlockState(at);
+            if (st.isAir() || level.getBlockEntity(at) instanceof Container || at.equals(sp.blockPosition().below())
+                    || at.distSqr(sp.blockPosition()) > (GROUNDED_RADIUS + 4) * (GROUNDED_RADIUS + 4)) {
+                Hands.cracks(sp, at, -1);
+                return Result.SKIPPED; // gone already, holds things, under their feet, or they walked away
+            }
+            ItemStack tool = sp.getMainHandItem();
+            if (needed == -2) {
+                if (st.requiresCorrectToolForDrops() && !tool.isCorrectToolForDrops(st)) {
+                    j.stoppedBecause = "needs a better tool for " + BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath().replace('_', ' ');
+                    return Result.SKIPPED;
+                }
+                needed = Hands.breakTicks(sp, at, tool);
+                if (needed < 0) return Result.SKIPPED;
+                visit(at);
+            }
+            ticks++;
+            if (ticks < needed) {
+                Hands.cracks(sp, at, Math.min(9, ticks * 10 / needed));
+                return Result.WORKING;
+            }
+            return Hands.breakBlock(sp, at, tool, j.got) ? Result.DONE : Result.SKIPPED;
+        }
+    }
+
+    /** She floats to the block she's working on (only in the game she lives in: singleplayer or hosting). */
+    private static void visit(BlockPos at) {
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            double x = at.getX() + 0.5, y = at.getY() + 1.3, z = at.getZ() + 0.5;
+            mc.execute(() -> dev.kindredspirit.KindredSpiritClient.get().companion().life.visit(x, y, z, 1.2,
+                    System.nanoTime() / 1e9));
+        } catch (RuntimeException ignored) {
+            // no companion to move (a dedicated server, or she isn't here): the work still happens
+        }
     }
 
     private static boolean breakBlock(ServerPlayer sp, BlockPos at, Job j) {
