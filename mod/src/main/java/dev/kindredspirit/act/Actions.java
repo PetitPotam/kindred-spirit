@@ -121,6 +121,9 @@ public final class Actions {
         if (!Abilities.allowed(a, power, style)) return done(error(Abilities.refusal(a, power, style)));
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return done(error("We're not in a world."));
+        if ((a == Abilities.Ability.FIND_ORE || a == Abilities.Ability.FIND_BLOCK) && onSomeoneElsesServer(mc)) {
+            return done(error(ON_SERVERS));
+        }
         try {
             return switch (a) {
                 case FIND_ORE -> done(findOre(mc, str(args, "ore", "diamond")));
@@ -157,6 +160,16 @@ public final class Actions {
     // ------------------------------------------------------------------ reading the world (client)
 
     /** Nearest ore of a kind within 24 blocks, among the blocks your game has loaded. */
+    /** Ores and blocks behind walls, found by reading the world around you, would be like x-ray on a server you don't
+     *  host: unfair to the other players (and Modrinth's rules call it a cheat). So only in your own worlds, a LAN
+     *  world you host, or a friend's world that runs Kindred itself (a visit: the host's game does it). */
+    static final String ON_SERVERS = "On a server, I don't look through blocks for things: that would be like x-ray, "
+            + "unfair to the other players. I can in your own worlds, a LAN world you host, or a friend's world with Kindred.";
+
+    static boolean onSomeoneElsesServer(Minecraft mc) {
+        return mc.getSingleplayerServer() == null && remote == null;
+    }
+
     static JsonObject findOre(Minecraft mc, String ore) {
         String kind = Places.oreKind(ore);
         LocalPlayer p = mc.player;

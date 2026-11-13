@@ -61,6 +61,11 @@ modrinth.com (it starts as a **draft**, visible only to you and members you add;
 keep it **private** or **unlisted**, or list it), then add its ID as the Actions variable `MODRINTH_PROJECT_ID` and
 a personal access token (with permission to create versions) as the Actions secret `MODRINTH_TOKEN`. Without them
 the step is skipped. The page should say that the mod needs Pip's brain running on the host's computer.
+**Modrinth's content rules** (modrinth.com/legal/rules) matter here: the project must carry the "Contains
+AI-generated content" disclosure (set on modrinth.com, in the project's settings); no icon or image derived from AI
+output (so the draft has none until one is drawn by hand); a page that says plainly what data goes where; and a
+project whose contents are primarily AI output may not be published publicly, which Modrinth's moderators judge
+from an honest description (docs/modrinth.md says who did what). Never describe the AI's part as smaller than it is.
 `scripts/modrinth.sh` creates the draft and keeps its page in step with [docs/modrinth.md](modrinth.md)
 (`create`, `update-page`, `show`), with a token kept in the macOS Keychain (service `kindred-modrinth`): one that
 can only create, read and write projects and versions, never move money or delete anything.

@@ -37,6 +37,10 @@ Unreleased into the new version's section.
 - Contributor guide for AI agents (`AGENTS.md`), issue forms, CI for the mod, the brain and the Windows
   update script, release automation, and a Contributor License Agreement.
 
+### Changed
+- On multiplayer servers you don't host, she no longer finds ores or blocks through walls (that would be like
+  x-ray, unfair to other players); your own worlds, LAN worlds you host and friends' worlds with Kindred are as before.
+
 ### Fixed (from the 2026-11-13 playtest)
 - Her memory never keeps a gender, pronouns or an age the AI guessed, only what you said yourself.
 - Logs rotate (5 MB each, the AI-call record at 20 MB) instead of growing forever.

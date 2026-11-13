@@ -34,7 +34,7 @@ print(json.dumps({
 PY
 )
     out=$(curl -sS -X POST "$API/project" -H "Authorization: $(token)" -H "User-Agent: $UA" \
-      --form-string "data=$data" -F "icon=@$ROOT/mod/src/main/resources/assets/kindredspirit/icon.png;type=image/png")
+      --form-string "data=$data")  # (no icon: Modrinth's rules don't allow images derived from AI output, section 6.2)
     id=$(printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id",""))' 2>/dev/null || true)
     [[ -z "$id" ]] && { echo "Modrinth said: $out" >&2; exit 1; }
     gh variable set MODRINTH_PROJECT_ID -R "$REPO" --body "$id"
