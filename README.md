@@ -352,9 +352,15 @@ wake word...). Bigger plans are in the [roadmap](docs/ROADMAP.md). Start with
 
 ## Credits
 
-[Fabric](https://fabricmc.net) · [whisper.cpp](https://github.com/ggml-org/whisper.cpp) ·
-[Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) via [kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx) ·
-[websockets](https://github.com/python-websockets/websockets) · design notes from [MCPFabric](https://github.com/denfry/mcpfabric) ·
-the idea of a companion that is always there, from [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je).
+Kindred Spirit stands on the work of many others: [Fabric](https://fabricmc.net),
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) and OpenAI's Whisper,
+[Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) via [kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx),
+[BAAI's bge-small](https://huggingface.co/BAAI/bge-small-en-v1.5) via [fastembed](https://github.com/qdrant/fastembed),
+[websockets](https://github.com/python-websockets/websockets), the [Minecraft Wiki](https://minecraft.wiki) contributors
+(CC BY-NC-SA 3.0) and [minecraft-data](https://github.com/PrismarineJS/minecraft-data), research on language agents
+(Generative Agents, Talker-Reasoner, CoALA, MemGPT, MineCollab and [Mindcraft](https://github.com/mindcraft-bots/mindcraft)),
+design notes from [MCPFabric](https://github.com/denfry/mcpfabric), and the idea of a companion who is always there
+from [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je). Every library, model, dataset, service
+and source, with its licence: **[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)**.
 
 MIT licensed. Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.
