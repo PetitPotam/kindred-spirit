@@ -1,7 +1,10 @@
 # Good first issues
 
 Small, self-contained pieces taken from the [roadmap](ROADMAP.md). Each one says where to start.
-Comment on (or open) the matching GitHub issue before starting, so two people don't build the same thing.
+Comment on (or open) the matching GitHub issue before starting, so two people don't build the same thing. The issues
+already open for a first contribution carry the
+[good first issue](https://github.com/PetitPotam/kindred-spirit/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+label. Playing and saying how it went counts as much as code: see "Trying it" at the end.
 
 ## Mod (Java)
 
@@ -38,9 +41,17 @@ Comment on (or open) the matching GitHub issue before starting, so two people do
 
 ## Setup and docs
 
-15. **Windows start script** (PowerShell): the same steps as `scripts/start.sh` and `setup.sh` (friends
-    joining in light mode already have `scripts/update-pip-windows.ps1`).
-16. **Linux check:** run the setup on a Linux distro, fix what breaks, document it.
+15. **Windows start script** (PowerShell): the same steps as `scripts/start.sh` and `setup.sh`, a first step towards
+    hosting her on Windows ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)). Friends joining in light
+    mode already have `scripts/update-pip-windows.ps1`.
+16. **Linux check:** run `scripts/setup.sh` on your distro (GitHub's checks cover Ubuntu without her voice), play,
+    fix what breaks, document it ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)).
 17. **A guide for running fully local with Ollama:** which small model works well, how fast it is.
 18. **A demo in another setting:** a cave, the Nether, a village. Copy `demo/demo-script.txt`, change the
     shots, and run `demo/make_video.py` ([demo/README.md](../demo/README.md)).
+
+## Trying it
+
+19. **Try Kindred Spirit Setup on your Mac** and say how it went in an issue, especially on an **Intel Mac** or the
+    first time macOS warns about the app: the list of what nobody has tried yet is at the end of [SETUP.md](SETUP.md#not-tried-yet).
+20. **Play on 26.3 and on 1.21.1** and report anything that differs between the two.

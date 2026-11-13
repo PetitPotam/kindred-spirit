@@ -10,7 +10,7 @@ The other docs go deeper on one part each: [HEART.md](HEART.md) (her feelings an
 
 ```mermaid
 flowchart TB
-  subgraph game["Minecraft 1.21.1 + Fabric (your computer)"]
+  subgraph game["Minecraft 26.3 or 1.21.1 + Fabric (your computer)"]
     mod["Kindred Spirit mod (Java, client only)<br/>her body: draws her, moves her, reads the game,<br/>acts when allowed, microphone and speaker"]
   end
   subgraph brain["Kindred brain (Python, :47811)"]
@@ -43,6 +43,12 @@ flowchart TB
 
 The mod talks to the brain over a WebSocket on `127.0.0.1:47811`, protected by a token in
 `~/.kindred-spirit/token`. The brain talks to everything else through the gateway.
+
+**Kindred Spirit Setup** (macOS, `setup/`) installs all of this: an app that carries its own Python, puts the
+program in `~/Library/Application Support/Kindred Spirit` (settings stay in `~/.kindred-spirit`), and serves its
+guided steps with the dashboard's code (`dashboard.py --setup`, at `127.0.0.1:11441/setup`; the steps are `services/setup_*.py`). The mod is one jar per Minecraft
+version (26.3 and 1.21.1, built from one source tree with Stonecutter); a release's `versions.json` says which jar,
+Fabric API and Java go together, and the Setup reads it. Guide: [SETUP.md](SETUP.md).
 
 ## Three ways of thinking
 

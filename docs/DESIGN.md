@@ -20,7 +20,7 @@ Status: November 2026. The 0.1 preview and what followed cover Phases 0 to 3 of 
 ## 2. Architecture
 
 ```
-┌──────────── Minecraft (Fabric 1.21.1) ────────────┐
+┌───────── Minecraft (Fabric 26.3 or 1.21.1) ────────┐
 │ Kindred Spirit mod                                 │
 │  • draws the companion, subtitles, arrow, glow     │
 │  • reads game state (telemetry) and events         │
