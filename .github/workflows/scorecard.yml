@@ -1,0 +1,39 @@
+# OpenSSF Scorecard: a weekly score of the repository's security practices (branch protection, pinned actions,
+# token permissions, dependency updates, code review...). Results go to the Security tab (Code scanning) and to
+# the public Scorecard site, which serves the badge in the README. Free for public repositories.
+# What each check means: https://github.com/ossf/scorecard/blob/main/docs/checks.md
+name: Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1" # Mondays, 04:17 UTC
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload the results to the Security tab
+      id-token: write # publish the results (and the badge) to the Scorecard site
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 5
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif

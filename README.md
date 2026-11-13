@@ -7,6 +7,9 @@
 
 Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · early preview
 
+[![CI](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PetitPotam/kindred-spirit/badge)](https://scorecard.dev/viewer/?uri=github.com/PetitPotam/kindred-spirit)
+
 <img src="docs/demo.gif" width="720" alt="Pip trying on skins: slime, soft cube, strawberry, wisp, starry orb, pixie and fairy">
 </div>
 
