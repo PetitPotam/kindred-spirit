@@ -34,6 +34,7 @@ import time
 import urllib.error
 import urllib.request
 
+from . import facts
 from . import config
 
 GLOBAL_KINDS = ("player", "self", "habit", "reminder", "origin", "taste", "core")
@@ -436,14 +437,23 @@ class Memory:
             lst("list", kinds=["reminder"], world=self.world_id, limit=6),
             lst("list", kinds=["place"], world=self.world_id, limit=8),
             lst("search", query=topic, kinds=["player", "self", "habit", "world", "found", "episode", "diary", "spot"],
-                world=self.world_id, k=8))
+                world=self.world_id, k=8),
+            lst("list", kinds=["player"], world=self.world_id, limit=80, order="recent"))
         now = self.clock()
-        player, me, origin, tastes, cores, habits, reminders, places, recalled = (
+        player, me, origin, tastes, cores, habits, reminders, places, recalled, about_people = (
             [m for m in c["results"] if m.get("text") and (m.get("meta") or {}).get("expires", now + 1) > now]
             for c in core)
-        seen = {m["id"] for group in (player, me, origin, tastes, cores, habits, reminders, places) for m in group}
+        # who is called what, their pronouns, who they are to the player: one slot each, the latest wins (facts.py)
+        here = [p.get("name", "") for p in (snapshot or {}).get("players") or []]
+        people = facts.people(about_people, here, (snapshot or {}).get("playerName", ""))
+        if people:
+            player = [m for m in player if not facts.consumed(m["text"])]
+            seen_people = {m["id"] for m in about_people if facts.consumed(m["text"])}
+        else:
+            seen_people = set()
+        seen = {m["id"] for group in (player, me, origin, tastes, cores, habits, reminders, places) for m in group} | seen_people
         self.self_known = len(origin) + len(me)  # (how much she knows about herself: her doubts depend on it)
-        lines = []
+        lines = [people] if people else []
         if player:
             lines.append("About the player: " + " ".join(m["text"].rstrip(".") + "." for m in player))
         if me:

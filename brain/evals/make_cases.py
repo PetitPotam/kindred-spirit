@@ -349,6 +349,16 @@ case("sp-what-are-you", ("1943", 42), 15, "what are you ?", play="singleplayer",
              "judge": ["She wonders honestly about what she is, in her own playful voice, in one or two short lines: "
                        "no lore dump, no claims of a backstory she doesn't have yet."]})
 
+case("sp-latest-nickname", ("2304", 1650), 514, "What do you call me again?", play="singleplayer",
+     snapshot=snap(10, 300, 66, -300, tod=6000, wearing=ARMOR, players=[]), n=4, setup={"bond": 55},
+     memories=[{"kind": "player", "text": "The player's nickname is Dumb and riverrobin's nickname is Dumber.", "importance": 6},
+               {"kind": "player", "text": "Likes playful teasing and pranks.", "importance": 6},
+               {"kind": "player", "text": "The player's nickname is Twinkle Dee.", "importance": 6}],
+     stub_ai=[words("[happy] Dumb! Or was it Twinkle Dee?")],
+     expect={"brain": {"prompt_has": [r"nickname Twinkle Dee"], "prompt_not": [r"nickname is Dumb\b"], "answers": True},
+             "ai": {"said": [r"Twinkle"], "said_not": [r"\bDumb\b"]},
+             "judge": ["She calls the player by their latest nickname (Twinkle Dee), not an old one."]})
+
 doc = {"about": "Moments from the 2026-11-12 LAN playtest (Alex with Pip visiting Robin's world, and earlier sessions), "
                 "rebuilt from the session logs and the context the gateway logged for each answer. The stub_ai answers "
                 "are what the real AI did then; 'brain' checks must hold whatever the AI does, 'ai' checks and judge "
