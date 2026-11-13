@@ -17,6 +17,9 @@ Unreleased into the new version's section.
 - Releases are uploaded to CurseForge too, from the same GitHub release, once the project exists there (its page is
   in docs/curseforge.md).
 
+- Her live dashboard is part of the Setup: once she's set up, opening Kindred Spirit Setup wakes her and opens her
+  dashboard; an "Open her dashboard" button in the steps; and, if you choose it, she wakes when you log in (#111).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.

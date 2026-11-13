@@ -811,6 +811,13 @@ class Handler(BaseHTTPRequestHandler):
             if url.path in ("/setup", "/"):
                 with open(SETUP_PAGE, "rb") as fh:
                     return self.send(200, fh.read(), "text/html")
+            if url.path == "/open":  # what opening the app shows: her dashboard once she's set up, else the steps
+                self.send_response(302)
+                self.send_header("Location", setup_steps.open_target())
+                self.send_header("Content-Length", "0")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
             if url.path == "/api/setup/hello":  # "is this a Kindred dashboard or Setup, and which version?"
                 return self.send(200, {"kindred": True, "setup": SETUP_MODE, "version": setup_steps.own_version()})
             if url.path == "/api/setup/state":

@@ -1,9 +1,10 @@
 #!/bin/bash
 # Kindred Spirit Setup, macOS: what runs when you open the app (Contents/MacOS/kindred-setup).
 #
-# It starts the Setup's guided steps with the app's own Python (Contents/Resources/payload) and opens them in your
-# browser, at http://127.0.0.1:11441/setup: a page on this computer only. If the Setup is already open, it just
-# shows the page again. The Setup quits by itself a while after its page is closed (or with "Close the Setup").
+# It starts the Setup with the app's own Python (Contents/Resources/payload) and opens it in your browser
+# (http://127.0.0.1:11441, a page on this computer only): the guided steps the first time, and once she's set up,
+# her dashboard (waking her first if she isn't running). If the Setup is already open, it just does that again.
+# The Setup quits by itself a while after its page is closed (or with "Close the Setup").
 #
 # For tests: KINDRED_HOME, KINDRED_APP_DIR, KINDRED_SETUP_PORT (and the other KINDRED_*_PORT variables) keep a test
 # away from the Pip you play with; KINDRED_SETUP_NO_BROWSER=1 doesn't open the browser.
@@ -12,7 +13,7 @@ HERE="$(cd "$(dirname "$0")/../Resources/payload" && pwd)"
 PY="$HERE/python/bin/python3"
 VERSION="$(cat "$HERE/VERSION" 2>/dev/null)"
 PORT="${KINDRED_SETUP_PORT:-11441}"
-URL="http://127.0.0.1:$PORT/setup"
+URL="http://127.0.0.1:$PORT/open"
 KH="${KINDRED_HOME:-$HOME/.kindred-spirit}"
 LOG="$KH/logs/setup.out"
 mkdir -p "$KH/logs"
