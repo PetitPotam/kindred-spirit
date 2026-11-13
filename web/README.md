@@ -63,8 +63,17 @@ A service account that can deploy Hosting and nothing else:
 
 1. Google Cloud console → **IAM & Admin → Service Accounts**, project `kindred-spirit-pip` → **Create service
    account**. Name: `github-hosting-deploy`.
-2. Roles: **Firebase Hosting Admin** (`roles/firebasehosting.admin`) and **API Keys Viewer**
-   (`roles/serviceusage.apiKeysViewer`, which the deploy tool reads). Nothing else.
+2. Roles: **Firebase Hosting Admin** (`roles/firebasehosting.admin`), **API Keys Viewer**
+   (`roles/serviceusage.apiKeysViewer`) and **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`:
+   the deploy tool first checks that the Hosting API is on; this role can see services, not turn them on or off).
+   Nothing else. With gcloud (a new account can take a minute before roles can be granted):
+   ```bash
+   SA=github-hosting-deploy@kindred-spirit-pip.iam.gserviceaccount.com
+   gcloud iam service-accounts create github-hosting-deploy --project kindred-spirit-pip
+   for role in firebasehosting.admin serviceusage.apiKeysViewer serviceusage.serviceUsageConsumer; do
+     gcloud projects add-iam-policy-binding kindred-spirit-pip --member "serviceAccount:$SA" --role "roles/$role" --condition=None
+   done
+   ```
 3. Open the account → **Keys → Add key → Create new key → JSON**. A file downloads: it is a password, keep it out of
    the repository.
 4. GitHub → the repository → **Settings → Secrets and variables → Actions → New repository secret**. Name:
