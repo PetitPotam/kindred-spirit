@@ -14,6 +14,8 @@ Unreleased into the new version's section.
   Intel Macs, her brain and Minecraft's side on macOS and Linux, a friend's install on Windows
   (`.github/workflows/platforms.yml`, `scripts/test-install.sh`, docs/TESTING-PLATFORMS.md). Also runs locally, and
   in Docker for Linux.
+- A real Minecraft client in those checks (Linux, and an experiment on macOS): it loads Fabric, Fabric API and the mod,
+  says hi, and her brain answers (#105).
 - **Kindred Spirit Setup** for macOS, first part: an app (in a .dmg) that carries its own Python, her brain, the
   gateway and the dashboard, and opens a guided page in your browser. Each step explains itself, recommends a
   default, has a "Test it" button and a "Copy a help prompt" button for any AI assistant. The steps so far: your
