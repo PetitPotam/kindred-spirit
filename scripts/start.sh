@@ -32,6 +32,8 @@ set -a; eval "$(cd "$ROOT/brain" && "$BPY" -m kindred.hardware --env)"; set +a
 NICE="nice -n ${KINDRED_NICE:-10}"
 
 up() { curl -s -o /dev/null --max-time 2 "$1"; }
+# started by us and still alive (a helper loading its model doesn't answer yet: never start a second one)
+alive() { [[ -f "$RUN/$1.pid" ]] && kill -0 "$(cat "$RUN/$1.pid")" 2>/dev/null; }
 rotate() { # a .out file over 5 MB moves to .out.1 (one kept), so logs never fill the disk (#26)
   local f="$LOGS/$1.out"
   [[ -f "$f" ]] && [[ $(wc -c < "$f") -gt 5000000 ]] && mv -f "$f" "$f.1"
@@ -51,7 +53,7 @@ STT_USE="$(uses stt local_whisper)"; TTS_USE="$(uses tts local_kokoro)"; EMB_USE
 
 # Speech-to-text, local Whisper: the profile's model, or any model already downloaded.
 if [[ "$STT_USE" != "local_whisper" ]]; then echo "whisper: not used (speech-to-text: $STT_USE)"
-elif up http://127.0.0.1:8083/; then echo "whisper: already running"
+elif up http://127.0.0.1:8083/ || alive whisper; then echo "whisper: already running"
 elif WS="$(ls "$ROOT/../bin/whisper-server" 2>/dev/null || command -v whisper-server)"; [[ -n "$WS" ]]; then
   M="$KH/whisper/$KINDRED_WHISPER_MODEL"
   [[ -s "$M" ]] || M="$(ls "$KH"/whisper/ggml-*.bin 2>/dev/null | grep -v silero | head -1)"
@@ -64,32 +66,32 @@ elif WS="$(ls "$ROOT/../bin/whisper-server" 2>/dev/null || command -v whisper-se
 else echo "whisper: whisper-server not installed; voice input off (typing /kindred still works)"; fi
 
 if [[ "$TTS_USE" != "local_kokoro" ]]; then echo "kokoro voice: not used (voice: $TTS_USE)"
-elif up http://127.0.0.1:8885/health; then echo "kokoro voice: already running"
+elif up http://127.0.0.1:8885/health || alive kokoro; then echo "kokoro voice: already running"
 elif [[ -x "$KH/kokoro/venv/bin/python" && -s "$KH/kokoro/voices-v1.0.bin" ]]; then
   start kokoro "$KH/kokoro/venv/bin/python" -I "$ROOT/services/kokoro_server.py" --models "$KH/kokoro"
   echo "kokoro voice: starting ($KINDRED_TTS_THREADS threads)"
 else echo "kokoro voice: not set up (scripts/setup.sh); subtitles only"; fi
 
 if [[ "$EMB_USE" != "local" ]]; then echo "embeddings: not local (embeddings: $EMB_USE)"
-elif up http://127.0.0.1:8891/; then echo "embeddings: already running"
+elif up http://127.0.0.1:8891/ || alive embed; then echo "embeddings: already running"
 elif [[ -x "$KH/embed/venv/bin/python" ]]; then
   KINDRED_EMBED_THREADS=1 start embed "$KH/embed/venv/bin/python" -I "$ROOT/services/embed_server.py" --cache "$KH/embed/models"
   echo "embeddings: starting (local, for memory)"
 else echo "embeddings: not set up (scripts/setup.sh); memory uses keyword search"; fi
 
-if up "http://127.0.0.1:$GW_PORT/health"; then echo "gateway: already running"
+if up "http://127.0.0.1:$GW_PORT/health" || alive gateway; then echo "gateway: already running"
 else start gateway "$BPY" -I "$ROOT/services/kindred_gateway.py" serve; echo "gateway: started"; fi
 
 wait_up "http://127.0.0.1:$GW_PORT/health" || echo "gateway did not come up: see $LOGS/gateway.out"
 
-if up "http://127.0.0.1:$DASH_PORT/api/settings"; then echo "dashboard: already running (http://127.0.0.1:$DASH_PORT)"
+if up "http://127.0.0.1:$DASH_PORT/api/settings" || alive dashboard; then echo "dashboard: already running (http://127.0.0.1:$DASH_PORT)"
 else start dashboard "$BPY" -I "$ROOT/services/dashboard.py"; echo "dashboard: http://127.0.0.1:$DASH_PORT"; fi
 grep -qE '^(GEMINI_API_KEY)=.+' "$KH/secrets.env" 2>/dev/null || [[ -n "${GEMINI_API_KEY:-}" ]] \
   || echo "note: no GEMINI_API_KEY in $KH/secrets.env (fine if you switched the gateway to another AI)"
 
 cd "$ROOT/brain"
 if [[ "${1:-}" == "--background" ]]; then
-  if (exec 3<>/dev/tcp/127.0.0.1/"$BRAIN_PORT") 2>/dev/null; then echo "brain: already running"
+  if (exec 3<>/dev/tcp/127.0.0.1/"$BRAIN_PORT") 2>/dev/null || alive brain; then echo "brain: already running"
   else rotate brain; nohup "$BPY" -m kindred >> "$LOGS/brain.out" 2>&1 & echo $! > "$RUN/brain.pid"; echo "brain: started"; fi
 else
   echo "brain: running here (Ctrl+C to stop)"

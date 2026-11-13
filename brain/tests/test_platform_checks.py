@@ -66,3 +66,18 @@ def test_every_release_builds_tests_and_attaches_the_setup():
                  "gh release upload", ".dmg.sha256", "not yet tried by a person"):
         assert want in setup, want
     assert "name: mod-files" in text[:text.index("\n  setup:")]
+def test_stop_waits_for_helpers_to_exit_and_forces_stubborn_ones(tmp_path):
+    """A restart needs the helpers' ports free: stop.sh waits, then forces one that ignores the polite stop."""
+    import time
+    (tmp_path / "run").mkdir()
+    polite = subprocess.Popen(["sleep", "60"])
+    stubborn = subprocess.Popen(["/bin/bash", "-c", "trap '' TERM; while true; do sleep 0.1; done"])
+    time.sleep(0.3)  # (the trap is set)
+    (tmp_path / "run" / "kokoro.pid").write_text(str(polite.pid))
+    (tmp_path / "run" / "whisper.pid").write_text(str(stubborn.pid))
+    t = time.time()
+    out = subprocess.run(["bash", os.path.join(REPO, "scripts", "stop.sh")], env=dict(os.environ, KINDRED_HOME=str(tmp_path)),
+                         capture_output=True, text=True, timeout=30)
+    assert polite.wait(timeout=5) is not None and stubborn.wait(timeout=5) is not None
+    assert "stopped kokoro" in out.stdout and "stopped whisper" in out.stdout and time.time() - t < 10
+    assert not list((tmp_path / "run").iterdir())

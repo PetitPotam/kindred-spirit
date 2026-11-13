@@ -115,14 +115,22 @@ def main(argv):
     with open(os.path.join(kh, "gateway.json"), "w", encoding="utf-8") as fh:  # "Groq" is the stand-in AI here
         json.dump({"upstreams": {"groq": {"base": "http://127.0.0.1:%d/v1" % PORTS["ai"]}},
                    "stt": {"use": "none"}, "tts": {"use": "none"}, "embeddings": {"use": "none"}}, fh)
-    fake_ai = subprocess.Popen([sys.executable, "-I", os.path.join(REPO, "brain", "tools", "fake_ai.py"), "--port",
-                                str(PORTS["ai"])], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
     env = {"HOME": home, "KINDRED_HOME": kh, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "KINDRED_SETUP_NO_BROWSER": "1",
            "KINDRED_SETUP_PORT": str(PORTS["setup"]), "KINDRED_GATEWAY_PORT": str(PORTS["gateway"]),
            "KINDRED_DASHBOARD_PORT": str(PORTS["dashboard"]), "TMPDIR": work,
            "KINDRED_LAUNCH_AGENTS_DIR": os.path.join(work, "LaunchAgents")}  # never the real login items
     app = app_from(os.path.abspath(argv[0]), work)
     launcher = os.path.join(app, "Contents", "MacOS", "kindred-setup")
+    # the stand-in AI runs on the app's own Python, like every other helper here (on GitHub's Macs, another Python
+    # serving its first connection was held up for tens of seconds, or timed out)
+    fake_ai = subprocess.Popen([os.path.join(app, "Contents", "Resources", "payload", "python", "bin", "python3"), "-I",
+                                "-B", os.path.join(REPO, "brain", "tools", "fake_ai.py"), "--port", str(PORTS["ai"])],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(40):
+        if not free(PORTS["ai"]):
+            break
+        time.sleep(0.25)
     ok = False
     try:
         say("opening", os.path.basename(app))
@@ -220,8 +228,11 @@ def main(argv):
             call("/api/setup/quit", {}, timeout=5)
         except Exception:
             pass
-        time.sleep(1)
-        busy = [k for k, p in PORTS.items() if not free(p)]
+        for _ in range(40):  # (helpers take a moment to let go of their ports)
+            busy = [k for k, p in PORTS.items() if not free(p)]
+            if not busy:
+                break
+            time.sleep(0.25)
         if ok and busy:
             ok = False
             print("still running after stop: %s" % ", ".join(busy))
