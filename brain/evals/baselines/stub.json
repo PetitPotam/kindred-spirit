@@ -1,0 +1,39 @@
+{
+ "about": "Stub mode (what CI runs): which cases' brain checks pass. A case that passes here must keep passing (tests/test_evals.py); when a change makes more pass, run scripts/eval.sh --json evals/baselines/new.json and update this file.",
+ "commit": "8e88c15 (main, 2026-11-13)",
+ "summary": {
+  "checks": "36/45",
+  "cases": "20/28",
+  "case_rate": 0.71
+ },
+ "cases": {
+  "follow-me-not-guide": false,
+  "follow-me-while-leading": false,
+  "stop-leading-follow-me": true,
+  "stand-still": false,
+  "guest-both-of-us": false,
+  "guest-follow-me": true,
+  "guest-kill-no-sword": true,
+  "guest-enchant-honest": true,
+  "friend-holding-unknown": true,
+  "friend-holding-known": false,
+  "lead-to-far-friend": true,
+  "failed-slowness-no-claim": true,
+  "poke-playfully": true,
+  "flatten-honest": true,
+  "campfire-not-torch": false,
+  "emotes-no-gifts": true,
+  "defend-friend-standing": false,
+  "house-and-protect-both": true,
+  "diary-real": true,
+  "diary-none-no-inventing": true,
+  "owns-up-when-caught": true,
+  "pronouns-taken-on-board": true,
+  "wordplay-all-left": true,
+  "sp-get-wood-amnesia": true,
+  "sp-do-the-same-building": true,
+  "sp-remove-block": true,
+  "sp-back-to-the-house": false,
+  "sp-what-are-you": true
+ }
+}
