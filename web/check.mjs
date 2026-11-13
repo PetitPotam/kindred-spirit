@@ -77,7 +77,7 @@ for (const [url, page] of pages) {
     if (!/\bwidth="\d+"/.test(tag) || !/\bheight="\d+"/.test(tag)) fail(`<img> without width and height: ${tag.slice(0, 80)}`);
   }
 
-  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
     if (!/\bsrc="/.test(m[1])) fail("inline <script> (blocked by the Content-Security-Policy)");
     else if (/\bsrc="(https?:)?\/\//.test(m[1])) fail(`script from another site: ${m[1].trim()}`);
   }
@@ -98,10 +98,15 @@ for (const [url, page] of pages) {
       if (attr !== "data-src") fail(`empty ${attr}`);
       continue;
     }
-    if (/^(mailto:|tel:|data:|javascript:)/.test(value)) {
-      if (value.startsWith("javascript:")) fail(`javascript: link`);
+    if (/^\s*(javascript|vbscript):/i.test(value)) {
+      fail(`script link (${value.slice(0, 20)})`);
       continue;
     }
+    if (/^data:/i.test(value) && attr === "href") {
+      fail(`data: link`);
+      continue;
+    }
+    if (/^(mailto:|tel:|data:)/i.test(value)) continue;
     if (/^https?:\/\//.test(value)) {
       if (value.startsWith(config.siteUrl)) continue; // canonical and social tags point at the live site
       external.add(value);
