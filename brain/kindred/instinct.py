@@ -38,6 +38,11 @@ MOMENTS = {
                    "(\"You're hurt! Eat something!\")", None),
     "lava": ("URGENT: lava right there. An instinctive shout, 2 to 5 words, no directions", None),
     "drop": ("a big drop right at their feet. A quick shout, 2 to 5 words, no directions", None),
+    # the very first moment with a new player (#78): she's an ancient little spirit who doesn't remember her past
+    "first_meeting": ("the very first moment you meet this player: a new world, nothing remembered. A small, real "
+                      "reaction (you just noticed them, a bit startled or curious, a little wary), then hello and your "
+                      "name. 3 to 10 words, plain and natural, no speech, no questions about adventures, nothing grand "
+                      "(\"Oh! A person... hello. I'm {name}.\")", None),
     # plain commands System 0 answers alone (talker.py): written in her voice like the others
     **{k: (T.MOMENTS[k], T.LINES[k]) for k in T.LINES},
 }

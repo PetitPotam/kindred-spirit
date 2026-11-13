@@ -1581,6 +1581,12 @@ class Brain:
             self.session.event("wrong_way")
             asyncio.create_task(self.say(random.choice(intents.WRONG_WAY_LINES), "excited", instant=True, emote="hop",
                                          why="the player walked away from where you're leading them"))
+        elif name == "lead_given_up":  # (#24) they kept going another way: she stops leading, without fuss
+            self.session.event("lead_given_up")
+            asyncio.create_task(self.say(random.choice(["Okay, another time then!", "Oh, we're going this way? Okay!",
+                                                         "Fine, you lead!", "Never mind, I'll follow you."]),
+                                         "calm", instant=True, emote="shy",
+                                         why="you stopped leading: the player kept going another way"))
         elif name == "arrived":
             self.session.event("arrived")
             asyncio.create_task(self.say(random.choice(intents.ARRIVED_LINES), "excited", instant=True,
@@ -2697,6 +2703,52 @@ class Brain:
         await self.send({"type": "heard", "text": mine})
         self.hear_player(mine, spoken=True)
 
+    FIRST_LINES = {  # (#78) when System 2 hasn't written her own yet; {name} is hers
+        "wary": ["Oh! ...Hello? I'm {name}.", "Hm? Who... oh. Hi. I'm {name}.", "...You can see me? I'm {name}.",
+                 "Oh. A person. I'm {name}... hi.", "Eep! Oh, hello. I'm {name}."],
+        "warm": ["Oh! Hello there! I'm {name}.", "Oh, hi! I'm {name}.", "A visitor! Hello, I'm {name}.",
+                 "Oh! Hi, you. I'm {name}.", "Hello! I'm {name}. Who are you?"],
+    }
+
+    async def first_meeting(self):
+        """The very first moment with a new player (a new world, or her memory wiped, #78): a small reaction, then
+        hello and her name, never the same twice (System 2 writes these in her voice; a random one is picked), at once,
+        without the AI. She's a little wary if she starts guarded. Then, a while later, she asks their name once."""
+        name = self.cfg["name"]
+        wary = self.heart.bond < 35 or str(self.cfg["heart"].get("start", "")).lower() in ("wary", "guarded")
+        line = self.instinct.pick("first_meeting") or random.choice(self.FIRST_LINES["wary" if wary else "warm"])
+        line = line.replace("{name}", name)
+        gesture = random.choice(["startle", "shy", "think"] if wary else ["startle", "hop", "wiggle"])
+        await self.send({"type": "act", "look": "me", "seconds": 6})
+        await asyncio.sleep(0.6)  # (she notices them first)
+        mood = "curious" if wary else "happy"
+        self.mind.remember("assistant", "[%s] %s" % (mood, line))
+        self.session.event("first_meeting", line=line, wary=wary)
+        await self.say(line, mood, emote=gesture, source="instinct")
+        self.first_met_at = self.clock()
+        asyncio.create_task(self.get_to_know())
+
+    async def get_to_know(self, wait=75.0):
+        """A minute or so after meeting, if they haven't said who they are: their name, asked once, simply (#78)."""
+        await asyncio.sleep(wait)
+        if not self.in_world or self.ws is None or self.talk_lock.locked() or self.talking():
+            return
+        try:
+            facts = await self.memory.store.call("list", kinds=["player"], world=self.memory.world_id, limit=60)
+            if any(re.search(r"\bname is\b|\bis called\b", f.get("text", ""), re.I) for f in facts.get("results") or []):
+                return  # (they told her already)
+        except Exception:
+            pass
+        async with self.talk_lock:
+            try:
+                text, mood, gesture = await self.mind.initiative(
+                    self.snapshot, "You met this player only a little while ago and don't know their name. Ask it, "
+                    "simply and a bit shyly, in one short question in your own way. Nothing else.")
+            except AIError:
+                return
+        self.last_talk = self.clock()
+        await self.say(text, mood or "curious", emote=gesture, source="own")
+
     async def greet(self):
         # Wait for a snapshot taken a moment after joining: the very first one can come before the
         # server has sent the time of day, and a greeting about "the night" at noon sets a bad tone.
@@ -2706,6 +2758,11 @@ class Brain:
             if self.snapshot_at - joined >= 2.0:
                 break
         if not self.in_world or self.ws is None:
+            return
+        if self.since is None and self.cfg["behaviour"].get("introduce", True):
+            async with self.talk_lock:
+                await self.first_meeting()  # a new world, or her memory wiped: they meet for the first time
+            self.last_talk = self.clock()
             return
         async with self.talk_lock:
             try:

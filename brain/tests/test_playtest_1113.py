@@ -426,3 +426,33 @@ def test_a_clear_request_gets_on_it_at_once_then_one_sentence(stubs):  # #19, #7
     asyncio.run(run())
     from kindred import talker
     assert said[0] in talker.LINES["on_it"] or len(said[0].split()) <= 4, "a word at once: " + said[0]
+
+
+def test_a_first_meeting_is_a_small_reaction_and_her_name_never_the_same(stubs):  # #78
+    from kindred.server import Brain
+    for pool in Brain.FIRST_LINES.values():
+        assert len(set(pool)) >= 4 and all("{name}" in x and len(x.split()) <= 10 for x in pool)
+    b = _brain(stubs, [])
+    said, sent = [], []
+
+    async def say(text, *a, **k):
+        said.append((text, k.get("emote")))
+        return 1
+    b.say = say
+
+    async def send(msg):
+        sent.append(msg)
+    b.send = send
+    before = len(stubs.ai_requests)
+
+    async def get_to_know(wait=75.0):
+        pass
+    b.get_to_know = get_to_know
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.first_meeting()
+    asyncio.run(run())
+    assert len(stubs.ai_requests) == before, "at once, without the AI"
+    assert said and b.cfg["name"] in said[0][0] and said[0][1]
+    assert {"type": "act", "look": "me", "seconds": 6} in sent

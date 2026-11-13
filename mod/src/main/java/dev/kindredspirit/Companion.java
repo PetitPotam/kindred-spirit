@@ -56,11 +56,23 @@ public final class Companion {
         return (System.nanoTime() - start) / 1e9;
     }
 
+    /** Her mouth moves with the words while there's no voice (voice off, muted, or none came), #29. */
+    public long mouthUntil;
+
     public void say(String text, double audioSeconds, long nowMs) {
         subtitle = text == null ? "" : text;
         long readMs = 2500 + 60L * subtitle.length();
         long audioMs = (long) (audioSeconds * 1000) + 1500;
         subtitleUntil = nowMs + Math.max(readMs, audioMs);
+        mouthUntil = audioSeconds > 0 ? 0 : nowMs + 300 + 55L * subtitle.length(); // (about as long as saying it)
+    }
+
+    /** How open her mouth is with no voice playing: a speaking rhythm while the silent line lasts, else closed. */
+    public float silentMouth(long nowMs) {
+        if (nowMs >= mouthUntil) return 0f;
+        double t = nowMs / 1000.0;
+        double v = 0.45 + 0.35 * Math.sin(t * 13.0) * (0.6 + 0.4 * Math.sin(t * 3.7));
+        return (float) Math.max(0, Math.min(1, v));
     }
 
     /** More voice arrived for the same line: keep the subtitle up while it plays. */
@@ -68,9 +80,11 @@ public final class Companion {
     public void sayMore(String text, long nowMs) {
         subtitle = subtitle.isEmpty() ? text : subtitle + " " + text;
         subtitleUntil = Math.max(subtitleUntil, nowMs + 2500 + 60L * text.length());
+        if (mouthUntil > 0) mouthUntil = Math.max(mouthUntil, nowMs) + 55L * text.length();
     }
 
     public void extend(double audioSeconds, long nowMs) {
+        mouthUntil = 0; // (her voice came after all)
         subtitleUntil = Math.max(subtitleUntil, nowMs + (long) (audioSeconds * 1000) + 1500);
     }
 

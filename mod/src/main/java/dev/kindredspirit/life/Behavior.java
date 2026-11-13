@@ -131,6 +131,11 @@ public final class Behavior {
     /** Set when you walk away from where she's leading; the game clears it after telling the brain. */
     public boolean wrongWay;
     private double wrongFor, nextWrongWay, closest = Double.MAX_VALUE;
+    /** #24: when you stray she comes back to you for a moment (in front of you, between you and the way), then leads
+     *  again; after three calls in a minute she takes it that you're going elsewhere, and stops leading. */
+    private double beckonUntil, firstWrongAt;
+    private int wrongCalls;
+    public boolean leadGivenUp;
     /** Your walking speed, measured from your eyes (blocks per second): she leads ahead of it. */
     private double pvx, pvz, lastEx = Double.NaN, lastEz;
     /** Set when a guided trip ends at the target; the game clears it after telling the brain. */
@@ -249,6 +254,8 @@ public final class Behavior {
         guideZ = z;
         guideDistance = Double.MAX_VALUE;
         closest = Double.MAX_VALUE;
+        wrongCalls = 0;
+        beckonUntil = 0;
         mode = Mode.GUIDE;
         wake(now);
     }
@@ -355,10 +362,23 @@ public final class Behavior {
                 closest = Math.min(closest, guideDistance);
                 // walking away for a moment, or simply ended up well off the way (a wall stopped you)
                 if ((wrongFor > 1.2 || guideDistance > closest + 5) && now > nextWrongWay) {
-                    wrongWay = true;
-                    nextWrongWay = now + 12;
+                    if (now - firstWrongAt > 60) {
+                        firstWrongAt = now;
+                        wrongCalls = 0;
+                    }
+                    wrongCalls++;
                     closest = guideDistance;
-                    play(Emote.HOP, now);
+                    if (wrongCalls >= 3) { // you're going somewhere else: she stops, and says so
+                        mode = Mode.FOLLOW;
+                        leadGivenUp = true;
+                        wrongCalls = 0;
+                        play(Emote.SHY, now);
+                    } else {
+                        wrongWay = true;
+                        nextWrongWay = now + 12;
+                        beckonUntil = now + 2.2; // back to you for a moment: "this way!"
+                        play(Emote.HOP, now);
+                    }
                 }
             }
         }
@@ -741,6 +761,13 @@ public final class Behavior {
         if (mode == Mode.HIDE) { // far behind you and up, while she's gone
             double yaw = Math.toRadians(yawDeg);
             return new double[]{ex + Math.sin(yaw) * 14, ey + 4, ez - Math.cos(yaw) * 14};
+        }
+        if (mode == Mode.GUIDE && now < beckonUntil) {
+            // she came back to you: right in front of your eyes, a little toward the way to go
+            double dx = guideX - ex, dz = guideZ - ez, d = Math.sqrt(dx * dx + dz * dz);
+            double yaw = Math.toRadians(yawDeg), fx = -Math.sin(yaw), fz = Math.cos(yaw);
+            double ux = d > 1e-3 ? dx / d : fx, uz = d > 1e-3 ? dz / d : fz;
+            return new double[]{ex + fx * 1.4 + ux * 0.6, ey - 0.1, ez + fz * 1.4 + uz * 0.6};
         }
         if (mode == Mode.GUIDE) {
             // well ahead on the way to the target, above head height so you see her over the grass,

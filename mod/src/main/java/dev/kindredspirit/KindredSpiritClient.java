@@ -325,7 +325,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     && System.currentTimeMillis() > speakingGrace) {
                 companion.activity = Behavior.Activity.IDLE;
             }
-            companion.frame(companion.anchor(mc), partial, voice.level());
+            companion.frame(companion.anchor(mc), partial,
+                    voice.isPlaying() ? voice.level() : companion.silentMouth(System.currentTimeMillis()));
             renderer.render(ctx, companion, skins.texture(companion.skin), cfg, quality.level(), System.currentTimeMillis());
         });
         HudRenderCallback.EVENT.register((g, delta) -> hud(g));
@@ -675,6 +676,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (companion.life.wrongWay) {
             companion.life.wrongWay = false;
             event("wrong_way");
+        }
+        if (companion.life.leadGivenUp) { // (#24) you kept going elsewhere: she stopped leading
+            companion.life.leadGivenUp = false;
+            guideEntity = -1;
+            event("lead_given_up");
         }
         tickGuide(mc);
         if (mc.level.getGameTime() % 4 == 0) { // her glow follows her (a light block, singleplayer)
