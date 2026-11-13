@@ -11,56 +11,28 @@ Unreleased into the new version's section.
 
 ## [0.2.0-preview] - 2026-11-13
 
-### Added
-- **Any shape, any size:** "a hollow sphere of glass, radius 4", "a star of gold 15 wide", "a stepped pyramid",
-  "a heart standing up like a sign": circles, rings, ovals, triangles, stars, hearts, crosses, spirals, diamonds,
-  polygons, spheres, domes, cylinders, cones, pyramids, a torus, arches, ramps, cubes; hollow or solid.
-- **Flatten land:** "flatten everything within 10 blocks of me", or a size in front of you: hills and trees go,
-  dips are filled with the ground that's there (grass on dirt, sand on sandstone), or with a block you name for a
-  floor; never what someone built, never water. When a blueprint has no room, she offers to flatten a spot or to
-  find open ground nearby.
-- "What can you build?" is answered from what she really has; blueprint words are heard better ("chip rack" is a
-  shipwreck); a task kept while she was busy is built where you looked when you asked.
-- **Busy hands:** while she builds or works, a new task is kept and done right after ("Ship's first! I'll put
-  the bell down the second I'm done"); "stop" or "do this first" switches. Her task and its progress show at
-  the top right (`showTask` in kindredspirit.json).
-- **Hush her:** "shh", "stop talking", "be quiet" (or "stop" / "enough" while she talks), or a quick tap on the
-  talk key, stop her at once; the rest is dropped. Hushed twice, she keeps it short for a while.
-- **Your bed:** "lead me to my spawn point / my bed" goes to where you come back to life.
-- **"In the middle of what you just built":** "put a bell in the middle of the farm".
-- A website for Pip (`web/`, for Firebase Hosting): who she is and the showcase video, guides (setup, playing,
-  friends on LAN, configuring, FAQ), roadmap, contributing and credits pages, draft privacy, cookie, terms and
-  copyright pages, Google Analytics only after consent, and a workflow that checks it and deploys previews and main.
-- A crop farm (tilled ground, water, crops planted), a working end portal, and "find a flat field" that
-  leads you to the flattest open ground nearby.
-- Builds from blueprints: Minecraft's own structures and CC0 circles, from your local blueprints folder.
-- Friends on LAN: one shared Pip everyone sees and talks to, a visiting Pip, and host controls.
-- Jobs, crafting help and trading help; a heart for each person she meets; places she remembers.
-- Contributor guide for AI agents (`AGENTS.md`), issue forms, CI for the mod, the brain and the Windows
-  update script, release automation, and a Contributor License Agreement.
+The first preview of Kindred Spirit. Pip is a little spirit who floats beside you in Minecraft 1.21.1 (Fabric),
+talks with you by voice or chat, and helps you play. Her brain runs on the host's computer (macOS for now) with
+your own AI key; friends on LAN need only the mod.
 
-### Changed
-- On multiplayer servers you don't host, she no longer finds ores or blocks through walls (that would be like
-  x-ray, unfair to other players); your own worlds, LAN worlds you host and friends' worlds with Kindred are as before.
+### What's in it
+- **Talking:** hold V to speak, or type in chat. Short answers in her own voice, with local voice and hearing. Say
+  "shh" and she stops.
+- **Her senses:** what's in her line of sight, the sounds around you, your health and surroundings. She warns you
+  about creepers, lava, big drops and low health.
+- **Helping:** she finds ores, animals, structures and biomes and leads you there, pushes monsters away, chops and
+  mines, crafts from your pockets, brings your things back after you die, and helps with villager trades.
+- **Building:** shapes at any size (circles, stars, hearts, spheres, domes, towers, pyramids...), crop farms, nether
+  and end portals, flattened land, and whole buildings from a catalogue of blueprints. Ask for something while
+  she's busy and she'll do it next, with her progress on screen.
+- **A heart:** a bond that grows with kindness, with moods, sulks, pranks and making up, powers she discovers with
+  you, and a first meeting of her own.
+- **Memory:** your name, what you like, your places (your bed, your builds, where you died), and a diary of your
+  sessions.
+- **Friends on LAN:** one shared Pip on the host's computer, seen and heard by everyone with the mod.
+- **Skins and settings:** a slime, a cube, a fairy, a sprout, a wisp, a starry orb, or your own PNG; how much she
+  may do, and how chatty she is.
 
-### Fixed (from the 2026-11-13 playtest)
-- Her memory never keeps a gender, pronouns or an age the AI guessed, only what you said yourself.
-- Logs rotate (5 MB each, the AI-call record at 20 MB) instead of growing forever.
-- If her brain stops while you play, a sign says so and stays until it's back; `scripts/test.sh` runs every
-  test from any folder or worktree.
-- Big blueprints: she asks once, then builds on your yes (or "the upright one"), instead of asking again and again
-  or saying "coming up!" without building.
-- Thanks and praise no longer make her redo the last build; a power that's not for the moment isn't "forgotten".
-- "Give me back my stuff" fetches your real things, no copies; seeds in your hand aren't used as building
-  blocks; room for a big build is looked for nearby and big enough; corrections during a lead aren't refused.
-
-### Changed
-- The licence is now the **GNU AGPL-3.0** (it was MIT), with a Minecraft linking permission; Pip's name,
-  character and art have their own rules in `TRADEMARKS.md`.
-- The Windows update script matches GitHub exactly (fetch and reset) instead of pulling.
-
-## Before the changelog
-
-The first preview: Pip talks with you by voice and chat, sees your game, warns you of danger, has a
-heart and a memory, local voice and hearing, skins, a dashboard, and powers you discover together.
-See the [README](README.md) for everything she does.
+### Good to know
+- On multiplayer servers you don't host, she doesn't look through blocks for ores or anything else (no x-ray).
+- Free software under the GNU AGPL-3.0.
