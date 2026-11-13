@@ -305,3 +305,21 @@ def test_a_single_lesson_isnt_saved_letter_by_letter():
         players = (await m.store.call("list", kinds=["player"], world="sp:A"))["results"]
         assert [h["text"] for h in habits] == ["Likes to build at night."] and players[0]["text"] == "Name is Tam."
     asyncio.run(run())
+
+
+def test_what_comes_to_mind_has_no_tool_echoes_and_no_repeats():
+    """The playtest's prompt had five copies of 'I used follow_player {...}' among her memories."""
+    import asyncio
+    from gateway_stub import memory as make_memory
+    m = make_memory()
+
+    async def run():
+        await m.open_world("sp:Echo")
+        for _ in range(5):
+            await m.episode('I used follow_player {"name": "waterwalid"}: {"ok": true, "following": "waterwalid"}', 4)
+        await m.episode("Walid and I watched the sunset over the cherry trees.", 4)
+        await m.episode("Walid and I watched the sunset over the cherry trees.", 4)
+        return await m.context({}, "walid sunset cherry follow waterwalid")
+    text = asyncio.run(run())
+    assert "I used follow_player" not in text
+    assert text.count("watched the sunset") == 1

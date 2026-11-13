@@ -353,6 +353,8 @@ def main(argv=None):
     p.add_argument("--judge-kind", default="reflect", help="the gateway's call kind for the judge (reflect = Claude)")
     p.add_argument("--brain", help="another checkout's brain folder to evaluate (default: this one)")
     p.add_argument("--abilities", help="her powers, comma separated (default: the ones the mod had on 2026-11-12)")
+    p.add_argument("--set", action="append", default=[], metavar="SECTION.KEY=VALUE",
+                   help="a brain setting for this run, e.g. ai.stable_context=false (to compare)")
     p.add_argument("--label", default="now")
     p.add_argument("--json", help="where to write the results (default evals/results/<label>-<mode>.json)")
     p.add_argument("--list", action="store_true")
@@ -378,6 +380,12 @@ def main(argv=None):
             print("%-34s %-12s %-11s %s" % (c["id"], c.get("play", "singleplayer"), c.get("who", "player"),
                                             (c.get("say") or c["turns"][0]["say"])[:70]))
         return 0
+    extra = {"ai": ai} if a.mode == "live" else {}
+    for kv in a.set:
+        key, _, value = kv.partition("=")
+        section, _, name = key.partition(".")
+        value = {"true": True, "false": False}.get(value.lower(), value)
+        extra.setdefault(section, {})[name] = value
     from .gateway import EvalGateway
     gw = EvalGateway(a.mode, upstream, key, os.path.join(os.path.dirname(brain_dir), "services"))
     results = []
@@ -385,7 +393,7 @@ def main(argv=None):
         for c in cases:
             for n in range(a.repeat):
                 try:
-                    trace = asyncio.run(play(c, gw, a.mode, {"ai": ai} if a.mode == "live" else {}))
+                    trace = asyncio.run(play(c, gw, a.mode, extra))
                 except Exception as e:  # (one broken case doesn't stop the others)
                     trace = {"error": "%s: %s" % (type(e).__name__, e), "says": [], "acts": [], "tools": [], "game": [],
                              "calls": {"ai_calls": 0, "forced": [], "offered": [], "tokens_in": 0}, "prompt": "",

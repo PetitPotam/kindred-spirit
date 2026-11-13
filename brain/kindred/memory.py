@@ -115,6 +115,9 @@ PRONOUN_FACT = re.compile(r"\bpronouns?\b|\b(he/him|she/her|they/them)\b", re.I)
 GUESSED_GENDER = re.compile(r"\b(is|seems|they'?re|he'?s|she'?s) (a |to be )?(female|male|girl|boy|woman|man|lady|guy)\b", re.I)
 
 
+TOOL_ECHO = re.compile(r"\s*I used [a-z_]+ [{(]")  # (an episode that only repeats a tool call and its result)
+
+
 def subject(fact):
     """Who a fact is about: its first word ("Walid's nickname is Dumber" -> walid), or "player"."""
     m = re.match(r"\s*(the player|[A-Za-z0-9_]+)", fact or "")
@@ -475,7 +478,16 @@ class Memory:
                              + "; ".join(m["text"] + rel(m["meta"]) for m in near) + ".")
         if reminders:
             lines.append("Reminders you hold: " + "; ".join("%s (%s)" % (m["text"], m["meta"].get("when", "")) for m in reminders) + ".")
-        extra = [m for m in recalled if m["id"] not in seen and m["score"] > 0.2][:6]
+        # what comes to mind: no echoes of her own tool calls ("I used follow_player {...}" five times in one
+        # prompt during the playtest: half of this part), and the same words only once
+        extra, said = [], set()
+        for m in recalled:
+            words = " ".join(m["text"].lower().split())
+            if m["id"] in seen or m["score"] <= 0.2 or TOOL_ECHO.match(m["text"]) or words in said:
+                continue
+            said.add(words)
+            extra.append(m)
+        extra = extra[:6]
         if extra:
             lines.append("Memories that come to mind: " + " | ".join(m["text"] + rel(m["meta"]) for m in extra))
         s = self.stats or {}
