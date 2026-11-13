@@ -56,3 +56,13 @@ def test_the_client_check_refuses_a_computer_with_a_pip(tmp_path):
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 1 and "clean machine" in r.stdout
     assert os.listdir(tmp_path / ".kindred-spirit") == []  # nothing written
+
+
+def test_every_release_builds_tests_and_attaches_the_setup():
+    """#98: the release workflow builds the Setup per chip from the release's jars, smoke-tests it, attaches it."""
+    text = open(os.path.join(REPO, ".github", "workflows", "release.yml"), encoding="utf-8").read()
+    setup = text[text.index("\n  setup:"):]
+    for want in ("needs: release", "macos-15, ", "macos-15-intel", "--mods mod-files", "setup/smoke_test.py",
+                 "gh release upload", ".dmg.sha256", "not yet tried by a person"):
+        assert want in setup, want
+    assert "name: mod-files" in text[:text.index("\n  setup:")]

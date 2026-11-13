@@ -59,6 +59,14 @@ draws every step the same way.
 - **One file per chip** (arm64, x86_64) rather than one "universal" app: python-build-standalone ships one Python
   per chip, and a universal app would be twice the download for everyone.
 
+## On GitHub
+
+- **Every release** (`.github/workflows/release.yml`, jobs `setup` and `setup-notes`): built on `macos-15` (Apple
+  silicon) and `macos-15-intel` from the release's own jars and `versions.json`, smoke-tested, attached to the
+  GitHub release with a `.sha256` each, and listed in the release notes with what was tested.
+- **Pull requests that touch the install** (`.github/workflows/platforms.yml`): the same build plus
+  `smoke_test.py --models` (her models downloaded and tested); the `.dmg` stays 14 days under the run's Artifacts.
+
 ## Other systems
 
 `build.py` makes a payload that is the same everywhere, then wraps it per system. Windows (#40) and Linux (#81)

@@ -165,6 +165,9 @@ check_client() {
   printf '%s\n' "# scripts/test-install.sh client: open a world, say hi, wait for her answer, take a picture, quit" \
     "world kindred-ci" "wait 300" "cmd gamerule doDaylightCycle false" "cmd time set 1000" \
     "chat Hi Pip, are you there?" "waitsay 1200" "wait 60" "screenshot ci-answer" "wait 20" "quit" > "$WORK/client.txt"
+  # Minecraft's assets first, with a second try: Loom's parallel download sometimes trips over its own .part files
+  ( cd "$ROOT/mod" && { ./gradlew downloadAssets --no-daemon -q || ./gradlew downloadAssets --no-daemon -q; } ) > "$WORK/assets.log" 2>&1 \
+    || { bad "Minecraft's assets didn't download:"; tail -20 "$WORK/assets.log"; return; }
   local run=(./gradlew runClient --no-daemon --console=plain "-PdevScript=$WORK/client.txt")
   if [[ "$(uname -s)" == Linux && -z "${DISPLAY:-}" ]]; then run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}"); fi
   ( cd "$ROOT/mod" && "${run[@]}" ) > "$WORK/client.log" 2>&1

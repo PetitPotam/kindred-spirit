@@ -66,6 +66,11 @@ merged commit on `main`; the tag runs `.github/workflows/release.yml`, which ref
 builds the jar again, makes the GitHub release with that changelog section, and uploads it to Modrinth and CurseForge. A version with a `-` (0.3.0-beta.1)
 is marked as a pre-release.
 
+The same run builds **Kindred Spirit Setup** on GitHub's Apple silicon and Intel Macs from the release's own mod
+files. It installs and starts each one in a throwaway home (`setup/smoke_test.py`), attaches the `.dmg` files with
+their `.sha256` to the release, and adds a short "Kindred Spirit Setup" section to its notes saying what was tested
+where. docs/SETUP.md is the player's guide; setup/README.md says how it's built.
+
 **Modrinth.** The same tag also publishes the version on Modrinth, once the project exists there: create it on
 modrinth.com (it starts as a **draft**, visible only to you and members you add; after Modrinth's review you can
 keep it **private** or **unlisted**, or list it), then add its ID as the Actions variable `MODRINTH_PROJECT_ID` and

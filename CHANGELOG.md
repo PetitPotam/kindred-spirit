@@ -43,6 +43,9 @@ Unreleased into the new version's section.
   the mod supports) with Fabric Loader, Fabric API and the matching mod, or the mod into another launcher's mods
   folder; then "Say hi to her" checks the whole chain from the game to her answer (#96).
 
+- Every release now carries Kindred Spirit Setup for macOS (Apple silicon and Intel), built and smoke-tested by CI
+  from the release's own mod files, with a SHA-256 for each file and a note saying what was tested where (#98).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
