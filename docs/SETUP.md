@@ -66,7 +66,8 @@ The steps today:
 |---|---|
 | **Your computer** | Looks at your memory, chip and free space, and picks settings that keep Minecraft smooth (Light, Balanced or Best). |
 | **Her brain on this computer** | Installs her brain, the gateway and the dashboard, with their own Python, into your user folder (about 130 MB, no administrator password). |
-| **Wake her up** | Starts them in the background and checks that each one answers. |
+| **Wake her up** | Starts them in the background (her brain, the gateway and her dashboard) and checks that each one answers. |
+| **Every time you play** | Whether she wakes by herself when you log in to your Mac (off unless you choose it), or when you open Kindred Spirit Setup. |
 
 Coming next, in the same guide: choosing her AI (a free Gemini key by default, other services, a model on your
 own Mac or an AI subscription you already have), her voice, hearing and memory models, and installing Minecraft's
@@ -74,8 +75,20 @@ Fabric with the mod and saying hi to her once to check everything ([#94](https:/
 [#95](https://github.com/PetitPotam/kindred-spirit/issues/95), [#96](https://github.com/PetitPotam/kindred-spirit/issues/96)).
 
 You can close the page at any time: Pip keeps running, and the Setup itself quits a few minutes later (or press
-**Close the Setup**). To come back to the steps, open the app again, or **Setup steps** in the dashboard
-(`http://127.0.0.1:11440`, or press **K** in the game).
+**Close the Setup**).
+
+## Her dashboard
+
+Her dashboard is a page on your Mac where you see what she feels, remembers and builds: her heart and mood, your
+conversations, past sessions, her memories, the buildings she knows, and her settings
+([what's in it](DASHBOARD.md)). It starts and stops together with her brain, and only your Mac can open it.
+
+- **In the game, press K.**
+- **Once she's set up, open Kindred Spirit Setup**: it wakes her if she isn't running and opens her dashboard.
+- In the Setup's steps, **Open her dashboard** (top right) whenever she's running.
+- Or go straight to **http://127.0.0.1:11440** in your browser while she's running.
+
+To come back to the steps, press **Setup steps** in the dashboard's side bar.
 
 ## Where things go
 
@@ -84,12 +97,14 @@ You can close the page at any time: Pip keeps running, and the Setup itself quit
 | Her settings, your keys, her memories, logs | `~/.kindred-spirit` (your home folder; hidden: in Finder press ⌘⇧. to show it) |
 | The program (her brain, gateway, dashboard and their Python) | `~/Library/Application Support/Kindred Spirit` |
 | The Setup app | wherever you put it (Applications) |
+| Waking her at login, only if you chose it | `~/Library/LaunchAgents/io.github.petitpotam.kindredspirit.plist` (System Settings → General → Login Items lists it as "bash") |
 
 The Setup never touches anything else, and installing again keeps your settings and memories.
 
 ## Removing it
 
-Quit Minecraft, then in the dashboard's Setup steps press **Stop** under "Wake her up". Then delete
+Quit Minecraft, then in the dashboard's Setup steps choose **When I open Kindred Spirit Setup** under "Every time you
+play" (this removes the login item, if you had one) and press **Stop** under "Wake her up". Then delete
 **Kindred Spirit Setup** from Applications and the folder `~/Library/Application Support/Kindred Spirit`.
 `~/.kindred-spirit` holds her memories and your keys: delete it too only if you want her to forget everything.
 

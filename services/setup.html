@@ -44,6 +44,11 @@ header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
 header svg { width: 52px; height: 52px; flex: none; }
 header h1 { margin: 0; font-size: 22px; letter-spacing: .1px; }
 header p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+header .dash { margin-left: auto; }
+a.btn { display: inline-block; text-decoration: none; }
+.done-card { margin-top: 16px; padding: 16px 18px; border-radius: 12px; background: var(--good-soft); }
+.done-card h3 { margin: 0 0 4px; color: var(--good); font-size: 17px; }
+.done-card p { margin: 0 0 10px; }
 .intro { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
 .intro p { margin: 0 0 6px; } .intro p:last-child { margin: 0; }
 
@@ -112,6 +117,7 @@ footer { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; align-item
       <h1>Kindred Spirit Setup</h1>
       <p id="sub">Getting Pip ready on this computer</p>
     </div>
+    <div class="dash" id="dash"></div>
   </header>
 
   <div class="intro" id="intro">
@@ -205,7 +211,15 @@ function render() {
       i > 0 ? h("button", {class: "btn quiet", onclick: () => { current = state.steps[i - 1].id; render(); }}, "← Back") : null,
       h("span", {class: "spacer"}),
       i < state.steps.length - 1 ? h("button", {class: "btn", onclick: () => { current = state.steps[i + 1].id; render(); }}, "Next step →") : null));
+  if (state.steps.every(x => x.status === "done") && i === state.steps.length - 1) card.append(h("div", {class: "done-card"},
+    h("h3", {}, "All set: her brain is awake."),
+    h("p", {}, "Her dashboard shows what she feels, remembers and builds while you play. To come back to it later, " +
+      "press K in the game, or open Kindred Spirit Setup again: it wakes her if needed and opens her dashboard. " +
+      "These steps stay one click away."),
+    h("a", {class: "btn primary", href: state.dashboard.url, target: "_blank", rel: "noopener"}, "Open her dashboard ↗")));
   document.getElementById("main").replaceChildren(card);
+  document.getElementById("dash").replaceChildren(state.dashboard && state.dashboard.running
+    ? h("a", {class: "btn", href: state.dashboard.url, target: "_blank", rel: "noopener"}, "Open her dashboard ↗") : "");
 
   const foot = document.getElementById("footer");
   foot.replaceChildren(

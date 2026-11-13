@@ -83,9 +83,9 @@ version as the host** (26.3 or 1.21.1; `<mc>` below) with Fabric, Fabric API, an
 version, built from this repository. The full guide for the person is
 [docs/PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md); the steps for you:
 
-1. **Java 25 JDK** (to build the mod; the game itself uses the launcher's own Java). Check `java -version`; if
-   missing or older than 25, install Eclipse Temurin 25 (e.g. `winget install EclipseAdoptium.Temurin.25.JDK`),
-   then open a new terminal.
+1. **Java 25 JDK** (to build the mod: Loom, its build tool, needs Java 25; the game itself uses the launcher's own
+   Java). Check `java -version`; if missing or older than 25, install Eclipse Temurin 25 (e.g.
+   `winget install EclipseAdoptium.Temurin.25.JDK`), then open a new terminal.
 2. **Build the mod** for their Minecraft version, from the repository root, in PowerShell:
    ```powershell
    git pull

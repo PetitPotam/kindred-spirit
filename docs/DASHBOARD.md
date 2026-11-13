@@ -1,8 +1,15 @@
 # The dashboard: watch what she does, thinks and remembers
 
-`scripts/start.sh` (or the Setup) also starts a small dashboard. Press **K** in the game (change it in Controls →
-Kindred Spirit), or open **http://127.0.0.1:11440** in your browser, while you play (or after). On a friend's
-computer with only the mod, the key says the dashboard is on the host's computer. It only listens on your computer, only reads (except **Learn this** in the Knowledge tab), and shows nothing that
+Her dashboard starts and stops together with her brain (`scripts/start.sh`, or **Wake her up** in
+[Kindred Spirit Setup](SETUP.md)). To open it:
+
+- **in the game:** press **K** (change it in Controls → Kindred Spirit). On a friend's computer with only the mod,
+  the key says the dashboard is on the host's computer;
+- **with the Setup app:** once she's set up, opening **Kindred Spirit Setup** wakes her if needed and opens her
+  dashboard; the Setup's steps also have an **Open her dashboard** button;
+- **by its address:** **http://127.0.0.1:11440** in your browser, while you play (or after).
+
+The **Setup steps** link in its side bar brings back the Setup's guided steps. It only listens on your computer, only reads (except **Learn this** in the Knowledge tab), and shows nothing that
 isn't already on your computer or behind your gateway.
 
 | Tab | What you see | Where it comes from |

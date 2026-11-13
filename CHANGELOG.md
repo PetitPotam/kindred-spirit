@@ -28,6 +28,12 @@ Unreleased into the new version's section.
   and `install_profile.py --minecraft 26.3` adds a profile of its own. Recording demo videos works on 1.21.1 only
   for now (#41).
 
+### Fixed
+- Friends building the mod on Windows need Java 25, not Java 21 (the build tool requires it): the guides say so, and
+  Update Pip checks Java first and says what to install (#109).
+- Her live dashboard is part of the Setup: once she's set up, opening Kindred Spirit Setup wakes her and opens her
+  dashboard; an "Open her dashboard" button in the steps; and, if you choose it, she wakes when you log in (#111).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.
