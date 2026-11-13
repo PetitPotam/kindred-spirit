@@ -24,3 +24,4 @@ token
 # OS / editors
 .DS_Store
 .vscode/
+mod/logs/
