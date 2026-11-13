@@ -73,7 +73,8 @@ def sentences(text, min_chars=25, first_max=0):
     return out
 
 
-HANDS = ("protect", "place_torch", "harvest", "build", "give_item", "give_effect", "set_time", "set_weather")  # powers that touch the world
+HANDS = ("protect", "place_torch", "harvest", "build", "give_item", "give_effect", "set_time", "set_weather", "job",
+         "blueprint")  # powers that touch the world
 
 
 def player_name(memories):
@@ -127,8 +128,10 @@ def did_something(name, result):
         return bool(result.get("pushedAway"))
     if name == "harvest":
         return bool(result.get("broken"))
-    if name == "build":
+    if name in ("build", "blueprint"):
         return bool(result.get("blocks")) and not result.get("stopped")
+    if name == "job":
+        return bool(result.get("total") or result.get("done"))
     if name in ("find_ore", "find_animal", "locate"):
         return result.get("found", True) is not False
     return True
@@ -482,6 +485,10 @@ class Brain:
             named = intents.block_named(self.recent_player + [getattr(self, "last_player_text", "")])
             if named:  # ("flatten it with dirt", then "do it": still dirt, not whatever is in their hand)
                 args = dict(args, block=named)
+        if name == "job" and str(args.get("kind", "")) == "return_items" and "x" not in args:
+            death = await self.death_spot()
+            if death:  # where she remembers they died (the mod also remembers the last death it saw)
+                args = dict(args, **death)
         if name == "guide":
             args = await self.guide_target(args)
             if args.get("refuse"):
@@ -1024,6 +1031,16 @@ class Brain:
             log.warning("%s", e)
             return None
 
+    async def death_spot(self):
+        """Where the player last died, from her memory of places: {"x", "y", "z"}, or None."""
+        spots = await self.safe(self.memory.spots()) or []
+        deaths = [r for r in spots if str((r.get("meta") or {}).get("what", "")).startswith("death")
+                  and "x" in (r.get("meta") or {})]
+        if not deaths:
+            return None
+        m = max(deaths, key=lambda r: (r.get("meta") or {}).get("last", 0))["meta"]
+        return {k: m[k] for k in ("x", "y", "z") if k in m}
+
     async def guide_target(self, args):
         """Where to lead: a place it remembers by name, what it just found ("last"), or coordinates
         only if the player actually said numbers (models like to invent them)."""
@@ -1045,6 +1062,12 @@ class Brain:
             for f in (found or {}).get("results", []):
                 if to in f["meta"].get("what", "").lower():
                     return {k: f["meta"][k] for k in ("x", "y", "z")}
+            # an animal she can see right now beats a remembered spot ("where are the sheep? lead the way"
+            # led to where they were first met, not to the sheep in sight), unless they ask to go back
+            seen = None if intents.BACK_TO_SPOT.search(getattr(self, "last_player_text", "")) else \
+                self.animal_named(to + " " + getattr(self, "last_player_text", ""))
+            if seen:
+                return {"entity": seen["id"]}
             spot = await self.safe(self.memory.find_spot(to + " " + getattr(self, "last_player_text", "")))
             if spot:  # a place she remembers on her own ("the first cow", "what I was building", "where I died")
                 self.session.event("place", what="guide", label=spot["text"], at=[spot["meta"].get(k) for k in "xyz"])
