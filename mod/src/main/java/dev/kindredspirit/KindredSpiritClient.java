@@ -1536,7 +1536,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             notice("Her dashboard is on the computer where her brain runs", 5000);
             return;
         }
-        net.minecraft.Util.getPlatform().openUri(url);
+        Mc.openInBrowser(url);
         notice(link.connected() ? "Opening her dashboard in your browser\u2026"
                 : "Opening her dashboard\u2026 If it doesn't load, open Kindred Spirit Setup to wake her brain", 6000);
     }

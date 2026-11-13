@@ -351,6 +351,15 @@ public final class Mc {
         *///?}
     }
 
+    /** Opens a web page in the player's own browser. */
+    public static void openInBrowser(String url) {
+        //? if >=26.1 {
+        com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(url));
+        //?} else {
+        /*net.minecraft.Util.getPlatform().openUri(url);
+        *///?}
+    }
+
     // --- the player's screen ---
 
     public static Screen screen(Minecraft mc) {
