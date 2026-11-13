@@ -63,7 +63,7 @@ scripts/release.sh tag 0.3.0    # after that pull request is merged: tags it on 
 The first step makes a `release/0.3.0` branch that sets `mod_version` and turns "Unreleased" into the version's
 changelog section, builds it, pushes it and opens its pull request. Merge it once CI passes. The second tags the
 merged commit on `main`; the tag runs `.github/workflows/release.yml`, which refuses a tag that isn't on `main`,
-builds the jar again, makes the GitHub release with that changelog section, and uploads it to Modrinth. A version with a `-` (0.3.0-beta.1)
+builds the jar again, makes the GitHub release with that changelog section, and uploads it to Modrinth and CurseForge. A version with a `-` (0.3.0-beta.1)
 is marked as a pre-release.
 
 **Modrinth.** The same tag also publishes the version on Modrinth, once the project exists there: create it on
@@ -80,6 +80,26 @@ from an honest description (docs/modrinth.md says who did what). Never describe 
 `scripts/modrinth.sh` creates the draft and keeps its page in step with [docs/modrinth.md](modrinth.md)
 (`create`, `update-page`, `show`), with a token kept in the macOS Keychain (service `kindred-modrinth`): one that
 can only create, read and write projects and versions, never move money or delete anything.
+
+**CurseForge.** The same tag uploads the same jar, with the same notes, to CurseForge once the project exists there:
+the GitHub release stays the one source of truth. The owner creates the project at authors.curseforge.com (Minecraft,
+Mods) with the fields and text in [docs/curseforge.md](curseforge.md); then the Actions variable
+`CURSEFORGE_PROJECT_ID` (the project's numeric ID, shown on its page) and the Actions secret `CURSEFORGE_TOKEN` (an
+API token from the CurseForge account settings, set with `gh secret set CURSEFORGE_TOKEN`, which hides what you type)
+turn the upload on. Without the variable the step is skipped. Each file is tagged Minecraft 1.21.1, Fabric, Client and
+Java 21, with Fabric API as a required dependency (the CurseForge app installs it too). Things to know:
+- **Moderation:** a new project goes to CurseForge's moderators with its first file, and every file is reviewed
+  ("Under review") before players see it. If they ask for changes or reject it, answer or appeal in the project's
+  messages: never delete it and upload it again. Changing what the project is (its visibility, deleting it) is done on
+  the website by the owner.
+- **Their rules** (the moderation policies, checked 2026-11-13): no rule against AI-written code or a mod with AI
+  features; an AI-generated or AI-edited showcase image needs a visible disclaimer (Pip's pictures are taken in the
+  game, so none is needed); "external download links for files are not allowed", so the page points to the setup
+  guide for the brain but never offers files from elsewhere; English first; a one-sentence summary; a 400 x 400
+  logo; links to other sites at the bottom of the description; every file with a changelog. Keep the page as honest
+  about AI as Modrinth's: never describe the AI's part as smaller than it is.
+- **The CurseForge app** shows a project only once it has at least one "Release" file: preview, alpha and beta versions
+  are on the website but not in the app.
 
 After a release, friends who play with the host update with **Update Pip** (`scripts/update-pip-windows.cmd`).
 

@@ -48,8 +48,8 @@ jobs:
       # Modrinth: only once the project exists and its ID and a token are set (Settings -> Secrets and variables ->
       # Actions: the variable MODRINTH_PROJECT_ID and the secret MODRINTH_TOKEN). A draft or private project stays
       # visible only to its members; see docs/MAINTAINING.md.
-      - name: Version type for Modrinth
-        if: vars.MODRINTH_PROJECT_ID != ''
+      - name: Version type for Modrinth and CurseForge
+        if: vars.MODRINTH_PROJECT_ID != '' || vars.CURSEFORGE_PROJECT_ID != ''
         run: |
           case "$VERSION" in *alpha*|*preview*) t=alpha;; *beta*|*rc*) t=beta;; *) t=release;; esac
           echo "VERSION_TYPE=$t" >> "$GITHUB_ENV"
@@ -68,3 +68,23 @@ jobs:
           loaders: fabric
           game-versions: 1.21.1
           dependencies: fabric-api(required){modrinth:P7dR8mSH}
+      # CurseForge: the same jar and notes as the GitHub release, once the project exists and its numeric ID and an
+      # API token are set (the variable CURSEFORGE_PROJECT_ID and the secret CURSEFORGE_TOKEN). Each file is reviewed
+      # by CurseForge's moderators before players see it; see docs/MAINTAINING.md and docs/curseforge.md.
+      - name: Publish on CurseForge
+        if: vars.CURSEFORGE_PROJECT_ID != ''
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: |
+            mod/build/libs/!(*-sources).jar
+          name: Kindred Spirit ${{ env.VERSION }}
+          version: ${{ env.VERSION }}+1.21.1
+          version-type: ${{ env.VERSION_TYPE }}
+          changelog-file: notes.md
+          loaders: fabric
+          game-versions: 1.21.1
+          environment: client
+          java: 21
+          dependencies: fabric-api(required){curseforge:306612}

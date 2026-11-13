@@ -9,6 +9,10 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+### Added
+- Releases are uploaded to CurseForge too, from the same GitHub release, once the project exists there (its page is
+  in docs/curseforge.md).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.

@@ -6,5 +6,5 @@ the backdrop cut out to transparency, and a little of the backdrop's blue kept i
 had in the game). Chosen by the project's owner on 2026-11-13.
 
 Copies: `mod/src/main/resources/assets/kindredspirit/icon.png` (the mod, Mod Menu, the launcher profile, the video
-end cards; 256 px), `web/src/img/pip-icon.png` (256 px) and `pip-icon-64.png` (the website), and the Modrinth project.
+end cards; 256 px), `web/src/img/pip-icon.png` (256 px) and `pip-icon-64.png` (the website), the Modrinth project, and the CurseForge project (scaled to 400 px).
 Pip's art follows TRADEMARKS.md.
