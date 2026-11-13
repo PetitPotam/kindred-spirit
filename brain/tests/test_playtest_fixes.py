@@ -345,3 +345,54 @@ def test_the_session_summary_says_what_waiting_felt_like():  # item 27
     rows = felt_rows(ev)
     assert "felt wait (you) | first word after 2.0s" in rows[0]
     assert "waterwalid" in rows[1] and "first word after 4.0s" in rows[1]
+
+
+# ---------------------------------------------------------------- item 28: logs to analyse a playtest from; 27/32: waits
+
+def test_events_that_matter_carry_their_context(tmp_path):
+    from kindred.sessionlog import SessionLog
+    log = SessionLog(str(tmp_path))
+    log.context = lambda: {"at": [1, 64, 2], "hp": 18, "near": ["Walid 6"], "mode": "hosting LAN"}
+    log.start("sp:Test")
+    log.event("you", text="hi")
+    log.event("pip", text="hello")  # (her lines don't need it: the message before them has it)
+    assert log.events[-2]["ctx"]["near"] == ["Walid 6"] and "ctx" not in log.events[-1]
+
+
+def test_the_summary_says_who_failed_what_was_asked_again_and_the_settings(tmp_path):
+    from kindred.sessionlog import extra_rows
+    ev = [{"kind": "settings", "t": 0, "now": {"amnesia": True, "power": "helper"}},
+          {"kind": "you", "t": 5, "text": "lead me to walid"},
+          {"kind": "tool", "t": 6, "name": "find_player", "ok": False, "who": "player", "result": "Nobody else is here"},
+          {"kind": "you", "t": 20, "text": "no, I told you, lead me to walid"},
+          {"kind": "guest", "t": 30, "who": "Walid", "text": "pip hi"},
+          {"kind": "timing", "t": 31, "trip": 0.1, "stt": 0.7, "to_text": 0.9, "to_first_word": 2.4}]
+    rows = "\n".join(extra_rows(ev))
+    assert "find_player (player): Nobody else is here" in rows
+    assert "asked again or corrected | 1" in rows and "I told you" in rows
+    assert "Walid | 1 messages" in rows and "amnesia=True" in rows
+    assert "first word after 2.4s" in rows
+
+
+def test_an_answer_never_waits_long_for_her_own_line(stubs):  # items 27 and 32
+    from test_heart import _brain
+    b = _brain(stubs)
+    sent = []
+
+    async def send(msg):
+        sent.append(msg)
+    b.send = send
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        b.speaking_until, b.speaking_prio = b.clock() + 12, "reply"   # a long line to someone else
+        b.speaking_to = "Walid"
+        await b.say("A friend's answer, in chat right away.", "happy")  # her answer to Walid: chat only
+        b.speaking_to = None
+        t0 = b.clock()
+        await b.say("Your answer, now.", "happy")
+        return b.clock() - t0
+    waited = asyncio.run(run())
+    assert {"type": "chat_line", "text": "A friend's answer, in chat right away.", "to": "Walid"} in sent
+    assert waited < 1, "a 12 s line is cut (and finished later), not waited for"
+    assert any(m.get("type") == "say" and m.get("text") == "Your answer, now." for m in sent)

@@ -796,6 +796,7 @@ class Handler(BaseHTTPRequestHandler):
                     # for the dashboard: what it cost, what it could do, and how it was steered
                     "tokens_in": usage.get("prompt_tokens"), "tokens_out": usage.get("completion_tokens"),
                     "kind": kind, "cost_usd": usage.get("cost_usd"), "effort": usage.get("effort"),
+                    "call": self.headers.get("X-Kindred-Call"),  # (the brain's session log points here)
                     "messages": len(req.get("messages") or []),
                     "tools": [(t.get("function") or {}).get("name") for t in req.get("tools") or []],
                     "forced": ((req.get("tool_choice") or {}).get("function") or {}).get("name")

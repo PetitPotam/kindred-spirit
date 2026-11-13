@@ -33,6 +33,7 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
 from . import config, intents, tools, voice
+from . import mind as mind_mod
 from . import heart as intents_heart
 from .describe import describe, where_words
 from . import knowledge as kb
@@ -212,6 +213,10 @@ class Brain:
         self.last_protect = self.last_guard = -1e9
         self.speaking_to = None      # a friend she's answering (session log: who each line was for)
         self.diary_at, self.diary_from = clock(), 0  # her last diary entry: when, and up to which session event
+        self.last_where_log, self.near_logged, self.settings_logged = -1e9, set(), None
+        self.voice_timing = None     # (released at, arrived, stt seconds): the last spoken message, for its timing
+        self.last_wait = 0.0         # how long her last answer waited for the line she was saying
+        self.guest_pending = {}      # friend -> what they said while she was busy (answered together)
         self.recent_gifts = {}       # (tool, what, to) -> when: never the same gift again unasked
         self.notified = []
         self.idle_since = clock()
@@ -240,6 +245,7 @@ class Brain:
         self.lines_written_at, self.last_filler, self.becoming_at = -1e9, -1e9, -1e9
         self.novelty = Novelty()  # what's new to her and what she's used to (senses.py)
         self.session = SessionLog()  # a record of each play session, read afterwards (sessionlog.py)  # what the world remembers (services/knowledge)
+        self.session.context = self.log_context
         self.listening = set()       # questions she's listening to the world about right now
         self.reading = None          # the guide she was last told about (listen_more goes on from there)
         # one voice, coordinated (see say): what she's saying now, and what an interruption left unsaid
@@ -302,6 +308,7 @@ class Brain:
                 if self.in_world:
                     asyncio.create_task(self.end_session())
                 self.in_world = False
+                self.session.event("disconnect")
                 log.info("game disconnected")
 
     # ------------------------------------------------------------------ messages
@@ -376,8 +383,8 @@ class Brain:
         """What happens when the AI uses a tool (and the session log notes it, with who asked)."""
         result = await self._run_tool(name, args)
         ok = not (isinstance(result, dict) and result.get("ok") is False)
-        self.session.event("tool", name=name, args=json.dumps(args)[:120], ok=ok, who=who or self.speaking_to or "player",
-                           result=json.dumps(result)[:160] if isinstance(result, dict) else str(result)[:160])
+        self.session.event("tool", name=name, args=json.dumps(args)[:600], ok=ok, who=who or self.speaking_to or "player",
+                           result=json.dumps(result)[:1000] if isinstance(result, dict) else str(result)[:1000])
         return result
 
     async def _run_tool(self, name, args):
@@ -548,6 +555,7 @@ class Brain:
         await self.heart.save()
 
     async def vanish(self, seconds, line):
+        self.session.event("vanish", seconds=seconds)
         log.info("vanishing for %d s", seconds)
         await self.say(line, "sad", instant=True, why="the player hurt you and you're leaving for a while")
         await self.mood_weather(sad=True)
@@ -1028,6 +1036,46 @@ class Brain:
             return dict(last)
         return {}  # the mod then uses the last thing found or located
 
+    def log_context(self):
+        """Where things stood, for the session log: position, dimension, biome, health and food, who was near, the
+        play mode, and whom she floats beside. Small, so it can go with every event that matters."""
+        s = self.snapshot or {}
+        w = s.get("where") or {}
+        near = ["%s %d" % (p.get("name", "?"), int(p.get("distance", 0))) for p in (s.get("players") or [])[:4]]
+        mode = "alone" if self.singleplayer and not near else "hosting LAN" if self.singleplayer else "in a friend's world"
+        c = {"at": [w.get("x"), w.get("y"), w.get("z")] if w.get("x") is not None else None,
+             "dim": (w.get("dimension") or "").replace("minecraft:", "") or None,
+             "biome": (w.get("biome") or "").replace("minecraft:", "") or None,
+             "hp": s.get("health"), "food": s.get("food"), "near": near or None, "mode": mode,
+             "with": s.get("following") or None}
+        return {k: v for k, v in c.items() if v is not None}
+
+    def settings_now(self):
+        """The settings that change how she behaves (logged at the start, and whenever they change mid-session)."""
+        h, b = self.cfg.get("heart", {}), self.cfg.get("behaviour", {})
+        return {"abilities": len(self.abilities), "power": getattr(self, "power", None), "style": getattr(self, "style", None),
+                "amnesia": h.get("amnesia"), "awakening": h.get("awakening"), "pranks": h.get("pranks"),
+                "fibs": h.get("fibs"), "auto_protect": h.get("auto_protect"), "voice": self.cfg.get("voice", {}).get("enabled"),
+                "small_talk": b.get("small_talk_minutes"), "model": self.cfg.get("ai", {}).get("model") or "gateway's"}
+
+    def log_world(self, s, now):
+        """Cheap context in the session log: settings when they change, friends coming and going, where you are every
+        30 seconds."""
+        st = self.settings_now()
+        if st != self.settings_logged:
+            changed = {k: v for k, v in st.items() if (self.settings_logged or {}).get(k) != v} if self.settings_logged else None
+            self.session.event("settings", now=st, changed=changed)
+            self.settings_logged = st
+        names = {p.get("name") for p in s.get("players") or [] if p.get("name")}
+        for n in names - self.near_logged:
+            self.session.event("friend_near", who=n)
+        for n in self.near_logged - names:
+            self.session.event("friend_gone", who=n)
+        self.near_logged = names
+        if now - self.last_where_log > 30:
+            self.last_where_log = now
+            self.session.event("where")
+
     def place_words(self, meta):
         """'9 blocks north-east of here' for a remembered place."""
         w = (self.snapshot or {}).get("where") or {}
@@ -1112,6 +1160,8 @@ class Brain:
             if self.clock() - self.becoming_at > self.cfg["behaviour"].get("becoming_minutes", 20) * 60:
                 asyncio.create_task(self.write_becoming())
             log.info("learned %d new things%s", added, "; diary: %s" % lessons.get("diary") if lessons.get("diary") else "")
+            self.session.event("learned", added=added, diary=str(lessons.get("diary") or "")[:600] or None,
+                               beliefs=len(lessons.get("beliefs") or []) or None, whole_session=bool(story) or None)
         except (AIError, MemoryError) as e:
             log.warning("could not reflect: %s", e)
 
@@ -1162,9 +1212,11 @@ class Brain:
             self.speaking_until = self.clock()
             await self.send({"type": "act", "look": "me", "seconds": 8})  # she turns to you and listens
         elif name == "wrong_way":  # you walked off while she leads: she calls you back
+            self.session.event("wrong_way")
             asyncio.create_task(self.say(random.choice(intents.WRONG_WAY_LINES), "excited", instant=True, emote="hop",
                                          why="the player walked away from where you're leading them"))
         elif name == "arrived":
+            self.session.event("arrived")
             asyncio.create_task(self.say(random.choice(intents.ARRIVED_LINES), "excited", instant=True,
                                          why="you arrived where you were leading the player"))
             await self.safe(self.memory.episode("We arrived where I was leading the player.", 4))
@@ -1202,6 +1254,7 @@ class Brain:
                 await self.say(line, "sad" if self.heart.angry() else "worried", instant=True, why="the player hit you")
             await self.safe(self.memory.episode("The player hit me.", 5))
         elif name in ("advancement", "new_item"):
+            self.session.event(name, detail=msg.get("detail", "")[:120])
             detail = msg.get("detail", "")
             if name == "advancement" and self.last_kill and self.clock() - self.last_kill[0] < 15:
                 detail += " (they just killed a %s)" % self.last_kill[1].replace("minecraft:", "").replace("_", " ")
@@ -1258,6 +1311,8 @@ class Brain:
         self.snapshot = s
         self.snapshot_at = self.clock()
         self.save_snapshot(s)
+        if "health" in s:
+            self.log_world(s, self.clock())
         await self.heart_watch(s)
         now = self.clock()
         s["recent"] = ["%s (%d seconds ago)" % (x, now - t) for t, x in self.recent if now - t < 90]
@@ -1375,6 +1430,7 @@ class Brain:
         jumped = self.prev_where is not None and w.get("x") is not None and \
             abs(w["x"] - self.prev_where[0]) + abs(w["z"] - self.prev_where[1]) > 24
         if prev is not None and prev > 0 and health <= 0:
+            self.session.event("death")
             self.happened("The player died", now)
             asyncio.create_task(self.notice("death"))
         elif prev is not None and (prev <= 0 or (prev < 8 and health >= s.get("maxHealth", 20) and jumped)):
@@ -1383,6 +1439,7 @@ class Brain:
                 asyncio.create_task(self.notice("death"))
             self.happened("The player came back to life at their spawn point (after dying)", now)
         elif prev is not None and prev - health >= 6:
+            self.session.event("hurt", lost=round(prev - health, 1))
             self.happened("The player just got badly hurt (lost %s hearts at once)" % round((prev - health) / 2), now)
         self.prev_health = health
         self.prev_where = (w.get("x"), w.get("z")) if w.get("x") is not None else self.prev_where
@@ -1563,8 +1620,22 @@ class Brain:
             current = PRIORITY[self.speaking_prio]
             if rank == 3 or rank > current:
                 self.cut_short(now)  # an answer it interrupts is finished later
+            elif rank == 2 and self.speaking_to and self.speaking_to != "player":
+                # an answer to a friend while she's talking: it goes to the chat at once (they read it), no voice
+                self.line += 1
+                self.session.event("pip", line=self.line, text=text, mood=mood, prio=prio, to=self.speaking_to,
+                                   source=source or "reply", chat_only=True)
+                await self.send({"type": "chat_line", "text": text, "to": self.speaking_to})
+                return None
             elif rank == 2:
-                await asyncio.sleep(min(left, 15))  # her answer waits for the line she's saying
+                # her answer waits a moment for the line she's saying (never 15 s: past 2.5 s, that line is cut and
+                # finished later)
+                if left <= 2.5:
+                    self.last_wait = left
+                    await asyncio.sleep(left)
+                else:
+                    self.last_wait = 0.0
+                    self.cut_short(now)
             elif rank == 1 and left < 8:
                 await asyncio.sleep(left)  # a reaction waits for her to finish the line
             else:
@@ -1741,6 +1812,7 @@ class Brain:
                 return
             await self.safe(self.memory.store.call("doc", key=key, value=becoming_mod.keep(doc, text, level, time.time())))
             self.mind.becoming = text
+            self.session.event("becoming", text=text[:400])
             log.info("who she's become lately: %s", text)
         except Exception as e:  # (she stays who she was)
             log.warning("couldn't write who she's become: %s", e)
@@ -1821,12 +1893,16 @@ class Brain:
                 talk_tools = ["set_reminder", "name_place", "remember", "standing_request"]
                 others = [p.get("name", "") for p in self.snapshot.get("players") or []]
                 about_tool, about = intents.player_hint(text, others, self.abilities)
+                force_by = "her offer" if force else None
                 force = force or about_tool  # "find walid", "stay with walid"
+                force_by = force_by or ("a friend's name" if force else None)
                 force = force or intents.action_hint(text, self.abilities + talk_tools) \
                     or intents.hint_in_context(text, self.recent_player, self.abilities)
+                force_by = force_by or ("rules" if force else None)
                 if not force and len(text) < 160:  # System 0: what you mean, whatever words you use
                     force = await asyncio.to_thread(self.understand.hint, text, self.abilities + talk_tools)
                     if force:
+                        force_by = "meaning"
                         log.info("understood as %s: %s", force, text)
                 if moving and force in ("guide", "find_player", "follow_player") and not about \
                         and not intents.LEADING.search(text):
@@ -1890,6 +1966,9 @@ class Brain:
                 note += fib
                 self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood),
                                                        self.heart.discovery_note(self.abilities), note) if x)
+                self.session.event("decide", who="player", acts=done or None, force=asked, force_by=force_by,
+                                   offered=offered, cross=bool(note_cross) or None, about=about or None)
+                marker = mind_mod.call_marker()
                 speech = SpokenStream(self)  # her answer, spoken sentence by sentence as it's written
                 filler = (asyncio.create_task(self.fill_silence(speech, self.cfg["behaviour"]["fill_silence_after"]))
                           if self.cfg["behaviour"].get("fill_silence_after") else None)
@@ -1901,8 +1980,15 @@ class Brain:
                     if filler:
                         filler.cancel()
                 await speech.close()
-                self.session.event("answer", first_words=round((speech.first_at or self.clock()) - speech.started, 2),
-                                   total=round(self.clock() - speech.started, 2))
+                self.session.event("answer", who="player", first_words=round((speech.first_at or self.clock()) - speech.started, 2),
+                                   total=round(self.clock() - speech.started, 2), rounds=self.mind.last_rounds,
+                                   calls=mind_mod.calls_since(marker) or None, waited=round(self.last_wait, 2) or None)
+                vt, self.voice_timing = self.voice_timing, None
+                if vt and speech.first_at:  # from releasing the talk key: to the text, to her first word
+                    first = time.time() - (self.clock() - speech.first_at)
+                    self.session.event("timing", trip=round(vt["trip"], 2) if vt["trip"] is not None else None,
+                                       stt=round(vt["stt"], 2), to_text=round(vt["text_at"] - vt["released"], 2),
+                                       to_first_word=round(first - vt["released"], 2), waited=round(self.last_wait, 2))
             except AIError as e:
                 log.error("AI error: %s", e)
                 self.session.event("error", text=str(e)[:200])
@@ -1964,8 +2050,14 @@ class Brain:
                                    result=json.dumps(res)[:160], who=who)
             elif act.get("move") in ("stay", "come") or act.get("emote"):
                 await self.send(dict(act, type="act"))
+        # what a friend says while she's busy waits, and their messages are answered together (one AI call)
+        self.guest_pending.setdefault(who, []).append(text)
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
+            waiting = self.guest_pending.pop(who, [])
+            if not waiting:
+                return  # (answered together with their earlier message)
+            text = waiting[0] if len(waiting) == 1 else " / ".join(waiting)
             self.speaking_to = who
             try:
                 self.mind.heart = "\n".join(x for x in (self.heart.guidance(self.mood), self.heart.friends.guidance(who), (
@@ -1992,6 +2084,9 @@ class Brain:
                 both = bool(intents.BOTH.search(text)) and host
 
                 self.offered = offered  # (what she may do for them: not the list from your last answer)
+                self.session.event("decide", who=who, acts=[json.dumps(a) for a in acts] or None, force=force,
+                                   offered=offered, trusted=trusted or None, merged=len(waiting) if len(waiting) > 1 else None)
+                marker = mind_mod.call_marker()
 
                 async def for_them(name, args):  # (gifts, effects and protection go to them, not to the player)
                     if name in ("give_item", "give_effect", "protect") and not (args or {}).get("to"):
@@ -2011,6 +2106,9 @@ class Brain:
                     % (who, text), (), [tools.ABILITY_TOOLS[a] for a in offered if a in tools.ABILITY_TOOLS], for_them, force,
                     False, on_sentence=speech.add)
                 await speech.close()
+                self.session.event("answer", who=who, first_words=round((speech.first_at or self.clock()) - speech.started, 2),
+                                   total=round(self.clock() - speech.started, 2), rounds=self.mind.last_rounds,
+                                   calls=mind_mod.calls_since(marker) or None)
             except AIError as e:
                 log.error("AI error answering %s: %s", who, e)
                 self.session.event("error", text=str(e)[:200])
@@ -2040,9 +2138,13 @@ class Brain:
     async def _on_voice(self, msg):
         self.player_listening = False
         await self.send({"type": "state", "state": "thinking"})
+        arrived = time.time()
+        trip = max(0.0, arrived - msg["releasedAt"] / 1000) if msg.get("releasedAt") else None
         try:
             wav = base64.b64decode(msg.get("wav", ""))
+            t0 = time.time()
             text = await voice.transcribe(self.cfg, wav, prompt="%s. Minecraft." % self.cfg["name"])
+            stt = time.time() - t0
         except (ValueError, voice.VoiceError) as e:
             log.error("speech-to-text failed: %s", e)
             await self.send({"type": "notice", "text": "Speech-to-text problem: %s" % str(e)[:120]})
@@ -2055,6 +2157,10 @@ class Brain:
             await self.send({"type": "state", "state": "idle"})
             return
         mine = without_her_words(text, [t for w, t in self.recent_said if self.clock() - w < 90])
+        self.session.event("heard", raw=text, kept=mine if mine != text else None, stt=round(stt, 2),
+                           trip=round(trip, 2) if trip is not None else None, relay=bool(msg.get("relay")) or None)
+        if not msg.get("relay"):
+            self.voice_timing = {"released": arrived - (trip or 0.0), "trip": trip, "stt": stt, "text_at": time.time()}
         if mine != text:  # her own voice reached your microphone: only your words count
             log.info("removed her own words from what was heard: %r -> %r", text, mine)
         if not mine:
