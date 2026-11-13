@@ -62,6 +62,8 @@ public final class KindredConfig {
     public boolean hudCaptions = false;
     /** Keep the subtitles above it when the HUD is hidden (F1), e.g. for filming. */
     public boolean subtitlesWithHiddenHud = true;
+    /** Her own HUD stays when the game's HUD is hidden (F1): heart meter, guide arrow, listening, her task line, notices. */
+    public boolean hudWithHiddenGui = false;
     /** Also write what you said and what it answered in your chat (only on your screen). */
     public boolean chatLog = true;
     /** Multiplies the game's Voice/Speech volume slider. */

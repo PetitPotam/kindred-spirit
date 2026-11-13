@@ -13,6 +13,9 @@ demo/.venv/bin/python demo/make_video.py            # -> demo/out/kindred-spirit
 ```
 
 Needs ffmpeg (`brew install ffmpeg`). `-PvideoSize=960x540` gives 1920x1080 on a Retina screen.
+`-PplayerName=Sam` gives the dev player a name (otherwise a random "Player123", which she reads and remembers), and
+`-PguestVideoSize=640x360` sizes the second game (`runGuest`) when both record. Each recording's `events.jsonl`
+starts with `"wall"`, the computer's clock at video time 0, to line up a dashboard recording made at the same time.
 
 **The tour** (`tour-script.txt`, about 5 minutes) is the long version: Pip's journey from a first
 meeting to old friends, and everything she does on the way (finding, guiding, chopping, warnings,
