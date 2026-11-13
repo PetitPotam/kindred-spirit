@@ -149,7 +149,7 @@ jobs:
           cache-read-only: true
       - name: A virtual screen and software OpenGL (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri libegl1 libegl-mesa0 # (EGL: 26.x)
       - name: The game opens a world, says hi, and she answers
         env:
           KINDRED_TEST_CLEAN_MACHINE: "1" # a fresh runner: nobody's Pip lives here

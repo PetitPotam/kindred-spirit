@@ -176,13 +176,31 @@ client_run() {
   local answered_before=0
   answered_before=$(grep -c "you: Hi Pip.*test answer" "$brainlog" 2>/dev/null) || answered_before=0
   local run=(./gradlew ":$mc:runClient" --no-daemon --console=plain "-PdevScript=$WORK/client.txt")
-  if [[ "$(uname -s)" == Linux && -z "${DISPLAY:-}" ]]; then run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}"); fi
+  if [[ "$(uname -s)" == Linux ]]; then
+    # 26.x opens its window with SDL and asks for an sRGB-capable OpenGL 3.3 framebuffer, which Xvfb's GLX visuals
+    # don't offer ("Couldn't find matching GLX visual"); through EGL, Mesa has one. (1.21.x uses GLFW: no effect.)
+    run=(env SDL_VIDEO_FORCE_EGL=1 "${run[@]}")
+    [[ -z "${DISPLAY:-}" ]] && run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}")
+  fi
   local limit="${KINDRED_CLIENT_MINUTES:-12}"
   ( cd "$ROOT/mod" && "${run[@]}" ) > "$WORK/client-$mc.log" 2>&1 &
   local pid=$! waited=0 code
   # each game gets its own time limit, so a game that hangs fails fast and says which Minecraft it was
-  while kill -0 "$pid" 2>/dev/null && (( waited < limit * 60 )); do sleep 5; waited=$((waited + 5)); done
-  local game="$runDir/logs/latest.log"
+  local game="$runDir/logs/latest.log" nobackend=""
+  rm -f "$game"
+  while kill -0 "$pid" 2>/dev/null && (( waited < limit * 60 )); do
+    sleep 5; waited=$((waited + 5))
+    # no graphics backend at all: the game shows an error box nobody can close here, so stop now and say why
+    if grep -q "Failed to create backend Vulkan" "$game" 2>/dev/null && ! grep -q "Backend: \|Using backend\|Created device" "$game" 2>/dev/null \
+        && grep -q "Failed to create backend OpenGL" "$game" 2>/dev/null; then nobackend=1; break; fi
+  done
+  if [[ -n "$nobackend" ]]; then
+    bad "Minecraft $mc found no graphics it can use here (OpenGL and Vulkan both failed):"
+    grep -A2 "Failed to create backend" "$game" | head -12
+    pkill -f "kindredspirit.devScript=$WORK/client.txt"; sleep 10
+    pkill -9 -f "kindredspirit.devScript=$WORK/client.txt"; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+    return 0
+  fi
   if kill -0 "$pid" 2>/dev/null; then
     bad "Minecraft $mc didn't finish in $limit minutes; where its threads were, the end of its log and Gradle's:"
     local gpid
