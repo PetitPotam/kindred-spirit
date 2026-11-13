@@ -91,6 +91,20 @@ BUSY_OVERRIDE = re.compile(r"\b(stop|instead|first|right now|now|leave (it|that)
                            r"drop (it|that)|change of plan)\b", re.I)
 
 
+# what she says "On it!" for, at once (#19): requests that make or fetch something, or go looking
+ACK_TOOLS = ("build", "blueprint", "job", "harvest", "place_torch", "give_item", "give_effect", "command",
+             "find_flat", "find_ore", "find_block", "locate")
+# what counts as having done something (then a second sentence is dropped unless it's a question, #71)
+DEED_TOOLS = ("build", "blueprint", "job", "harvest", "place_torch", "give_item", "give_effect", "command", "protect",
+              "guide")
+
+
+def after_a_deed(sentence, first):
+    """After she did something, the first sentence and questions are said; the rest is dropped ("Done! It's right in
+    the middle now. Ding!" was talked over 24 times out of 31, #71)."""
+    return first or sentence.rstrip().endswith("?")
+
+
 class SpokenStream:
     """One answer, spoken as it streams in: the first sentence starts her line (through the coordinator,
     as a reply), the next ones join it. The voice for each is made in order while the AI keeps writing."""
@@ -103,6 +117,8 @@ class SpokenStream:
     def add(self, text, mood, gesture, whisper):
         if self.brain.hush_at >= self.started:
             return  # hushed while this answer was being written: not a word of it
+        if getattr(self.brain, "turn_deed", False) and not after_a_deed(text, not self.said):
+            return
         if self.first_at is None:
             self.first_at = self.brain.clock()
         self.said.append(text)
@@ -603,6 +619,8 @@ class Brain:
             if args.get("refuse"):
                 return {"ok": False, "error": args["refuse"]}
         result = await self.request(name, args)
+        if name in DEED_TOOLS and result.get("ok"):
+            self.turn_deed = True
         if name == "guide" and result.get("ok"):
             self.led_at = self.clock()
         if name == "blueprint" and result.get("ok") and str(args.get("what") or "cottage").lower() != "stop":
@@ -2331,6 +2349,10 @@ class Brain:
             done.append("put the block you borrowed back where it was" if res.get("ok") else
                         "tried to put a block back, but: %s" % res.get("error", "nothing to put back"))
         plain = talker.plain_command(text, moving) if self.cfg["behaviour"].get("talker_first", True) else None
+        if not plain and intents.PRAISE.match(text) and self.cfg["behaviour"].get("talker_first", True) \
+                and not self.heart.angry() and not (self.her_offer and self.clock() - self.her_offer[1] < 60) \
+                and not (self.blueprint_offer and self.clock() - self.blueprint_offer[1] < 90):
+            plain = "thanks"  # "Amazing!", "thank you": her words back at once, no AI (#20)
         if plain and not vouched and not self.heart.angry() and not intents.PUT_BACK.search(text):
             await self.answer_on_instinct(text, plain, heard)  # talker first: no AI for a plain command
             return
@@ -2452,6 +2474,14 @@ class Brain:
                                                        self.heart.discovery_note(self.abilities), note) if x)
                 self.session.event("decide", who="player", acts=done or None, force=asked, force_by=force_by,
                                    offered=offered, cross=bool(note_cross) or None, about=about or None)
+                self.turn_deed = False
+                if force in ACK_TOOLS and "?" not in text and not note_cross and not self.heart.angry() \
+                        and self.cfg["behaviour"].get("talker_first", True):
+                    # a clear request: a word at once, before the AI and the tool (#19); the AI says how it went
+                    ack = self.instinct.pick("on_it") or random.choice(talker.LINES["on_it"])
+                    await self.say(ack, self.mood or "happy", prio="reply", source="instinct")
+                    self.mind.heart += ("\nYou already said \"%s\" out loud as you started: don't say it again; after "
+                                        "the tool, one short sentence about how it went." % ack)
                 marker = mind_mod.call_marker()
                 speech = SpokenStream(self)  # her answer, spoken sentence by sentence as it's written
                 filler = (asyncio.create_task(self.fill_silence(speech, self.cfg["behaviour"]["fill_silence_after"]))
@@ -2494,6 +2524,9 @@ class Brain:
             self.mind.world_knowledge = ""  # (only for the question it answered)
             hint = intents.offered_in(reply, self.abilities)
             self.her_offer = (hint, self.clock()) if hint else None
+            if getattr(self, "turn_deed", False) and not speech.said:  # (#71: after a deed, one sentence and questions)
+                parts = re.split(r"(?<=[.!?])\s+", reply.strip())
+                reply = " ".join(p for k, p in enumerate(parts) if after_a_deed(p, k == 0))
             if not speech.said and self.hush_at < speech.started:  # (nothing streamed: the whole answer, as before)
                 await self.say(reply, mood or "happy", emote=gesture,
                                style="whisper" if self.mind.last_whisper else None)

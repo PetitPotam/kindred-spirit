@@ -16,11 +16,18 @@ LINES = {
     "follow_ok": ["Right behind you!", "Coming!", "With you!", "Lead on!", "Okay, sticking close."],
     "stay_ok": ["Staying put!", "I'll wait right here.", "Not moving a bit.", "Frozen!", "Okay, I'll stay."],
     "come_ok": ["Coming!", "Here I am!", "On my way!", "Zooming over!"],
+    # thanks and praise, nothing else: answered at once, no AI (#20)
+    "thanks_ok": ["Hehe!", "Anytime!", "Yay!", "Happy to!", "You're welcome!", "Hee, thank you!"],
+    # a clear request she's about to work on: said at once, before the AI and the tool (#19); never "done"
+    "on_it": ["On it!", "Okay!", "Let's see...", "Leave it to me!", "Ooh, okay!", "Mm-hm!"],
 }
 MOMENTS = {
     "follow_ok": "the player asked you to follow them, and you do; a tiny answer, 1 to 4 words (\"Right behind you!\")",
     "stay_ok": "the player asked you to stay where you are, and you do; 1 to 5 words (\"Staying put!\")",
     "come_ok": "the player called you over, and you come; 1 to 4 words (\"Coming!\")",
+    "thanks_ok": "the player thanked or praised you; a tiny happy answer, 1 to 4 words (\"Hehe!\")",
+    "on_it": "the player asked you to do something and you're just starting: 1 to 3 words, never saying it's done or "
+             "how it went (\"On it!\")",
 }
 
 # words that don't change what's asked

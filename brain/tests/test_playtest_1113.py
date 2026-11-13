@@ -87,8 +87,9 @@ def test_praise_gets_words_not_tools(stubs):  # #61
     async def run():
         b.ws, b.in_world = object(), True
         await b.answer("Amazing.")
+    before = len(stubs.ai_requests)
     asyncio.run(run())
-    assert b.offered == [], "no powers offered for a thank-you"
+    assert len(stubs.ai_requests) == before, "a thank-you is answered on instinct: no AI, so no powers (#20)"
 
 
 def test_the_same_blueprint_isnt_built_twice_unasked(stubs):  # #61
@@ -377,3 +378,51 @@ def test_gender_pronouns_and_age_are_never_guessed(stubs):  # #25
         return guessed, said
     guessed, said = asyncio.run(run())
     assert guessed["ok"] is False and said["ok"] and kept == ["The player is 14 years old (they said so)"]
+
+
+def test_thanks_get_an_instant_answer_without_the_ai(stubs):  # #20
+    b = _brain(stubs, ["build"])
+    said = []
+
+    async def say(text, *a, **k):
+        said.append(text)
+        return 1
+    b.say = say
+
+    async def send(msg):
+        pass
+    b.send = send
+    before = len(stubs.ai_requests)
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        await b.answer("Thank you!")
+    asyncio.run(run())
+    assert len(stubs.ai_requests) == before, "no AI for a thank-you"
+    assert said and len(said[0].split()) <= 5
+
+
+def test_a_clear_request_gets_on_it_at_once_then_one_sentence(stubs):  # #19, #71
+    from kindred.server import after_a_deed
+    assert after_a_deed("There! A farm.", True) and not after_a_deed("All green and growing.", False)
+    assert after_a_deed("Want a bell in the middle?", False)
+    stubs.ai_script = [{"role": "assistant", "content": "[happy] There! A farm. All green and growing. Ding!"}]
+    b = _brain(stubs, ["build"])
+    said = []
+
+    async def say(text, *a, **k):
+        said.append(text)
+        return 1
+    b.say = say
+
+    async def send(msg):
+        pass
+    b.send = send
+
+    async def run():
+        b.ws, b.in_world = object(), True
+        b.turn_deed = False
+        await b.answer("could you make a wheat farm here please")
+    asyncio.run(run())
+    from kindred import talker
+    assert said[0] in talker.LINES["on_it"] or len(said[0].split()) <= 4, "a word at once: " + said[0]
