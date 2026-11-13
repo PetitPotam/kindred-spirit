@@ -376,7 +376,8 @@ Copyright © 2026 PetitPotam ([github.com/PetitPotam](https://github.com/PetitPo
   (AGPL-3.0-only): use it, study it, change it and share it; if you share a changed version, or run one
   for others over a network, share its source under the same licence.
 - **Additional permission** (AGPL section 7): you may combine Kindred Spirit with Minecraft, the Fabric
-  loader and Fabric API, and distribute the result, even though Minecraft itself isn't free software.
+  loader and Fabric API, and distribute the result, even though Minecraft itself isn't free software. The
+  exact words are in **[NOTICE](NOTICE)**, beside the licence.
 - **Pip's name, character and art** have their own, simple rules: anything kind is welcome, nothing
   lewd or hateful. See **[TRADEMARKS.md](TRADEMARKS.md)**.
 - **Contributing** needs a signed [Contributor License Agreement](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md).

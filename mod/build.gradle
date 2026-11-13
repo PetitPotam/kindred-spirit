@@ -63,4 +63,7 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-jar { from("../LICENSE") { rename { "${it}_${project.archives_base_name}" } } }
+jar {
+    from("../LICENSE") { rename { "${it}_${project.archives_base_name}" } }
+    from("../NOTICE") { rename { "${it}_${project.archives_base_name}" } } // (the permission to combine it with Minecraft)
+}
