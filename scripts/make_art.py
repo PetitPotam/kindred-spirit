@@ -145,8 +145,8 @@ def wing(x, y, n=64):
 
 if __name__ == "__main__":
     png(os.path.join(ASSETS, "textures", "companion", "white.png"), 16, 16, lambda x, y: (255, 255, 255, 255))
-    png(os.path.join(ASSETS, "icon.png"), 128, 128, icon)
+    # (the icon is a picture of Pip taken in the game since 2026-11-13: docs/art/README.md; not drawn here any more)
     png(os.path.join(ASSETS, "textures", "skins", "strawberry.png"), 64, 32, strawberry)
     png(os.path.join(ASSETS, "textures", "skins", "starry.png"), 64, 32, starry)
     png(os.path.join(ASSETS, "textures", "companion", "wing.png"), 64, 64, wing)
-    print("wrote white.png, icon.png and the skin textures in", ASSETS)
+    print("wrote white.png and the skin textures in", ASSETS)

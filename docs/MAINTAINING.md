@@ -63,7 +63,8 @@ a personal access token (with permission to create versions) as the Actions secr
 the step is skipped. The page should say that the mod needs Pip's brain running on the host's computer.
 **Modrinth's content rules** (modrinth.com/legal/rules) matter here: the project must carry the "Contains
 AI-generated content" disclosure (set on modrinth.com, in the project's settings); no icon or image derived from AI
-output (so the draft has none until one is drawn by hand); a page that says plainly what data goes where; and a
+output (Pip's icon is drawn by a program written with Claude: the owner chose to keep it, and the page says how it
+was made, so moderators can judge); a page that says plainly what data goes where; and a
 project whose contents are primarily AI output may not be published publicly, which Modrinth's moderators judge
 from an honest description (docs/modrinth.md says who did what). Never describe the AI's part as smaller than it is.
 `scripts/modrinth.sh` creates the draft and keeps its page in step with [docs/modrinth.md](modrinth.md)

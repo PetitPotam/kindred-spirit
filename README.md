@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="mod/src/main/resources/assets/kindredspirit/icon.png" width="112" alt="Pip, a green slime ball with a smile">
+  <img src="mod/src/main/resources/assets/kindredspirit/icon.png" width="112" alt="Pip, a little teal slime spirit, winking">
 
 # Kindred Spirit
 

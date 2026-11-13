@@ -309,6 +309,8 @@ public final class DevScript {
                 Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(),
                     msg -> KindredSpiritClient.LOG.info("dev script: {}", msg.getString()));
             }
+            case "hud" -> mc.options.hideGui = arg.trim().equals("off"); // (clean pictures: no HUD, no hand)
+            case "fov" -> mc.options.fov().set(Integer.parseInt(arg.trim())); // (narrow: a close-up without coming closer)
             case "quit" -> mc.stop();
             default -> KindredSpiritClient.LOG.warn("dev script: unknown step {}", line);
         }

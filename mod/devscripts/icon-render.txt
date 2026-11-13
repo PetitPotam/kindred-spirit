@@ -1,0 +1,88 @@
+# Pip close up, in front of a plain backdrop (for the icon: the background is cut out afterwards). No HUD, no hand.
+world kindred-icon
+wait 220
+cmd gamemode creative
+cmd time set 6000
+cmd weather clear
+cmd gamerule doDaylightCycle false
+cmd gamerule doMobSpawning false
+cmd kill @e[type=!minecraft:player]
+cmd tp @s 0.5 200 0.5 0 0
+wait 40
+cmd fill -12 188 -12 12 212 12 minecraft:blue_concrete hollow
+cmd fill -11 189 -11 11 211 11 minecraft:air
+cmd fill -3 199 -3 3 199 3 minecraft:barrier
+cmd tp @s 0.5 200 0.5 180 0
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd effect give @s minecraft:invisibility infinite 0 true
+cmd clear @s
+hud off
+fov 30
+act {"move": "come"}
+wait 140
+skin icon_slime
+wait 60
+brain {"type": "mood", "mood": "happy"}
+act {"look": "me", "seconds": 30}
+lookat companion
+wait 50
+lookat companion
+wait 10
+screenshot icon-slime-1
+emote happy
+wait 12
+screenshot icon-slime-2
+wait 30
+skin icon_sprout
+wait 60
+brain {"type": "mood", "mood": "happy"}
+act {"look": "me", "seconds": 30}
+lookat companion
+wait 50
+lookat companion
+wait 10
+screenshot icon-sprout-1
+emote happy
+wait 12
+screenshot icon-sprout-2
+wait 30
+skin icon_fairy
+wait 60
+brain {"type": "mood", "mood": "happy"}
+act {"look": "me", "seconds": 30}
+lookat companion
+wait 50
+lookat companion
+wait 10
+screenshot icon-fairy-1
+emote happy
+wait 12
+screenshot icon-fairy-2
+wait 30
+skin icon_wisp
+wait 60
+brain {"type": "mood", "mood": "happy"}
+act {"look": "me", "seconds": 30}
+lookat companion
+wait 50
+lookat companion
+wait 10
+screenshot icon-wisp-1
+emote happy
+wait 12
+screenshot icon-wisp-2
+wait 30
+skin icon_slime_cube
+wait 60
+brain {"type": "mood", "mood": "happy"}
+act {"look": "me", "seconds": 30}
+lookat companion
+wait 50
+lookat companion
+wait 10
+screenshot icon-slime_cube-1
+emote happy
+wait 12
+screenshot icon-slime_cube-2
+wait 30
+quit
