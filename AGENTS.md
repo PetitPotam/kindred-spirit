@@ -46,6 +46,10 @@ These are not optional. A pull request that breaks one of them is closed.
     contributors will notice. The full process: [docs/MAINTAINING.md](docs/MAINTAINING.md).
 11. **Commit messages** explain *why*, not just what: a short title line, then the reason and what was
     checked.
+12. **Work is tracked in issues** and on the project board "Kindred Spirit" (milestones: Singleplayer polish,
+    LAN with friends, First public release, Later: online servers). Before starting, look for the issue;
+    a bug, idea or feature you notice along the way gets an issue (with your human's OK) with labels and a
+    milestone, not a TODO in the code. Pull requests say `Fixes #<number>` so the issue closes when merged.
 
 ## Working on the code
 

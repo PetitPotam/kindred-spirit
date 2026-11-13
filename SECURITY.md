@@ -6,9 +6,12 @@ computer, read your keys or memories, make Pip act for someone she shouldn't, or
 shouldn't, please report it **privately**:
 
 - on GitHub: **Security → Report a vulnerability** in this repository
-  ([direct link](https://github.com/PetitPotam/kindred-spirit/security/advisories/new)).
+  ([direct link](https://github.com/PetitPotam/kindred-spirit/security/advisories/new)), once the
+  repository is public (GitHub only offers private reports on public repositories);
+- until then, or if that link doesn't work: open an issue titled **"Security: please contact me"**,
+  with no details in it, and the maintainer will get in touch with you privately.
 
-Please don't open a public issue for it. You'll get an answer within a week; once it's fixed, the
+Please don't describe it in a public issue. You'll get an answer within a week; once it's fixed, the
 release notes credit you if you'd like.
 
 **Supported versions:** only the latest release gets security fixes.
