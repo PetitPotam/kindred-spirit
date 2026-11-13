@@ -190,6 +190,12 @@ public final class GuestBridge {
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(from, new PipPayload(res.toString()));
             }
             case "touch" -> touch(server, from, m.has("what") ? m.get("what").getAsString() : "");
+            case "glow" -> { // a visiting Pip's light, placed by this world's game where she floats
+                if (!acceptVisitors.get()) return;
+                net.minecraft.core.BlockPos at = m.has("x") ? new net.minecraft.core.BlockPos(m.get("x").getAsInt(),
+                        m.get("y").getAsInt(), m.get("z").getAsInt()) : null;
+                dev.kindredspirit.act.Glow.visitorLight(server, from, at, m.has("level") ? m.get("level").getAsInt() : 12);
+            }
             default -> { }
         }
     }

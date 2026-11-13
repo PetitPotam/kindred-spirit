@@ -538,3 +538,21 @@ def test_a_friend_far_from_you_hurting_her_isnt_held_against_you(stubs):
     assert not b.near_player("Robin")
     b.heart.friend_touch("Robin", "hit", witnessed=b.near_player("Robin"))
     assert b.heart.friends.watching() == [], "you weren't there to step in"
+
+
+# ---------------------------------------------------------------- items 31 and 33
+
+def test_speech_to_text_knows_the_names_and_puts_them_right():
+    p = intents.stt_prompt("Pip", ["AlexCraftX", "riverrobin"])
+    assert p.startswith("Pip, AlexCraftX, riverrobin.") and "ender pearl" in p
+    assert intents.fix_names("Q, can you find Robeen?", "Pip", ["riverrobin"]) == "Pip, can you find riverrobin?"
+    assert intents.fix_names("that is valid", "Pip", ["riverrobin"]) == "that is valid"
+    assert intents.fix_names("throw the underpair", "Pip", []) == "throw the ender pearl"
+
+
+def test_light_the_way_is_her_glow_not_a_torch():
+    assert intents.match("hey pip light the way")[0] == [{"glow": "bright", "seconds": 180}]
+    assert intents.match("pip, stop glowing")[0] == [{"glow": "off", "seconds": 600}]
+    assert intents.match("you glow so nicely")[0] == []
+    assert intents.action_hint("hey pip light the way", ["place_torch"]) is None
+    assert intents.action_hint("place a torch here", ["place_torch"]) == "place_torch"

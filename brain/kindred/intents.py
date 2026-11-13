@@ -34,6 +34,13 @@ RULES = [
     # gestures
     (r"\b(spin|twirl|do a (spin|flip|twirl)|turn around)\b", {"emote": "spin"}, "do a spin"),
     (r"\b(jump|hop|bounce)\b", {"emote": "hop"}, "hop"),
+    # her glow ("hey pip light the way" got "my light's being shy"): brighter for a few minutes, or off
+    (r"\b(stop glowing|glow off|don'?t glow|turn (your|the) (light|glow) off|dim (your|the) light)\b",
+     {"glow": "off", "seconds": 600}, "stop glowing for a while"),
+    (r"(^|\bpip,? |\bplease |\bcan you |\bcould you )(glow|shine)\b|\b(glow|shine) (brighter|more|for (me|us)|up)\b|"
+     r"\blight the way\b|\blight (us|me) up\b|\bbe (my|our|a) "
+     r"(light|lantern|torch)\b|\b(make|give) (some |more )?light\b(?! level)", {"glow": "bright", "seconds": 180},
+     "glow brighter for a few minutes (you're the light: no torch needed)"),
     # a little show: several gestures in a row (asked for "fancy emotes", she gave enchanted apples)
     (r"\b(do|show( me)?|perform|make)\b.{0,25}\b(emotes?|tricks?|moves|a dance|a show|gestures|dance moves)\b|"
      r"\bshow off\b", {"perform": True}, "a little show of your gestures (spins, hops, a wink)"),
@@ -77,8 +84,8 @@ ACTION_HINTS = [
      r"flower ?pot|ladder|sign|banner|trapdoor|fence gate)\b|\b(campfire|bed|chest|door)\b.{0,15}\b(here|there)\b",
      "build"),
     (r"\b(place|put|light|drop)\b.{0,30}\btorch|\btorch\b.{0,20}\b(here|down|please)|\b(give|make|need|want|some)"
-     r"( me| us)?( some| a)? light\b|\blight (it|this|that|the way|us|things|everything|our way) up\b|"
-     r"\blight (it|this|the way|our way)\b|\bcan'?t see\b|\bhelp (me|us) see\b|\btoo dark\b", "place_torch"),
+     r"( me| us)?( some| a)? light\b(?=.{0,20}\btorch)|\blight (it|this|that|things|everything) up\b|"
+     r"\blight (it|this)\b|\bcan'?t see\b|\bhelp (me|us) see\b|\btoo dark\b", "place_torch"),
     (r"\b(poke|prod|boop|bonk|tickle)\b|\b(hit|push|shove|smack|tap)\b.{0,15}\b(playfully|for fun|gently|a little)\b|"
      r"\b(push|knock|blast|keep|get)\b.{0,30}\b(away|back|off)\b|\bprotect me\b|\bhelp\b.{0,20}\b(zombies?|skeletons?|creepers?|spiders?|monsters?|mobs?)\b|"
      r"\b(i'?m|i am|we'?re|we are) (being )?(attacked|under attack|getting (shot|hit|attacked))\b|\b(save|defend) me\b|"
@@ -283,6 +290,44 @@ DIARY = re.compile(r"\b(your|ur|her|pip'?s) diary\b|\bdiary\b.{0,20}\b(write|wro
 BACK_TO_SPOT = re.compile(r"\bwhere (i|we|you) (died|saw|met|found|built|were building|was building|slept|started)\b|"
                           r"\b(the )?first (\w+ ){0,2}(we|i) (saw|met|found)\b|\bwhat i was building\b|"
                           r"\b(my|our|the) (bed|chest|building|build|portal|house)\b", re.I)
+
+# speech-to-text: what it should expect (names, Minecraft words), and names it mishears, put right afterwards
+MC_WORDS = ("Minecraft, creeper, zombie, skeleton, enderman, ender pearl, Nether, the End, villager, diamond, "
+            "netherite, redstone, obsidian, crafting table, furnace, pickaxe, axe, coordinates, biome, cherry grove, "
+            "spawn, Elytra, totem, enchant, efficiency, potion, torch, wolf, sheep, cow.")
+HER_NAME_MISHEARD = re.compile(r"^\s*(q|pep|peep|pib|bip|pipp|pit|piv|beep|pipe)\b[,!.]?\s*", re.I)
+
+
+def stt_prompt(her_name, people):
+    """The prompt for speech-to-text: her name, the people she knows (names and nicknames), Minecraft words."""
+    names = ", ".join(dict.fromkeys(n for n in [her_name] + list(people) if n))
+    return "%s. %s" % (names, MC_WORDS)
+
+
+def fix_names(text, her_name, people):
+    """Names speech-to-text got nearly right ("Robeen" for Robin, "Q," or "Pep," for Pip at the start): put right.
+    Only capitalized words (it writes names that way) and her name at the very start, so ordinary words stay."""
+    t = HER_NAME_MISHEARD.sub(her_name + ", ", text or "", count=1) if her_name else text or ""
+
+    def fix(m):
+        w = m.group(0)
+        if w.lower() in COMMON or len(w) < 4:
+            return w
+        hit = next((n for n in people if n and n.lower() != w.lower() and _close(w.lower(), n.lower())
+                    and abs(len(w) - len(n)) <= 4), None)
+        return hit or w
+    t = re.sub(r"\b[A-Z][a-z]{3,}\b", fix, t)
+    for rx, word in MC_FIXES:
+        t = rx.sub(word, t)
+    return t
+
+
+# Minecraft words it mishears (heard in play): put right after transcription
+MC_FIXES = [(re.compile(r"\b(under ?pair|under ?pearl|ender ?pair|end of pearl)s?\b", re.I), "ender pearl"),
+            (re.compile(r"\b(nether ?right|nether ?white)\b", re.I), "netherite"),
+            (re.compile(r"\b(red stone)\b", re.I), "redstone"),
+            (re.compile(r"\b(ellie ?tra|ely ?tra)\b", re.I), "elytra")]
+
 
 # the player stepping in for her ("stop hitting Pip", "leave her alone", "be nice to her")
 DEFEND = re.compile(r"\b(stop|quit|don'?t|do not|no)\b.{0,12}\b(hit(ting)?|hurt(ing)?|punch(ing)?|attack(ing)?|"
