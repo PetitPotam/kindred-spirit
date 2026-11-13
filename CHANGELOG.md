@@ -84,6 +84,8 @@ friends on LAN need only the mod.
   "Release X" pull request, then its tag. One convention for branches, titles and issue links (CONTRIBUTING.md),
   checked on every pull request.
 - The README and guides describe the Setup, 26.3, the K key and what hasn't been tried yet (#145).
+- THIRD_PARTY_NOTICES.md names the AI the player chooses and the libraries inside the Setup's Python, and says
+  which commits carry an AI co-author line; docs/SETUP.md lists the steps in the Setup's own order (#157).
 
 ## [0.2.0-preview] - 2026-11-13
 
