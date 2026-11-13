@@ -155,6 +155,20 @@ public final class BlueprintBuild {
 
     /** The cottage generator for houses, else a schematic file whose name has the words asked. */
     static Blueprint choose(String what, int people, String wood) {
+        // a blueprint file by its exact name first ("village_plains_small_house_1" is a file, not "a house")
+        String exact = what == null ? "" : what.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
+        for (Path dir : folders()) {
+            for (String ext : new String[]{".nbt", ".schem", ".litematic"}) {
+                Path file = dir.resolve(exact + ext);
+                if (!exact.isEmpty() && Files.isRegularFile(file)) {
+                    try {
+                        return Blueprints.read(file);
+                    } catch (Exception e) {
+                        LOG.warn("couldn't read blueprint {}: {}", file, e.toString());
+                    }
+                }
+            }
+        }
         if (House.names(what)) return House.cottage(people, wood);
         String want = what.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9 ]", " ").trim();
         for (Path dir : folders()) {

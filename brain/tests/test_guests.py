@@ -233,3 +233,15 @@ def test_a_friends_request_is_judged_by_their_own_words(stubs):
         await b.answer_guest("Walid", "Pip, can you give me night vision please?", powers=True)
     asyncio.run(run())
     assert asked == ["give_effect"]
+
+
+def test_find_blueprints_by_words(tmp_path):
+    from kindred.server import find_blueprints
+    for n in ("village_desert_library_1.nbt", "village_plains_small_house_1.nbt", "shipwreck_with_mast.nbt",
+              "igloo.nbt", "castle.schem", "notes.txt"):
+        (tmp_path / n).write_text("x")
+    r = find_blueprints("", [str(tmp_path)])
+    assert r["total"] == 5 and "village_desert" in r["kinds"] and "castle" in r["kinds"]
+    assert find_blueprints("desert library", [str(tmp_path)])["matches"] == ["village_desert_library_1"]
+    assert find_blueprints("ships", [str(tmp_path)])["matches"] == ["shipwreck_with_mast"]
+    assert not find_blueprints("x", [str(tmp_path / "none")])["ok"]
