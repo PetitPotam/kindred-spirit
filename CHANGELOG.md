@@ -40,7 +40,8 @@ friends on LAN need only the mod.
   (#107).
 - **Installed only the mod?** In your own world, one chat message now says that Pip needs her brain on this computer,
   with links to the Setup and to playing with a friend who hosts her, and **Don't show again**
-  (`/kindred hint off`). Mod Menu's description and links say the same (#92).
+  (`/kindred hint off`). Mod Menu's description and links say the same (#92). Its Setup link, and Mod Menu's homepage,
+  open the website's Download page (#146).
 
 ### Fixed
 - `/kindred reset` also forgets the places she noticed on her own (your bed, builds, where you died), so the new
@@ -82,6 +83,8 @@ friends on LAN need only the mod.
   "Release X" pull request, then its tag. One convention for branches, titles and issue links (CONTRIBUTING.md),
   checked on every pull request.
 - The README and guides describe the Setup, 26.3, the K key and what hasn't been tried yet (#145).
+- THIRD_PARTY_NOTICES.md names the AI the player chooses and the libraries inside the Setup's Python, and says
+  which commits carry an AI co-author line; docs/SETUP.md lists the steps in the Setup's own order (#157).
 - Filming tools for the demo video (#144): the setting `hudWithHiddenGui` (off) and the dev-script step
   `ownhud on|off` keep her own HUD with F1; a recording's start event has the computer's clock (`wall`), `fps` and
   `size`, and a friend's line to her on LAN is recorded with `from`; `-PplayerName=` names the dev player and
