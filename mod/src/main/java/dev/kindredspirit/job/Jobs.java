@@ -1,5 +1,6 @@
 package dev.kindredspirit.job;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import dev.kindredspirit.craft.CraftPlanner;
 import dev.kindredspirit.craft.GameRecipes;
@@ -90,7 +91,7 @@ public final class Jobs {
 
     /** "Mine 10 iron": the nearest veins within reach, whole, nearest first. */
     public static JsonObject mine(ServerPlayer sp, String what, int count, boolean magic) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         BlockPos c = sp.blockPosition();
         int radius = magic ? MAGIC_RADIUS : GROUNDED_RADIUS;
         Predicate<String> kind = Dig.kind(what);
@@ -119,12 +120,12 @@ public final class Jobs {
             return error("Your things are where you died, " + (int) Math.sqrt(deathSpot.distSqr(sp.blockPosition()))
                     + " blocks away. Go there with me and I'll gather them (they vanish after five minutes).");
         }
-        if (!sp.serverLevel().isLoaded(deathSpot)) return error("That spot is too far away for me to reach right now.");
+        if (!Mc.level(sp).isLoaded(deathSpot)) return error("That spot is too far away for me to reach right now.");
         return gather(sp, deathSpot, 8, "return_items", "your things", magic);
     }
 
     private static JsonObject gather(ServerPlayer sp, BlockPos at, int radius, String kind, String what, boolean magic) {
-        List<ItemEntity> items = sp.serverLevel().getEntitiesOfClass(ItemEntity.class, new AABB(at).inflate(radius),
+        List<ItemEntity> items = Mc.level(sp).getEntitiesOfClass(ItemEntity.class, new AABB(at).inflate(radius),
                 e -> e.isAlive() && !e.getItem().isEmpty());
         if (items.isEmpty()) return error("There's nothing lying around" + (kind.equals("return_items") ? " where you died anymore." : " here."));
         Job j = new Job(kind, what, sp.getUUID(), magic);
@@ -134,7 +135,7 @@ public final class Jobs {
 
     /** "Make me 16 torches" from your own things (the planner works out the sticks and charcoal). */
     public static JsonObject craft(ServerPlayer sp, String item, int count, boolean magic) {
-        CraftPlanner p = planner(sp.getServer());
+        CraftPlanner p = planner(Mc.server(sp));
         String id = item.contains(":") ? item : "minecraft:" + item.trim().toLowerCase(java.util.Locale.ROOT).replace(' ', '_');
         if (!p.knows(id)) return error("I don't know a recipe for " + item + ".");
         int n = Math.max(1, Math.min(count, 576));
@@ -157,7 +158,7 @@ public final class Jobs {
         Job j = new Job("craft", id, sp.getUUID(), magic);
         j.work.add(quick(s -> {
             if (!magic && !takeFuel(s, (plan.smeltedItems() + 7) / 8, true)) return false;
-            CraftPlanner.Plan done = GameRecipes.carryOut(s, planner(s.getServer()), id, n);
+            CraftPlanner.Plan done = GameRecipes.carryOut(s, planner(Mc.server(s)), id, n);
             if (!done.canMakeNow()) return false; // something left their pockets meanwhile: nothing changed
             if (!magic) takeFuel(s, (done.smeltedItems() + 7) / 8, false);
             j.got.merge(id.substring(id.indexOf(':') + 1), n, Integer::sum);
@@ -199,7 +200,7 @@ public final class Jobs {
 
     /** "Chop that tree": the nearest tree within reach, its whole trunk (grounded: with your axe, at its speed). */
     public static JsonObject chop(ServerPlayer sp, int max, boolean magic) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         BlockPos c = sp.blockPosition();
         int radius = magic ? 16 : 8;
         Predicate<String> logs = Dig.kind("log");
@@ -248,7 +249,7 @@ public final class Jobs {
 
     /** "What am I missing for a piston?": the plan from their pockets, in words for her. */
     public static JsonObject craftHelp(ServerPlayer sp, String item, int count) {
-        CraftPlanner p = planner(sp.getServer());
+        CraftPlanner p = planner(Mc.server(sp));
         String id = item.contains(":") ? item : "minecraft:" + item.trim().toLowerCase(java.util.Locale.ROOT).replace(' ', '_');
         if (!p.knows(id)) {
             JsonObject r = error("There's no recipe for " + item + " (it's found or mined, not crafted, or it has another name).");
@@ -278,7 +279,7 @@ public final class Jobs {
 
     /** Trading help: the nearest villager's real offers, against the player's pockets. */
     public static JsonObject trades(ServerPlayer sp) {
-        net.minecraft.world.entity.npc.AbstractVillager v = dev.kindredspirit.trade.VillagerTrades.nearest(sp, 10);
+        net.minecraft.world.entity.npc.villager.AbstractVillager v = dev.kindredspirit.trade.VillagerTrades.nearest(sp, 10);
         if (v == null) return error("There's no villager within 10 blocks.");
         JsonObject r = ok();
         r.addProperty("villager", dev.kindredspirit.trade.VillagerTrades.who(v));
@@ -412,7 +413,7 @@ public final class Jobs {
 
         @Override
         public Result run(ServerPlayer sp) {
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = Mc.level(sp);
             BlockState st = level.getBlockState(at);
             if (st.isAir() || level.getBlockEntity(at) instanceof Container || at.equals(sp.blockPosition().below())
                     || at.distSqr(sp.blockPosition()) > (GROUNDED_RADIUS + 4) * (GROUNDED_RADIUS + 4)) {
@@ -451,7 +452,7 @@ public final class Jobs {
     }
 
     private static boolean breakBlock(ServerPlayer sp, BlockPos at, Job j) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = Mc.level(sp);
         BlockState st = level.getBlockState(at);
         if (st.isAir() || st.getDestroySpeed(level, at) < 0 || level.getBlockEntity(at) instanceof Container) return false;
         if (at.equals(sp.blockPosition().below())) return false; // never the block under their feet
@@ -464,7 +465,7 @@ public final class Jobs {
         }
         for (ItemStack drop : Block.getDrops(st, level, at, level.getBlockEntity(at), sp, tool)) {
             j.got.merge(BuiltInRegistries.ITEM.getKey(drop.getItem()).getPath(), drop.getCount(), Integer::sum);
-            if (!sp.getInventory().add(drop)) sp.drop(drop, false);
+            Mc.give(sp, drop);
         }
         level.destroyBlock(at, false, sp);
         if (!j.magic && !tool.isEmpty() && tool.isDamageableItem()) tool.hurtAndBreak(1, sp, EquipmentSlot.MAINHAND);
@@ -493,7 +494,7 @@ public final class Jobs {
         if (sp.getInventory().contains(new ItemStack(furnace ? Items.FURNACE : Items.CRAFTING_TABLE))) return true;
         BlockPos c = sp.blockPosition();
         for (BlockPos p : BlockPos.betweenClosed(c.offset(-6, -3, -6), c.offset(6, 3, 6))) {
-            BlockState s = sp.serverLevel().getBlockState(p);
+            BlockState s = Mc.level(sp).getBlockState(p);
             if (furnace ? s.is(Blocks.FURNACE) || s.is(Blocks.BLAST_FURNACE) : s.is(Blocks.CRAFTING_TABLE)) return true;
         }
         return false;
@@ -502,10 +503,10 @@ public final class Jobs {
     /** Coal or charcoal (one smelts 8): checks, or takes them. */
     private static boolean takeFuel(ServerPlayer sp, int n, boolean checkOnly) {
         int have = 0;
-        for (ItemStack s : sp.getInventory().items) if (s.is(Items.COAL) || s.is(Items.CHARCOAL)) have += s.getCount();
+        for (ItemStack s : Mc.items(sp)) if (s.is(Items.COAL) || s.is(Items.CHARCOAL)) have += s.getCount();
         if (have < n) return false;
         if (checkOnly) return true;
-        for (ItemStack s : sp.getInventory().items) {
+        for (ItemStack s : Mc.items(sp)) {
             if (n <= 0) break;
             if (s.is(Items.COAL) || s.is(Items.CHARCOAL)) {
                 int t = Math.min(n, s.getCount());

@@ -1,5 +1,6 @@
 package dev.kindredspirit;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.kindredspirit.util.Direction8;
@@ -145,7 +146,7 @@ public final class Snapshot {
         JsonArray effects = new JsonArray();
         for (MobEffectInstance e : p.getActiveEffects()) {
             JsonObject eo = new JsonObject();
-            eo.addProperty("id", e.getEffect().unwrapKey().map(k -> k.location().toString()).orElse("?"));
+            eo.addProperty("id", e.getEffect().unwrapKey().map(k -> k.identifier().toString()).orElse("?"));
             eo.addProperty("level", e.getAmplifier() + 1);
             eo.addProperty("seconds", e.getDuration() / 20);
             effects.add(eo);
@@ -157,15 +158,15 @@ public final class Snapshot {
         where.addProperty("x", pos.getX());
         where.addProperty("y", pos.getY());
         where.addProperty("z", pos.getZ());
-        where.addProperty("dimension", mc.level.dimension().location().toString());
-        where.addProperty("biome", mc.level.getBiome(pos).unwrapKey().map(k -> k.location().toString()).orElse("?"));
+        where.addProperty("dimension", mc.level.dimension().identifier().toString());
+        where.addProperty("biome", mc.level.getBiome(pos).unwrapKey().map(k -> k.identifier().toString()).orElse("?"));
         where.addProperty("facing", p.getDirection().getName());
         where.addProperty("yaw", round1(p.getYRot()));
         where.addProperty("skyVisible", mc.level.canSeeSky(pos.above()));
         where.addProperty("light", mc.level.getMaxLocalRawBrightness(pos));
         o.add("where", where);
 
-        long dayTime = mc.level.getDayTime();
+        long dayTime = Mc.dayTime(mc.level);
         JsonObject time = new JsonObject();
         time.addProperty("day", dayTime / 24000 + 1);
         time.addProperty("timeOfDay", dayTime % 24000);
@@ -177,7 +178,7 @@ public final class Snapshot {
         o.addProperty("holding", itemId(p.getMainHandItem()));
         o.addProperty("offhand", itemId(p.getOffhandItem()));
         Map<String, Integer> counts = new LinkedHashMap<>();
-        for (ItemStack s : p.getInventory().items) {
+        for (ItemStack s : Mc.items(p)) {
             if (!s.isEmpty()) counts.merge(itemId(s), s.getCount(), Integer::sum);
         }
         JsonObject inv = new JsonObject();
@@ -185,7 +186,7 @@ public final class Snapshot {
                 .forEach(e -> inv.addProperty(e.getKey(), e.getValue()));
         o.add("inventory", inv);
         JsonArray armor = new JsonArray();
-        for (ItemStack s : p.getInventory().armor) if (!s.isEmpty()) armor.add(itemId(s));
+        for (ItemStack s : Mc.armor(p)) if (!s.isEmpty()) armor.add(itemId(s));
         o.add("wearing", armor);
 
         // what you are looking at, up to 24 blocks away
@@ -198,7 +199,7 @@ public final class Snapshot {
         } else if (hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK) {
             BlockPos bp = bh.getBlockPos();
             look.addProperty("block", BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(bp).getBlock()).toString());
-            look.addProperty("distance", round1(Math.sqrt(bp.getCenter().distanceToSqr(p.getEyePosition()))));
+            look.addProperty("distance", round1(Math.sqrt(net.minecraft.world.phys.Vec3.atCenterOf(bp).distanceToSqr(p.getEyePosition()))));
             look.addProperty("x", bp.getX());
             look.addProperty("y", bp.getY());
             look.addProperty("z", bp.getZ());
@@ -229,7 +230,7 @@ public final class Snapshot {
         java.util.List<net.minecraft.world.entity.LivingEntity> near = mc.level.getEntitiesOfClass(
                 net.minecraft.world.entity.LivingEntity.class, p.getBoundingBox().inflate(her == null ? 32 : 40),
                 e -> e.isAlive() && (e instanceof net.minecraft.world.entity.animal.Animal
-                        || e instanceof net.minecraft.world.entity.npc.AbstractVillager));
+                        || e instanceof net.minecraft.world.entity.npc.villager.AbstractVillager));
         near.sort(Comparator.comparingDouble(e -> e.distanceToSqr(p)));
         JsonArray animals = new JsonArray();
         for (net.minecraft.world.entity.LivingEntity e : near) {
@@ -244,7 +245,7 @@ public final class Snapshot {
             ao.addProperty("direction", Direction8.relative(p.getYRot(), e.getX() - p.getX(), e.getZ() - p.getZ()));
             ao.addProperty("baby", e.isBaby());
             ao.addProperty("tamed", e instanceof net.minecraft.world.entity.OwnableEntity own
-                    && p.getUUID().equals(own.getOwnerUUID()));
+                    && Mc.ownedBy(own, p));
             if (e.hasCustomName()) ao.addProperty("name", e.getCustomName().getString());
             animals.add(ao);
         }
@@ -255,7 +256,7 @@ public final class Snapshot {
         for (net.minecraft.world.entity.player.Player other : mc.level.players()) {
             if (other == p || !other.isAlive() || other.isSpectator() || other.distanceTo(p) > 48) continue;
             JsonObject po = new JsonObject();
-            po.addProperty("name", other.getGameProfile().getName());
+            po.addProperty("name", other.getGameProfile().name());
             po.addProperty("distance", round1(other.distanceTo(p)));
             po.addProperty("x", Math.round(other.getX())); // (where she last saw them, for her memory of places)
             po.addProperty("y", Math.round(other.getY()));
@@ -270,7 +271,7 @@ public final class Snapshot {
                 double moved = Math.hypot(other.getX() - other.xo, other.getZ() - other.zo);
                 String doing = other.isSleeping() ? "sleeping" : other.isPassenger() ? "riding" : other.isSwimming() ? "swimming"
                         : other.getAbilities().flying || other.isFallFlying() ? "flying" : other.isShiftKeyDown() ? "sneaking"
-                        : other.swinging ? (held.getItem() instanceof net.minecraft.world.item.BlockItem ? "placing blocks"
+                        : Mc.swinging(other) ? (held.getItem() instanceof net.minecraft.world.item.BlockItem ? "placing blocks"
                         : "swinging at something (mining or fighting)") : other.isSprinting() ? "running"
                         : moved > 0.02 ? "walking" : "standing still";
                 po.addProperty("doing", doing);
@@ -283,7 +284,7 @@ public final class Snapshot {
             players.add(po);
         }
         if (!players.isEmpty()) o.add("players", players);
-        o.addProperty("playerName", p.getGameProfile().getName()); // (who she lives with, for friends' turns)
+        o.addProperty("playerName", p.getGameProfile().name()); // (who she lives with, for friends' turns)
         o.add("hazards", hazards(mc, p));
 
         // what she feels where she floats: rain or snow on her, the cold or the heat, the light
@@ -292,7 +293,7 @@ public final class Snapshot {
         JsonObject feel = new JsonObject();
         feel.addProperty("temperature", round1(biome.getBaseTemperature()));
         if (mc.level.isRaining() && mc.level.canSeeSky(at)) {
-            net.minecraft.world.level.biome.Biome.Precipitation pr = biome.getPrecipitationAt(at);
+            net.minecraft.world.level.biome.Biome.Precipitation pr = Mc.precipitation(mc.level, biome, at);
             if (pr != net.minecraft.world.level.biome.Biome.Precipitation.NONE) {
                 feel.addProperty("falling", pr == net.minecraft.world.level.biome.Biome.Precipitation.SNOW ? "snow" : "rain");
             }

@@ -1,5 +1,6 @@
 package dev.kindredspirit;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonParser;
 import dev.kindredspirit.record.FrameRecorder;
 import dev.kindredspirit.life.Behavior;
@@ -11,7 +12,9 @@ import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.world.Difficulty;
-import net.minecraft.world.level.GameRules;
+//? if <26.1 {
+/*import net.minecraft.world.level.GameRules;
+*///?}
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
@@ -172,7 +175,7 @@ public final class DevScript {
                 && (mc.player == null || mc.level == null)) return;
         // a first launch shows the accessibility welcome screen before the title screen
         if ((cmd.equals("world") || cmd.equals("join"))
-                && !(mc.screen instanceof TitleScreen || mc.screen instanceof AccessibilityOnboardingScreen)) return;
+                && !(Mc.screen(mc) instanceof TitleScreen || Mc.screen(mc) instanceof AccessibilityOnboardingScreen)) return;
         lines.poll();
         KindredSpiritClient.LOG.info("dev script: {}", line);
         switch (cmd) {
@@ -180,10 +183,15 @@ public final class DevScript {
                 mc.options.onboardAccessibility = false;
                 mc.getTutorial().setStep(TutorialSteps.NONE); // no "move with WASD" popup in screenshots
                 if (mc.getLevelSource().levelExists(arg)) {
-                    mc.createWorldOpenFlows().openWorld(arg, () -> mc.setScreen(new TitleScreen()));
+                    mc.createWorldOpenFlows().openWorld(arg, () -> Mc.setScreen(mc, new TitleScreen()));
                 } else {
-                    LevelSettings settings = new LevelSettings(arg, GameType.SURVIVAL, false, Difficulty.EASY, true,
+                    //? if >=26.1 {
+                    LevelSettings settings = new LevelSettings(arg, GameType.SURVIVAL,
+                            new LevelSettings.DifficultySettings(Difficulty.EASY, false, false), true, WorldDataConfiguration.DEFAULT);
+                    //?} else {
+                    /*LevelSettings settings = new LevelSettings(arg, GameType.SURVIVAL, false, Difficulty.EASY, true,
                             new GameRules(), WorldDataConfiguration.DEFAULT);
+                    *///?}
                     mc.createWorldOpenFlows().createFreshLevel(arg, settings, new WorldOptions(20261111L, true, false),
                             WorldPresets::createNormalWorldDimensions, new TitleScreen());
                 }
@@ -202,11 +210,15 @@ public final class DevScript {
                 waitTicks = Integer.parseInt(arg.trim());
             }
             case "leave" -> { // save and quit to the title screen (then "world" can open another one)
-                boolean local = mc.isLocalServer();
+                //? if >=26.1 {
+                mc.disconnectWithSavingScreen();
+                //?} else {
+                /*boolean local = mc.isLocalServer();
                 mc.level.disconnect();
                 mc.disconnect(local ? new net.minecraft.client.gui.screens.GenericMessageScreen(
                         net.minecraft.network.chat.Component.literal("Saving...")) : new TitleScreen());
-                mc.setScreen(new TitleScreen());
+                *///?}
+                Mc.setScreen(mc, new TitleScreen());
             }
             case "cmd" -> mc.player.connection.sendCommand(arg.startsWith("/") ? arg.substring(1) : arg);
             case "chat" -> {
@@ -256,9 +268,14 @@ public final class DevScript {
                 KindredSpiritClient.get().devAction(a[0], a.length > 1 ? JsonParser.parseString(a[1]).getAsJsonObject() : new com.google.gson.JsonObject());
             }
             case "video" -> {
-                mc.options.hideGui = true;
+                Mc.hideHud(mc, true);
                 mc.options.fov().set(75);
-                mc.options.graphicsMode().set(net.minecraft.client.GraphicsStatus.FANCY);
+                //? if >=26.1 {
+                mc.options.graphicsPreset().set(net.minecraft.client.GraphicsPreset.FANCY);
+                net.minecraft.client.GraphicsPreset.FANCY.apply(mc);
+                //?} else {
+                /*mc.options.graphicsMode().set(net.minecraft.client.GraphicsStatus.FANCY);
+                *///?}
                 mc.options.cloudStatus().set(net.minecraft.client.CloudStatus.FANCY);
                 mc.options.bobView().set(false);
                 KindredSpiritClient.get().config().chatLog = false;
@@ -310,11 +327,16 @@ public final class DevScript {
                 }
             }
             case "screenshot" -> {
-                if (mc.screen instanceof net.minecraft.client.gui.screens.PauseScreen) mc.setScreen(null); // (focus lost)
-                Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(),
+                if (Mc.screen(mc) instanceof net.minecraft.client.gui.screens.PauseScreen) Mc.setScreen(mc, null); // (focus lost)
+                //? if >=26.1 {
+                Screenshot.grab(mc.gameDirectory, arg + ".png", mc.gameRenderer.mainRenderTarget(), 1,
                     msg -> KindredSpiritClient.LOG.info("dev script: {}", msg.getString()));
+                //?} else {
+                /*Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(),
+                    msg -> KindredSpiritClient.LOG.info("dev script: {}", msg.getString()));
+                *///?}
             }
-            case "hud" -> mc.options.hideGui = arg.trim().equals("off"); // (clean pictures: no HUD, no hand)
+            case "hud" -> Mc.hideHud(mc, arg.trim().equals("off")); // (clean pictures: no HUD, no hand)
             case "fov" -> mc.options.fov().set(Integer.parseInt(arg.trim())); // (narrow: a close-up without coming closer)
             case "quit" -> mc.stop();
             default -> KindredSpiritClient.LOG.warn("dev script: unknown step {}", line);

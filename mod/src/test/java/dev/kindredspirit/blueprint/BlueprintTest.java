@@ -338,10 +338,17 @@ class BlueprintTest {
         Path ours = dir.resolve("ours.nbt");
         Blueprints.writeStructure(sample("cottage.nbt"), ours, Blueprints.DATA_VERSION_1_21_1);
         net.minecraft.nbt.CompoundTag tag = net.minecraft.nbt.NbtIo.readCompressed(ours, net.minecraft.nbt.NbtAccounter.unlimitedHeap());
-        assertEquals(3955, tag.getInt("DataVersion"));
+        //? if >=26.1 {
+        assertEquals(3955, tag.getIntOr("DataVersion", 0));
+        assertEquals(5, tag.getListOrEmpty("size").getIntOr(0, 0));
+        net.minecraft.nbt.ListTag palette = tag.getListOrEmpty("palette");
+        assertTrue(palette.stream().anyMatch(t -> ((net.minecraft.nbt.CompoundTag) t).getStringOr("Name", "").equals("minecraft:oak_door")));
+        //?} else {
+        /*assertEquals(3955, tag.getInt("DataVersion"));
         assertEquals(5, tag.getList("size", 3).getInt(0));
         net.minecraft.nbt.ListTag palette = tag.getList("palette", 10);
         assertTrue(palette.stream().anyMatch(t -> ((net.minecraft.nbt.CompoundTag) t).getString("Name").equals("minecraft:oak_door")));
+        *///?}
 
         Path theirs = dir.resolve("theirs.nbt");
         net.minecraft.nbt.NbtIo.writeCompressed(tag, theirs);

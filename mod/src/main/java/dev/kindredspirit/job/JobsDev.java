@@ -1,5 +1,6 @@
 package dev.kindredspirit.job;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -15,7 +16,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +84,7 @@ public final class JobsDev implements ClientModInitializer {
         ServerPlayer sp = player(c);
         String item = StringArgumentType.getString(c, "item");
         String id = item.contains(":") ? item : "minecraft:" + item;
-        CraftPlanner planner = new CraftPlanner(GameRecipes.from(sp.getServer().getRecipeManager(), sp.getServer().registryAccess()));
+        CraftPlanner planner = new CraftPlanner(GameRecipes.from(Mc.server(sp).getRecipeManager(), Mc.server(sp).registryAccess()));
         CraftPlanner.Plan p = planner.plan(id, IntegerArgumentType.getInteger(c, "count"), GameRecipes.pockets(sp));
         JsonObject r = new JsonObject();
         r.addProperty("canMakeNow", p.canMakeNow());

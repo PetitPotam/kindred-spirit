@@ -2,7 +2,9 @@ package dev.kindredspirit.record;
 
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
+//? if <26.1 {
+/*import com.mojang.blaze3d.platform.GlStateManager;
+*///?}
 import dev.kindredspirit.KindredSpiritClient;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.GL11;
@@ -71,7 +73,14 @@ public final class FrameRecorder {
 
     public static void start(Path dir) {
         stop();
-        RenderTarget t = Minecraft.getInstance().getMainRenderTarget();
+        //? if >=26.1 {
+        // 26.1+ draws through Blaze3D (OpenGL or Vulkan) and the frame can't be read back with raw OpenGL any more.
+        KindredSpiritClient.LOG.warn("Recording isn't available on this Minecraft version yet.");
+        if (dir != null) return;
+        RenderTarget t = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        //?} else {
+        /*RenderTarget t = Minecraft.getInstance().getMainRenderTarget();
+        *///?}
         try {
             active = new FrameRecorder(dir, t.width, t.height);
             KindredSpiritClient.LOG.info("Recording {}x{} to {}", t.width, t.height, dir);
@@ -157,7 +166,8 @@ public final class FrameRecorder {
     private void capture() {
         long due = (long) Math.floor((System.nanoTime() - start) / 1e9 * FPS);
         if (due < written + full.size()) return; // this 1/30 s slot is already filled
-        RenderTarget t = Minecraft.getInstance().getMainRenderTarget();
+        //? if <26.1 {
+        /*RenderTarget t = Minecraft.getInstance().getMainRenderTarget();
         if (t.width != width || t.height != height) return; // window resized: skip
         ByteBuffer buf = free.poll();
         if (buf == null) return; // ffmpeg is behind: the writer repeats the last frame instead
@@ -167,6 +177,7 @@ public final class FrameRecorder {
         GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, 0);
         buf.limit(frameBytes);
         full.add(buf);
+        *///?}
     }
 
     private void writeLoop() {

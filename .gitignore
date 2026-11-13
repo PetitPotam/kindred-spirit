@@ -5,6 +5,7 @@ mod/versions/*/build/
 mod/versions/*/run/
 mod/versions/*/run-guest/
 mod/versions/*/.gradle/
+mod/versions/*/logs/
 mod/run/
 mod/run-guest/
 mod/out/

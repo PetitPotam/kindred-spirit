@@ -1,5 +1,6 @@
 package dev.kindredspirit.skin;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.NativeImage;
@@ -7,7 +8,7 @@ import dev.kindredspirit.KindredSpiritClient;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
@@ -34,10 +35,10 @@ import java.util.stream.Stream;
  * Reloaded with the game's resources (F3+T) or with {@code /kindred skins reload}.
  */
 public final class SkinRegistry {
-    public static final ResourceLocation WHITE = rl("textures/companion/white.png");
+    public static final Identifier WHITE = rl("textures/companion/white.png");
     private final Map<String, Skin> skins = new TreeMap<>();
-    private final Map<String, ResourceLocation> textures = new TreeMap<>();
-    private final List<ResourceLocation> userTextures = new ArrayList<>();
+    private final Map<String, Identifier> textures = new TreeMap<>();
+    private final List<Identifier> userTextures = new ArrayList<>();
 
     public static Path userDir() {
         return FabricLoader.getInstance().getConfigDir().resolve("kindredspirit").resolve("skins");
@@ -57,7 +58,7 @@ public final class SkinRegistry {
     }
 
     /** The texture to draw the body with (white when the skin has none, so the tint shows). */
-    public synchronized ResourceLocation texture(Skin skin) {
+    public synchronized Identifier texture(Skin skin) {
         return textures.getOrDefault(skin.id(), WHITE);
     }
 
@@ -65,14 +66,14 @@ public final class SkinRegistry {
     public synchronized void reload(ResourceManager rm) {
         skins.clear();
         textures.clear();
-        Map<ResourceLocation, Resource> found = rm.listResources("skins",
+        Map<Identifier, Resource> found = rm.listResources("skins",
                 loc -> loc.getNamespace().equals("kindredspirit") && loc.getPath().endsWith(".json"));
-        for (Map.Entry<ResourceLocation, Resource> e : found.entrySet()) {
+        for (Map.Entry<Identifier, Resource> e : found.entrySet()) {
             String id = baseName(e.getKey().getPath());
             try (Reader r = e.getValue().openAsReader()) {
                 Skin skin = Skin.parse(id, JsonParser.parseReader(r).getAsJsonObject());
                 skins.put(id, skin);
-                if (!skin.texture().isEmpty()) textures.put(id, ResourceLocation.parse(skin.texture()));
+                if (!skin.texture().isEmpty()) textures.put(id, Identifier.parse(skin.texture()));
             } catch (Exception ex) {
                 KindredSpiritClient.LOG.warn("Skin {} is not valid JSON: {}", e.getKey(), ex.toString());
             }
@@ -83,7 +84,7 @@ public final class SkinRegistry {
 
     private void loadUserFolder() {
         Minecraft mc = Minecraft.getInstance();
-        for (ResourceLocation old : userTextures) mc.getTextureManager().release(old);
+        for (Identifier old : userTextures) mc.getTextureManager().release(old);
         userTextures.clear();
         Path dir = userDir();
         try {
@@ -103,7 +104,7 @@ public final class SkinRegistry {
                     if (!skin.texture().isEmpty()) {
                         Path png = dir.resolve(skin.texture());
                         if (Files.isRegularFile(png)) textures.put(id, upload(id, png));
-                        else if (skin.texture().contains(":")) textures.put(id, ResourceLocation.parse(skin.texture()));
+                        else if (skin.texture().contains(":")) textures.put(id, Identifier.parse(skin.texture()));
                     }
                 } else if (lower.endsWith(".png") && !Files.exists(dir.resolve(baseName(file) + ".json"))
                         && !isReferenced(dir, file)) {
@@ -135,11 +136,11 @@ public final class SkinRegistry {
         }
     }
 
-    private ResourceLocation upload(String id, Path png) throws Exception {
+    private Identifier upload(String id, Path png) throws Exception {
         try (InputStream in = Files.newInputStream(png)) {
             NativeImage img = NativeImage.read(in);
-            ResourceLocation loc = rl("userskin/" + id);
-            Minecraft.getInstance().getTextureManager().register(loc, new DynamicTexture(img));
+            Identifier loc = rl("userskin/" + id);
+            Minecraft.getInstance().getTextureManager().register(loc, Mc.texture("kindredspirit:userskin/" + id, img));
             userTextures.add(loc);
             return loc;
         }
@@ -156,7 +157,7 @@ public final class SkinRegistry {
         return out.isEmpty() ? "skin" : out;
     }
 
-    private static ResourceLocation rl(String path) {
-        return ResourceLocation.fromNamespaceAndPath("kindredspirit", path);
+    private static Identifier rl(String path) {
+        return Identifier.fromNamespaceAndPath("kindredspirit", path);
     }
 }

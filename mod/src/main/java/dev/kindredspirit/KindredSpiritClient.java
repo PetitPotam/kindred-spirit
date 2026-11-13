@@ -1,5 +1,6 @@
 package dev.kindredspirit;
 
+import dev.kindredspirit.util.Mc;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -18,31 +19,35 @@ import dev.kindredspirit.util.Mood;
 import dev.kindredspirit.util.Quality;
 import dev.kindredspirit.util.TokenFile;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+//? if >=26.1 {
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+//?} else {
+/*import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+*///?}
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.monster.Creeper;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,8 +191,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
         companion = new Companion(cfg);
         ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
             @Override
-            public ResourceLocation getFabricId() {
-                return ResourceLocation.fromNamespaceAndPath("kindredspirit", "skins");
+            public Identifier getFabricId() {
+                return Identifier.fromNamespaceAndPath("kindredspirit", "skins");
             }
 
             @Override
@@ -205,27 +210,33 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
         link = new BrainLink(cfg.brainHost, cfg.brainPort, token, this::onBrainMessage, this::onBrainOpen, this::onBrainClose);
 
-        talkKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.kindredspirit.talk", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.kindredspirit"));
+        //? if >=26.1 {
+        KeyMapping.Category keys = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("kindredspirit", "main"));
+        talkKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.talk", InputConstants.KEY_V, keys));
+        dashboardKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.dashboard", InputConstants.KEY_K, keys));
+        //?} else {
+        /*talkKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                "key.kindredspirit.talk", InputConstants.Type.KEYSYM, InputConstants.KEY_V, "category.kindredspirit"));
         dashboardKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.kindredspirit.dashboard", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.kindredspirit"));
+                "key.kindredspirit.dashboard", InputConstants.Type.KEYSYM, InputConstants.KEY_K, "category.kindredspirit"));
+        *///?}
 
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         // her stand-in (friends without the mod): a hit or a pat on it is a touch on her; it never takes items
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
-            if (world.isClientSide && entity.getUUID().equals(GuestBridge.hidden)) {
+            if (Mc.clientSide(world) && entity.getUUID().equals(GuestBridge.hidden)) {
                 return net.minecraft.world.InteractionResult.FAIL; // (you see her, not the stand-in: your game reports the hit)
             }
-            if (!world.isClientSide && GuestBridge.standIn(entity) && player instanceof net.minecraft.server.level.ServerPlayer sp) {
-                GuestBridge.touch(sp.server, sp, "hit");
+            if (!Mc.clientSide(world) && GuestBridge.standIn(entity) && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                GuestBridge.touch(Mc.server(sp), sp, "hit");
                 return net.minecraft.world.InteractionResult.FAIL;
             }
             return net.minecraft.world.InteractionResult.PASS;
         });
         net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (GuestBridge.standIn(entity)) {
-                if (!world.isClientSide && hand == net.minecraft.world.InteractionHand.MAIN_HAND
-                        && player instanceof net.minecraft.server.level.ServerPlayer sp) GuestBridge.touch(sp.server, sp, "petted");
+                if (!Mc.clientSide(world) && hand == net.minecraft.world.InteractionHand.MAIN_HAND
+                        && player instanceof net.minecraft.server.level.ServerPlayer sp) GuestBridge.touch(Mc.server(sp), sp, "petted");
                 return net.minecraft.world.InteractionResult.SUCCESS;
             }
             return net.minecraft.world.InteractionResult.PASS;
@@ -235,7 +246,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 Actions.playerDid(player, "broke " + state.getBlock().getName().getString().toLowerCase(java.util.Locale.ROOT)));
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             var item = player.getItemInHand(hand);
-            if (!world.isClientSide && item.getItem() instanceof net.minecraft.world.item.BlockItem) {
+            if (!Mc.clientSide(world) && item.getItem() instanceof net.minecraft.world.item.BlockItem) {
                 Actions.playerDid(player, "placed " + item.getHoverName().getString().toLowerCase(java.util.Locale.ROOT));
             }
             return net.minecraft.world.InteractionResult.PASS;
@@ -271,7 +282,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 dev.kindredspirit.act.BlueprintBuild::tick);
         // friends on your LAN world without the mod: they see a stand-in for her and can talk to her;
         // friends with the mod see her as you do (light mode: SharedPip), with no AI of their own
-        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playS2C().register(
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(
                 dev.kindredspirit.guest.PipPayload.TYPE, dev.kindredspirit.guest.PipPayload.CODEC);
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
                 dev.kindredspirit.guest.PipPayload.TYPE, (payload, context) -> {
@@ -284,7 +295,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     });
                 });
         // a visiting Pip: you joined a friend's LAN world whose game has Kindred, your brain is here
-        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playC2S().register(
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(
                 dev.kindredspirit.guest.VisitPayload.TYPE, dev.kindredspirit.guest.VisitPayload.CODEC);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 dev.kindredspirit.guest.VisitPayload.TYPE, (payload, context) -> {
@@ -296,10 +307,17 @@ public final class KindredSpiritClient implements ClientModInitializer {
             // their chat to her reaches your game: when you host, your world's server already passes it on
             if (!visitingWorld || sender == null || signed == null) return;
             Minecraft m = Minecraft.getInstance();
-            if (m.player == null || sender.getId().equals(m.player.getUUID())) return;
+            //? if >=26.1 {
+            java.util.UUID senderId = sender.id();
+            String senderName = sender.name();
+            //?} else {
+            /*java.util.UUID senderId = sender.getId();
+            String senderName = sender.getName();
+            *///?}
+            if (m.player == null || senderId.equals(m.player.getUUID())) return;
             String text = signed.signedContent();
             if (ChatRoute.forCompanion("name", false, displayName, text)) {
-                m.execute(() -> fromGuest(new GuestBridge.Heard(sender.getName(), text)));
+                m.execute(() -> fromGuest(new GuestBridge.Heard(senderName, text)));
             }
         });
         GuestBridge.state = () -> {
@@ -317,24 +335,48 @@ public final class KindredSpiritClient implements ClientModInitializer {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(GuestBridge::tick);
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(GuestBridge::stopping);
         net.fabricmc.fabric.api.message.v1.ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) ->
-                GuestBridge.chat(sender.server, sender, message.signedContent()));
-        WorldRenderEvents.START.register(ctx -> {
+                GuestBridge.chat(Mc.server(sender), sender, message.signedContent()));
+        //? if >=26.1 {
+        LevelRenderEvents.START_MAIN.register(ctx -> {
+            if (devScript != null) devScript.frame(Minecraft.getInstance());
+        });
+        LevelRenderEvents.COLLECT_SUBMITS.register(ctx -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null || mc.player.isSpectator()) return;
+            if (!sharing && !brainHere) return; // (a friend's game with only the mod: no Pip of its own to show)
+            var cam = mc.gameRenderer.mainCamera();
+            Vec3 camPos = cam.position();
+        //?} else {
+        /*WorldRenderEvents.START.register(ctx -> {
             if (devScript != null) devScript.frame(Minecraft.getInstance());
         });
         WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.player.isSpectator()) return;
             if (!sharing && !brainHere) return; // (a friend's game with only the mod: no Pip of its own to show)
-            float partial = ctx.tickCounter().getGameTimeDeltaPartialTick(false);
+            var cam = ctx.camera();
+            Vec3 camPos = cam.getPosition();
+        *///?}
+            float partial = Mc.partialTick(mc);
             if (companion.activity == Behavior.Activity.SPEAKING && !voice.isPlaying()
                     && System.currentTimeMillis() > speakingGrace) {
                 companion.activity = Behavior.Activity.IDLE;
             }
             companion.frame(companion.anchor(mc), partial,
                     voice.isPlaying() ? voice.level() : companion.silentMouth(System.currentTimeMillis()));
-            renderer.render(ctx, companion, skins.texture(companion.skin), cfg, quality.level(), System.currentTimeMillis());
+            //? if >=26.1 {
+            renderer.render(ctx.poseStack(), ctx.submitNodeCollector(), camPos, cam.rotation(), companion,
+                    skins.texture(companion.skin), cfg, quality.level(), System.currentTimeMillis());
+            //?} else {
+            /*renderer.render(ctx.matrixStack(), ctx.consumers(), camPos, cam.rotation(), companion,
+                    skins.texture(companion.skin), cfg, quality.level(), System.currentTimeMillis());
+            *///?}
         });
-        HudRenderCallback.EVENT.register((g, delta) -> hud(g));
+        //? if >=26.1 {
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("kindredspirit", "hud"), (g, delta) -> hud(g));
+        //?} else {
+        /*HudRenderCallback.EVENT.register((g, delta) -> hud(g));
+        *///?}
         // plain chat to her (chatMode): the message goes to her instead of the game's chat
         net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             Minecraft mc = Minecraft.getInstance();
@@ -344,13 +386,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
             return false;
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> {
-            LiteralCommandNode<FabricClientCommandSource> root = dispatcher.register(ClientCommandManager.literal("kindred")
-                    .then(ClientCommandManager.literal("reconnect").executes(c -> {
+            LiteralCommandNode<FabricClientCommandSource> root = dispatcher.register(ClientCommands.literal("kindred")
+                    .then(ClientCommands.literal("reconnect").executes(c -> {
                         link.reconnectNow();
                         c.getSource().sendFeedback(Component.literal("Reconnecting to the Kindred brain..."));
                         return 1;
                     }))
-                    .then(ClientCommandManager.literal("status").executes(c -> {
+                    .then(ClientCommands.literal("status").executes(c -> {
                         c.getSource().sendFeedback(Component.literal("Brain: " + (link.connected() ? "connected" : "not connected")
                                 + " | skin: " + companion.skin.id() + " | mode: " + companion.life.mode.name().toLowerCase()
                                 + (bond >= 0 ? " | bond: " + bond + " (" + bondLevel + ")" : "")
@@ -358,13 +400,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                 + " | mood: " + companion.mood.name().toLowerCase()));
                         return 1;
                     }))
-                    .then(ClientCommandManager.literal("skin")
+                    .then(ClientCommands.literal("skin")
                             .executes(c -> {
                                 c.getSource().sendFeedback(Component.literal("Skin: " + companion.skin.name()
                                         + " (" + companion.skin.id() + "). Others: " + String.join(", ", skins.ids())));
                                 return 1;
                             })
-                            .then(ClientCommandManager.argument("id", StringArgumentType.word())
+                            .then(ClientCommands.argument("id", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(skins.ids(), b))
                                     .executes(c -> {
                                         String id = StringArgumentType.getString(c, "id");
@@ -376,13 +418,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                         c.getSource().sendFeedback(Component.literal("Now wearing " + companion.skin.name()));
                                         return 1;
                                     })))
-                    .then(ClientCommandManager.literal("skins")
+                    .then(ClientCommands.literal("skins")
                             .executes(c -> {
                                 c.getSource().sendFeedback(Component.literal("Skins: " + String.join(", ", skins.ids())
                                         + ". Add your own in " + SkinRegistry.userDir()));
                                 return 1;
                             })
-                            .then(ClientCommandManager.literal("reload").executes(c -> {
+                            .then(ClientCommands.literal("reload").executes(c -> {
                                 Minecraft.getInstance().execute(() -> {
                                     skins.reload(Minecraft.getInstance().getResourceManager());
                                     companion.skin = skins.get(cfg.skin);
@@ -390,19 +432,19 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                 c.getSource().sendFeedback(Component.literal("Skins reloaded"));
                                 return 1;
                             })))
-                    .then(ClientCommandManager.literal("life")
+                    .then(ClientCommands.literal("life")
                             .executes(c -> {
                                 c.getSource().sendFeedback(Component.literal("Liveliness: " + LifeSwitches.describe(cfg.life)
                                         + ". Change one with /kindred life <name> <value>, or /kindred life reset."));
                                 return 1;
                             })
-                            .then(ClientCommandManager.literal("reset").executes(c -> {
+                            .then(ClientCommands.literal("reset").executes(c -> {
                                 LifeSwitches.reset(cfg.life);
                                 cfg.save();
                                 c.getSource().sendFeedback(Component.literal("Liveliness back to the defaults"));
                                 return 1;
                             }))
-                            .then(ClientCommandManager.argument("name", StringArgumentType.word())
+                            .then(ClientCommands.argument("name", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(LifeSwitches.names(), b))
                                     .executes(c -> {
                                         String n = StringArgumentType.getString(c, "name");
@@ -414,7 +456,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                         c.getSource().sendFeedback(Component.literal(n + " = " + v + " (" + LifeSwitches.help(n) + ")"));
                                         return 1;
                                     })
-                                    .then(ClientCommandManager.argument("value", StringArgumentType.word())
+                                    .then(ClientCommands.argument("value", StringArgumentType.word())
                                             .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                                     LifeSwitches.suggestions(StringArgumentType.getString(c, "name")), b))
                                             .executes(c -> {
@@ -429,8 +471,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                                 return 1;
                                             }))))
                     // who she floats beside on a LAN world: a friend, or "me"
-                    .then(ClientCommandManager.literal("follow")
-                            .then(ClientCommandManager.argument("who", StringArgumentType.greedyString())
+                    .then(ClientCommands.literal("follow")
+                            .then(ClientCommands.argument("who", StringArgumentType.greedyString())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(followable(), b))
                                     .executes(c -> {
                                         JsonObject r = follow(StringArgumentType.getString(c, "who"));
@@ -438,13 +480,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                         else c.getSource().sendError(Component.literal(r.get("error").getAsString()));
                                         return 1;
                                     })))
-                    .then(ClientCommandManager.literal("power")
+                    .then(ClientCommands.literal("power")
                             .executes(c -> {
                                 c.getSource().sendFeedback(Component.literal("Power: " + cfg.power + ", style: " + cfg.style
                                         + ". It may: " + String.join(", ", Abilities.allowedIds(Abilities.power(cfg.power), Abilities.style(cfg.style)))));
                                 return 1;
                             })
-                            .then(ClientCommandManager.argument("level", StringArgumentType.word())
+                            .then(ClientCommands.argument("level", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"advisor", "helper", "allpowerful"}, b))
                                     .executes(c -> {
                                         String v = StringArgumentType.getString(c, "level").toLowerCase();
@@ -458,8 +500,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                         c.getSource().sendFeedback(Component.literal("Power: " + v));
                                         return 1;
                                     })))
-                    .then(ClientCommandManager.literal("style")
-                            .then(ClientCommandManager.argument("style", StringArgumentType.word())
+                    .then(ClientCommands.literal("style")
+                            .then(ClientCommands.argument("style", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"grounded", "magic"}, b))
                                     .executes(c -> {
                                         String v = StringArgumentType.getString(c, "style").toLowerCase();
@@ -473,63 +515,63 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                         c.getSource().sendFeedback(Component.literal("Style: " + v));
                                         return 1;
                                     })))
-                    .then(ClientCommandManager.literal("emote")
-                            .then(ClientCommandManager.argument("name", StringArgumentType.word())
+                    .then(ClientCommands.literal("emote")
+                            .then(ClientCommands.argument("name", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                             java.util.Arrays.stream(Emote.values()).map(e -> e.name().toLowerCase()), b))
                                     .executes(c -> act("emote", StringArgumentType.getString(c, "name")))))
-                    .then(ClientCommandManager.literal("mode")
-                            .then(ClientCommandManager.argument("mode", StringArgumentType.word())
+                    .then(ClientCommands.literal("mode")
+                            .then(ClientCommands.argument("mode", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"follow", "stay", "come"}, b))
                                     .executes(c -> act("move", StringArgumentType.getString(c, "mode")))))
-                    .then(ClientCommandManager.literal("side")
-                            .then(ClientCommandManager.argument("side", StringArgumentType.word())
+                    .then(ClientCommands.literal("side")
+                            .then(ClientCommands.argument("side", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"right", "left", "above", "auto"}, b))
                                     .executes(c -> act("side", StringArgumentType.getString(c, "side")))))
-                    .then(ClientCommandManager.literal("look")
-                            .then(ClientCommandManager.argument("at", StringArgumentType.word())
+                    .then(ClientCommands.literal("look")
+                            .then(ClientCommands.argument("at", StringArgumentType.word())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"me", "there", "ahead", "up", "down", "around"}, b))
                                     .executes(c -> act("look", StringArgumentType.getString(c, "at")))))
                     // her memory, per world: what she knows, other worlds, bring memories over, forget, start over
-                    .then(ClientCommandManager.literal("memory").executes(c -> admin("memory", ""))
-                            .then(ClientCommandManager.literal("worlds").executes(c -> admin("worlds", "")))
-                            .then(ClientCommandManager.literal("import")
+                    .then(ClientCommands.literal("memory").executes(c -> admin("memory", ""))
+                            .then(ClientCommands.literal("worlds").executes(c -> admin("worlds", "")))
+                            .then(ClientCommands.literal("import")
                                     .executes(c -> admin("import", ""))
-                                    .then(ClientCommandManager.argument("world", StringArgumentType.greedyString())
+                                    .then(ClientCommands.argument("world", StringArgumentType.greedyString())
                                             .executes(c -> admin("import", StringArgumentType.getString(c, "world")))))
-                            .then(ClientCommandManager.literal("forget")
-                                    .then(ClientCommandManager.argument("what", StringArgumentType.greedyString())
+                            .then(ClientCommands.literal("forget")
+                                    .then(ClientCommands.argument("what", StringArgumentType.greedyString())
                                             .executes(c -> admin("forget", StringArgumentType.getString(c, "what"))))))
                     // how she feels about you (five feelings, open hurts), or a fresh start for her heart here
-                    .then(ClientCommandManager.literal("heart").executes(c -> admin("heart", ""))
-                            .then(ClientCommandManager.literal("fresh").executes(c -> admin("heart", "fresh"))))
-                    .then(ClientCommandManager.literal("reset").executes(c -> admin("reset", ""))
-                            .then(ClientCommandManager.literal("confirm").executes(c -> admin("reset", "confirm"))))
+                    .then(ClientCommands.literal("heart").executes(c -> admin("heart", ""))
+                            .then(ClientCommands.literal("fresh").executes(c -> admin("heart", "fresh"))))
+                    .then(ClientCommands.literal("reset").executes(c -> admin("reset", ""))
+                            .then(ClientCommands.literal("confirm").executes(c -> admin("reset", "confirm"))))
                     // the gateway's special instructions ("clear" removes them)
                     .then(adminText("persona")).then(adminText("fact")).then(adminText("hint")).then(adminText("model"))
-                    .then(ClientCommandManager.literal("instructions").executes(c -> admin("instructions", "")))
-                    .then(ClientCommandManager.literal("pause").executes(c -> admin("pause", "")))
-                    .then(ClientCommandManager.literal("resume").executes(c -> admin("resume", "")))
-                    .then(ClientCommandManager.argument("message", StringArgumentType.greedyString()).executes(c -> {
+                    .then(ClientCommands.literal("instructions").executes(c -> admin("instructions", "")))
+                    .then(ClientCommands.literal("pause").executes(c -> admin("pause", "")))
+                    .then(ClientCommands.literal("resume").executes(c -> admin("resume", "")))
+                    .then(ClientCommands.argument("message", StringArgumentType.greedyString()).executes(c -> {
                         talk(StringArgumentType.getString(c, "message"));
                         return 1;
                     })));
-            dispatcher.register(ClientCommandManager.literal("ks").redirect(root));
+            dispatcher.register(ClientCommands.literal("ks").redirect(root));
         });
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
-            if (world.isClientSide && (entity instanceof net.minecraft.world.entity.animal.Animal
-                    || entity instanceof net.minecraft.world.entity.npc.AbstractVillager
+            if (Mc.clientSide(world) && (entity instanceof net.minecraft.world.entity.animal.Animal
+                    || entity instanceof net.minecraft.world.entity.npc.villager.AbstractVillager
                     || entity instanceof net.minecraft.world.entity.monster.Enemy)) {
                 attacked.put(entity.getId(), System.currentTimeMillis());
             }
-            if (world.isClientSide && entity instanceof net.minecraft.world.entity.LivingEntity) {
+            if (Mc.clientSide(world) && entity instanceof net.minecraft.world.entity.LivingEntity) {
                 youDid.add(System.currentTimeMillis(), "hit",
                         words(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString()));
             }
             return net.minecraft.world.InteractionResult.PASS;
         });
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world.isClientSide && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem bi) {
+            if (Mc.clientSide(world) && player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem bi) {
                 BlockPos at = world.getBlockState(hit.getBlockPos()).canBeReplaced() ? hit.getBlockPos()
                         : hit.getBlockPos().relative(hit.getDirection());
                 pendingPlace = at;
@@ -594,7 +636,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
         if (now >= nextQualityCheck) {
             nextQualityCheck = now + 1000;
-            quality.update(mc.getFps(), mc.options.graphicsMode().get() == GraphicsStatus.FAST);
+            //? if >=26.1 {
+            quality.update(mc.getFps(), mc.options.graphicsPreset().get() == net.minecraft.client.GraphicsPreset.FAST);
+            //?} else {
+            /*quality.update(mc.getFps(), mc.options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST);
+            *///?}
         }
         if (mc.player == null || mc.level == null) return;
         if (tune.playing()) tune.tick(mc, companion.life.x, companion.life.y, companion.life.z);
@@ -697,9 +743,13 @@ public final class KindredSpiritClient implements ClientModInitializer {
         while (dashboardKey.consumeClick()) openDashboard();
 
         // push-to-talk: hold the key, speak, release
-        boolean held = talkKey.isDown() && mc.screen == null;
+        boolean held = talkKey.isDown() && Mc.screen(mc) == null;
         if (held && sharing && !link.connected()) { // no speech-to-text here: type to her instead
-            mc.setScreen(new net.minecraft.client.gui.screens.ChatScreen(shared.name() + ", "));
+            //? if >=26.1 {
+            Mc.setScreen(mc, new net.minecraft.client.gui.screens.ChatScreen(shared.name() + ", ", false));
+            //?} else {
+            /*Mc.setScreen(mc, new net.minecraft.client.gui.screens.ChatScreen(shared.name() + ", "));
+            *///?}
         } else if (held && !recorder.isRecording() && companion.activity != Behavior.Activity.LISTENING) {
             if (!link.connected()) {
                 if (brainHere) notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
@@ -749,10 +799,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
             snap.add("sounds", hearing.recent(mc.player, 8000));
             var beside = companion.anchor(mc);
             if (beside != mc.player) {
-                snap.addProperty("following", beside.getGameProfile().getName());
+                snap.addProperty("following", beside.getGameProfile().name());
                 // the one she's with: how far from you, their health, and danger around THEM (her attention is there)
                 JsonObject with = new JsonObject();
-                with.addProperty("name", beside.getGameProfile().getName());
+                with.addProperty("name", beside.getGameProfile().name());
                 with.addProperty("distance", Math.round(beside.distanceTo(mc.player)));
                 with.addProperty("health", beside.getHealth());
                 with.addProperty("maxHealth", beside.getMaxHealth());
@@ -787,8 +837,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
     /** Typed message for the companion (/kindred TEXT or /ks TEXT). */
     private com.mojang.brigadier.builder.LiteralArgumentBuilder<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>
             adminText(String name) {
-        return ClientCommandManager.literal(name).executes(c -> admin(name, ""))
-                .then(ClientCommandManager.argument("text", StringArgumentType.greedyString())
+        return ClientCommands.literal(name).executes(c -> admin(name, ""))
+                .then(ClientCommands.argument("text", StringArgumentType.greedyString())
                         .executes(c -> admin(name, StringArgumentType.getString(c, "text"))));
     }
 
@@ -811,7 +861,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         JsonObject r = new JsonObject();
         if (who == null || who.isBlank() || who.matches("(?i)me|you|player|back|myself|" + java.util.regex.Pattern.quote(
-                mc.player == null ? "me" : mc.player.getGameProfile().getName()))) {
+                mc.player == null ? "me" : mc.player.getGameProfile().name()))) {
             companion.follow = null;
             remember("");
             r.addProperty("ok", true);
@@ -824,14 +874,14 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (them == null) {
             r.addProperty("ok", false);
             r.addProperty("error", others.isEmpty() ? "Nobody else is here." : "Nobody called " + who + " here (here: "
-                    + String.join(", ", others.stream().map(o -> o.getGameProfile().getName()).toList()) + ").");
+                    + String.join(", ", others.stream().map(o -> o.getGameProfile().name()).toList()) + ").");
             return r;
         }
         companion.follow = them.getUUID();
-        remember(them.getGameProfile().getName());
+        remember(them.getGameProfile().name());
         r.addProperty("ok", true);
-        r.addProperty("now", displayName + " floats beside " + them.getGameProfile().getName() + " now (/kindred follow me to call her back).");
-        r.addProperty("following", them.getGameProfile().getName());
+        r.addProperty("now", displayName + " floats beside " + them.getGameProfile().name() + " now (/kindred follow me to call her back).");
+        r.addProperty("following", them.getGameProfile().name());
         return r;
     }
 
@@ -849,7 +899,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private String[] followable() {
         Minecraft mc = Minecraft.getInstance();
         java.util.List<String> names = new java.util.ArrayList<>(java.util.List.of("me"));
-        if (mc.level != null) for (var o : mc.level.players()) if (o != mc.player) names.add(o.getGameProfile().getName());
+        if (mc.level != null) for (var o : mc.level.players()) if (o != mc.player) names.add(o.getGameProfile().name());
         return names.toArray(String[]::new);
     }
 
@@ -1017,7 +1067,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             });
             case "notice" -> mc.execute(() -> notice(str(msg, "text"), 6000));
             case "admin" -> mc.execute(() -> { // the answer to a /kindred command: always shown
-                if (mc.gui != null) mc.gui.getChat().addMessage(Component.literal("[" + displayName + "] ")
+                Mc.chat(mc, Component.literal("[" + displayName + "] ")
                         .withStyle(ChatFormatting.LIGHT_PURPLE).append(Component.literal(str(msg, "text")).withStyle(ChatFormatting.GRAY)));
             });
             case "welcome" -> mc.execute(() -> {
@@ -1116,8 +1166,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 if (lost <= 0) continue;
                 String what = words(e.getKey());
                 if (youDid.did(now, "placed", what, 5000)) continue; // (already told as placed)
-                net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
-                        net.minecraft.resources.ResourceLocation.parse(e.getKey()));
+                net.minecraft.world.item.Item item = Mc.item(
+                        net.minecraft.resources.Identifier.parse(e.getKey()));
                 boolean food = item.components().has(net.minecraft.core.component.DataComponents.FOOD);
                 youDid.add(now, food ? "ate" : "used", what, lost);
             }
@@ -1208,7 +1258,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
                     o.addProperty("type", "event");
                     o.addProperty("event", "killed");
                     o.addProperty("detail", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
-                    o.addProperty("villager", e instanceof net.minecraft.world.entity.npc.AbstractVillager);
+                    o.addProperty("villager", e instanceof net.minecraft.world.entity.npc.villager.AbstractVillager);
                     o.addProperty("monster", e instanceof net.minecraft.world.entity.monster.Enemy);
                     link.send(o);
                     return true;
@@ -1230,7 +1280,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (now - itemsCheckedAt < 1000) return;
         itemsCheckedAt = now;
         java.util.Set<String> current = new java.util.HashSet<>();
-        for (net.minecraft.world.item.ItemStack s : mc.player.getInventory().items) {
+        for (net.minecraft.world.item.ItemStack s : Mc.items(mc.player)) {
             if (!s.isEmpty()) current.add(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem()).toString());
         }
         if (items != null && now - joinedAt > 5000) {
@@ -1309,15 +1359,15 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 runAction(again);
             };
             if (server == null) { // a friend's world: only the world spawn is known here
-                net.minecraft.core.BlockPos w = m.level.getSharedSpawnPos();
+                net.minecraft.core.BlockPos w = Mc.worldSpawn(m.level);
                 lead.accept(new double[]{w.getX(), w.getY(), w.getZ(), 0});
                 return;
             }
             server.execute(() -> {
                 net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(me);
-                net.minecraft.core.BlockPos bed = sp == null ? null : sp.getRespawnPosition();
-                boolean here = bed != null && sp.getRespawnDimension() == sp.level().dimension();
-                net.minecraft.core.BlockPos p = here ? bed : server.overworld().getSharedSpawnPos();
+                net.minecraft.core.BlockPos bed = sp == null ? null : Mc.bed(sp);
+                boolean here = bed != null;
+                net.minecraft.core.BlockPos p = here ? bed : Mc.worldSpawn(server.overworld());
                 double[] spot = {p.getX(), p.getY(), p.getZ(), here ? 1 : 0};
                 m.execute(() -> lead.accept(spot));
             });
@@ -1513,7 +1563,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
     private void logChat(Component c) {
         Minecraft mc = Minecraft.getInstance();
-        if (cfg.chatLog && mc.gui != null) mc.gui.getChat().addMessage(c);
+        if (cfg.chatLog) Mc.chat(mc, c);
     }
 
     private int bond = -1;
@@ -1522,7 +1572,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private long bondShownUntil;
 
     /** A soft dark panel like vanilla's subtitles, with a thin accent on the left in her color. */
-    private static void panel(GuiGraphics g, int x0, int y0, int x1, int y1, int alpha, int accent) {
+    private static void panel(GuiGraphicsExtractor g, int x0, int y0, int x1, int y1, int alpha, int accent) {
         g.fill(x0, y0, x1, y1, (Math.round(alpha * 0.62f) << 24));
         if (accent != 0) g.fill(x0, y0, x0 + 2, y1, (alpha << 24) | (accent & 0xFFFFFF));
     }
@@ -1531,9 +1581,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
         return Mood.blend(companion.mood == Mood.OFFLINE ? 0x9FD8E6 : companion.mood.rgb, 0xFFFFFF, 0.2f);
     }
 
-    private void hud(GuiGraphics g) {
+    private void hud(GuiGraphicsExtractor g) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.options.hideGui || mc.player == null) return;
+        if (Mc.hudHidden(mc) || mc.player == null) return;
         long now = System.currentTimeMillis();
         int w = g.guiWidth(), h = g.guiHeight();
         var font = mc.font;
@@ -1543,7 +1593,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             panel(g, x - 4, y - 3, x + tw + 4, y + 10, 230, 0);
             int pulse = (int) (150 + 105 * Math.sin(now / 160.0));
             g.fill(x + 1, y + 1, x + 7, y + 7, (pulse << 24) | 0xFF5C6B);
-            g.drawString(font, s, x + 12, y, 0xFFFFFFFF);
+            g.text(font, s, x + 12, y, 0xFFFFFFFF);
         }
         if (cfg.hudCaptions && now < captionUntil && !caption.isEmpty()) { // like film subtitles: her name in her color
             String name = displayName + "  ";
@@ -1555,9 +1605,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
             float fade = Math.min(1f, (captionUntil - now) / 400f);
             int a = Math.max(8, (int) (fade * 255));
             panel(g, x - 5, y - 3, x + tw + 5, y + lines.size() * 10 + 1, a, herColor());
-            g.drawString(font, displayName, x, y, (a << 24) | herColor());
+            g.text(font, displayName, x, y, (a << 24) | herColor());
             for (var line : lines) {
-                g.drawString(font, line, x + nameW, y, (a << 24) | 0xFFFFFF);
+                g.text(font, line, x + nameW, y, (a << 24) | 0xFFFFFF);
                 y += 10;
             }
         }
@@ -1592,8 +1642,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
             int bw = Math.max(98, font.width(title) + font.width(d) + 10);
             int x = w - bw - 8, y = rightY + 3;
             panel(g, x - 5, y - 4, x + bw + 5, y + 21, (int) (fade * 255), heart);
-            g.drawString(font, title, x, y, a | 0xFFFFFF);
-            g.drawString(font, d, x + bw - font.width(d), y, a | heart);
+            g.text(font, title, x, y, a | 0xFFFFFF);
+            g.text(font, d, x + bw - font.width(d), y, a | heart);
             g.fill(x, y + 12, x + bw, y + 15, a | 0x3A3550);
             g.fill(x, y + 12, x + Math.max(1, (int) (bw * Math.min(100, bond) / 100.0)), y + 15, a | heart);
             for (int t : new int[]{15, 35, 65, 85}) g.fill(x + bw * t / 100, y + 12, x + bw * t / 100 + 1, y + 15, a | 0x15121D); // the levels
@@ -1611,8 +1661,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
             int tw = Math.max(98, font.width(title) + font.width(count) + 10);
             int x = w - tw - 8, y = rightY + (cfg.showBond && bond >= 0 && now < bondShownUntil ? 30 : 3);
             panel(g, x - 5, y - 4, x + tw + 5, y + 21, 230, herColor());
-            g.drawString(font, title, x, y, 0xFFFFFFFF);
-            g.drawString(font, count, x + tw - font.width(count), y, 0xFF000000 | herColor());
+            g.text(font, title, x, y, 0xFFFFFFFF);
+            g.text(font, count, x + tw - font.width(count), y, 0xFF000000 | herColor());
             g.fill(x, y + 12, x + tw, y + 15, 0xFF3A3550);
             g.fill(x, y + 12, x + Math.max(1, (int) (tw * (double) taskDone / Math.max(1, taskTotal))), y + 15, 0xFF000000 | herColor());
         }
@@ -1625,7 +1675,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
             int y = 6;
             panel(g, 4, y - 3, 4 + widest + 10, y + lines.size() * 10 + 1, a, 0xFFD27A);
             for (var line : lines) {
-                g.drawString(font, line, 10, y, (a << 24) | 0xFFE9B8);
+                g.text(font, line, 10, y, (a << 24) | 0xFFE9B8);
                 y += 10;
             }
         }
@@ -1640,8 +1690,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
             if (rise < -3) rest += " \u2193" + Math.round(-rise);
             int aw = font.width(arrow), tw = aw + font.width(rest), x = (w - tw) / 2;
             panel(g, x - 5, 4, x + tw + 5, 18, 230, herColor());
-            g.drawString(font, arrow, x, 7, 0xFF000000 | herColor());
-            g.drawString(font, rest, x + aw, 7, 0xFFFFE9A8);
+            g.text(font, arrow, x, 7, 0xFF000000 | herColor());
+            g.text(font, rest, x + aw, 7, 0xFFFFE9A8);
         }
     }
 

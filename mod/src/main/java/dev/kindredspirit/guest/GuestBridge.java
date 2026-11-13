@@ -1,5 +1,6 @@
 package dev.kindredspirit.guest;
 
+import dev.kindredspirit.util.Mc;
 import dev.kindredspirit.ChatRoute;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -62,11 +63,11 @@ public final class GuestBridge {
     public static void tick(MinecraftServer server) {
         Minecraft mc = Minecraft.getInstance();
         ServerPlayer host = mc.player == null ? null : server.getPlayerList().getPlayer(mc.player.getUUID());
-        ServerLevel level = host == null ? null : host.serverLevel();
+        ServerLevel level = host == null ? null : Mc.level(host);
         if (!cleaned && level != null) { // a stand-in left behind by a crash
             cleaned = true;
             for (ServerLevel l : server.getAllLevels()) {
-                for (var e : l.getAllEntities()) if (e.getTags().contains(TAG)) e.discard();
+                for (var e : l.getAllEntities()) if (Mc.tags(e).contains(TAG)) e.discard();
             }
         }
         double[] at = where.get();
@@ -89,15 +90,15 @@ public final class GuestBridge {
         }
         if (pip == null || pip.level() != level) {
             if (pip != null) pip.discard();
-            pip = EntityType.ALLAY.create(level);
+            pip = Mc.create(Mc.ALLAY, level);
             if (pip == null) return;
             pip.addTag(TAG);
             pip.setNoAi(true);
             pip.setNoGravity(true);
-            pip.setInvulnerable(true);
+            Mc.invulnerable(pip, true);
             pip.setSilent(true);
             pip.setPersistenceRequired();
-            pip.moveTo(at[0], at[1] - 0.3, at[2], 0, 0);
+            Mc.place(pip, at[0], at[1] - 0.3, at[2], 0, 0);
             level.addFreshEntity(pip);
             hidden = pip.getUUID();
         }
@@ -107,7 +108,7 @@ public final class GuestBridge {
             pip.setCustomNameVisible(true);
         }
         float yaw = (float) Math.toDegrees(Math.atan2(-(owner.getX() - at[0]), owner.getZ() - at[2]));
-        pip.moveTo(at[0], at[1] - 0.3, at[2], yaw, 0); // she looks at the one she lives with
+        Mc.place(pip, at[0], at[1] - 0.3, at[2], yaw, 0); // she looks at the one she lives with
         pip.setYHeadRot(yaw);
         if (++ticks % 2 == 0) share(server, owner, own ? null : v); // (10 times a second)
     }
@@ -212,7 +213,7 @@ public final class GuestBridge {
         if (own) {
             if (from.getUUID().equals(mc.player.getUUID())) return; // (yours are seen by your own game)
             synchronized (touches) {
-                touches.add(new Heard(from.getGameProfile().getName(), what));
+                touches.add(new Heard(from.getGameProfile().name(), what));
                 while (touches.size() > 10) touches.removeFirst();
             }
             return;
@@ -226,7 +227,7 @@ public final class GuestBridge {
         o.addProperty("type", "done");
         o.addProperty("id", "touch");
         o.addProperty("what", what);
-        o.addProperty("by", from.getGameProfile().getName());
+        o.addProperty("by", from.getGameProfile().name());
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(owner, new PipPayload(o.toString()));
     }
 
@@ -239,7 +240,7 @@ public final class GuestBridge {
 
     /** The stand-in is hit or petted by someone without the mod: it's a touch (and the Allay keeps nothing). */
     public static boolean standIn(net.minecraft.world.entity.Entity e) {
-        return e != null && e.getTags().contains(TAG);
+        return e != null && Mc.tags(e).contains(TAG);
     }
 
     private static net.minecraft.world.entity.Entity find(MinecraftServer server, UUID id) {
@@ -267,7 +268,7 @@ public final class GuestBridge {
         if (!enabled.get() || !server.isPublished() || mc.player == null || sender.getUUID().equals(mc.player.getUUID())) return;
         if (!ChatRoute.forCompanion("name", false, name.get(), text)) return;
         synchronized (heard) {
-            heard.add(new Heard(sender.getGameProfile().getName(), text));
+            heard.add(new Heard(sender.getGameProfile().name(), text));
             while (heard.size() > 10) heard.removeFirst();
         }
     }
