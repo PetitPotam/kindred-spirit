@@ -52,12 +52,12 @@ STT_USE="$(uses stt local_whisper)"; TTS_USE="$(uses tts local_kokoro)"; EMB_USE
 # Speech-to-text, local Whisper: the profile's model, or any model already downloaded.
 if [[ "$STT_USE" != "local_whisper" ]]; then echo "whisper: not used (speech-to-text: $STT_USE)"
 elif up http://127.0.0.1:8083/; then echo "whisper: already running"
-elif command -v whisper-server >/dev/null; then
+elif WS="$(ls "$ROOT/../bin/whisper-server" 2>/dev/null || command -v whisper-server)"; [[ -n "$WS" ]]; then
   M="$KH/whisper/$KINDRED_WHISPER_MODEL"
   [[ -s "$M" ]] || M="$(ls "$KH"/whisper/ggml-*.bin 2>/dev/null | grep -v silero | head -1)"
   if [[ -n "$M" ]]; then
     VAD=(); [[ -s "$KH/whisper/ggml-silero-v5.1.2.bin" ]] && VAD=(--vad -vm "$KH/whisper/ggml-silero-v5.1.2.bin")
-    start whisper whisper-server -m "$M" --host 127.0.0.1 --port 8083 --inference-path /audio/transcriptions \
+    start whisper "$WS" -m "$M" --host 127.0.0.1 --port 8083 --inference-path /audio/transcriptions \
       -l en -t "$KINDRED_WHISPER_THREADS" -ac 768 "${VAD[@]}" -sns
     echo "whisper: started ($(basename "$M"), $KINDRED_WHISPER_THREADS threads)"
   else echo "whisper: no model in $KH/whisper (run scripts/setup.sh); voice input off"; fi

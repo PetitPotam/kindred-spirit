@@ -68,6 +68,9 @@ The steps today:
 | **Her brain on this computer** | Installs her brain, the gateway and the dashboard, with their own Python, into your user folder (about 130 MB, no administrator password). |
 | **Wake her up** | Starts them in the background (her brain, the gateway and her dashboard) and checks that each one answers. |
 | **Her conversation (System 1)** | The AI that answers you: Gemini with a free key (recommended; the step shows how to get one in about two minutes), another service with your key (OpenAI, Groq, Mistral, OpenRouter, Claude API), a model on your Mac with Ollama, or an AI subscription you already have (Claude Code, Codex, Gemini CLI). **Use this** saves it and asks her a first question; the answer and how long it took are shown. |
+| **Her instincts (System 0)** | A small model on your Mac (bge-small, about 65 MB) that finds the memories that matter; or the AI's own service, or keyword search. |
+| **Her voice** | Kokoro on your Mac (about 400 MB with its program), with Lily's voice by default: **Hear it** plays each voice before you choose. Or OpenAI's voices, or subtitles only. |
+| **Her hearing** | Whisper on your Mac, sized for it (from 32 MB to 574 MB; you can pick another size), then **Test the microphone**: say something and see what she heard. Or Groq or OpenAI with your key, or typing. |
 | **Her slow thinking (System 2)** | The AI she uses now and then to learn from your time together and write her story: the same one (recommended), another one, or off. |
 | **Every time you play** | Whether she wakes by herself when you log in to your Mac (off unless you choose it), or when you open Kindred Spirit Setup. |
 
@@ -75,9 +78,12 @@ The steps today:
 never writes one to a log, and leaves it out of help prompts. On Gemini's free tier, Google may use what is sent to
 improve its products; a paid key (or Ollama, on your own Mac) avoids that.
 
-Coming next, in the same guide: her voice, hearing and memory models, and installing Minecraft's Fabric with the mod
-and saying hi to her once to check everything ([#95](https://github.com/PetitPotam/kindred-spirit/issues/95),
-[#96](https://github.com/PetitPotam/kindred-spirit/issues/96)).
+Her models download in the background with a progress bar. Each file is checked against its published
+fingerprint (SHA-256) before it's used, and an interrupted download continues where it stopped: press **Use this**
+again. They go in `~/.kindred-spirit` (`embed/`, `kokoro/`, `whisper/`).
+
+Coming next, in the same guide: installing Minecraft's Fabric with the mod and saying hi to her once to check
+everything ([#96](https://github.com/PetitPotam/kindred-spirit/issues/96)).
 
 You can close the page at any time: Pip keeps running, and the Setup itself quits a few minutes later (or press
 **Close the Setup**).

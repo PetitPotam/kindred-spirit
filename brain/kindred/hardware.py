@@ -19,6 +19,7 @@ WHISPER_MODELS = {
     "medium": ("small.en-q5_1", "ggml-small.en-q5_1.bin", "181 MB"),
     "low": ("base.en-q5_1", "ggml-base.en-q5_1.bin", "57 MB"),
 }
+HEARING_FILES = dict({k: v[1] for k, v in WHISPER_MODELS.items()}, tiny="ggml-tiny.en-q5_1.bin")  # the Setup's sizes
 
 
 def _sysctl(name):
@@ -79,6 +80,17 @@ def chosen_profile():
     return saved if saved in WHISPER_MODELS else "auto"
 
 
+def chosen_hearing():
+    """The Whisper model the player chose in the Setup ("hearing_size" in setup.json), or None."""
+    home = os.environ.get("KINDRED_HOME") or os.path.join(os.path.expanduser("~"), ".kindred-spirit")
+    try:
+        with open(os.path.join(home, "setup.json"), encoding="utf-8") as fh:
+            size = json.load(fh).get("hearing_size")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return HEARING_FILES.get(size)
+
+
 def profile(hw, choice=None):
     """Settings for this computer: choice is low, medium, high or auto (None: the player's choice)."""
     forced = chosen_profile() if choice is None else choice
@@ -94,7 +106,7 @@ def profile(hw, choice=None):
     # Leave most cores to Minecraft: its render and server threads are what you feel as lag.
     return {
         "level": level,
-        "whisper_model": WHISPER_MODELS[level][1],
+        "whisper_model": (choice is None and chosen_hearing()) or WHISPER_MODELS[level][1],
         "whisper_threads": max(1, min(4, fast // 2 if hw["gpu"] == "cpu" else 2)),
         "tts_threads": {"high": 3, "medium": 2, "low": 2}[level] if fast >= 4 else max(1, fast // 2),
         "nice": 10,

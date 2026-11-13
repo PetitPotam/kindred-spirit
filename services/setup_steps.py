@@ -36,6 +36,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "brain"))
 import kindred_gateway as gw  # noqa: E402  (KINDRED_HOME, the gateway's port)
 import setup_ai  # noqa: E402  (choosing her AI, #94)
+import setup_models  # noqa: E402  (her local models, #95)
 from kindred import hardware  # noqa: E402
 
 PAYLOAD = os.environ.get("KINDRED_SETUP_PAYLOAD") or ""  # the app's own copy: python/, kindred/, VERSION
@@ -640,10 +641,15 @@ STEPS = {
     "start": (step_start, act_start, test_start),
     "ai": (step_ai, act_ai, test_ai),
     "thinking": (step_thinking, act_thinking, test_thinking),
+    "instincts": (setup_models.step_instincts, setup_models.act_instincts, setup_models.test_instincts),
+    "voice": (setup_models.step_voice, setup_models.act_voice, setup_models.test_voice),
+    "hearing": (setup_models.step_hearing, setup_models.act_hearing, setup_models.test_hearing),
     "login": (step_login, act_login, test_login),
 }
 LOGS_FOR = {"computer": (), "install": ("setup.out",), "start": ("gateway.out", "brain.out", "dashboard.out"),
-            "login": ("login.out",), "ai": ("gateway.out", "ollama-pull.out"), "thinking": ("gateway.out",)}
+            "login": ("login.out",), "ai": ("gateway.out", "ollama-pull.out"), "thinking": ("gateway.out",),
+            "instincts": ("setup-models.out", "embed.out"), "voice": ("setup-models.out", "kokoro.out"),
+            "hearing": ("whisper.out",)}
 
 
 # ---------------------------------------------------------------------- her dashboard, and opening the app again
