@@ -137,8 +137,10 @@ def whisper_server(target, cache, dest):
     shutil.copy2(os.path.join(src, "LICENSE"), os.path.join(dest, "whisper.cpp-LICENSE.txt"))
 
 
-def payload(stage, target, archive, cache=None, whisper=True):
-    """stage/payload: python/, kindred/, bin/ (whisper-server, when it could be built), VERSION."""
+def payload(stage, target, archive, cache=None, whisper=True, mods=None):
+    """stage/payload: python/, kindred/, bin/ (whisper-server, when it could be built), mods/ (the mod for each
+    Minecraft version, and the release's versions.json), VERSION."""
+    mods = mods or os.path.join(ROOT, "mod", "build", "libs")
     out = os.path.join(stage, "payload")
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(out)
@@ -167,6 +169,18 @@ def payload(stage, target, archive, cache=None, whisper=True):
         fh.write(version() + "\n")
     if whisper:
         whisper_server(target, cache, os.path.join(out, "bin"))
+    if os.path.isdir(mods) and glob.glob(os.path.join(mods, "kindred-spirit-*+*.jar")):
+        say("the mod for each Minecraft version (from %s)" % mods)
+        dest = os.path.join(out, "mods")
+        os.makedirs(dest, exist_ok=True)
+        for jar in glob.glob(os.path.join(mods, "kindred-spirit-*+*.jar")):
+            if "-sources" not in jar:
+                shutil.copy2(jar, dest)
+        if os.path.exists(os.path.join(mods, "versions.json")):
+            shutil.copy2(os.path.join(mods, "versions.json"), dest)
+    else:
+        say("no mod jars in %s: this Setup can't install the mod (build it, or pass --mods)" % mods)
+
     runnable = os.path.join(py, "bin", "python3")
     if target == "macos-" + ("arm64" if platform.machine() == "arm64" else "x86_64") and os.path.exists(runnable):
         # compiled once here, so the app starts quickly and never writes inside itself (it runs with -B)
@@ -210,6 +224,8 @@ def package_macos(stage, out_dir, target, fmt):
             "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "12.0",
             "LSArchitecturePriority": ["arm64" if target.endswith("arm64") else "x86_64"],
             "NSHumanReadableCopyright": "Kindred Spirit, AGPL-3.0. Not an official Minecraft product.",
+            # Minecraft opened from the Setup asks for the microphone in the Setup's name (hold V to talk to her)
+            "NSMicrophoneUsageDescription": "Pip hears you when you hold V in Minecraft.",
         }, fh)
     # Ad-hoc signature: no Apple Developer certificate (that costs money), but Apple silicon runs only signed code,
     # and it seals the bundle so a damaged download is noticed. macOS still asks the first time: docs/SETUP.md.
@@ -254,13 +270,14 @@ def main(argv=None):
     ap.add_argument("--cache", default=os.path.join(HERE, "cache"), help="where downloads are kept")
     ap.add_argument("--out", default=os.path.join(HERE, "dist"))
     ap.add_argument("--no-whisper", action="store_true", help="don't build whisper-server (needs cmake)")
+    ap.add_argument("--mods", help="a folder with the release's jars and versions.json (default: mod/build/libs)")
     args = ap.parse_args(argv)
     if sys.version_info < (3, 11):
         raise SystemExit("build with Python 3.11 or newer")
     target = "%s-%s" % (args.system, args.arch)
     archive = python_archive(target, args.python_archive, args.cache)
     with tempfile.TemporaryDirectory(prefix="kindred-setup-") as stage:
-        payload(stage, target, archive, args.cache, whisper=not args.no_whisper)
+        payload(stage, target, archive, args.cache, whisper=not args.no_whisper, mods=args.mods)
         out = package_macos(stage, args.out, target, args.format)
     if os.path.isfile(out):
         say("done: %s" % write_checksum(out))

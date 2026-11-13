@@ -136,9 +136,10 @@ check_setup_app() {
   if "$py" "$ROOT/setup/smoke_test.py" ${models[@]+"${models[@]}"} "$WORK"/dist/*.dmg > "$WORK/smoke.log" 2>&1; then
     ok "installed and started from the .dmg (setup/smoke_test.py${models:+ --models: her instincts, voice and hearing too})"
     grep -E "^-- (instincts|voice|hearing|\"Hear)" "$WORK/smoke.log" | sed 's/^--/      /'
-  else bad "setup/smoke_test.py failed:"; cat "$WORK/smoke.log"; fi
-  if false; then :
-  else bad "setup/smoke_test.py failed:"; cat "$WORK/smoke.log"; fi
+  else
+    bad "setup/smoke_test.py failed: $(grep -E "AssertionError|still running|Error|FAILED" "$WORK/smoke.log" | tail -1)"
+    cat "$WORK/smoke.log"
+  fi
   [[ -n "${KINDRED_KEEP_DMG:-}" ]] && cp "$WORK"/dist/* "$KINDRED_KEEP_DMG"/ 2>/dev/null
   return 0
 }
