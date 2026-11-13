@@ -19,6 +19,9 @@ disk or behind the gateway; nothing new is collected:
             her voice for every line, to play again
   blueprints  the buildings she can build from files, by category, with the pictures and descriptions the
             game writes next to them (catalogue.json); add a file, move one to the trash, bring it back
+  setup     the Setup's guided steps (/setup, services/setup_steps.py). The Setup app runs this file as
+            `dashboard.py --setup`: on its own port (KINDRED_SETUP_PORT, 11441), from the app's own copy,
+            and it quits by itself a while after its page is closed
 
 Standard library only, like the gateway.
 """
@@ -26,6 +29,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import tomllib
 import urllib.error
@@ -47,6 +51,12 @@ SESSIONS = os.path.join(LOGS, "sessions")
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "brain"))
 from kindred import config as brain_config  # noqa: E402  (her settings, with their defaults)
 from kindred import blueprints  # noqa: E402  (her blueprint folders and their catalogue)
+import setup_steps  # noqa: E402  (the Setup's guided steps)
+
+SETUP_PAGE = os.path.join(HERE, "setup.html")
+SETUP_MODE = False  # True when the Setup app runs this (dashboard.py --setup)
+SETUP_IDLE_SECONDS = 15 * 60  # setup mode quits this long after the last request (its page polls while open)
+last_request = time.time()
 
 # what can be changed from the dashboard: everything in her brain settings (listed from its
 # defaults, so new settings appear on their own), the mod's settings, and the gateway's main choices
@@ -788,14 +798,23 @@ class Handler(BaseHTTPRequestHandler):
         return False
 
     def do_GET(self):
+        global last_request
         if not self.host_ok():
             return
+        last_request = time.time()
         url = urlparse(self.path)
         q = {k: v[-1] for k, v in parse_qs(url.query).items()}
         try:
-            if url.path in ("/", "/index.html"):
+            if url.path in ("/", "/index.html") and not SETUP_MODE:
                 with open(PAGE, "rb") as fh:
                     return self.send(200, fh.read(), "text/html")
+            if url.path in ("/setup", "/"):
+                with open(SETUP_PAGE, "rb") as fh:
+                    return self.send(200, fh.read(), "text/html")
+            if url.path == "/api/setup/hello":  # "is this a Kindred dashboard or Setup, and which version?"
+                return self.send(200, {"kindred": True, "setup": SETUP_MODE, "version": setup_steps.own_version()})
+            if url.path == "/api/setup/state":
+                return self.send(200, setup_steps.overview())
             if url.path == "/api/live":
                 mod = read_json(mod_path() or "") or {}
                 return self.send(200, {"brain": read_json(os.path.join(LOGS, "brain-state.json")),
@@ -862,11 +881,14 @@ class Handler(BaseHTTPRequestHandler):
 
 def _post(handler):
     """What the dashboard can change: the listed settings, and asking the knowledge base to learn."""
+    global last_request
     if not handler.host_ok():
         return
+    last_request = time.time()
     url = urlparse(handler.path)
     if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles", "/api/places",
-                        "/api/blueprints/add", "/api/blueprints/remove", "/api/blueprints/restore"):
+                        "/api/blueprints/add", "/api/blueprints/remove", "/api/blueprints/restore",
+                        "/api/setup/run", "/api/setup/help", "/api/setup/quit"):
         return handler.send(404, {"error": "not found"})
     if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
         return handler.send(403, {"error": "only from the dashboard itself"})
@@ -874,6 +896,16 @@ def _post(handler):
     if length > blueprints.MAX_BYTES * 2:
         return handler.send(413, {"error": "too big"})
     body = json.loads(handler.rfile.read(length) or b"{}")
+    if url.path == "/api/setup/run":  # a step's button: do it, or test it
+        return handler.send(200, setup_steps.run(str(body.get("step", "")), str(body.get("action", "")), body))
+    if url.path == "/api/setup/help":  # the "Copy a help prompt" button
+        return handler.send(200, {"prompt": setup_steps.help_prompt(str(body.get("step", "")), body.get("error") or None)})
+    if url.path == "/api/setup/quit":  # the Setup's "Close" button, or a newer Setup taking over
+        if not SETUP_MODE:
+            return handler.send(400, {"error": "only the Setup app quits; the dashboard keeps running"})
+        handler.send(200, {"ok": True})
+        threading.Thread(target=handler.server.shutdown, daemon=True).start()
+        return
     if url.path.startswith("/api/blueprints/"):  # her blueprint folders: add a file, move one to the trash, back
         try:
             dirs = blueprints.DIRS
@@ -929,9 +961,25 @@ def _post(handler):
 Handler.do_POST = _post
 
 
-def main():
+def quit_when_idle(server, idle=None, every=30):
+    """Setup mode: nobody has looked at the page for a while (it polls while open), so the Setup is done."""
+    while True:
+        time.sleep(every)
+        if time.time() - last_request > (idle or SETUP_IDLE_SECONDS):
+            server.shutdown()
+            return
+
+
+def main(argv=None):
+    global PORT, SETUP_MODE
+    argv = sys.argv[1:] if argv is None else argv
+    if "--setup" in argv:
+        SETUP_MODE = True
+        PORT = int(os.environ.get("KINDRED_SETUP_PORT", "11441"))
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print("Kindred dashboard on http://%s:%d" % (HOST, PORT), flush=True)
+    print("Kindred %s on http://%s:%d" % ("Setup" if SETUP_MODE else "dashboard", HOST, PORT), flush=True)
+    if SETUP_MODE:
+        threading.Thread(target=quit_when_idle, args=(server,), daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

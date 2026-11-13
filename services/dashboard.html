@@ -67,6 +67,9 @@ nav button { display: flex; align-items: center; gap: 10px; border: 0; backgroun
   border-radius: 9px; cursor: pointer; text-align: left; white-space: nowrap; font-weight: 500; }
 nav button svg { width: 17px; height: 17px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav button:hover { background: var(--code); color: var(--ink); }
+nav a.navlink { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 7px 10px; border-radius: 9px; text-decoration: none; font-weight: 500; }
+nav a.navlink svg { width: 17px; height: 17px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+nav a.navlink:hover { background: var(--code); color: var(--ink); }
 nav button.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
 .status { margin-top: auto; display: grid; gap: 6px; padding: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; font-size: 12.5px; }
 .status .s { display: flex; align-items: center; gap: 7px; min-width: 0; }
@@ -371,6 +374,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
       <button data-tab="voice"><svg viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>Speech &amp; voice</button>
       <div class="nav-group">Make her yours</div>
       <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings</button>
+      <a class="navlink" href="/setup"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg>Setup steps</a>
     </nav>
     <div class="status" id="pills"><div class="s"><span class="dot"></span><span class="lbl">Loading…</span></div></div>
     <div class="theme" role="group" aria-label="Theme"><button data-theme="auto" class="on">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div>

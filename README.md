@@ -208,6 +208,9 @@ outside agents), where we may interoperate or borrow MIT code with credit.
 
 ## Setup (macOS, about 10 minutes)
 
+A Setup app you download and open, with no terminal, is on its way ([#82](https://github.com/PetitPotam/kindred-spirit/issues/82),
+[docs/SETUP.md](docs/SETUP.md)). Until a release includes it, set her up like this:
+
 You need Minecraft Java Edition and [Homebrew](https://brew.sh). For the AI, use what you already
 have: a free [Gemini key](https://aistudio.google.com/apikey), your Claude subscription (Claude
 Code), another AI's command-line tool you pay for (Codex, Gemini CLI, Cursor), an API key (OpenAI,

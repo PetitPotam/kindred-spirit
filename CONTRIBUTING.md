@@ -64,7 +64,9 @@ brain/      Python 3.11+ "brain"
   tools/fake_game.py           pretend to be Minecraft against the real services
 services/   the gateway (AI, speech-to-text, voice, embeddings, memory store) and local tools
             (Kokoro voice, local embeddings, memory_store.py)
+            and the Setup's guided steps (setup_steps.py, setup.html, served by the dashboard at /setup)
 scripts/    setup, start/stop, launcher profile installer
+setup/      builds Kindred Spirit Setup, the download for players (setup/README.md)
 web/        the website (plain HTML, built with Node's standard library; see web/README.md)
 docs/       design, roadmap, good first issues
 ```

@@ -9,6 +9,12 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+### Added
+- **Kindred Spirit Setup** for macOS, first part: an app (in a .dmg) that carries its own Python, her brain, the
+  gateway and the dashboard, and opens a guided page in your browser. Each step explains itself, recommends a
+  default, has a "Test it" button and a "Copy a help prompt" button for any AI assistant. The steps so far: your
+  computer, installing her brain, waking her up. Choosing her AI, her models and Minecraft come next (#82).
+
 ### Changed
 - Every change, release and website update reaches `main` through a pull request whose CI passed (no direct pushes,
   for anyone); a release is a "Release X" pull request, then its tag.

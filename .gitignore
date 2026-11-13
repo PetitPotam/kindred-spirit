@@ -8,6 +8,10 @@ mod/bin/
 mod/.idea/
 *.iml
 
+# Kindred Spirit Setup: what setup/build.py downloads and makes
+setup/cache/
+setup/dist/
+
 # Python (brain)
 __pycache__/
 *.pyc
