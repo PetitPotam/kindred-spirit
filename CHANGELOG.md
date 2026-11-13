@@ -67,6 +67,8 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- Safe minimum versions for the demo video tool (Pillow 13.0.0) and the tests (pytest 9.0.3), which clears the 56
+  known vulnerabilities OpenSSF Scorecard reported; nothing players install was affected (#152).
 - Install checks on every system, on GitHub's clean machines with no AI key: the Setup on Apple silicon and Intel
   Macs, her brain and Minecraft's side on macOS and Linux, a friend's install on Windows, and a real Minecraft client
   on Linux that says hi and hears her answer, for each Minecraft version (#104, #105). `scripts/test-install.sh` runs
