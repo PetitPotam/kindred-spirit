@@ -115,3 +115,46 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "::notice title=Not yet supported::Hosting Pip on Windows (her brain, voice, hearing and the Setup app) isn't supported yet (#40). This job checks the friend's side: installing the mod to join a host's LAN world."
+
+  client:
+    # A real Minecraft client (the dev client: Fabric Loader, Fabric API and the mod) opens a world and says hi; her
+    # brain answers through a stand-in AI (#105). Linux runs it on a virtual screen with software OpenGL. macOS is an
+    # experiment (GitHub's Macs have no GPU; Apple's software OpenGL may or may not be enough), allowed to fail.
+    # Windows runners have no OpenGL 3.2 for Minecraft at all (docs/TESTING-PLATFORMS.md says what could change that).
+    name: Minecraft client, ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    continue-on-error: ${{ matrix.experiment }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, name: Linux, experiment: false }
+          - { runner: macos-15, name: macOS (experiment), experiment: true }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+      - name: A virtual screen and software OpenGL (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+      - name: The game opens a world, says hi, and she answers
+        env:
+          KINDRED_TEST_CLEAN_MACHINE: "1" # a fresh runner: nobody's Pip lives here
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: mkdir -p client-check && KINDRED_KEEP_SCREENSHOT="$PWD/client-check" scripts/test-install.sh client
+      - uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: client-check-${{ matrix.runner }}
+          path: client-check/
+          if-no-files-found: ignore
+          retention-days: 14
