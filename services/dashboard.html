@@ -1357,8 +1357,8 @@ async function simConnect() {
     else if (msg.type === "audio") simPlay(msg.audio);
     else if (msg.type === "heard") simLog(`she heard: “${esc(msg.text)}”`, "sys");
     else if (msg.type === "notice") simLog(esc(msg.text), "sys warn");
-    else if (msg.type === "bond") $("sim-heart").innerHTML = `<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="big num" style="color:var(--ink)">${Math.round(msg.value)}</span>
-        <b style="color:var(--ink)">${esc(msg.level)}</b>${msg.stance ? `<span class="chip">${esc(msg.stance)}</span>` : ""}${msg.change ? `<span class="delta ${msg.change > 0 ? "up" : "down"}">${msg.change > 0 ? "+" : ""}${msg.change}</span>` : ""}</div>${bondMeter(msg.value, msg.level)}`;
+    else if (msg.type === "bond") $("sim-heart").innerHTML = `<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="big num" style="color:var(--ink)">${Math.round(Number(msg.value)) || 0}</span>
+        <b style="color:var(--ink)">${esc(msg.level)}</b>${msg.stance ? `<span class="chip">${esc(msg.stance)}</span>` : ""}${Number(msg.change) ? `<span class="delta ${Number(msg.change) > 0 ? "up" : "down"}">${Number(msg.change) > 0 ? "+" : ""}${Number(msg.change)}</span>` : ""}</div>${bondMeter(msg.value, msg.level)}`;
     else if (msg.type === "tune") simLog(`🎵 hums a tune (${msg.notes.length} notes, ${esc(msg.instrument)})`, "sys");
     else if (msg.type === "act" && (msg.move || msg.emote)) simLog(`↳ ${esc(msg.move || "")} ${esc(msg.emote || "")} ${esc(msg.look || "")}`, "sys");
     else if (msg.type === "do") {
