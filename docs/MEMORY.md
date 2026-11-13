@@ -88,3 +88,25 @@ exactly when it's relevant ("how's the cherry house?" brings up the cherry house
   `scripts/memory.sh forget` erases every memory but keeps the bond and her powers;
   `scripts/memory.sh reset` makes her a brand-new companion (memories, bond, powers, conversations).
 - In game: "forget that I ..." removes matching memories.
+
+## Places she remembers on her own
+
+Beside the places you name (`place`) and what she found when asked (`found`), she keeps places on her own
+(`spot`), with coordinates and dimension, from what the game already tells her: no extra talk, no AI call.
+
+| What | When | Kept |
+|---|---|---|
+| where you're building | 15+ blocks placed in a short while | one per site (sightings within 24 blocks merge; it moves as the site grows) |
+| your bed, chests, where you craft | you place one | one bed; chests and workshops merge within 8 blocks |
+| portals | you go to another dimension | where the portal was on the side you came from |
+| where you died | your health hits 0 | the latest death (so "take me back to where I died" finds your things) |
+| firsts | the first of each animal you meet, each biome you find together | the first one stays first |
+| dangerous spots | a lava or big-drop warning | merged within 10 blocks |
+| where friends were last | a friend goes out of her sight | one per friend, the latest |
+
+Each record: her words for it ("where we met our first cow"), what it is, x/y/z, dimension, biome, first and last
+seen, how many times, with whom, how she felt, where it came from. At most 150 per world (the least important, then
+oldest, fade). In each answer she sees "Places you know": the nearest and most important six, with distance and
+direction from you, plus any that match your words. "Lead me back to where we saw the first cow", "to what I was
+building", "to where I died" find the place by its description and lead there. The dashboard's Memory page shows them
+on a map from above, with a list to rename or forget one; the session log notes each new place, with who and where.
