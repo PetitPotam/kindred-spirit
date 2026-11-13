@@ -177,10 +177,25 @@ client_run() {
   answered_before=$(grep -c "you: Hi Pip.*test answer" "$brainlog" 2>/dev/null) || answered_before=0
   local run=(./gradlew ":$mc:runClient" --no-daemon --console=plain "-PdevScript=$WORK/client.txt")
   if [[ "$(uname -s)" == Linux && -z "${DISPLAY:-}" ]]; then run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}"); fi
-  ( cd "$ROOT/mod" && "${run[@]}" ) > "$WORK/client-$mc.log" 2>&1
-  local code=$?
+  local limit="${KINDRED_CLIENT_MINUTES:-12}"
+  ( cd "$ROOT/mod" && "${run[@]}" ) > "$WORK/client-$mc.log" 2>&1 &
+  local pid=$! waited=0 code
+  # each game gets its own time limit, so a game that hangs fails fast and says which Minecraft it was
+  while kill -0 "$pid" 2>/dev/null && (( waited < limit * 60 )); do sleep 5; waited=$((waited + 5)); done
   local game="$runDir/logs/latest.log"
-  if [[ $code == 0 ]]; then ok "the game started and quit by itself"; else bad "the game exited with $code:"; tail -40 "$WORK/client-$mc.log"; fi
+  if kill -0 "$pid" 2>/dev/null; then
+    bad "Minecraft $mc didn't finish in $limit minutes; where its threads were, the end of its log and Gradle's:"
+    local gpid
+    for gpid in $(pgrep -f "kindredspirit.devScript=$WORK/client.txt"); do
+      jcmd "$gpid" Thread.print 2>/dev/null | grep -A 25 -E '^"(Render thread|main|Server thread)"' | head -90
+    done
+    tail -60 "$game" 2>/dev/null; tail -30 "$WORK/client-$mc.log"
+    pkill -f "kindredspirit.devScript=$WORK/client.txt"; sleep 10
+    pkill -9 -f "kindredspirit.devScript=$WORK/client.txt"; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+    return 0
+  fi
+  wait "$pid"; code=$?
+  if [[ $code == 0 ]]; then ok "the game started and quit by itself"; else bad "the game exited with $code:"; tail -40 "$WORK/client-$mc.log"; tail -40 "$game" 2>/dev/null; fi
   grep -q "kindredspirit" "$game" 2>/dev/null && ok "Fabric loaded the mod (with Fabric API)" || bad "the mod isn't in the game's log"
   if ls "$runDir"/crash-reports/*.txt >/dev/null 2>&1; then bad "the game crashed:"; tail -40 "$(ls -t "$runDir"/crash-reports/*.txt | head -1)"; fi
   grep -q "game connected" "$brainlog" 2>/dev/null && ok "the game connected to her brain" || bad "the game never connected to her brain"
