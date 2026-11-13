@@ -40,6 +40,7 @@ from . import knowledge as kb
 from .understand import Understand
 from . import becoming as becoming_mod
 from . import instinct as instinct_mod
+from . import talker
 from . import tunes
 from .senses import Novelty
 from .sessionlog import SessionLog
@@ -369,6 +370,9 @@ class Brain:
                                                          "lead the way)" if msg.get("power") == "advisor" else ""))
         if msg.get("glow") and self.singleplayer:
             self.mind.powers += " You glow softly: in the dark your light shows the way around you."
+        # one tool list for every call (her powers in the mod's order, then memory): the start of each request
+        # stays the same, so the provider's cache serves it (mind._ask says which fit each answer)
+        self.mind.all_tools = tools.for_abilities(self.abilities)
         log.info("abilities: %s", ", ".join(self.abilities))
 
     async def request(self, action, args, timeout=25):
@@ -2042,6 +2046,25 @@ class Brain:
             await self.answer(merge_messages([t for t, _ in batch]), any(s for _, s in batch),
                               heard=[t for t, _ in batch])
 
+    async def answer_on_instinct(self, text, kind, heard=None):
+        """Talker first (talker.py): "follow me", "stand still", "come here" alone. Her body already did it;
+        she answers on instinct, at once, and the AI hears the exchange in the conversation afterwards."""
+        started = self.clock()
+        async with self.talk_lock:  # (in turn with her other answers: a line never jumps a queue)
+            self.last_player_text = text
+            self.recent_player = (self.recent_player + [text])[-3:]
+            for said in heard or [text]:  # (the same words again and again still mean less each time)
+                self.heart.hear(said)
+            line = self.instinct.pick(kind + "_ok") or random.choice(talker.LINES[kind + "_ok"])
+            self.mind.remember("user", text)
+            self.mind.remember("assistant", "[%s] %s" % (self.mood or "happy", line))
+            self.session.event("decide", who="player", acts=[kind], force=None, force_by="instinct (plain command)")
+            await self.say(line, self.mood or "happy", prio="reply", source="instinct")
+            self.session.event("answer", who="player", first_words=round(self.clock() - started, 2),
+                               total=round(self.clock() - started, 2), rounds=0, calls=None, by="instinct")
+            await self.safe(self.memory.keep_history(self.mind.history, self.mind.summary))
+            self.last_talk = self.clock()
+
     async def answer(self, text, spoken=False, heard=None):
         text = (text or "").strip()
         if not text:
@@ -2072,6 +2095,10 @@ class Brain:
             log.info("put the block back: %s", res)
             done.append("put the block you borrowed back where it was" if res.get("ok") else
                         "tried to put a block back, but: %s" % res.get("error", "nothing to put back"))
+        plain = talker.plain_command(text, moving) if self.cfg["behaviour"].get("talker_first", True) else None
+        if plain and not vouched and not self.heart.angry() and not intents.PUT_BACK.search(text):
+            await self.answer_on_instinct(text, plain, heard)  # talker first: no AI for a plain command
+            return
         await self.send({"type": "state", "state": "thinking"})
         async with self.talk_lock:
             try:

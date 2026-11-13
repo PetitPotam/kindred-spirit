@@ -58,3 +58,17 @@ def test_asking_her_to_build_but_not_talking_about_your_own_building():
     assert intents.action_hint("could you make a floor of planks here", allowed) == "build"
     assert intents.action_hint("i'm going to build a wall", allowed) is None, "that's them building, not a request"
     assert intents.action_hint("build a wall here", ["harvest"]) is None, "not when she can't"
+
+
+def test_a_trip_home_is_not_pushing_monsters_away_and_one_block_is_not_a_field():
+    """Found by the eval set (brain/evals): "can you get me back to the house?" was forced to protect (the
+    "get ... back" rule) and "remove this block" to clearing land with no size."""
+    a = ["protect", "guide", "harvest", "build", "command", "give_item"]
+    assert intents.action_hint("Can you get me back to the house? Oh, the whole house.", a) == "guide"
+    assert intents.action_hint("take us home", a) == "guide"
+    assert intents.action_hint("get them away from me", a) == "protect"
+    assert intents.action_hint("push them back", a) == "protect"
+    assert intents.action_hint("get me some bread", a) == "give_item"
+    assert intents.action_hint("Can you remove this block for me please?", a) == "harvest"
+    assert intents.action_hint("remove this block and everything around it", a) == "build"
+    assert intents.action_hint("flatten the land above y 64", a) == "build"

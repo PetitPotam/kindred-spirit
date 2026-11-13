@@ -153,8 +153,8 @@ def test_her_portrait_reaches_her_quick_mind(stubs):  # noqa: F811
     from kindred.mind import Mind
     m = Mind(make_cfg(stubs.port))
     m.becoming = "Lately the tune dum-dee-doo won't leave my head."
-    assert "Who you've become lately" in m.build_messages({}, "hi")[0]["content"]
-    assert "dum-dee-doo" in m.build_messages({}, "hi")[0]["content"]
+    sent = json.dumps(m.build_messages({}, "hi"))  # (after her character, before the conversation: see mind.build_messages)
+    assert "Who you've become lately" in sent and "dum-dee-doo" in sent
 
 
 def test_a_broken_line_never_reaches_a_warning():

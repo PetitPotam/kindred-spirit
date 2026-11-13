@@ -12,6 +12,7 @@ import re
 
 from . import heart as H
 from . import intents as I
+from . import talker as T
 
 # each moment: what it is (for the AI), and the built-in lines it replaces
 MOMENTS = {
@@ -37,6 +38,8 @@ MOMENTS = {
                    "(\"You're hurt! Eat something!\")", None),
     "lava": ("URGENT: lava right there. An instinctive shout, 2 to 5 words, no directions", None),
     "drop": ("a big drop right at their feet. A quick shout, 2 to 5 words, no directions", None),
+    # plain commands System 0 answers alone (talker.py): written in her voice like the others
+    **{k: (T.MOMENTS[k], T.LINES[k]) for k in T.LINES},
 }
 NEEDS = {}
 PER_MOMENT = 6

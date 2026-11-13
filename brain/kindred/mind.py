@@ -239,14 +239,21 @@ class Mind:
         self.allow_fib = False
         self.world_knowledge = ""  # what the world remembers about the question at hand (knowledge base)
         self.oh_last = False  # her last reply opened with "Oh"/"Ooh": this one won't
+        self.all_tools = None     # every tool she has, the same list on every call (set by the server)
         self.max_sentences, self.max_chars = 2, 160  # her own lines and chat: a cap (reply() lifts it for how-to)    # a deliberate prank this time: the action check is off
 
     def remember(self, role, content):
         self.history.append({"role": role, "content": content})
         limit = 2 * int(self.cfg["ai"].get("history_turns", 8))
         if len(self.history) > limit:
-            self.to_fold += self.history[:-limit]  # not forgotten: folded into the summary soon
-            self.history = self.history[-limit:]
+            # in steps, not one exchange at a time: the start of the window stays the same for several turns
+            # (what the provider's cache can reuse); half of it goes to the summary at once
+            keep = max(2, limit // 2) if self.cfg["ai"].get("stable_context", True) else limit
+            cut = len(self.history) - keep
+            while cut < len(self.history) - 1 and self.history[cut]["role"] != "user":
+                cut += 1  # (the window starts with something said to her, not with her answer)
+            self.to_fold += self.history[:cut]  # not forgotten: folded into the summary soon
+            self.history = self.history[cut:]
 
     async def fold(self, every=10):
         """Token-light long conversations: the turns that left the window are folded, a few at a time,
@@ -272,11 +279,24 @@ class Mind:
             pass
         return True
 
-    def build_messages(self, snapshot, prompt):
-        system = system_prompt(self.cfg["name"], self.cfg.get("personality", ""), self.becoming)
-        if self.summary:
+    def build_messages(self, snapshot, prompt, allowed=None):
+        """Most stable first, for the provider's prefix cache (docs/research/designs-2026-11.md): her
+        character alone in the system prompt (the tool list goes with it, the same on every call), then
+        who she's become and the summary of older talk (rewritten now and then), then the conversation
+        window, and last the newest message with everything that changes."""
+        stable = self.cfg["ai"].get("stable_context", True)
+        system = system_prompt(self.cfg["name"], self.cfg.get("personality", ""), "" if stable else self.becoming)
+        if self.summary and not stable:
             system += "\n\nEarlier in this conversation (summary): " + self.summary
         msgs = [{"role": "system", "content": system}]
+        preamble = []
+        if stable and self.becoming and self.becoming.strip():
+            preamble.append("[Who you've become lately (your own words about yourself; it keeps changing)]\n"
+                            + self.becoming.strip())
+        if stable and self.summary:
+            preamble.append("[Earlier in this conversation (summary)]\n" + self.summary)
+        if preamble:
+            msgs.append({"role": "user", "content": "(we start playing)\n\n" + "\n\n".join(preamble)})
         # The game state goes with the newest message, not the system prompt: models trust recent
         # text most, and otherwise anchor on what was said earlier ("it's night") after time moved on.
         remembered = self.recalled
@@ -289,6 +309,12 @@ class Mind:
             now += "[How you feel about the player]\n%s\n\n" % self.heart
         if self.powers:
             now += "[What you can do]\n%s\n\n" % self.powers
+        listed = {t["function"]["name"] for t in self.all_tools or []} & TOOL_NAMES_OF_POWERS
+        if allowed is not None and listed - set(allowed):  # (every tool is always listed: say which fit now)
+            names = [n.replace("_", " ") for n in sorted(allowed) if n in TOOL_NAMES_OF_POWERS]
+            now += "[Powers for this answer]\n%s\n\n" % (
+                "Only these fit what was asked: %s (and your memory). Leave the others alone." % ", ".join(names)
+                if names else "None: answer in words (your memory still works).")
         now += "[Player]\n%s" % prompt
         # merge same-role neighbours (warnings are assistant lines with no question before them)
         for m in self.history + [{"role": "user", "content": now}]:
@@ -450,7 +476,12 @@ class Mind:
         and each sentence handed over as soon as it's complete (self.streamed then says how much was)."""
         ai = self.cfg["ai"]
         await self.recall(snapshot, prompt)
-        messages = self.build_messages(snapshot, prompt)
+        # one tool list on every call (ai.stable_tools): measured on the eval set, the cache served 44% of the
+        # tokens with it and 41% without (tool rounds are cached either way) for 40% more tokens sent, so it's
+        # off by default; the smaller list for each kind of request is kept (docs/research/designs-2026-11.md)
+        stable = self.all_tools if ai.get("stable_tools", False) else None
+        allowed = {t["function"]["name"] for t in tools or []} if (tools and run_tool) else set()
+        messages = self.build_messages(snapshot, prompt, allowed if stable else None)
         self.last_rounds = 0
         log.debug("prompt context:\n%s", messages[-1]["content"])
         content = ""
@@ -469,7 +500,13 @@ class Mind:
             }
             if ai.get("reasoning_effort"):  # thinking models: keep it quick ("minimal", "low") or the answer runs out
                 body["reasoning_effort"] = ai["reasoning_effort"]
-            if tools and run_tool and round_ < rounds - 1:
+            if stable:  # (the same list every time, so the start of the request is the same: cached)
+                body["tools"] = stable
+                if not (tools and run_tool and round_ < rounds - 1):
+                    body["tool_choice"] = "none"
+                elif force and round_ == 0:
+                    body["tool_choice"] = {"type": "function", "function": {"name": force}}
+            elif tools and run_tool and round_ < rounds - 1:
                 body["tools"] = tools
                 if force and round_ == 0:  # a clear request: it must actually do it
                     body["tool_choice"] = {"type": "function", "function": {"name": force}}
@@ -519,6 +556,13 @@ class Mind:
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
                     continue
                 once.add(key)
+                listed = {t["function"]["name"] for t in stable or []}
+                if stable and fn.get("name", "") in listed and fn.get("name", "") not in allowed:
+                    # (listed, but not for this answer; a power she hasn't got at all is the server's to refuse)
+                    result = {"ok": False, "error": "Not for this: that isn't what was asked. Use %s, or just answer."
+                              % (", ".join(sorted(n.replace("_", " ") for n in allowed)) or "no power")}
+                    messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": json.dumps(result)})
+                    continue
                 result = await run_tool(fn.get("name", ""), args if isinstance(args, dict) else {})
                 if not (isinstance(result, dict) and result.get("ok") is False):
                     ran.append(fn.get("name", ""))  # (a tool that said no proves nothing: "follow me" after a failed guide is a claim)
@@ -531,6 +575,8 @@ class Mind:
                              "sentence, honest about what you did or couldn't do. Same tags as before.)"})
             body = {"model": ai["model"], "messages": messages, "temperature": ai.get("temperature", 0.8),
                     "max_tokens": ai.get("max_tokens", 160)}
+            if stable:
+                body["tools"], body["tool_choice"] = stable, "none"
             if ai.get("reasoning_effort"):
                 body["reasoning_effort"] = ai["reasoning_effort"]
             raw = await asyncio.to_thread(post_json, self.url(), body, self.cfg["gateway"].get("key", ""), 60, kind)
@@ -555,6 +601,14 @@ class Mind:
         if self.max_sentences:  # (what she didn't say isn't part of what she said)
             text = first_sentences(text, self.max_sentences, self.max_chars)
         return text, mood, gesture
+
+
+def _power_names():
+    from . import tools as tools_mod
+    return set(tools_mod.ABILITY_TOOLS)
+
+
+TOOL_NAMES_OF_POWERS = _power_names()
 
 
 def join_part(have, part):
