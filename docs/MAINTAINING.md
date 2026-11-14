@@ -35,7 +35,8 @@ behaviour; docs updated.
 ## Batching changes
 
 For the maintainer's own work (and AI agents working for them), small changes go to `main` together, not one pull
-request each. Every pull request must be up to date with `main` before it merges, so separate pull requests keep
+request each. Contributors may batch closely related small changes too (CONTRIBUTING.md); ask them to split a batch
+when its parts need separate reviews or one part isn't wanted. Every pull request must be up to date with `main` before it merges, so separate pull requests keep
 pushing each other behind and re-running the long checks (the Platforms Macs take 30–40 minutes).
 
 1. **Each change on its own branch**, as usual: its issue, `fix/12-...` or `docs/14-...`, its tests and its

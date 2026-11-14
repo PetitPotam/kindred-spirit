@@ -69,8 +69,8 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
-- The maintainer's small changes go to `main` in batches (one pull request for several, each change still with its
-  issue), so they stop re-running the long checks for each other (docs/MAINTAINING.md, #166).
+- Small changes go to `main` in batches: one pull request for several, each change still with its issue. The
+  maintainer always batches; contributors may batch closely related changes (docs/MAINTAINING.md, #166).
 - Safe minimum versions for the demo video tool (Pillow 13.0.0) and the tests (pytest 9.0.3), which clears the 56
   known vulnerabilities OpenSSF Scorecard reported; nothing players install was affected (#152).
 - Install checks on every system, on GitHub's clean machines with no AI key: the Setup on Apple silicon and Intel
