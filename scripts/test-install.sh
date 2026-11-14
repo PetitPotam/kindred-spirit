@@ -132,7 +132,8 @@ EOT
     -p 127.0.0.1:47811:47811 -p 127.0.0.1:11440:11440 -v "$KH:/home/pip/.kindred-spirit" "$img" > /dev/null \
     || { bad "docker run failed"; return; }
   docker exec -d $DOCKER_TEST /opt/kindred/venv/bin/python -I /opt/kindred/brain/tools/fake_ai.py --port $AI
-  for t in $(seq 1 120); do ! free_port 47811 && up "http://127.0.0.1:11440/api/her" && break; sleep 0.5; done
+  # (a first start on a busy runner can take a while; Docker's port is open before she is, so wait for her answers)
+  for t in $(seq 1 360); do up "http://127.0.0.1:11440/api/her" && [[ -s "$KH/token" ]] && break; sleep 0.5; done
   free_port 47811 && bad "her brain isn't reachable on 127.0.0.1:47811" || ok "her brain is reachable from this computer (:47811)"
   grep -q '"awake"' <<<"$(curl -s --max-time 5 http://127.0.0.1:11440/api/her)" && ok "her dashboard answers (:11440): awake" \
     || bad "her dashboard doesn't answer on 127.0.0.1:11440"
