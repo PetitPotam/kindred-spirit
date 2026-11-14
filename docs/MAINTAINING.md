@@ -49,6 +49,10 @@ pushing each other behind and re-running the long checks (the Platforms Macs tak
 5. **Squash and merge** once CI passes and it's up to date with `main`, like any pull request. Main gets one commit for
    the batch, whose description lists every change.
 
+**When to wait for the Mac checks:** only "CI passed" (and the CLA) is required to merge. Wait for the Platforms
+checks (the Macs, 30–40 minutes) only when the batch changes the Setup itself (`setup/`, `services/setup*`,
+`platforms.yml`); otherwise merge as soon as "CI passed" is green.
+
 Keep a batch to one theme or one sitting (a handful of changes), so it's still easy to review and, if needed, to
 revert. Big or risky changes (a new Minecraft version, a protocol change, a release) still get their own pull request.
 Website changes (`web/`) stay in their own pull request, because merging one deploys the site.
