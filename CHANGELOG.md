@@ -10,6 +10,8 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Fixed
+- Her "I'm starting" lines never sound like no: "Leave it to me!" had been rewritten short as "Leave it!"; lines
+  like that are dropped, including the one she had already learned (#177).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).
