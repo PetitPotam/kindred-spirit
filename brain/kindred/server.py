@@ -1,7 +1,7 @@
 """The brain's WebSocket server: the mod connects here, sends what it sees, and gets lines to say.
 
 Messages (JSON, one per WebSocket frame):
-  mod -> brain   hello, snapshot, event {join|leave|petted}, chat {text}, voice {wav: base64, peak}
+  mod -> brain   hello {mod, minecraft, name, abilities, blueprints: [this game's blueprint folders]}, snapshot, event {join|leave|petted}, chat {text}, voice {wav: base64, peak}
   brain -> mod   welcome {name, mood}, say {line, text, mood, audio: base64 WAV or "", more, emote},
                  audio {line, audio}, heard {text}, mood {mood}, state {thinking|idle}, notice {text},
                  act {move: stay|follow|come, side: left|right|above|auto,
@@ -258,6 +258,7 @@ def find_blueprints(query, dirs=None, limit=6):
 
 class Brain:
     def __init__(self, cfg, token, mind=None, alerts=None, clock=time.monotonic, memory=None):
+        self.blueprint_dirs = None  # the connected game's blueprint folders (its hello), else BLUEPRINT_DIRS
         self.cfg = cfg
         self.token = token
         self.memory = memory if memory is not None else Memory(
@@ -398,6 +399,9 @@ class Brain:
         if kind == "hello":
             log.info("mod %s on Minecraft %s", msg.get("mod"), msg.get("minecraft"))
             self.set_abilities(msg)
+            dirs = msg.get("blueprints")
+            if isinstance(dirs, list) and dirs and all(isinstance(d, str) for d in dirs):
+                self.blueprint_dirs = dirs  # (#175: the game's own folders, so she offers only what it can build)
             await self.send({"type": "welcome", "name": self.cfg["name"], "mood": self.mood})
         elif kind == "abilities":
             self.set_abilities(msg)
@@ -504,7 +508,7 @@ class Brain:
             if name == "cancel_reminder":
                 return {"ok": True, "cancelled": await self.memory.cancel_reminder(args.get("about", ""))}
             if name == "find_blueprint":
-                return self.blueprint_found(find_blueprints(args.get("query", "")))
+                return self.blueprint_found(find_blueprints(args.get("query", ""), self.blueprint_dirs))
             if name == "listen_more":
                 return await self.listen_more(args.get("what", "next"))
             if name == "standing_request":
@@ -2251,7 +2255,7 @@ class Brain:
         if "blueprint" in self.abilities:
             parts.append("a cozy cottage for any number of people")
             try:
-                cat = find_blueprints("")
+                cat = find_blueprints("", self.blueprint_dirs)
                 kinds = ", ".join("%d %s" % (n, k + ("s" if n > 1 and not k.endswith("s") else ""))
                                   for k, n in sorted((cat.get("kinds") or {}).items(), key=lambda kv: -kv[1]) if n)
                 if cat.get("total"):

@@ -146,3 +146,24 @@ def test_a_development_build_without_jars_says_so(home, monkeypatch, tmp_path):
     monkeypatch.setattr(smc, "HERE", str(tmp_path / "nowhere" / "services"))
     s = smc.step_minecraft()
     assert s["choices"] == [] and s["actions"] == [] and "development build" in s["facts"][1][1]
+
+
+def test_a_new_profile_brings_the_blueprints_you_already_have(home):
+    """#175: the 26.3 profile started with no blueprints while the 1.21.1 one had 253; installing copies them over
+    (same computer, nothing downloaded), and never over a profile that already has its own."""
+    tmp_path, _ = home
+    mc = minecraft(tmp_path)
+    old = mc.parent / "minecraft-kindred" / "config" / "kindredspirit" / "blueprints"
+    old.mkdir(parents=True)
+    (old / "village_taiga_medium_house_1.nbt").write_bytes(b"nbt")
+    (old / "circle_10x10.litematic").write_bytes(b"lite")
+    (old / "catalogue.json").write_text("{}")
+    (old / ".trash").mkdir()
+    (old / ".trash" / "gone.nbt").write_bytes(b"x")
+    smc.install("26.3", str(tmp_path / "payload" / "mods" / "kindred-spirit-0.3.0+26.3.jar"))
+    new = mc.parent / "minecraft-kindred-26.3" / "config" / "kindredspirit" / "blueprints"
+    assert (new / "village_taiga_medium_house_1.nbt").exists() and (new / "circle_10x10.litematic").exists()
+    assert not (new / ".trash").exists(), "what you threw away stays away"
+    (old / "another.nbt").write_bytes(b"nbt")
+    assert smc.carry_blueprints(str(mc.parent / "minecraft-kindred-26.3")) == 0, "never over one that has its own"
+    assert not (new / "another.nbt").exists()
