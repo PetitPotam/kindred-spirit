@@ -6,7 +6,8 @@ layout: guide
 ---
 <h1>Friends on LAN</h1>
 <p class="lede">One Pip, on the computer that runs her: her AI, her voice, her memory and her heart. Open your world to
-  LAN and friends on the same network join on the same Minecraft version (release 1.21.1).</p>
+  LAN and friends on the same network join on the same Minecraft version as yours: <strong>26.3</strong> (the newest)
+  or <strong>1.21.1</strong>, with the Kindred jar for it.</p>
 
 <h2 id="how-it-works">How it works</h2>
 <ul>
@@ -22,44 +23,49 @@ layout: guide
 
 <h2 id="windows-friend">Set up a friend's Windows PC</h2>
 <p>Your friend needs <strong>Minecraft Java Edition</strong>, on the same Wi-Fi or home network as you, and two small
-  mod files. Nothing else.</p>
+  mod files. Nothing else. Below, <strong>26.3</strong> stands for the host's Minecraft version: use
+  <strong>1.21.1</strong> everywhere instead if that's what the host plays. (A friend on a Mac can let
+  <a href="/download">Kindred Spirit Setup</a>'s Minecraft step do all of this.)</p>
 <ol class="steps">
   <li>
-    <p><strong>Get Minecraft 1.21.1 once.</strong> In the Minecraft Launcher: Installations → New installation →
-      version <strong>release 1.21.1</strong> → Create → Play, then quit the game.</p>
+    <p><strong>Get Minecraft 26.3 once.</strong> In the Minecraft Launcher: Installations → New installation →
+      version <strong>release 26.3</strong> → Create → Play, then quit the game.</p>
   </li>
   <li>
     <p><strong>Install Fabric.</strong> Download the Fabric installer for Windows from
       <a href="https://fabricmc.net/use/installer/">fabricmc.net</a>, run it: tab <strong>Client</strong>, Minecraft
-      <strong>1.21.1</strong>, the newest loader, "Create profile" ticked, then <strong>Install</strong>. The launcher
-      now has a <strong>fabric-loader-1.21.1</strong> installation.</p>
+      <strong>26.3</strong>, the newest loader, "Create profile" ticked, then <strong>Install</strong>. The launcher
+      now has a <strong>fabric-loader-26.3</strong> installation.</p>
   </li>
   <li>
     <p><strong>Add the two mods</strong> to the mods folder: press <kbd>Win</kbd> + <kbd>R</kbd>, type
       <code>%APPDATA%\.minecraft\mods</code> and press Enter (create the <code>mods</code> folder if it's missing).</p>
     <ul>
-      <li><strong>Fabric API</strong> for 1.21.1 (a file named <code>fabric-api-0.116.x+1.21.1.jar</code>) from
-        <a href="https://modrinth.com/mod/fabric-api/versions?g=1.21.1">Modrinth</a>.</li>
-      <li><strong>The Kindred Spirit jar</strong> (the one <em>without</em> <code>-sources</code> in its name): the host
-        can send theirs, or your friend builds it from the repository (below).</li>
+      <li><strong>Fabric API</strong> for 26.3 (a file whose name ends in <code>+26.3.jar</code>) from
+        <a href="https://modrinth.com/mod/fabric-api/versions?g=26.3">Modrinth</a>
+        (<a href="https://modrinth.com/mod/fabric-api/versions?g=1.21.1">for 1.21.1</a>).</li>
+      <li><strong>The Kindred Spirit jar</strong> for 26.3, the same release as the host's (its name ends in
+        <code>+26.3.jar</code>, without <code>-sources</code>): the host can send theirs, your friend can download it
+        from the <a href="{{repo}}/releases">releases page</a>, or build it from the repository (below).</li>
     </ul>
   </li>
   <li>
     <p><strong>Join.</strong> The host opens their world: Esc → Open to LAN → Start LAN World. Your friend starts the
-      <strong>fabric-loader-1.21.1</strong> installation, goes to Multiplayer, and the world appears at the bottom as a
+      <strong>fabric-loader-26.3</strong> installation, goes to Multiplayer, and the world appears at the bottom as a
       LAN world after a few seconds. If it doesn't: Direct Connection with the host's local address and the port shown
       in the host's chat (for example <code>192.168.1.20:52143</code>).</p>
   </li>
 </ol>
 
 <h3 id="build-on-windows">Building the mod on Windows</h3>
-<p>Install <strong>Java 21</strong> (<a href="https://adoptium.net/temurin/releases/?version=21">Eclipse Temurin JDK
-  21</a>, the Windows <code>.msi</code>), clone the repository, then in PowerShell:</p>
+<p>Install <strong>Java 25</strong> (<a href="https://adoptium.net/temurin/releases/?version=25">Eclipse Temurin JDK
+  25</a>, the Windows <code>.msi</code>): the build tool needs it, for either Minecraft version, while the game keeps
+  using its own Java. Clone the repository, then in PowerShell:</p>
 <pre><code>git pull
 cd mod
-.\gradlew.bat build</code></pre>
-<p>Copy <code>mod\build\libs\kindred-spirit-&lt;version&gt;+1.21.1.jar</code> into the mods folder. The first build
-  downloads Gradle and Minecraft's files, so it takes a few minutes.</p>
+.\gradlew.bat :26.3:build</code></pre>
+<p>(<code>:1.21.1:build</code> for 1.21.1.) Copy <code>mod\build\libs\kindred-spirit-&lt;version&gt;+26.3.jar</code>
+  into the mods folder. The first build downloads Gradle and Minecraft's files, so it takes a few minutes.</p>
 
 <h2 id="update-pip">Staying up to date: Update Pip</h2>
 <p>A friend's Kindred jar must be the <strong>same version as the host's</strong>. Whenever the host updates, the friend
@@ -69,6 +75,9 @@ cd mod
   <li>Double-click <code>scripts\update-pip-windows.cmd</code> (a desktop shortcut to it is handy), or</li>
   <li>in PowerShell: <code>powershell -ExecutionPolicy Bypass -File scripts\update-pip-windows.ps1</code></li>
 </ul>
+<p>It checks for Java 25 first and says what to install if it's missing. It keeps the Minecraft version of the Kindred
+  jar already installed (26.3 the first time); add <code>-Minecraft 1.21.1</code> (or <code>-Minecraft 26.3</code>)
+  to switch.</p>
 
 <h2 id="host-controls">What the host decides</h2>
 <ul>
@@ -90,6 +99,9 @@ cd mod
   their side she's only with you: she talks, sees, finds and leads, but can't change their world.</p>
 
 <h2 id="friend-settings">Settings for friends</h2>
+<p>On a friend's computer, <kbd>K</kbd> (her dashboard) says it's on the host's computer, and in a world of their own,
+  one chat message says Pip needs her brain there: that's for people who host her. <strong>Don't show again</strong>
+  (or <code>/kindred hint off</code>) hides it.</p>
 <p>In <code>%APPDATA%\.minecraft\config\kindredspirit.json</code> (created after the first start):</p>
 <table>
   <thead><tr><th scope="col">Setting</th><th scope="col">What it does</th></tr></thead>
@@ -102,10 +114,12 @@ cd mod
 
 <h2 id="friends-trouble">If something's wrong</h2>
 <ul>
-  <li><strong>"Incompatible" or "outdated client":</strong> you're not on 1.21.1. Start the fabric-loader-1.21.1
-    installation.</li>
-  <li><strong>The game crashes at start:</strong> Fabric API is missing or for the wrong version (it must say
-    <code>+1.21.1</code>), or there are mods for another version in <code>mods</code>.</li>
+  <li><strong>"Incompatible" or "outdated client":</strong> you're not on the host's Minecraft version. Start the
+    fabric-loader installation for their version, with the Kindred jar for it.</li>
+  <li><strong>The game crashes at start, or says Kindred Spirit needs another Minecraft:</strong> Fabric API or the
+    Kindred jar is missing or for another version (both names must end in <code>+&lt;version&gt;.jar</code>), or there
+    are mods for another version in <code>mods</code>.</li>
+  <li><strong>Building fails right away:</strong> Java 25 is missing or older; Update Pip says so too.</li>
   <li><strong>You see a small blue Allay named Pip instead of her:</strong> your game doesn't have the mod, or not the
     same version as the host's. Check the mods folder, or run Update Pip.</li>
   <li><strong>She doesn't answer:</strong> start your message with her name ("Pip, ..."); the host's brain must be

@@ -38,6 +38,8 @@ friends on LAN need only the mod.
 - **Press K** in the game to open her dashboard in your browser, on the computer where her brain runs (change the key
   in Controls → Kindred Spirit). On a friend's computer with only the mod, it says the dashboard is on the host's
   (#107).
+- **A Download page on the website** with Kindred Spirit Setup for each Mac chip and how to open it the first time;
+  every page now matches the beta (26.3 and 1.21.1, the Setup, K, Java 25 for friends) (#146).
 - **Installed only the mod?** In your own world, one chat message now says that Pip needs her brain on this computer,
   with links to the Setup and to playing with a friend who hosts her, and **Don't show again**
   (`/kindred hint off`). Mod Menu's description and links say the same (#92). Its Setup link, and Mod Menu's homepage,

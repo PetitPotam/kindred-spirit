@@ -1,27 +1,61 @@
 ---
 title: Install and set up
-description: Set up Kindred Spirit on your Mac in about ten minutes: build the mod, prepare Pip's brain, choose an AI, a voice and hearing, and add a Minecraft launcher profile.
+description: Set up Kindred Spirit on your Mac with Kindred Spirit Setup, a guided app, or by hand from the source code: Pip's brain, an AI, a voice and hearing, and a Minecraft launcher profile.
 section: guides
 layout: guide
 ---
 <h1>Install and set up</h1>
-<p class="lede">Hosting Pip means running the mod in Minecraft and her "brain" on the same computer. On a Mac it takes
-  about ten minutes. Joining a friend who already hosts her is much simpler: see <a href="/guides/friends">Friends on
-  LAN</a>.</p>
+<p class="lede">Hosting Pip means running the mod in Minecraft and her "brain" on the same computer, a Mac for now.
+  Joining a friend who already hosts her is much simpler: see <a href="/guides/friends">Friends on LAN</a>.</p>
 
 <h2 id="what-you-need">What you need</h2>
 <ul>
-  <li><strong>Minecraft Java Edition</strong> (Pip uses release 1.21.1 with the Fabric loader; the setup installs
-    Fabric for you).</li>
-  <li><strong>A Mac</strong> with <a href="https://brew.sh">Homebrew</a>. Linux should work (the scripts are written
-    for it) but hasn't been tried yet; Windows hosts aren't supported yet.</li>
+  <li><strong>Minecraft Java Edition</strong>, release <strong>26.3</strong> (the newest, recommended) or
+    <strong>1.21.1</strong>, with the Fabric loader: the setup installs Fabric for you.</li>
+  <li><strong>A Mac</strong> with macOS 12 or newer, Apple silicon or Intel. Windows and Linux hosts aren't supported
+    yet (they're on the <a href="/roadmap">roadmap</a>).</li>
   <li><strong>An AI for her to think with.</strong> Use what you already have: a free
-    <a href="https://aistudio.google.com/apikey">Gemini key</a> (the default), your Claude subscription through Claude
-    Code, another AI's command-line tool you pay for, an API key (OpenAI, Claude API, Groq, OpenRouter, Mistral), or
-    nothing at all with <a href="https://ollama.com">Ollama</a> on your computer.</li>
+    <a href="https://aistudio.google.com/apikey">Gemini key</a> (the default; the Setup shows how to get one in about two
+    minutes), an API key (OpenAI, Claude API, Groq, OpenRouter, Mistral), an AI subscription you already have (Claude
+    Code, Codex, Gemini CLI), or nothing at all with <a href="https://ollama.com">Ollama</a> on your computer.</li>
 </ul>
 
-<h2 id="steps">The steps</h2>
+<h2 id="setup-app">The easy way: Kindred Spirit Setup</h2>
+<p>An app you <a href="/download">download</a> and open. It carries its own Python and opens a guide in your browser:
+  each step explains itself, recommends a choice, has <strong>Test it</strong>, and <strong>Copy a help prompt</strong>
+  for any AI assistant when something goes wrong.</p>
+<ol class="steps">
+  <li><p><strong>Download it</strong> for your Mac's chip from the <a href="/download">Download page</a>, drag it to
+    Applications and open it. The first time, macOS warns you (the app isn't signed by Apple): the Download page shows
+    how to <a href="/download#first-open">open it anyway</a>.</p></li>
+  <li><p><strong>Her brain:</strong> it looks at your Mac, picks settings that keep Minecraft smooth, installs her
+    brain, the gateway and her dashboard in your user folder (no administrator password), and wakes her up.</p></li>
+  <li><p><strong>Her AI:</strong> for her conversation (System 1), and for her slow thinking (System 2: the same one,
+    another, or off). <strong>Use this</strong> asks her a first question and shows the answer. Keys go in
+    <code>~/.kindred-spirit/secrets.env</code>, readable only by you, and are never shown again.</p></li>
+  <li><p><strong>Her instincts, voice and hearing,</strong> on your Mac, sized for it: bge-small, Kokoro with
+    <strong>Hear it</strong> for each voice, and Whisper with a microphone test. Each download is checked and can
+    resume.</p></li>
+  <li><p><strong>Minecraft:</strong> quit the Minecraft Launcher, and the Setup adds a <strong>Kindred Spirit (Fabric
+    26.3)</strong> profile (or 1.21.1) with Fabric Loader, Fabric API and the mod, in a game folder of its own. Your
+    other profiles, mods and worlds are left alone. Using Prism, CurseForge or MultiMC? It can put the mod in that
+    launcher's mods folder instead.</p></li>
+  <li><p><strong>Say hi to her:</strong> <strong>Open Minecraft</strong>, choose the Kindred Spirit profile, open a
+    world and type "hi Pip" in the chat. The page sees her answer.</p></li>
+</ol>
+<p>Later, the Setup's <strong>Updates</strong> step updates her brain, the mod and the Setup together, and can go back.
+  Opening Kindred Spirit Setup again wakes her and opens her <a href="/guides/configure#dashboard">dashboard</a>.
+  Every step in detail: <a href="{{blob}}/docs/SETUP.md">docs/SETUP.md</a>.</p>
+
+<div class="note">
+  <p class="note-title">A beta</p>
+  <p>The Setup is built and tested on GitHub's Apple silicon and Intel Macs with every release, with a stand-in AI.
+    Nobody has yet tried it on a real Intel Mac, with real AI keys through the Setup, or updated it from one release to
+    the next. If you do, <a href="{{issues}}">tell us how it went</a>.</p>
+</div>
+
+<h2 id="manual">By hand, from the source code</h2>
+<p>For contributors, or if you'd rather use a terminal. About ten minutes, with <a href="https://brew.sh">Homebrew</a>.</p>
 <ol class="steps">
   <li>
     <p><strong>Install the tools</strong> Java, Python and the local speech-to-text:</p>
@@ -49,15 +83,16 @@ cd kindred-spirit</code></pre>
       else local.</p>
   </li>
   <li>
-    <p><strong>Build the mod</strong></p>
+    <p><strong>Build the mod</strong> (one jar per Minecraft version, 26.3 and 1.21.1)</p>
     <pre><code>(cd mod &amp;&amp; ./gradlew build)</code></pre>
   </li>
   <li>
     <p><strong>Add a launcher profile</strong> (quit the Minecraft Launcher first):</p>
-    <pre><code>python3 scripts/install_profile.py</code></pre>
-    <p>It adds a <strong>Kindred Spirit (Fabric 1.21.1)</strong> profile with its own game folder
-      (<code>minecraft-kindred</code>), installs Fabric Loader and Fabric API, and backs up your launcher profiles. Your
-      other profiles, mods and worlds are left alone.</p>
+    <pre><code>python3 scripts/install_profile.py --minecraft 26.3</code></pre>
+    <p>It adds a <strong>Kindred Spirit (Fabric 26.3)</strong> profile with its own game folder
+      (<code>minecraft-kindred-26.3</code>), installs Fabric Loader and Fabric API, and backs up your launcher profiles.
+      Without <code>--minecraft</code>, it's 1.21.1 (<code>minecraft-kindred</code>). Your other profiles, mods and
+      worlds are left alone.</p>
   </li>
   <li>
     <p><strong>Play</strong> Double-click <code>scripts/play-mac.command</code>. It starts everything and opens the
@@ -66,14 +101,16 @@ cd kindred-spirit</code></pre>
 </ol>
 
 <div class="note">
-  <p class="note-title">Why start from Terminal?</p>
+  <p class="note-title">Why start from Terminal (or from the Setup)?</p>
   <p>On macOS the Minecraft Launcher has no microphone permission of its own. Started from the Dock, the game records
-    silence, so <code>play-mac.command</code> opens it from Terminal, which can use the microphone.</p>
+    silence, so <code>play-mac.command</code> opens it from Terminal, which can use the microphone. With the Setup,
+  start it with <strong>Open Minecraft</strong>: macOS then asks for the microphone in the Setup's name.</p>
 </div>
 
 <h2 id="change-later">Changing your choices later</h2>
 <ul>
-  <li>Run the guide again: <code>brain/.venv/bin/python scripts/guide.py</code></li>
+  <li>With the Setup: open it, then <strong>Setup steps</strong> in her dashboard's side bar.</li>
+  <li>By hand, run the guide again: <code>brain/.venv/bin/python scripts/guide.py</code></li>
   <li>Only test everything: <code>brain/.venv/bin/python scripts/guide.py --check</code></li>
   <li>Switch one part in one command, without restarting the game: see <a href="/guides/configure#ai-voice">Configure
     her</a>.</li>
@@ -90,7 +127,8 @@ python3 services/knowledge/kb.py crawl minecraft-data</code></pre>
   each passage's page and licence. Details: <a href="{{blob}}/docs/KNOWLEDGE.md">docs/KNOWLEDGE.md</a>.</p>
 
 <h2 id="test-first">Trying it without touching your game</h2>
-<p>Three levels, from quickest to most real: the automated tests (no game, no key, no network), a fake game that talks
-  to your real setup (<code>brain/tools/fake_game.py</code>), and a throwaway sandbox Minecraft driven by a script. The
-  README explains each: <a href="{{repo}}#testing-without-breaking-your-game">Testing without breaking your
+<p>From quickest to most real: the automated tests (no game, no key, no network), a fake game that talks to your real
+  setup (<code>brain/tools/fake_game.py</code>), a throwaway sandbox Minecraft driven by a script, and install checks
+  that set her up in a throwaway folder, as GitHub does on clean macOS, Linux and Windows machines. The README explains
+  each: <a href="{{repo}}#testing-without-breaking-your-game">Testing without breaking your
   game</a>.</p>

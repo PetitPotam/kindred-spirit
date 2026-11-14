@@ -1,0 +1,91 @@
+---
+title: Download
+description: Download Kindred Spirit Setup for your Mac (Apple silicon or Intel): one app that installs Pip's brain, her voice and hearing, and the Minecraft mod, with a guide for every step.
+section: download
+scripts: download
+---
+<div class="wrap prose">
+  <h1>Download Kindred Spirit Setup</h1>
+  <p class="lede">One app for your Mac that gets Pip ready: her brain, her AI, her voice and hearing, and Minecraft's
+    side. It opens a guide in your browser that explains each step, recommends a choice, and tests it. No terminal, and
+    nothing else to install by hand.</p>
+
+  <div class="download-choices" data-download data-api="{{releasesApi}}">
+    <div class="download-choice">
+      <a class="btn btn-primary" href="{{repo}}/releases" data-chip="arm64">Download for Apple silicon</a>
+      <p>M1, M2, M3, M4 and newer</p>
+    </div>
+    <div class="download-choice">
+      <a class="btn" href="{{repo}}/releases" data-chip="x86_64">Download for an Intel Mac</a>
+      <p>Built and tested on GitHub's Intel Mac; not yet tried on a real one</p>
+    </div>
+  </div>
+  <p class="download-status" role="status" aria-live="polite" data-download-status></p>
+  <p>The buttons fetch the newest release's <code>.dmg</code> from GitHub, where every file is published with its
+    source code. You can also pick it yourself on the <a href="{{repo}}/releases">releases page</a>:
+    <code>Kindred-Spirit-Setup-&lt;version&gt;-macos-arm64.dmg</code> for Apple silicon,
+    <code>…-macos-x86_64.dmg</code> for Intel.</p>
+
+  <div class="note">
+    <p class="note-title">Not sure which Mac you have?</p>
+    <p>Apple menu → <strong>About This Mac</strong>: it says <strong>Chip: Apple M…</strong> (Apple silicon) or
+      <strong>Processor: Intel</strong>. The Setup needs <strong>macOS 12</strong> (Monterey) or newer and about
+      <strong>3 GB</strong> of free space, and <strong>Minecraft Java Edition</strong>.</p>
+  </div>
+
+  <h2 id="first-open">Opening it the first time</h2>
+  <ol class="steps">
+    <li><p>Open the <code>.dmg</code> and drag <strong>Kindred Spirit Setup</strong> onto the
+      <strong>Applications</strong> folder next to it.</p></li>
+    <li><p>Open it from Applications. macOS will probably stop it, saying Apple could not verify that it is free of
+      malware. That's normal for a free app from a small project: Apple only recognises apps whose makers pay for a
+      yearly Apple Developer membership, and this one doesn't (yet). Its code is all on GitHub, for anyone to read.</p></li>
+    <li>
+      <p><strong>Open it anyway, once:</strong></p>
+      <ul>
+        <li><strong>macOS 15 Sequoia or newer:</strong> press <strong>Done</strong> (not "Move to Trash"). Open
+          <strong>System Settings → Privacy &amp; Security</strong>, scroll down to <strong>Security</strong>, and next
+          to "Kindred Spirit Setup was blocked…" press <strong>Open Anyway</strong>. Confirm with your password or
+          Touch ID, then press <strong>Open Anyway</strong> once more.</li>
+        <li><strong>macOS 12, 13 or 14:</strong> in Applications, hold <kbd>Control</kbd> and click the app (or
+          right-click it), choose <strong>Open</strong>, then <strong>Open</strong> again.</li>
+      </ul>
+      <p>After that, it opens with a double-click like any other app.</p>
+    </li>
+    <li><p><strong>Follow the steps</strong> in the page it opens: your computer, her brain, her AI (for talking, and for
+      her slow thinking), her instincts, voice and hearing, Minecraft (a launcher profile for 26.3, recommended, or
+      1.21.1), saying hi to her in the game, and whether she wakes when you log in. Each step has <strong>Test it</strong>, and
+      <strong>Copy a help prompt</strong> for when something goes wrong: it copies the step, your Mac and the exact
+      error, with keys, e-mail addresses and your user name taken out, ready for any AI assistant.</p></li>
+  </ol>
+  <p><em>If macOS says the app "is damaged and can't be opened":</em> the download was probably cut short; download it
+    again. Every step, and how to check the download's fingerprint: <a href="{{blob}}/docs/SETUP.md">the Setup's
+    guide</a>.</p>
+
+  <h2 id="updates">Updates</h2>
+  <p>The Setup's <strong>Updates</strong> step asks GitHub for the newest version, shows what's new, and updates her
+    brain, the mod and the Setup together. Your settings, keys and memories stay. The version before is kept, and
+    <strong>Go back</strong> returns to it.</p>
+
+  <h2 id="not-tried">What nobody has tried yet</h2>
+  <p>Kindred Spirit is a beta. Every release builds the Setup on GitHub's Apple silicon and Intel Macs and runs it
+    there, with a stand-in AI: it installs her, downloads and tests her voice and hearing, and installs the mod. These
+    need a person, and haven't been tried yet:</p>
+  <ul>
+    <li>downloading the <code>.dmg</code> and getting past the first-run warning above;</li>
+    <li>a real Intel Mac;</li>
+    <li><strong>Open Minecraft</strong> with a real launcher and account, and macOS asking for the microphone;</li>
+    <li>her AI with real keys through the Setup, and updating from one release to the next.</li>
+  </ul>
+  <p>Tried one? An <a href="{{issues}}">issue</a> saying how it went helps a lot.</p>
+
+  <h2 id="other">Not on a Mac?</h2>
+  <ul>
+    <li><strong>Joining a friend who hosts Pip:</strong> you need only Minecraft, Fabric and the mod, on Windows too.
+      See <a href="/guides/friends">Friends on LAN</a>.</li>
+    <li><strong>Hosting her on Windows or Linux</strong> isn't supported yet: it's planned, on the
+      <a href="/roadmap">roadmap</a>.</li>
+    <li><strong>From the source code</strong> (contributors, or without the app): the
+      <a href="/guides/install#manual">manual setup</a>.</li>
+  </ul>
+</div>
