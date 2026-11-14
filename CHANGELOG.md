@@ -10,6 +10,8 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Fixed
+- She never says a build is done when it failed: a lookup no longer counts as having done something, and a claim on
+  her last try becomes an honest sentence (#176).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).
