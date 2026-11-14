@@ -514,6 +514,18 @@ def mod_path():
     """The mod's settings file in use: of those that exist, the one changed last (the game played last)."""
     there = [p for p in mod_configs() if os.path.exists(p)]
     return max(there, key=os.path.getmtime) if there else None
+
+
+def blueprint_dirs():
+    """The blueprint folders of the game played last (its config/kindredspirit/blueprints and its schematics), the
+    same ones the mod reads (#175); KINDRED_BLUEPRINTS, or the first Kindred profile's, when no game was found."""
+    if os.environ.get("KINDRED_BLUEPRINTS"):
+        return blueprints.DIRS
+    path = mod_path()
+    if not path:
+        return blueprints.DIRS
+    config = os.path.dirname(path)
+    return [os.path.join(config, "kindredspirit", "blueprints"), os.path.join(os.path.dirname(config), "schematics")]
 # what one million tokens cost (USD), to estimate; change with KINDRED_PRICE_IN / KINDRED_PRICE_OUT
 PRICE_IN = float(os.environ.get("KINDRED_PRICE_IN", "0.25"))
 PRICE_OUT = float(os.environ.get("KINDRED_PRICE_OUT", "1.50"))
@@ -896,9 +908,9 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/api/sessions/one":
                 return self.send(200, session_one(q.get("id", "")))
             if url.path == "/api/blueprints":
-                return self.send(200, blueprints.overview())
+                return self.send(200, blueprints.overview(blueprint_dirs()))
             if url.path == "/api/blueprints/picture":
-                dirs = blueprints.DIRS
+                dirs = blueprint_dirs()
                 i = int(q.get("d", 0)) if str(q.get("d", "0")).isdigit() else -1
                 png = blueprints.picture(dirs[i], q.get("f", "")) if 0 <= i < len(dirs) else None
                 return self.send(200, png, "image/png") if png else self.send(404, {"error": "no such picture"})
@@ -954,7 +966,7 @@ def _post(handler):
         return
     if url.path.startswith("/api/blueprints/"):  # her blueprint folders: add a file, move one to the trash, back
         try:
-            dirs = blueprints.DIRS
+            dirs = blueprint_dirs()
             i = int(body.get("d", 0))
             if not 0 <= i < len(dirs):
                 raise ValueError("no such folder")

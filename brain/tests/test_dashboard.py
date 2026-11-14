@@ -69,3 +69,19 @@ def test_the_settings_of_every_minecraft_version_are_found(tmp_path, monkeypatch
     assert dashboard.mod_path() == other
     monkeypatch.setattr(dashboard.setup_steps, "load_state", lambda: 1 / 0)  # a broken Setup state: profiles only
     assert dashboard.mod_path() == new
+
+
+def test_the_blueprints_page_shows_the_game_played_last(tmp_path, monkeypatch):
+    """#175: the 26.3 profile has its own blueprints folder; the page (and adding or removing files) uses the game
+    played last, the same folder the mod reads."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("KINDRED_MOD_CONFIG", raising=False)
+    monkeypatch.delenv("KINDRED_BLUEPRINTS", raising=False)
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.setattr(dashboard.setup_steps, "load_state", lambda: {})
+    game = tmp_path / "Library" / "Application Support" / "minecraft-kindred-26.3"
+    (game / "config").mkdir(parents=True)
+    (game / "config" / "kindredspirit.json").write_text("{}")
+    assert dashboard.blueprint_dirs() == [str(game / "config" / "kindredspirit" / "blueprints"), str(game / "schematics")]
+    monkeypatch.setenv("KINDRED_BLUEPRINTS", str(tmp_path / "mine"))  # (set by hand: it wins)
+    assert dashboard.blueprint_dirs() == dashboard.blueprints.DIRS

@@ -1101,6 +1101,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
         hello.addProperty("mod", dev.kindredspirit.util.ModVersion.get()); // (#114: it said 0.1.0 whatever it was)
         hello.addProperty("minecraft", Mc.gameVersion());
         hello.addProperty("name", cfg.name);
+        com.google.gson.JsonArray folders = new com.google.gson.JsonArray(); // (#175: her catalogue is this game's)
+        for (Path dir : dev.kindredspirit.act.BlueprintBuild.folders()) folders.add(dir.toAbsolutePath().toString());
+        hello.add("blueprints", folders);
         addAbilities(hello);
         link.send(hello);
         Minecraft.getInstance().execute(() -> {
