@@ -52,6 +52,8 @@ friends on LAN need only the mod.
   and says what to install (#109).
 - The game tells her brain the mod's real version, not always 0.1.0 (#114).
 - The 1.21.1 jar asks for exactly 1.21.1, not any 1.21.x, which it never ran on.
+- Her dashboard's Settings page finds the game's settings on Minecraft 26.3 (its profile has a game folder of its own)
+  and in another launcher's instance chosen in the Setup; with several, those of the game played last (#159).
 
 ### Good to know
 - Hosting her brain is macOS only for now: Windows (#40) and Linux (#81) are planned. Friends on Windows join a Mac
