@@ -175,7 +175,7 @@ This repository is also a way to learn GitHub and CI/CD: every check below is a 
 |---|---|---|---|
 | **CI** (`.github/workflows/ci.yml`) | every pull request and push to `main` | builds the mod for every Minecraft version and runs the Java tests, runs the brain's tests on Python 3.11 and 3.12, parses the Windows script, checks the pull request's title, branch and `Fixes #` link; **CI passed** sums them up | the checks at the bottom of a pull request; Actions tab |
 | **Platforms** (`platforms.yml`) | pull requests that touch the Setup, scripts, services or the brain | installs and starts everything on clean macOS (Apple silicon and Intel), Windows and Linux machines, and starts a real Minecraft client on Linux to check she answers ([TESTING-PLATFORMS.md](TESTING-PLATFORMS.md)) | the pull request's checks |
-| **Release** (`release.yml`) | a version tag on `main` | builds the jars and the Setup, makes the GitHub release, uploads to Modrinth and CurseForge | Releases; Actions tab |
+| **Release** (`release.yml`) | a version tag on `main` | builds the jars and the Setup, makes the GitHub release with signed build provenance for each file (check one with `gh attestation verify <file> -R PetitPotam/kindred-spirit`), uploads to Modrinth and CurseForge | Releases; Actions tab |
 | **Website** (`website.yml`) | changes under `web/` | builds and checks the site on pull requests; deploys it when merged to `main` | the pull request's checks |
 | **CLA** (`cla.yml`) | pull requests | asks first-time contributors to sign the [CLA](../CLA.md) | a comment on the pull request |
 | **Issue triage** (`issue-triage.yml`, decisions in `scripts/triage_issue.py`) | an issue opened or edited | adds the area label from the form's "Which part is it about?"; for a bug report with neither the computer nor any logs, adds `needs-info` and one comment asking for them (it says it's automatic), and removes `needs-info` once they're there. No AI, and it only ever touches those labels | labels and one comment on the issue |
@@ -191,6 +191,10 @@ This repository is also a way to learn GitHub and CI/CD: every check below is a 
 checklist, used by Copilot Chat and by Copilot code review where the plan includes it. With Copilot Free (turned on in
 your GitHub account's settings), open Copilot Chat on any issue, pull request or file and ask it to explain or
 summarise; it's a good way to learn the repository.
+
+Every action in the workflows is pinned to an exact commit (`uses: owner/action@<hash> # v5`), so a moved tag can't
+change what runs; Dependabot's weekly update moves the hash and the comment together. Workflows start with read-only
+permissions, and each job asks only for what it needs.
 
 Good first things to read: a failed run's log (Actions tab → the run → the red step), a CodeQL alert's
 explanation, and Scorecard's list of checks (https://github.com/ossf/scorecard/blob/main/docs/checks.md).

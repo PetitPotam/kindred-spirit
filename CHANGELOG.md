@@ -69,6 +69,8 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- The workflows pin every action to an exact commit and give each job only the permissions it needs, and releases
+  carry signed build provenance for every jar and Setup file (OpenSSF Scorecard, #152).
 - Safe minimum versions for the demo video tool (Pillow 13.0.0) and the tests (pytest 9.0.3), which clears the 56
   known vulnerabilities OpenSSF Scorecard reported; nothing players install was affected (#152).
 - Install checks on every system, on GitHub's clean machines with no AI key: the Setup on Apple silicon and Intel
