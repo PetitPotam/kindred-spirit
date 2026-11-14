@@ -7,18 +7,22 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read # each job asks only for what it needs
 
 jobs:
   release:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the release
+      id-token: write # sign the build provenance
+      attestations: write
     timeout-minutes: 40
     outputs:
       version: ${{ steps.version.outputs.version }}
       version-type: ${{ steps.type.outputs.type }}
       minecraft: ${{ steps.minecraft.outputs.list }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
       - name: The tag is on main (a release comes from a merged release pull request)
@@ -32,11 +36,11 @@ jobs:
           [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "Tag ${GITHUB_REF_NAME} but mod_version=$v"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
           echo "version=$v" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: 25
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           cache-read-only: true
       - run: ./gradlew build --no-daemon
@@ -74,26 +78,40 @@ jobs:
           pre=""; case "$VERSION" in *-*) pre="--prerelease";; esac
           jars=$(ls mod/build/libs/*.jar | grep -v -- -sources)
           gh release create "$GITHUB_REF_NAME" $jars versions.json --title "Kindred Spirit $VERSION" --notes-file notes.md $pre --verify-tag
-      - uses: actions/upload-artifact@v4
+      - name: Sign where the jars came from (build provenance; check with `gh attestation verify <file> -R PetitPotam/kindred-spirit`)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            mod/build/libs/kindred-spirit-*+*.jar
+            versions.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release
           path: |
             mod/build/libs/*.jar
             notes.md
 
-      - name: The mod files and versions.json, for Kindred Spirit Setup (the setup jobs below)
-        uses: actions/upload-artifact@v4
+      # (one flat folder: with several paths, upload-artifact keeps them below their common folder, and the Setup's
+      #  build would find mod/build/libs/... instead of the jars it looks for, #155)
+      - name: The mod files and versions.json in one folder, for Kindred Spirit Setup (the setup jobs below)
+        run: |
+          mkdir -p mod-files
+          for jar in mod/build/libs/kindred-spirit-*+*.jar; do
+            case "$jar" in *-sources.jar) ;; *) cp "$jar" mod-files/;; esac
+          done
+          cp versions.json mod-files/
+          ls -l mod-files
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mod-files
-          path: |
-            mod/build/libs/kindred-spirit-*+*.jar
-            !mod/build/libs/*-sources.jar
-            versions.json
+          path: mod-files/
           if-no-files-found: error
 
   # Each jar on Modrinth and CurseForge, tagged with its own Minecraft version.
   publish:
     needs: release
+    permissions:
+      contents: read
     if: vars.MODRINTH_PROJECT_ID != '' || vars.CURSEFORGE_PROJECT_ID != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -105,7 +123,7 @@ jobs:
       VERSION: ${{ needs.release.outputs.version }}
       VERSION_TYPE: ${{ needs.release.outputs.version-type }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release
       # Modrinth: only once the project exists and its ID and a token are set (Settings -> Secrets and variables ->
@@ -113,7 +131,7 @@ jobs:
       # visible only to its members; see docs/MAINTAINING.md.
       - name: Publish on Modrinth
         if: vars.MODRINTH_PROJECT_ID != ''
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
@@ -132,7 +150,7 @@ jobs:
       # before players see it; see docs/MAINTAINING.md and docs/curseforge.md.
       - name: Publish on CurseForge
         if: vars.CURSEFORGE_PROJECT_ID != ''
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3
         with:
           curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
@@ -155,6 +173,10 @@ jobs:
     name: Setup, ${{ matrix.name }}
     needs: release
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write # attach the Setup to the release
+      id-token: write # sign the build provenance
+      attestations: write
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -163,11 +185,11 @@ jobs:
           - { runner: macos-15, name: macOS Apple silicon, arch: arm64 }
           - { runner: macos-15-intel, name: macOS Intel, arch: x86_64 }
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mod-files
           path: mod-files
@@ -175,6 +197,10 @@ jobs:
         run: python setup/build.py --arch ${{ matrix.arch }} --mods mod-files --out dist
       - name: Install and start it, as a player would (throwaway home, other ports)
         run: python setup/smoke_test.py dist/*.dmg
+      - name: Sign where the Setup came from (build provenance)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*.dmg
       - name: Attach it to the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -185,6 +211,8 @@ jobs:
     needs: setup
     if: always() && needs.setup.result != 'skipped'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # edit the release notes
     timeout-minutes: 5
     steps:
       - name: Say which Setup files are there, what was tested, and what isn't there yet

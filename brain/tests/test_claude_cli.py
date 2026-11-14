@@ -1,6 +1,5 @@
 """The gateway's Claude provider, with a stand-in for the Claude CLI (no login, no usage)."""
 import json
-import os
 import stat
 
 import pytest

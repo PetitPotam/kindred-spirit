@@ -52,6 +52,8 @@ friends on LAN need only the mod.
   and says what to install (#109).
 - The game tells her brain the mod's real version, not always 0.1.0 (#114).
 - The 1.21.1 jar asks for exactly 1.21.1, not any 1.21.x, which it never ran on.
+- Her dashboard's Settings page finds the game's settings on Minecraft 26.3 (its profile has a game folder of its own)
+  and in another launcher's instance chosen in the Setup; with several, those of the game played last (#159).
 
 ### Good to know
 - Hosting her brain is macOS only for now: Windows (#40) and Linux (#81) are planned. Friends on Windows join a Mac
@@ -67,6 +69,18 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- Linters: Ruff checks the Python on every pull request (and in `scripts/test.sh`), and the mod builds with every Java
+  warning on, a warning failing the build; the few they found are fixed (#168).
+- The README shows the OpenSSF Best Practices badge; SECURITY.md's private reporting no longer waits for the repository
+  to be public; the maintaining guide says when to wait for the Mac checks (#170).
+- Code scanning fixes: cleaning the text for her voice stays quick whatever it's sent, the gateway never passes a
+  line break into a header, and the dashboard's "Try Pip" heart panel only shows numbers it computed (#163).
+- Small changes go to `main` in batches: one pull request for several, each change still with its issue. The
+  maintainer always batches; contributors may batch closely related changes (docs/MAINTAINING.md, #166).
+- The workflows pin every action to an exact commit and give each job only the permissions it needs, and releases
+  carry signed build provenance for every jar and Setup file (OpenSSF Scorecard, #152).
+- Safe minimum versions for the demo video tool (Pillow 13.0.0) and the tests (pytest 9.0.3), which clears the 56
+  known vulnerabilities OpenSSF Scorecard reported; nothing players install was affected (#152).
 - Install checks on every system, on GitHub's clean machines with no AI key: the Setup on Apple silicon and Intel
   Macs, her brain and Minecraft's side on macOS and Linux, a friend's install on Windows, and a real Minecraft client
   on Linux that says hi and hears her answer, for each Minecraft version (#104, #105). `scripts/test-install.sh` runs
@@ -75,16 +89,24 @@ friends on LAN need only the mod.
   `./gradlew :26.3:runClient` (or `:1.21.1:runClient`), in `mod/versions/<version>/run/`.
 - Releases build and smoke-test the Setup for both Mac chips from the release's own jars and attach it with a SHA-256
   and a note saying what was tested where; they upload each jar to Modrinth and CurseForge for its own Minecraft
-  once those projects are live (#98).
+  once those projects are live (#98). The Setup gets the release's jars from one flat folder, and a build asked for
+  a release's jars stops if they aren't there, rather than making a Setup without the mod (#155).
 - CodeQL and OpenSSF Scorecard check the repository, and docs/MAINTAINING.md explains every check (#124).
 - New issues get their area label automatically, and a bug report missing the computer and the logs gets a friendly
   request for them; GitHub Copilot follows the project's rules and review checklist (#126).
 - Every change, release and website update reaches `main` through a pull request whose CI passed; a release is a
   "Release X" pull request, then its tag. One convention for branches, titles and issue links (CONTRIBUTING.md),
   checked on every pull request.
+- `scripts/release.sh` finds the JDK 25 by itself, as `scripts/test.sh` does, and builds before it changes anything, so
+  a failed build never leaves a half-made release branch; `--help` shows how it's used (#160).
 - The README and guides describe the Setup, 26.3, the K key and what hasn't been tried yet (#145).
 - THIRD_PARTY_NOTICES.md names the AI the player chooses and the libraries inside the Setup's Python, and says
   which commits carry an AI co-author line; docs/SETUP.md lists the steps in the Setup's own order (#157).
+- Filming tools for the demo video (#144): the setting `hudWithHiddenGui` (off) and the dev-script step
+  `ownhud on|off` keep her own HUD with F1; a recording's start event has the computer's clock (`wall`), `fps` and
+  `size`, and a friend's line to her on LAN is recorded with `from`; `-PplayerName=` names the dev player and
+  `-PguestVideoSize=` sizes the guest's window; the dashboard reads another game's settings with `KINDRED_MOD_CONFIG`;
+  session logs follow `KINDRED_HOME`.
 
 ## [0.2.0-preview] - 2026-11-13
 

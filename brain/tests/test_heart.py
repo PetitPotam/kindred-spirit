@@ -2,7 +2,7 @@ import asyncio
 import json
 import random
 
-from fixtures import creeper, snap, zombie
+from fixtures import snap, zombie
 from test_end_to_end import TOKEN, make_cfg, recv_until, stubs, with_brain  # noqa: F401
 from websockets.asyncio.client import connect
 
@@ -193,7 +193,7 @@ def test_she_offers_help_and_yes_makes_her_do_it(stubs):
         async with serve(brain.handler, "127.0.0.1", 0, process_request=brain.check_auth) as srv:
             await scenario("ws://127.0.0.1:%d/" % srv.sockets[0].getsockname()[1])
         return brain
-    brain = asyncio.run(run())
+    asyncio.run(run())
     assert stubs.ai_requests[0]["tool_choice"]["function"]["name"] == "protect", "'yes' means: do what you offered"
 
 

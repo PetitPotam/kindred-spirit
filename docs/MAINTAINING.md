@@ -32,6 +32,31 @@ heavy on the game thread; no API keys, personal data or real player names; Pip s
 (cozy, cheeky, kind: see [HEART.md](HEART.md) and [TRADEMARKS.md](../TRADEMARKS.md)); tests for new
 behaviour; docs updated.
 
+## Batching changes
+
+For the maintainer's own work (and AI agents working for them), small changes go to `main` together, not one pull
+request each. Contributors may batch closely related small changes too (CONTRIBUTING.md); ask them to split a batch
+when its parts need separate reviews or one part isn't wanted. Every pull request must be up to date with `main` before it merges, so separate pull requests keep
+pushing each other behind and re-running the long checks (the Platforms Macs take 30–40 minutes).
+
+1. **Each change on its own branch**, as usual: its issue, `fix/12-...` or `docs/14-...`, its tests and its
+   changelog line. Commit it there.
+2. **A batch branch** from an up-to-date `main`: `git switch -c batch/2026-11-14-scorecard`.
+3. **Merge each change into it** (`git merge --no-ff fix/12-...`), resolving conflicts once, there. Run
+   `scripts/test.sh` on the result.
+4. **One pull request** from the batch branch. Title: what the batch changes for players (at most 72 characters).
+   Description: one short section per change, each with its own `Fixes #<number>`, so every issue still closes.
+5. **Squash and merge** once CI passes and it's up to date with `main`, like any pull request. Main gets one commit for
+   the batch, whose description lists every change.
+
+**When to wait for the Mac checks:** only "CI passed" (and the CLA) is required to merge. Wait for the Platforms
+checks (the Macs, 30–40 minutes) only when the batch changes the Setup itself (`setup/`, `services/setup*`,
+`platforms.yml`); otherwise merge as soon as "CI passed" is green.
+
+Keep a batch to one theme or one sitting (a handful of changes), so it's still easy to review and, if needed, to
+revert. Big or risky changes (a new Minecraft version, a protocol change, a release) still get their own pull request.
+Website changes (`web/`) stay in their own pull request, because merging one deploys the site.
+
 ## Versions
 
 [Semantic Versioning](https://semver.org/), with the Minecraft version as build metadata in the jar's name: one jar
@@ -64,8 +89,9 @@ scripts/release.sh 0.3.0        # on an up-to-date main: opens the "Release 0.3.
 scripts/release.sh tag 0.3.0    # after that pull request is merged: tags it on main and pushes the tag
 ```
 
-The first step makes a `release/0.3.0` branch that sets `mod_version` and turns "Unreleased" into the version's
-changelog section, builds it, pushes it and opens its pull request. Merge it once CI passes. The second tags the
+The first step builds the mod and runs its tests on `main` as it is (with a JDK 25: `JAVA_HOME`, else the one macOS or
+Homebrew installed; if the build fails, nothing has changed), then makes a `release/0.3.0` branch that sets `mod_version` and turns "Unreleased" into the version's
+changelog section, pushes it and opens its pull request. Merge it once CI passes. The second tags the
 merged commit on `main`; the tag runs `.github/workflows/release.yml`, which refuses a tag that isn't on `main`,
 builds the jar again, makes the GitHub release with that changelog section, and uploads it to Modrinth and CurseForge. A version with a `-` (0.3.0-beta.1)
 is marked as a pre-release.
@@ -173,8 +199,9 @@ This repository is also a way to learn GitHub and CI/CD: every check below is a 
 | What | When it runs | What it does | Where to look |
 |---|---|---|---|
 | **CI** (`.github/workflows/ci.yml`) | every pull request and push to `main` | builds the mod for every Minecraft version and runs the Java tests, runs the brain's tests on Python 3.11 and 3.12, parses the Windows script, checks the pull request's title, branch and `Fixes #` link; **CI passed** sums them up | the checks at the bottom of a pull request; Actions tab |
+| **Linters** (Ruff in `ci.yml` with `ruff.toml`; javac `-Xlint:all -Werror` in `mod/build.gradle.kts`) | every pull request, and `scripts/test.sh` | Ruff checks the Python (unused imports and variables, undefined names, syntax errors); the Java compiler reports every warning and a warning fails the build. Deprecated Minecraft calls that still work on every supported version are wrapped in `util/Mc.java` with the warning silenced only there | the CI job's log |
 | **Platforms** (`platforms.yml`) | pull requests that touch the Setup, scripts, services or the brain | installs and starts everything on clean macOS (Apple silicon and Intel), Windows and Linux machines, and starts a real Minecraft client on Linux to check she answers ([TESTING-PLATFORMS.md](TESTING-PLATFORMS.md)) | the pull request's checks |
-| **Release** (`release.yml`) | a version tag on `main` | builds the jars and the Setup, makes the GitHub release, uploads to Modrinth and CurseForge | Releases; Actions tab |
+| **Release** (`release.yml`) | a version tag on `main` | builds the jars and the Setup, makes the GitHub release with signed build provenance for each file (check one with `gh attestation verify <file> -R PetitPotam/kindred-spirit`), uploads to Modrinth and CurseForge | Releases; Actions tab |
 | **Website** (`website.yml`) | changes under `web/` | builds and checks the site on pull requests; deploys it when merged to `main` | the pull request's checks |
 | **CLA** (`cla.yml`) | pull requests | asks first-time contributors to sign the [CLA](../CLA.md) | a comment on the pull request |
 | **Issue triage** (`issue-triage.yml`, decisions in `scripts/triage_issue.py`) | an issue opened or edited | adds the area label from the form's "Which part is it about?"; for a bug report with neither the computer nor any logs, adds `needs-info` and one comment asking for them (it says it's automatic), and removes `needs-info` once they're there. No AI, and it only ever touches those labels | labels and one comment on the issue |
@@ -190,6 +217,10 @@ This repository is also a way to learn GitHub and CI/CD: every check below is a 
 checklist, used by Copilot Chat and by Copilot code review where the plan includes it. With Copilot Free (turned on in
 your GitHub account's settings), open Copilot Chat on any issue, pull request or file and ask it to explain or
 summarise; it's a good way to learn the repository.
+
+Every action in the workflows is pinned to an exact commit (`uses: owner/action@<hash> # v5`), so a moved tag can't
+change what runs; Dependabot's weekly update moves the hash and the comment together. Workflows start with read-only
+permissions, and each job asks only for what it needs.
 
 Good first things to read: a failed run's log (Actions tab → the run → the red step), a CodeQL alert's
 explanation, and Scorecard's list of checks (https://github.com/ossf/scorecard/blob/main/docs/checks.md).

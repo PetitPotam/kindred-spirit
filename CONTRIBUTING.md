@@ -144,6 +144,12 @@ reminds you of it.
 - **Commits inside your branch:** anything short and honest is fine ("wip", "fix the test"). Pull requests are
   squash-merged, so only the title and description reach `main`.
 - **No direct pushes to `main`**, for anyone; merging needs "CI passed" (see docs/MAINTAINING.md).
+- **Batching:** several small changes can go in one pull request (`batch/<date>-<short-name>`), each still with its
+  issue and its own `Fixes #<number>`: see [batching changes](docs/MAINTAINING.md#batching-changes). The maintainer and
+  AI agents working for them always batch small changes. Contributors may batch **closely related** small changes (a
+  few docs fixes, a set of skins or blueprints, translations, small fixes in the same area); unrelated or bigger
+  changes go in separate pull requests, and the maintainer may ask to split a batch so each part can be reviewed and
+  merged on its own.
 
 ## Common tasks
 

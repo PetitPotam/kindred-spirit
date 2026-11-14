@@ -26,7 +26,12 @@ java_home() { # a JDK 25 runs Gradle (it builds the mod for every Minecraft vers
 }
 
 if [[ "$what" == all || "$what" == brain ]]; then
-  echo "== brain (pytest)"
+  echo "== brain (ruff, then pytest)"
+  if "$(python)" -m ruff --version >/dev/null 2>&1; then
+    (cd "$ROOT" && "$(python)" -m ruff check brain services scripts setup demo) || fail=1
+  else
+    echo "  (ruff not installed: brain/.venv/bin/pip install -r brain/requirements-dev.txt)"
+  fi
   (cd "$ROOT/brain" && "$(python)" -m pytest -q -p no:cacheprovider) || fail=1
 fi
 if [[ "$what" == all || "$what" == mod ]]; then

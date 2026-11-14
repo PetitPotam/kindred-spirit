@@ -9,6 +9,7 @@ Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · beta · her brain runs on mac
 
 [![CI](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PetitPotam/kindred-spirit/badge)](https://scorecard.dev/viewer/?uri=github.com/PetitPotam/kindred-spirit)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16677/badge)](https://www.bestpractices.dev/projects/16677)
 
 <img src="docs/demo.gif" width="720" alt="Pip trying on skins: slime, soft cube, strawberry, wisp, starry orb, pixie and fairy">
 </div>
@@ -353,7 +354,8 @@ gateway's special instructions. Changes apply live. See [docs/DASHBOARD.md](docs
 - **Mod:** `config/kindredspirit.json` in the profile's game folder (`minecraft-kindred` for 1.21.1,
   `minecraft-kindred-26.3` for 26.3, next to your `minecraft` folder) (skin, quality, subtitles, captions, position, size,
   volume, the guide arrow and sparkle trail (`guideArrow`, `guideTrail`), friends on LAN (`lanGuests`,
-  `lanGuestPowers`, `lanVisitors`, `sharedPip`, `follow`), and the liveliness switches under `"life"`).
+  `lanGuestPowers`, `lanVisitors`, `sharedPip`, `follow`), her HUD with the game's hidden (`hudWithHiddenGui`, for
+  filming), and the liveliness switches under `"life"`).
 - **Everything above** is also editable on the dashboard's Settings page, live, with each default and profiles.
 - **AI, speech-to-text, voice, embeddings, memory storage:** all chosen in the gateway, live, no
   restart. The guide: **[docs/GATEWAY.md](docs/GATEWAY.md)**.

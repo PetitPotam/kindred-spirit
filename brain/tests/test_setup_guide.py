@@ -1,5 +1,4 @@
 """The setup guide, with scripted answers in a throwaway home folder (nothing real is touched)."""
-import json
 import os
 import stat
 import sys
