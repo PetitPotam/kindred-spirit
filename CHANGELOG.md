@@ -13,6 +13,8 @@ Unreleased into the new version's section.
 - On a new Minecraft profile (26.3 from the Setup), she offered blueprints the game couldn't find: the game now tells
   her which blueprint folders it reads, the dashboard's Blueprints page follows the game played last, and the Setup
   brings the blueprints you already have in another Kindred profile (#175).
+- She never says a build is done when it failed: a lookup no longer counts as having done something, and a claim on
+  her last try becomes an honest sentence (#176).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).

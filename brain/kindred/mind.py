@@ -518,7 +518,9 @@ class Mind:
             if speaker:
                 # speak as it's written, but never a claimed action before a tool ran (it may be re-asked)
                 speaker.new_round()
-                speaker.hold = bool(tools and run_tool and not checked and not [n for n in ran if n not in TALK_TOOLS])
+                # (a lookup proves nothing either: "Done!" after find_blueprint and a failed build was spoken, #176)
+                speaker.hold = bool(tools and run_tool and not checked
+                                    and not [n for n in ran if n not in TALK_TOOLS and n not in LOOKUPS])
                 try:
                     msg = await self._stream(body, kind, speaker)
                 except AIError:
@@ -549,6 +551,10 @@ class Mind:
                                      "doing something, but nothing that does it ran or worked. Either use the tool now to really do it, or "
                                      "answer again saying honestly what you can or can't do. Same tags as before.)"})
                     continue
+                if claimed and tools and run_tool and not self.allow_fib and not checked:
+                    # no try left to ask again: never say it's done; the honest one-sentence answer below instead (#176)
+                    log.info("claimed an action on the last try, answering honestly instead: %s", content[:120])
+                    content = ""
                 break
             # the AI wants to act: do it, hand back what happened, and let it answer in words
             messages.append({"role": "assistant", "content": content, "tool_calls": calls})
