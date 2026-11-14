@@ -10,6 +10,19 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Fixed
+- On a new Minecraft profile (26.3 from the Setup), she offered blueprints the game couldn't find: the game now tells
+  her which blueprint folders it reads, the dashboard's Blueprints page follows the game played last, and the Setup
+  brings the blueprints you already have in another Kindred profile (#175).
+- She never says a build is done when it failed: a lookup no longer counts as having done something, and a claim on
+  her last try becomes an honest sentence (#176).
+- Her "I'm starting" lines never sound like no: "Leave it to me!" had been rewritten short as "Leave it!"; lines
+  like that are dropped, including the one she had already learned (#177).
+- A build with no shape no longer becomes a pillar: a blueprint's name goes to her blueprints, otherwise she asks
+  which shape (#178).
+- "Cut them off" (the trees) means chopping them, not pushing monsters away; and "show me what you built" leads you
+  to her last build (#179).
+- The dashboard no longer lists "opening handshake failed" over and over: that was the Setup checking her brain is
+  up; such a check is logged quietly now, and real handshake problems still show (#180).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).

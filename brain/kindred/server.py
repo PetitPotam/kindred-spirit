@@ -1,7 +1,7 @@
 """The brain's WebSocket server: the mod connects here, sends what it sees, and gets lines to say.
 
 Messages (JSON, one per WebSocket frame):
-  mod -> brain   hello, snapshot, event {join|leave|petted}, chat {text}, voice {wav: base64, peak}
+  mod -> brain   hello {mod, minecraft, name, abilities, blueprints: [this game's blueprint folders]}, snapshot, event {join|leave|petted}, chat {text}, voice {wav: base64, peak}
   brain -> mod   welcome {name, mood}, say {line, text, mood, audio: base64 WAV or "", more, emote},
                  audio {line, audio}, heard {text}, mood {mood}, state {thinking|idle}, notice {text},
                  act {move: stay|follow|come, side: left|right|above|auto,
@@ -256,8 +256,25 @@ def find_blueprints(query, dirs=None, limit=6):
     return blueprints.search(query, dirs or BLUEPRINT_DIRS, limit)
 
 
+class QuietProbes(logging.Filter):
+    """A connection that closes before saying anything is someone checking she's up (the Setup's health check
+    opens her port and closes it, every few seconds): not a failed handshake worth an error and a traceback, which
+    the dashboard listed as a problem 27 times in one session (#180). Real handshake problems still show."""
+
+    def filter(self, record):
+        if record.getMessage().startswith("opening handshake failed") and record.exc_info:
+            err = record.exc_info[1]
+            while err is not None:
+                if isinstance(err, EOFError) or "connection closed while reading HTTP request line" in str(err):
+                    record.levelno, record.levelname, record.exc_info, record.exc_text = logging.DEBUG, "DEBUG", None, None
+                    return logging.getLogger(record.name).isEnabledFor(logging.DEBUG)
+                err = err.__cause__ or err.__context__
+        return True
+
+
 class Brain:
     def __init__(self, cfg, token, mind=None, alerts=None, clock=time.monotonic, memory=None):
+        self.blueprint_dirs = None  # the connected game's blueprint folders (its hello), else BLUEPRINT_DIRS
         self.cfg = cfg
         self.token = token
         self.memory = memory if memory is not None else Memory(
@@ -398,6 +415,9 @@ class Brain:
         if kind == "hello":
             log.info("mod %s on Minecraft %s", msg.get("mod"), msg.get("minecraft"))
             self.set_abilities(msg)
+            dirs = msg.get("blueprints")
+            if isinstance(dirs, list) and dirs and all(isinstance(d, str) for d in dirs):
+                self.blueprint_dirs = dirs  # (#175: the game's own folders, so she offers only what it can build)
             await self.send({"type": "welcome", "name": self.cfg["name"], "mood": self.mood})
         elif kind == "abilities":
             self.set_abilities(msg)
@@ -471,7 +491,24 @@ class Brain:
         return result
 
     async def _run_tool(self, name, args):
+        """What happens when the AI uses a tool (_run_tool_inner), and where she built last, for "show me" (#179)."""
+        result = await self._run_tool_inner(name, args)
+        if name in ("build", "blueprint") and isinstance(result, dict) and result.get("ok") is not False:
+            at = str(result.get("at") or result.get("startsAt") or "").split()
+            if len(at) == 3 and all(re.fullmatch(r"-?\d+", v) for v in at):
+                self.last_built = {"x": int(at[0]), "y": int(at[1]), "z": int(at[2]),
+                                   "what": result.get("building") or args.get("what") or args.get("shape")}
+        return result
+
+    async def _run_tool_inner(self, name, args):
         """What happens when the AI uses a tool: memory here, everything else in the game."""
+        if name == "build" and not str(args.get("shape") or "").strip():
+            # a build with no shape: a blueprint's name goes to the blueprint tool; otherwise ask, never a pillar (#178)
+            what = str(args.get("what") or args.get("name") or "").strip()
+            if what and "blueprint" in self.abilities:
+                return await self._run_tool("blueprint", {"what": what})
+            return {"ok": False, "error": "Build which shape? Say one (a circle, a wall, a floor, a sphere...), or use "
+                    "blueprint for a building from the catalogue."}
         try:
             if name == "remember":
                 fact = str(args.get("fact", ""))
@@ -504,7 +541,7 @@ class Brain:
             if name == "cancel_reminder":
                 return {"ok": True, "cancelled": await self.memory.cancel_reminder(args.get("about", ""))}
             if name == "find_blueprint":
-                return self.blueprint_found(find_blueprints(args.get("query", "")))
+                return self.blueprint_found(find_blueprints(args.get("query", ""), self.blueprint_dirs))
             if name == "listen_more":
                 return await self.listen_more(args.get("what", "next"))
             if name == "standing_request":
@@ -1220,6 +1257,9 @@ class Brain:
         if last and time.monotonic() - getattr(self, "found_at", 0) < 20 \
                 and not intents.BACK_TO_SPOT.search(getattr(self, "last_player_text", "")):
             return dict(last)  # found moments ago, in this same answer: lead there, whatever she calls it
+        built = getattr(self, "last_built", None)
+        if built and intents.SHOW_BUILT.search(said_now):
+            return {k: built[k] for k in ("x", "y", "z")}  # "show me what you built" (#179)
         if to and to != "last":
             places = await self.safe(self.memory.places()) or []
             p = self.memory.pick_place(places, to + " " + " ".join(
@@ -2251,7 +2291,7 @@ class Brain:
         if "blueprint" in self.abilities:
             parts.append("a cozy cottage for any number of people")
             try:
-                cat = find_blueprints("")
+                cat = find_blueprints("", self.blueprint_dirs)
                 kinds = ", ".join("%d %s" % (n, k + ("s" if n > 1 and not k.endswith("s") else ""))
                                   for k, n in sorted((cat.get("kinds") or {}).items(), key=lambda kv: -kv[1]) if n)
                 if cat.get("total"):

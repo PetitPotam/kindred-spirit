@@ -151,6 +151,7 @@ public final class BlueprintBuild {
         int seconds = free ? plan.size() * MAGIC_EVERY / 20 : p.steps(true).size() * GROUNDED_EVERY / 20;
         r.addProperty("seconds", Math.max(1, seconds));
         r.addProperty("doorAt", "where you're looking, facing you");
+        r.addProperty("at", base.getX() + " " + base.getY() + " " + base.getZ()); // (to lead there later, #179)
         LOG.info("blueprint {} for {} at {} {} {} ({} commands, {})", bp.name(), sp.getGameProfile().name(), base.getX(),
                 base.getY(), base.getZ(), plan.size(), free ? "magic" : "grounded");
         return r;
@@ -192,7 +193,7 @@ public final class BlueprintBuild {
         return null;
     }
 
-    static List<Path> folders() {
+    public static List<Path> folders() {
         Path config = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir();
         Path game = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
         return List.of(config.resolve("kindredspirit").resolve("blueprints"), game.resolve("schematics"));

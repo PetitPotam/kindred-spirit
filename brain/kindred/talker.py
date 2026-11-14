@@ -26,8 +26,9 @@ MOMENTS = {
     "stay_ok": "the player asked you to stay where you are, and you do; 1 to 5 words (\"Staying put!\")",
     "come_ok": "the player called you over, and you come; 1 to 4 words (\"Coming!\")",
     "thanks_ok": "the player thanked or praised you; a tiny happy answer, 1 to 4 words (\"Hehe!\")",
-    "on_it": "the player asked you to do something and you're just starting: 1 to 3 words, never saying it's done or "
-             "how it went (\"On it!\")",
+    "on_it": "the player asked you to do something and you're just starting: 1 to 4 words that clearly say yes, never "
+             "saying it's done or how it went, and never anything that could sound like no (\"On it!\", \"Leave it to me!\", "
+             "never \"Leave it!\")",
 }
 
 # words that don't change what's asked

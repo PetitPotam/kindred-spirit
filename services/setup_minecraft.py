@@ -102,6 +102,7 @@ def install(mc, jar_path):
             subprocess.run([java, "-jar", inst, "client", "-dir", mc_dir, "-mcversion", mc, "-loader", ip.LOADER,
                             "-noprofile"], check=True, capture_output=True, timeout=600)
     put_mods(os.path.join(game, "mods"), mc, jar_path)
+    carry_blueprints(game)
     if not os.path.exists(os.path.join(game, "options.txt")) and os.path.exists(os.path.join(mc_dir, "options.txt")):
         shutil.copy2(os.path.join(mc_dir, "options.txt"), os.path.join(game, "options.txt"))
     backup = profiles + ".before-kindred"
@@ -118,6 +119,32 @@ def install(mc, jar_path):
         json.dump(data, fh, indent=2)
     os.replace(profiles + ".tmp", profiles)
     return pid, game
+
+
+BLUEPRINT_FILES = (".nbt", ".schem", ".litematic")
+
+
+def _has_blueprints(d):
+    return os.path.isdir(d) and any(f.lower().endswith(BLUEPRINT_FILES) for f in os.listdir(d))
+
+
+def carry_blueprints(game):
+    """The blueprints you already have in another Kindred profile on this computer come along to this one, when it
+    has none (#175: a new 26.3 profile started empty while her catalogue still listed the 1.21.1 profile's).
+    They stay on this computer: nothing is downloaded or shared. Returns how many files were copied."""
+    dst = os.path.join(game, "config", "kindredspirit", "blueprints")
+    if _has_blueprints(dst):
+        return 0
+    base = os.path.dirname(os.path.abspath(game))
+    for name in sorted(os.listdir(base)):
+        other = os.path.join(base, name)
+        if other == os.path.abspath(game) or not name.lstrip(".").startswith("minecraft-kindred"):
+            continue
+        src = os.path.join(other, "config", "kindredspirit", "blueprints")
+        if _has_blueprints(src):
+            shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".trash"))
+            return sum(1 for f in os.listdir(dst) if f.lower().endswith(BLUEPRINT_FILES))
+    return 0
 
 
 def put_mods(mods, mc, jar_path):

@@ -59,7 +59,10 @@ public final class Builder {
 
     /** Starts a build. Called on the server thread. */
     static JsonObject start(MinecraftServer server, ServerPlayer sp, JsonObject args, Abilities.Style st) {
-        String shapeName = Actions.str(args, "shape", "pillar");
+        String shapeName = Actions.str(args, "shape", "");
+        if (shapeName.isBlank()) { // (it was a pillar: asked for a shipwreck, she built 3 logs, #178)
+            return Actions.error("Build which shape? I can do " + BuildPlan.KNOWN + ".");
+        }
         if (shapeName.equalsIgnoreCase("stop")) {
             // "stop" stops all her work: a job (mining, chopping...) and a blueprint build too
             if (dev.kindredspirit.job.Jobs.busy()) dev.kindredspirit.job.Jobs.stop();
