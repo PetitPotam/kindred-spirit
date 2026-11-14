@@ -105,7 +105,7 @@ public final class Pranks {
         return onServer(mc, server -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
             if (sp == null || sp.getHealth() < sp.getMaxHealth()) return error("not at full health");
-            sp.hurt(sp.damageSources().magic(), 2f);
+            Mc.hurt(sp, sp.damageSources().magic(), 2f);
             Mc.push(sp, 0.4, fromX - sp.getX(), fromZ - sp.getZ());
             Thread t = new Thread(() -> { // and she heals you right back
                 try { Thread.sleep(1500); } catch (InterruptedException ignored) { }

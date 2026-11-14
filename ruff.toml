@@ -1,0 +1,11 @@
+# Ruff, the Python linter run by CI (docs/MAINTAINING.md, "Everything that checks the repository").
+# Pyflakes (F: unused imports and variables, undefined names, redefinitions) and syntax errors (E9).
+target-version = "py311"
+extend-exclude = ["**/.venv", "web", "mod"]
+
+[lint]
+select = ["F", "E9"]
+
+[lint.per-file-ignores]
+# pytest fixtures are imported, then named again as test arguments: that's how pytest finds them
+"brain/tests/*" = ["F811"]

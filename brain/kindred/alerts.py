@@ -8,7 +8,6 @@ import random
 import re
 from dataclasses import dataclass
 
-from .describe import where_words
 
 SAFE_MODES = {"creative", "spectator"}
 

@@ -82,7 +82,9 @@ tasks.processResources {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release = javaVersion
-    options.compilerArgs.addAll(listOf("-Xmaxerrs", "2000"))
+    // Every compiler warning on, and a warning fails the build (OpenSSF "warnings"); "classfile" is left out because it
+    // only reports things inside third-party jars (JOML, Gson), not Kindred's code.
+    options.compilerArgs.addAll(listOf("-Xmaxerrs", "2000", "-Xlint:all,-classfile", "-Werror"))
 }
 
 java {

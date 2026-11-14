@@ -54,7 +54,7 @@ def icon(x, y, n=128):
 
 def icon_sample(px, py):
     # body: slightly squashed ball resting low in the frame
-    bx, by, rx, ry = px / 0.86, (py - 0.08) / 0.78, 1, 1
+    bx, by = px / 0.86, (py - 0.08) / 0.78
     d = bx * bx + by * by
     if d > 1:
         # soft shadow under it
@@ -101,7 +101,7 @@ def strawberry(x, y, w=64, h=32):
 
 
 def starry(x, y, w=64, h=32):
-    u, v = (x + 0.5) / w, (y + 0.5) / h
+    v = (y + 0.5) / h
     base = mix((40, 50, 130), (90, 40, 140), v)
     base = mix(base, (120, 160, 255), max(0, 0.35 - abs(v - 0.5)) * 0.8)
     # deterministic stars

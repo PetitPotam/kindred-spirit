@@ -125,7 +125,7 @@ def test_the_bed_and_spawn_point_are_places_to_go(stubs):  # #62, #63
 
 def test_corrections_during_a_lead_are_allowed(stubs):  # #63
     b = _brain(stubs, ["guide"])
-    asked = _record(b, {"guide": {"ok": True, "guiding": True}})
+    _record(b, {"guide": {"ok": True, "guiding": True}})
 
     async def run():
         b.last_player_text = b.asking_text = "I'm hurt"
