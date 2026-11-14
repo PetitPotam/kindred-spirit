@@ -192,7 +192,7 @@ public final class BlueprintBuild {
         return null;
     }
 
-    static List<Path> folders() {
+    public static List<Path> folders() {
         Path config = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir();
         Path game = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
         return List.of(config.resolve("kindredspirit").resolve("blueprints"), game.resolve("schematics"));
