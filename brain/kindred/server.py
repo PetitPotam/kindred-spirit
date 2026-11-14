@@ -475,6 +475,16 @@ class Brain:
         return result
 
     async def _run_tool(self, name, args):
+        """What happens when the AI uses a tool (_run_tool_inner), and where she built last, for "show me" (#179)."""
+        result = await self._run_tool_inner(name, args)
+        if name in ("build", "blueprint") and isinstance(result, dict) and result.get("ok") is not False:
+            at = str(result.get("at") or result.get("startsAt") or "").split()
+            if len(at) == 3 and all(re.fullmatch(r"-?\d+", v) for v in at):
+                self.last_built = {"x": int(at[0]), "y": int(at[1]), "z": int(at[2]),
+                                   "what": result.get("building") or args.get("what") or args.get("shape")}
+        return result
+
+    async def _run_tool_inner(self, name, args):
         """What happens when the AI uses a tool: memory here, everything else in the game."""
         if name == "build" and not str(args.get("shape") or "").strip():
             # a build with no shape: a blueprint's name goes to the blueprint tool; otherwise ask, never a pillar (#178)
@@ -1231,6 +1241,9 @@ class Brain:
         if last and time.monotonic() - getattr(self, "found_at", 0) < 20 \
                 and not intents.BACK_TO_SPOT.search(getattr(self, "last_player_text", "")):
             return dict(last)  # found moments ago, in this same answer: lead there, whatever she calls it
+        built = getattr(self, "last_built", None)
+        if built and intents.SHOW_BUILT.search(said_now):
+            return {k: built[k] for k in ("x", "y", "z")}  # "show me what you built" (#179)
         if to and to != "last":
             places = await self.safe(self.memory.places()) or []
             p = self.memory.pick_place(places, to + " " + " ".join(

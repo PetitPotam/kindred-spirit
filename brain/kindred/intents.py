@@ -142,6 +142,7 @@ ACTION_HINTS = [
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(stack|pile|place|put|build|make|"
      r"raise)\b.{0,40}\b(pillars?|columns?|towers?|corners?|walls?|floors?|platforms?|outlines?|borders?|pens?|"
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),
+    (r"\b(chop|cut|fell)\b.{0,8}\b(them|those|these)\b( (down|off|all))?\b", "job"),  # "too many trees" / "cut them off": chop them (#179)
     (r"\b(chop|cut|fell|harvest|break|mine|dig out|knock down)\b.{0,25}\b(tree|trees|log|logs|wood|this|that|block|it|"
      r"stone|ore|rock)\b|\bget (me )?(some )?wood\b", "harvest"),
     (r"\b(better|another|other|bigger|good|free|open|empty|flat) (place|spot|space|area|location)\b|"
@@ -178,6 +179,11 @@ ACTION_HINTS = [
     (r"\bremember (that|this)?\b|\bdon'?t forget\b", "remember"),
     (r"\b(stop the rain|make it (rain|sunny|clear|storm)|clear (the|up the) weather)\b", "set_weather"),
 ]
+# "show me what you built": lead to her last build (#179)
+SHOW_BUILT = re.compile(r"\b(show|take|lead|bring) me\b.{0,25}\b(what|where) you\b.{0,12}\b(built|made|build|making)\b|"
+                        r"\bwhere('?s| is| did you (put|build|make)) (the|my|that|your|it)\b.{0,15}\b(house|build|building|"
+                        r"cottage|tower|ship|farm|shape|it)?\b|\b(see|look at|go to) (what )?you (just )?(built|made)\b", re.I)
+
 _hints = [(re.compile(p), tool) for p, tool in ACTION_HINTS]
 STANDING = re.compile(ACTION_HINTS[0][0], re.I)  # (the standing rule stays first in ACTION_HINTS)
 

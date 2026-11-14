@@ -19,6 +19,8 @@ Unreleased into the new version's section.
   like that are dropped, including the one she had already learned (#177).
 - A build with no shape no longer becomes a pillar: a blueprint's name goes to her blueprints, otherwise she asks
   which shape (#178).
+- "Cut them off" (the trees) means chopping them, not pushing monsters away; and "show me what you built" leads you
+  to her last build (#179).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).
