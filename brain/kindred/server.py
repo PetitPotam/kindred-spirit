@@ -472,6 +472,13 @@ class Brain:
 
     async def _run_tool(self, name, args):
         """What happens when the AI uses a tool: memory here, everything else in the game."""
+        if name == "build" and not str(args.get("shape") or "").strip():
+            # a build with no shape: a blueprint's name goes to the blueprint tool; otherwise ask, never a pillar (#178)
+            what = str(args.get("what") or args.get("name") or "").strip()
+            if what and "blueprint" in self.abilities:
+                return await self._run_tool("blueprint", {"what": what})
+            return {"ok": False, "error": "Build which shape? Say one (a circle, a wall, a floor, a sphere...), or use "
+                    "blueprint for a building from the catalogue."}
         try:
             if name == "remember":
                 fact = str(args.get("fact", ""))
