@@ -63,11 +63,13 @@ public final class Builder {
         if (shapeName.isBlank()) { // (it was a pillar: asked for a shipwreck, she built 3 logs, #178)
             return Actions.error("Build which shape? I can do " + BuildPlan.KNOWN + ".");
         }
+        if (shapeName.equalsIgnoreCase("undo")) return Undo.undo(server, sp); // "undo that": her newest build goes back (#129)
         if (shapeName.equalsIgnoreCase("stop")) {
             // "stop" stops all her work: a job (mining, chopping...) and a blueprint build too
             if (dev.kindredspirit.job.Jobs.busy()) dev.kindredspirit.job.Jobs.stop();
             if (BlueprintBuild.busy()) BlueprintBuild.stop();
             int left = queue.size();
+            if (left > 0) Outcome.ended("build", doing, placed + cleared, skipped, total, "asked"); // (#139)
             queue.clear();
             JsonObject r = Actions.ok();
             r.addProperty("stopped", true);
@@ -200,6 +202,8 @@ public final class Builder {
         queue.clear();
         queue.addAll(steps);
         total = steps.size();
+        Undo.begin(form != null ? form.replace('_', ' ') : shape == BuildPlan.Shape.FLATTEN ? "flattened ground"
+                : shape.name().toLowerCase(Locale.ROOT).replace('_', ' '), Mc.level(sp), isFree);
         flattening = shape == BuildPlan.Shape.FLATTEN;
         doing = shape == BuildPlan.Shape.FLATTEN ? "flattening the ground" : shape.clears() ? "clearing"
                 : "building a " + (form != null ? form : shape.name().toLowerCase(Locale.ROOT)).replace('_', ' ');
@@ -257,6 +261,7 @@ public final class Builder {
                 skipped++;
                 continue;
             }
+            Undo.record(level, at); // (what was there, to put it back on "undo that")
             boolean did = switch (s.kind()) {
                 case 'X' -> clear(level, sp, at);
                 case 'D' -> door(level, sp, at);
@@ -272,9 +277,15 @@ public final class Builder {
                 budget--;
                 last = at;
             } else if (!free && item != null && s.kind() != 'X' && count(sp, item) == 0) {
+                int before = queue.size();
                 queue.removeIf(x -> x.kind() == 'B' || x.kind() == 'F' || x.kind() == 'P'); // out of blocks
+                if (queue.isEmpty()) { // (#139: it ended here, short of blocks)
+                    Outcome.ended("build", doing, placed + cleared, skipped + before, total, "ran out of " + name(item));
+                    return;
+                }
             }
         }
+        if (queue.isEmpty()) Outcome.ended("build", doing, placed + cleared, skipped, total, null); // (#139)
         if (last != null && Minecraft.getInstance().player != null && owner.equals(Minecraft.getInstance().player.getUUID())) {
             double x = last.getX() + 0.5, y = last.getY() + 1.3, z = last.getZ() + 0.5;
             Minecraft.getInstance().execute(() -> KindredSpiritClient.get().companion().life.visit(x, y, z, 1.2,
@@ -438,6 +449,12 @@ public final class Builder {
         return null;
     }
 
+    /** Stops a build in progress (what's built stays, and can be undone). */
+    static void stop() {
+        if (!queue.isEmpty()) Outcome.ended("build", doing, placed + cleared, skipped, total, "asked"); // (#139)
+        queue.clear();
+    }
+
     public static boolean busy() {
         return !queue.isEmpty();
     }
@@ -479,7 +496,7 @@ public final class Builder {
             for (int y = lvl + 6; y >= lvl - 6; y--) { // the surface near the level here
                 BlockState st = level.getBlockState(new BlockPos(x + dx, y, z + dz));
                 if (st.isAir() || st.canBeReplaced() || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS)) continue;
-                if (st.is(BlockTags.DIRT) || st.is(BlockTags.SAND) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK)
+                if (Mc.soil(st) || st.is(BlockTags.SAND) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK)
                         || st.is(BlockTags.BASE_STONE_OVERWORLD) || st.is(BlockTags.TERRACOTTA) || st.is(Blocks.CLAY)) {
                     seen.merge(st.getBlock(), 1, Integer::sum);
                 }
@@ -490,7 +507,7 @@ public final class Builder {
                 .map(java.util.Map.Entry::getKey).orElse(Blocks.GRASS_BLOCK);
         net.minecraft.world.level.block.Block under = top == Blocks.SAND ? Blocks.SANDSTONE
                 : top == Blocks.RED_SAND ? Blocks.RED_SANDSTONE
-                : top.defaultBlockState().is(BlockTags.DIRT) || top == Blocks.SNOW_BLOCK ? Blocks.DIRT : top;
+                : Mc.soil(top.defaultBlockState()) || top == Blocks.SNOW_BLOCK ? Blocks.DIRT : top;
         if (top == Blocks.SNOW_BLOCK) top = Blocks.GRASS_BLOCK; // (snowy plains: grass, the snow falls again by itself)
         return new String[]{BuiltInRegistries.BLOCK.getKey(top).toString(), BuiltInRegistries.BLOCK.getKey(under).toString()};
     }

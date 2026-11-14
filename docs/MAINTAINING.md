@@ -64,11 +64,15 @@ checkout (macOS, with the Setup installed and Minecraft closed):
 
 - `scripts/play-latest.sh` plays `main`, updated from GitHub;
 - `scripts/play-latest.sh 184` plays pull request #184, to try it before merging;
+- `scripts/play-latest.sh branch batch/2026-11-14-polish` plays a local branch: where it's open (this checkout or a
+  worktree) as it is, otherwise in the play copy;
 - `scripts/play-latest.sh here` plays this checkout as it is (your branch, uncommitted changes included);
 - `scripts/play-latest.sh --back` goes back to the version the Setup installed; `--status` says which is in use.
 
 The Desktop Play shortcut (`scripts/play-mac.command`) asks the same question each time: the installed release, the
-newest code, or a pull request, the one in use being the default.
+newest code, a pull request or a branch on this computer, the one in use being the default. Main and pull requests
+are built in a separate play copy (`~/.kindred-spirit/play-checkout`, a git worktree), so playing never switches the
+branch of your checkout.
 
 It builds the mod for every Minecraft version as `<version>-dev.<commit>` (so `/kindred status` and the logs show
 it isn't a release), puts the matching jar in each Kindred profile, and runs her brain and services from the

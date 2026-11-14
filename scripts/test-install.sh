@@ -6,6 +6,10 @@
 #   scripts/test-install.sh brain       her brain's install (scripts/setup.sh --no-voice), then start it and check
 #                                       that the gateway, the brain and the dashboard answer, and that she answers a
 #                                       chat from a pretend game (brain/tools/fake_game.py) through the whole chain
+#   scripts/test-install.sh docker      her Docker image (docker/Dockerfile, #128): build it, then run it as
+#                                       docker/README.md does and check that a pretend game talks to her through
+#                                       127.0.0.1:47811, the dashboard answers, and she sleeps and wakes (needs Docker
+#                                       and the ports 47811 and 11440 free; KINDRED_IMAGE=<image> skips the build)
 #   scripts/test-install.sh minecraft   Minecraft's side (scripts/install_profile.py) into a throwaway Minecraft
 #                                       folder: Fabric Loader, Fabric API, the mod and the launcher profile
 #   scripts/test-install.sh setup-app   macOS: build Kindred Spirit Setup for this Mac's chip and run its smoke
@@ -42,6 +46,7 @@ host_python() {
 }
 
 cleanup() {
+  [[ -n "${DOCKER_TEST:-}" ]] && docker rm -f "$DOCKER_TEST" >/dev/null 2>&1
   [[ -n "${KH:-}" && -d "${KH:-}/run" ]] && HOME="$WORK/home" KINDRED_HOME="$KH" bash "$ROOT/scripts/stop.sh" >/dev/null 2>&1
   for p in ${PIDS[@]+"${PIDS[@]}"}; do kill "$p" 2>/dev/null; done
   if [[ $FAILED == 0 ]]; then rm -rf "$WORK"; else echo "  (kept for a look: $WORK)"; fi
@@ -102,6 +107,54 @@ PAGES
   bash "$ROOT/scripts/stop.sh" >/dev/null 2>&1
   unset KINDRED_HOME KINDRED_GATEWAY_PORT KINDRED_DASHBOARD_PORT
   export HOME="$real_home"
+}
+
+check_docker() { # #128: her Docker image, as docker/README.md runs it (the game's ports on 127.0.0.1, your home mounted)
+  step "Her Docker image"
+  command -v docker >/dev/null || { unsupported "Docker isn't installed on this computer"; return; }
+  for p in 47811 11440; do free_port $p || { bad "port $p is in use: stop what uses it first"; return; }; done
+  local img="${KINDRED_IMAGE:-kindred-spirit-brain:test}" py t state said
+  if [[ -z "${KINDRED_IMAGE:-}" ]]; then
+    if docker build -f "$ROOT/docker/Dockerfile" -t "$img" "$ROOT" > "$WORK/docker-build.log" 2>&1; then ok "docker build ($(docker image inspect -f '{{.Size}}' "$img" | awk '{printf "%.0f MB", $1/1e6}'))"
+    else bad "docker build failed:"; tail -40 "$WORK/docker-build.log"; return; fi
+  fi
+  docker run --rm --entrypoint whisper-server "$img" --help >/dev/null 2>&1 && ok "her hearing: whisper-server runs" \
+    || bad "whisper-server doesn't run in the image"
+  docker run --rm --entrypoint /opt/kindred/venv/bin/python "$img" -c "import kokoro_onnx, soundfile, fastembed" \
+    && ok "her voice and memory: kokoro-onnx and fastembed load" || bad "kokoro-onnx or fastembed missing in the image"
+  KH="$WORK/docker-home/.kindred-spirit"; mkdir -p "$KH"
+  cat > "$KH/gateway.json" <<EOT
+{"upstream": "fake", "upstreams": {"fake": {"base": "http://127.0.0.1:$AI/v1", "key": "", "model": "fake"}},
+ "stt": {"use": "none"}, "tts": {"use": "none"}, "embeddings": {"use": "none"}}
+EOT
+  DOCKER_TEST=kindred-spirit-test
+  docker run -d --name $DOCKER_TEST --user "$(id -u):$(id -g)" -e KINDRED_NO_MODELS=1 \
+    -p 127.0.0.1:47811:47811 -p 127.0.0.1:11440:11440 -v "$KH:/home/pip/.kindred-spirit" "$img" > /dev/null \
+    || { bad "docker run failed"; return; }
+  docker exec -d $DOCKER_TEST /opt/kindred/venv/bin/python -I /opt/kindred/brain/tools/fake_ai.py --port $AI
+  # (a first start on a busy runner can take a while; Docker's port is open before she is, so wait for her answers)
+  for t in $(seq 1 360); do up "http://127.0.0.1:11440/api/her" && [[ -s "$KH/token" ]] && break; sleep 0.5; done
+  free_port 47811 && bad "her brain isn't reachable on 127.0.0.1:47811" || ok "her brain is reachable from this computer (:47811)"
+  grep -q '"awake"' <<<"$(curl -s --max-time 5 http://127.0.0.1:11440/api/her)" && ok "her dashboard answers (:11440): awake" \
+    || bad "her dashboard doesn't answer on 127.0.0.1:11440"
+  [[ -s "$KH/token" && -O "$KH/token" ]] && ok "the token the game reads is in your ~/.kindred-spirit, and yours" \
+    || bad "no token of yours in the mounted home"
+  py="${KINDRED_PYTHON:-$(host_python)}"
+  said="$(cd "$ROOT/brain" && KINDRED_HOME="$KH" "$py" tools/fake_game.py chat "Hi Pip, are you there?" --quiet --wait 40 2>&1)"
+  if grep -q "SAY .*test answer" <<<"$said"; then ok "she answered a pretend game through Docker: $(grep -o 'SAY.*' <<<"$said" | head -1)"
+  else bad "no answer to a pretend game's chat:"; echo "$said" | tail -10; fi
+  curl -s --max-time 60 -X POST http://127.0.0.1:11440/api/her/sleep >/dev/null
+  state="$(curl -s --max-time 5 http://127.0.0.1:11440/api/her)"
+  grep -q '"asleep"' <<<"$state" && [[ "$(docker inspect -f '{{.State.Running}}' $DOCKER_TEST)" == true ]] \
+    && ok "put to sleep from the dashboard: asleep, the container still runs" || bad "sleep: $state"
+  curl -s --max-time 90 -X POST http://127.0.0.1:11440/api/her/wake >/dev/null
+  for t in $(seq 1 60); do grep -q '"awake"' <<<"$(curl -s --max-time 5 http://127.0.0.1:11440/api/her)" && break; sleep 0.5; done
+  grep -q '"awake"' <<<"$(curl -s --max-time 5 http://127.0.0.1:11440/api/her)" && ok "woken up from the dashboard" || bad "she didn't wake up"
+  if [[ $FAILED == 1 ]]; then
+    docker logs $DOCKER_TEST 2>&1 | tail -30
+    for f in gateway brain dashboard; do [[ -f "$KH/logs/$f.out" ]] && { echo "--- $f.out"; tail -25 "$KH/logs/$f.out"; }; done
+  fi
+  docker rm -f $DOCKER_TEST >/dev/null 2>&1
 }
 
 check_minecraft() {
@@ -244,6 +297,7 @@ case "${1:-all}" in
   minecraft) check_minecraft ;;
   setup-app) check_setup_app ;;
   client) check_client ;;
+  docker) check_docker ;;
   all) check_brain; check_minecraft; check_setup_app ;;
   *) sed -n '2,20p' "$0"; exit 2 ;;
 esac

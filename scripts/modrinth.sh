@@ -48,8 +48,8 @@ PY
     ;;
   show)
     id=$(project_id); [[ -z "$id" ]] && { echo "Not created yet."; exit 0; }
-    curl -sS "$API/project/$id" -H "Authorization: $(token)" -H "User-Agent: $UA" | python3 -c \
-      'import json,sys; d=json.load(sys.stdin); print(d.get("title"), "|", d.get("status"), "| requested:", d.get("requested_status"), "| versions:", len(d.get("versions") or []))'
+    out=$(curl -sS "$API/project/$id" -H "Authorization: $(token)" -H "User-Agent: $UA")  # (data, never run)
+    python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print(d.get("title"), "|", d.get("status"), "| requested:", d.get("requested_status"), "| versions:", len(d.get("versions") or []))' "$out"
     ;;
   *) sed -n '2,10p' "$0"; exit 1 ;;
 esac

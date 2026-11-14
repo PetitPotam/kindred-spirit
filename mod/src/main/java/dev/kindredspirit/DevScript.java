@@ -262,6 +262,14 @@ public final class DevScript {
                     net.minecraft.client.KeyMapping.click(KindredSpiritClient.get().dashboardKey().getDefaultKey());
                     break;
                 }
+                if (arg.trim().equals("stop")) { // the stop key (#138)
+                    net.minecraft.client.KeyMapping.click(KindredSpiritClient.get().stopKey().getDefaultKey());
+                    break;
+                }
+                if (arg.trim().equals("settings")) { // her settings screen (#5)
+                    net.minecraft.client.KeyMapping.click(KindredSpiritClient.get().settingsKey().getDefaultKey());
+                    break;
+                }
                 pressed = arg.trim().equals("use") ? mc.options.keyUse : mc.options.keyAttack;
                 pressed.setDown(true);
                 net.minecraft.client.KeyMapping.click(pressed.getDefaultKey());
@@ -343,6 +351,9 @@ public final class DevScript {
             }
             case "hud" -> Mc.hideHud(mc, arg.trim().equals("off")); // (clean pictures: no HUD, no hand)
             case "fov" -> mc.options.fov().set(Integer.parseInt(arg.trim())); // (narrow: a close-up without coming closer)
+            case "settings" -> { // the settings screen's section, e.g. "settings mod" (#5)
+                if (Mc.screen(mc) instanceof dev.kindredspirit.settings.SettingsScreen s) s.showSection(arg.trim());
+            }
             case "quit" -> mc.stop();
             default -> KindredSpiritClient.LOG.warn("dev script: unknown step {}", line);
         }

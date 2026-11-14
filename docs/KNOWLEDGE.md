@@ -239,11 +239,18 @@ housekeeping categories ("Pages needing historical sounds", "Obsolete informatio
 section): Creeper, Enderman, Skeleton, Redstone Repeater, Comparator and Hopper all ranked ×0.55
 and could never answer. Only exact category names count now.
 
-**On Minecraft 26.3** (supported since the beta) the knowledge base doesn't follow your game's version yet: things
-added after 1.21.1, like the Happy Ghast or the Copper Golem, are still marked `future`, and minecraft-data's
-recipes are 1.21.1's. Playing 26.3, you can put `{"minecraft-wiki": {"game_version": "26.3"}}` in
-`~/.kindred-spirit/knowledge/sources.json` (it's merged over the built-in config) before crawling the wiki. Following
-the game's version by itself is a known gap.
+**Your game's version decides, when you ask** (#151). The mod tells her brain which Minecraft you're playing, her
+prompt names it, and every search sends it (`"game_version": "26.3"`): a page's `future` status is judged again from
+its History (`"since"`) against your version, not the one it was fetched for. On 26.3 the Happy Ghast and the Copper
+Golem are `current`; on 1.21.1 they're `future`, whatever version the knowledge base was crawled for. Game data from
+another version gets a status of its own:
+
+| Status | From | In search |
+|---|---|---|
+| `other-version` | a `minecraft-data` page made for another version than yours ("Piston (Java 1.21.1 data)" while you play 26.3) | ×0.9; doesn't answer on its own, so she reads the wiki's page for it |
+
+Still crawl-time: facts the wiki marks "[until: JE 1.21.5]" are kept for the version in the source config (true
+before then), and "[upcoming: …]" facts are left out.
 
 What the wiki changed *between* 1.21.1 and its latest version on a current page is only in its
 History tables, which are dropped: a detail can still be newer than the player's game. The

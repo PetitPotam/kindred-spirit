@@ -1,11 +1,15 @@
 #!/bin/bash
 # Stops what scripts/start.sh started (and nothing else), and waits until each has really exited (up to 5 s,
 # then it's forced): a restart (an update, the Setup's "Start") needs their ports free again.
+# --keep dashboard: everything but the dashboard (putting her to sleep from its own page, #187).
 KH="${KINDRED_HOME:-$HOME/.kindred-spirit}"
+keep=""
+[[ "${1:-}" == --keep ]] && keep="${2:-}"
 pids=""
-for f in "$KH"/run/*.pid; do
+for f in "${KINDRED_RUN_DIR:-$KH/run}"/*.pid; do
   [[ -f "$f" ]] || continue
   pid="$(cat "$f")"; name="$(basename "$f" .pid)"
+  [[ -n "$keep" && "$name" == "$keep" ]] && continue
   if kill "$pid" 2>/dev/null; then echo "stopped $name"; pids="$pids $pid"; fi
   rm -f "$f"
 done

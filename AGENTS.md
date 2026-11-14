@@ -125,5 +125,5 @@ chat: "Pip, ...".
 If `git pull` refuses because the history on GitHub was rewritten, the friend's copy is only for playing:
 `git fetch origin` then `git reset --hard origin/main` puts it right (the update script does this already).
 
-Don't set up `brain/` or `services/` on the friend's PC unless they explicitly want their own Pip (the
-brain's scripts are written for macOS). Never commit or push from the friend's machine unless asked.
+Don't set up `brain/` or `services/` on the friend's PC unless they explicitly want their own Pip (then:
+[docs/HOSTING-WINDOWS.md](docs/HOSTING-WINDOWS.md), or Docker: [docker/README.md](docker/README.md)). Never commit or push from the friend's machine unless asked.

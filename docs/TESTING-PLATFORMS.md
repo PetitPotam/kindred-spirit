@@ -9,7 +9,8 @@ macOS on Apple silicon and on Intel, Linux and Windows. They run on clean machin
 | | macOS, Apple silicon | macOS, Intel | Linux (Ubuntu) | Windows |
 |---|---|---|---|---|
 | **Kindred Spirit Setup**: build the app, install and start her from the `.dmg` | ✅ | ✅ (built and run on Intel) | not yet (#81) | not yet (#40) |
-| **Her brain** with `scripts/setup.sh`, then the gateway, brain and dashboard answer, and she answers a chat from a pretend game | ✅ | ✅ | ✅ | not yet (#40) |
+| **Her brain** with `scripts/setup.sh`, then the gateway, brain and dashboard answer, and she answers a chat from a pretend game | ✅ | ✅ | ✅ | ✅ with `scripts\setup-windows.ps1` and `start-windows.ps1`, plus whisper.cpp's Windows build and sleep/wake (`scripts\test-install-windows.ps1`, #40) |
+| **Her Docker image**: built, run as `docker/README.md` says, a pretend game talks to her through 127.0.0.1, sleep and wake (`scripts/test-install.sh docker`, #128) | | | ✅ | (GitHub's Windows machines run only Windows containers; Docker Desktop runs the same Linux image) |
 | **Minecraft's side**: Fabric Loader, Fabric API, the mod and the launcher profile in a fresh Minecraft folder (`scripts/install_profile.py`) | ✅ | ✅ | ✅ | the friend's install instead ↓ |
 | **A friend's PC**: `scripts/update-pip-windows.ps1` builds the mod and puts it and Fabric API in a fresh mods folder | (no script yet) | (no script yet) | (no script yet) | ✅ |
 | **The game itself**: a real Minecraft client with Fabric, Fabric API and the mod opens a world, says hi, and she answers through her brain | experiment (may fail: no GPU) | no | ✅ (virtual screen) | no (see below) |

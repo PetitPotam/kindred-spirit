@@ -19,6 +19,9 @@
     "client": [
       "dev.kindredspirit.KindredSpiritClient",
       "dev.kindredspirit.job.JobsDev"
+    ],
+    "modmenu": [
+      "dev.kindredspirit.settings.ModMenuEntry"
     ]
   },
   "depends": {

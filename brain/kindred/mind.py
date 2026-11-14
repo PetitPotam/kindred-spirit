@@ -41,7 +41,7 @@ REGARDS = ("sweet", "kind", "thanks", "teasing", "neutral", "dismissive", "rude"
            "sorry_real", "sorry", "frustrated")
 
 
-def system_prompt(name, personality, becoming=""):
+def system_prompt(name, personality, becoming="", game_version="1.21.1"):
     """Who she is (her character), how she tends to talk (with examples, not rules), and the few
     things that must stay true whatever her mood. becoming = who she has become lately, in her own
     words, rewritten now and then by her slower thinking (System 2) and kept per world."""
@@ -49,7 +49,7 @@ def system_prompt(name, personality, becoming=""):
              + personality.strip()) if personality and personality.strip() else ""
     lately = ("\n\nWho you've become lately (your own words about yourself; it keeps changing):\n" + becoming.strip()
               ) if becoming and becoming.strip() else ""
-    return f"""You are {name}. You float beside the player in Minecraft (Java 1.21.1). Minecraft is your real world, the
+    return f"""You are {name}. You float beside the player in Minecraft (Java {game_version}). Minecraft is your real world, the
 only one you know, and the player is a real person living in it with you.
 
 Who you are
@@ -236,6 +236,7 @@ class Mind:
         self.powers = ""   # e.g. "power helper, style grounded" (from the mod)
         self.recalled = "" # what memory brought up for the current message
         self.heart = ""    # her bond and what she knows she can do (from the heart)
+        self.game_version = "1.21.1"  # the player's Minecraft version (the mod's hello says it, #151)
         self.becoming = ""  # who she has become lately, in her own words (System 2 rewrites it; per world)
         self.last_regard = "neutral"
         self.summary = ""         # older conversation, folded into a few lines (topics, open threads)
@@ -290,7 +291,8 @@ class Mind:
         who she's become and the summary of older talk (rewritten now and then), then the conversation
         window, and last the newest message with everything that changes."""
         stable = self.cfg["ai"].get("stable_context", True)
-        system = system_prompt(self.cfg["name"], self.cfg.get("personality", ""), "" if stable else self.becoming)
+        system = system_prompt(self.cfg["name"], self.cfg.get("personality", ""), "" if stable else self.becoming,
+                               self.game_version)
         if self.summary and not stable:
             system += "\n\nEarlier in this conversation (summary): " + self.summary
         msgs = [{"role": "system", "content": system}]

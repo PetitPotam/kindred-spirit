@@ -1,0 +1,31 @@
+# #138: the stop key (H) stops a build halfway; "undo that" then puts back what she had placed.
+world kindred-stop-key
+wait 220
+cmd gamemode creative
+cmd time set 1000
+cmd weather clear
+cmd gamerule doDaylightCycle false
+cmd tp @s 0.5 200 0.5 0 10
+wait 40
+cmd fill -24 194 -24 24 198 40 minecraft:stone
+cmd fill -24 199 -24 24 199 40 minecraft:grass_block
+cmd fill -24 200 -24 24 207 40 minecraft:air
+cmd fill -24 208 -24 24 216 40 minecraft:air
+type /kindred style grounded
+wait 10
+cmd tp @s 0.5 200 0.5 0 35
+wait 10
+do build {"shape": "floor", "block": "stone_bricks", "width": 21, "length": 21}
+wait 8
+press stop
+wait 10
+screenshot stop-key-01-stopped
+wait 40
+screenshot stop-key-02-still-stopped
+do build {"shape": "undo"}
+wait 40
+screenshot stop-key-03-undone
+# (#139) a build that runs to its end: its outcome is recorded
+do build {"shape": "wall", "block": "stone_bricks", "width": 8, "height": 4}
+wait 80
+quit

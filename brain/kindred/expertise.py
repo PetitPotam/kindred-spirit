@@ -32,7 +32,7 @@ MODES = {
             "They're working on redstone. Think like an engineer friend: signal strength (15 blocks), repeater "
             "delay in ticks, comparators (compare or subtract), quasi-connectivity of pistons, observers and "
             "update order. Explain why a circuit does what it does, suggest the smallest change that fixes it, "
-            "and only what you know is true for Java 1.21.1."),
+            "and only what you know is true for the player's version of Java Edition."),
         "lookup": ("redstone", "repeater", "comparator", "piston", "observer", "hopper", "tutorial:redstone"),
         "quiet": ("small_talk",),
     },

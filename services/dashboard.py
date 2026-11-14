@@ -29,7 +29,9 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import tomllib
@@ -525,7 +527,8 @@ def blueprint_dirs():
     if not path:
         return blueprints.DIRS
     config = os.path.dirname(path)
-    return [os.path.join(config, "kindredspirit", "blueprints"), os.path.join(os.path.dirname(config), "schematics")]
+    return [os.path.join(config, "kindredspirit", "blueprints"), os.path.join(os.path.dirname(config), "schematics"),
+            os.path.join(config, "kindredspirit", "blueprints-from-minecraft")]  # (the game's own structures, #181)
 # what one million tokens cost (USD), to estimate; change with KINDRED_PRICE_IN / KINDRED_PRICE_OUT
 PRICE_IN = float(os.environ.get("KINDRED_PRICE_IN", "0.25"))
 PRICE_OUT = float(os.environ.get("KINDRED_PRICE_OUT", "1.50"))
@@ -813,6 +816,66 @@ def health():
     return out
 
 
+# ---------------------------------------------------------------------- putting her to sleep (#187)
+
+ASLEEP = os.path.join(DIR, "asleep")  # (the game reads it: "Pip is asleep", not "the brain isn't running")
+
+
+def her_state():
+    """Awake (her brain answers), asleep (put to sleep on purpose), or stopped (not running, not on purpose)."""
+    if setup_steps.port_open(setup_steps.brain_port()):
+        return {"state": "awake"}
+    return {"state": "asleep" if os.path.exists(ASLEEP) else "stopped"}
+
+
+WINDOWS_SCRIPTS = {"stop.sh": ("stop-windows.ps1", {"--keep": "-Keep"}),
+                   "start.sh": ("start-windows.ps1", {"--background": "-Background"})}
+
+
+def script_command(name, args, windows=None):
+    """The command for one of this copy's scripts: bash on macOS and Linux, its PowerShell twin on Windows (#40)."""
+    if windows if windows is not None else os.name == "nt":
+        ps1, flags = WINDOWS_SCRIPTS[name]
+        return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join(ROOT, "scripts", ps1),
+                *[flags.get(a, a) for a in args]]
+    return ["/bin/bash", os.path.join(ROOT, "scripts", name), *args]
+
+
+def _script(name, *args):
+    """One of this copy's scripts (the checkout's, or the installed copy's), with this copy's Python."""
+    env = dict(os.environ, KINDRED_PYTHON=sys.executable, KINDRED_HOME=DIR)
+    # (its output goes to a file, not a pipe: the helpers start.sh and start-windows.ps1 leave running can inherit the
+    # pipe, and on Windows they do, so reading it to the end would wait as long as they live)
+    with tempfile.TemporaryFile() as out:
+        cmd = script_command(name, args)
+        r = subprocess.run(cmd, stdout=out, stderr=subprocess.STDOUT, timeout=120, env=env, cwd=ROOT)
+        out.seek(0)
+        return subprocess.CompletedProcess(cmd, r.returncode, out.read().decode("utf-8", "replace"), "")
+
+
+def sleep_her():
+    """Her brain, voice, hearing and gateway stop; this dashboard stays, so it can wake her again."""
+    open(ASLEEP, "w").close()
+    r = _script("stop.sh", "--keep", "dashboard")
+    return {"ok": r.returncode == 0, "state": "asleep"}
+
+
+def wake_her():
+    try:
+        os.remove(ASLEEP)
+    except OSError:
+        pass
+    r = _script("start.sh", "--background")
+    return {"ok": r.returncode == 0, "state": her_state()["state"], "details": (r.stdout + r.stderr)[-600:]}
+
+
+def stop_everything():
+    """Everything, this dashboard too, a moment after answering (the page says how to start again). Not "asleep":
+    with the dashboard gone, the game can't wake her, so it says her brain isn't running, as before."""
+    threading.Timer(1.0, lambda: _script("stop.sh")).start()
+    return {"ok": True, "state": "stopping"}
+
+
 # ---------------------------------------------------------------------- the web server
 
 class Handler(BaseHTTPRequestHandler):
@@ -914,6 +977,8 @@ class Handler(BaseHTTPRequestHandler):
                 i = int(q.get("d", 0)) if str(q.get("d", "0")).isdigit() else -1
                 png = blueprints.picture(dirs[i], q.get("f", "")) if 0 <= i < len(dirs) else None
                 return self.send(200, png, "image/png") if png else self.send(404, {"error": "no such picture"})
+            if url.path == "/api/her":  # awake, asleep or stopped (#187)
+                return self.send(200, her_state())
             if url.path == "/api/knowledge":
                 return self.send(200, knowledge_overview())
             if url.path == "/api/knowledge/section":
@@ -935,6 +1000,7 @@ def _post(handler):
     if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles", "/api/places",
                         "/api/blueprints/add", "/api/blueprints/remove", "/api/blueprints/restore",
                         "/api/setup/run", "/api/setup/help", "/api/setup/quit", "/api/setup/preview",
+                        "/api/her/sleep", "/api/her/wake", "/api/her/stop-all",
                         "/api/setup/hear"):
         return handler.send(404, {"error": "not found"})
     if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
@@ -954,6 +1020,12 @@ def _post(handler):
             return handler.send(200, setup_models.speak(voice=str(body.get("voice") or "")), "audio/wav")
         except setup_steps.SetupError as e:
             return handler.send(400, {"error": str(e)})
+    if url.path == "/api/her/sleep":  # "Put her to sleep" (the page's button, or /kindred sleep in the game)
+        return handler.send(200, sleep_her())
+    if url.path == "/api/her/wake":
+        return handler.send(200, wake_her())
+    if url.path == "/api/her/stop-all":  # everything, this page too
+        return handler.send(200, stop_everything())
     if url.path == "/api/setup/run":  # a step's button: do it, or test it
         return handler.send(200, setup_steps.run(str(body.get("step", "")), str(body.get("action", "")), body))
     if url.path == "/api/setup/help":  # the "Copy a help prompt" button
@@ -1034,7 +1106,7 @@ def main(argv=None):
     if "--setup" in argv:
         SETUP_MODE = True
         PORT = int(os.environ.get("KINDRED_SETUP_PORT", "11441"))
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    server = ThreadingHTTPServer((os.environ.get("KINDRED_LISTEN") or HOST, PORT), Handler)  # (Docker: docker/README.md)
     print("Kindred %s on http://%s:%d" % ("Setup" if SETUP_MODE else "dashboard", HOST, PORT), flush=True)
     if SETUP_MODE:
         threading.Thread(target=quit_when_idle, args=(server,), daemon=True).start()

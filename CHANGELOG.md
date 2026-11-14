@@ -10,12 +10,47 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **She tells you how it really went**: when a build, blueprint or job ends, the game reports its real result and
+  she says it as it is: "All done!" only when it's finished, "most of it went in, 12 wouldn't fit" when it half-failed,
+  why she had to stop when something stopped her (no blocks left, pockets full). Starting one, she says she's on it,
+  never that it's done (#139).
+- **One key stops her** (H, changeable in Controls): talking, leading, a build or blueprint halfway and a job stop at
+  once, without waiting for her brain; "undo that" then puts back what she had changed (#138).
+- **Host her on Windows**: `scripts\setup-windows.ps1`, `start-windows.ps1` and `stop-windows.ps1` set up and run her
+  brain, voice, memory and hearing (whisper.cpp's Windows build, checked by SHA-256) on a Windows PC, like the Mac's
+  scripts; her dashboard's sleep and wake buttons use them there. Tested on GitHub's Windows machines on every
+  pull request that touches them (docs/HOSTING-WINDOWS.md, #40).
+- **Host her with Docker on Windows or Linux**: her brain, voice, hearing and dashboard in one image on GitHub
+  Packages (`ghcr.io/petitpotam/kindred-spirit-brain`), run on your own computer with `scripts/docker-run.sh` or
+  `scripts\docker-run.ps1`; your `~/.kindred-spirit` is mounted and the ports stay on 127.0.0.1. Published with every
+  release, built and tested on every pull request that touches it (docker/README.md, #128).
+- **Village houses and structures for everyone**: the game copies its own village buildings (every biome),
+  shipwrecks, the pillager watchtower, the igloo and the ruined portals into a blueprint folder of their own when it
+  starts, so every player can ask for "a taiga house" or "a shipwreck" on any supported Minecraft version (#181).
+- **Her settings in the game**: J (or `/kindred settings`, or Mod Menu's Configure button) opens a screen with the
+  same settings and profiles as her dashboard, section by section, each with its explanation and default; changes
+  apply at once. In a friend's game (her brain on another computer) it shows the game's own settings (#5).
+- **Put her to sleep and wake her up**: buttons on her dashboard (and `/kindred sleep`, `/kindred wake` in the game)
+  stop her brain, voice and hearing and start them again; "Stop everything" stops the dashboard too. While she's
+  asleep the game says so, instead of "her brain isn't running" (#187).
+- **"Undo that"**: her newest build or flattening goes back exactly as it was, up to 16 builds back, while the world
+  is open; a chest she built that you filled drops its contents, and in grounded style her blocks come back to your
+  pockets (#129).
+- The Play shortcut can play any branch on this computer (a batch being worked on, for example); main and pull
+  requests are built in a separate play copy, so playing never switches your checkout's branch.
 - The Play shortcut asks which Pip to play: the installed release, the newest code (built and installed first) or a
   pull request; Enter keeps the one in use (#190).
 - `scripts/play-latest.sh`: playtest `main` or a pull request straight from the checkout, without a release, and
   go back to the installed version with `--back` (#185).
 
 ### Fixed
+- On Minecraft 26.3 she builds blueprints on grass again (she took grass, podzol, moss and mud for something you
+  built: 26.x moved them out of the game's `dirt` tag), and flattening fills under grass with dirt (#181).
+- Structure files saved by Minecraft 26.x (a structure block, `/place template`) can be built: their palette is
+  written a new way (`id`, `properties`), which she couldn't read (#181).
+- On Minecraft 26.3 she knows she's in 26.3: her prompt names your version, and her knowledge judges what was added
+  later (the Happy Ghast, the Copper Golem) against it when you ask, not against 1.21.1; 1.21.1 game data is
+  marked as such for a 26.3 player (#151).
 - The Play shortcut (`scripts/play-mac.command`) starts the version in use: the installed one, or the checkout after
   `scripts/play-latest.sh`; it no longer mixes the checkout's brain with the installed mod, and it lists your Kindred
   profiles (#188).
@@ -100,6 +135,9 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- The last code scanning findings: the website checker matches any `</script ...>` end tag, the Linux test image is
+  pinned by digest, `modrinth.sh` no longer pipes a download into Python, and SECURITY.md gives the disclosure
+  timeline (#163).
 - Linters: Ruff checks the Python on every pull request (and in `scripts/test.sh`), and the mod builds with every Java
   warning on, a warning failing the build; the few they found are fixed (#168).
 - The README shows the OpenSSF Best Practices badge; SECURITY.md's private reporting no longer waits for the repository

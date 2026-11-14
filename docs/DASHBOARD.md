@@ -48,7 +48,11 @@ again with her current voice (made again from the text; no audio is stored).
 
 Her blueprints folder is `config/kindredspirit/blueprints/` in the game folder (with the profile from
 `scripts/setup.sh`: `~/Library/Application Support/minecraft-kindred/config/kindredspirit/blueprints/`); she also
-reads `schematics/`, where Litematica and Create keep theirs. While the game runs, it describes every file in
+reads `schematics/`, where Litematica and Create keep theirs, and `config/kindredspirit/blueprints-from-minecraft/`:
+the game's own village houses (every biome's houses, workshops, farms, pens and wells), shipwrecks, the pillager
+watchtower, the igloo and the ruined portals, copied there from the game itself when it starts (#181), on the
+player's computer (nothing of Mojang's comes with the mod). They're copied again only when the game's version
+changes, so one you remove stays removed; a file of yours with the same name comes first. While the game runs, it describes every file in
 `catalogue.json` next to them (a category, a biome or style, what it is: "a plains smithy (the armorer's), with a
 blast furnace", the size, blocks, beds, main materials, tags, the words to say) and draws two pictures of each in
 `.catalogue/` with Minecraft's own map colours: once at startup, then within half a minute of any change (a file

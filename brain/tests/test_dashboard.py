@@ -82,6 +82,7 @@ def test_the_blueprints_page_shows_the_game_played_last(tmp_path, monkeypatch):
     game = tmp_path / "Library" / "Application Support" / "minecraft-kindred-26.3"
     (game / "config").mkdir(parents=True)
     (game / "config" / "kindredspirit.json").write_text("{}")
-    assert dashboard.blueprint_dirs() == [str(game / "config" / "kindredspirit" / "blueprints"), str(game / "schematics")]
+    assert dashboard.blueprint_dirs() == [str(game / "config" / "kindredspirit" / "blueprints"), str(game / "schematics"),
+                                          str(game / "config" / "kindredspirit" / "blueprints-from-minecraft")]
     monkeypatch.setenv("KINDRED_BLUEPRINTS", str(tmp_path / "mine"))  # (set by hand: it wins)
     assert dashboard.blueprint_dirs() == dashboard.blueprints.DIRS

@@ -144,6 +144,7 @@ public final class BlueprintBuild {
         magic = free;
         power = pw;
         name = bp.name();
+        Undo.begin(name.replace('_', ' '), level, free); // (#129: "undo that" puts it all back)
         total = bp.solidBlocks();
         tick = placed = commandsRun = 0;
         last = null;
@@ -196,12 +197,14 @@ public final class BlueprintBuild {
     public static List<Path> folders() {
         Path config = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir();
         Path game = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
-        return List.of(config.resolve("kindredspirit").resolve("blueprints"), game.resolve("schematics"));
+        // (yours first: a file of yours with the same name as one of the game's wins; #181: the game's own structures)
+        return List.of(config.resolve("kindredspirit").resolve("blueprints"), game.resolve("schematics"),
+                config.resolve("kindredspirit").resolve(dev.kindredspirit.blueprint.GameStructures.FOLDER));
     }
 
     /** Ground, stone, sand, plants, trees, snow, water: what she may build over (and clear). */
     static boolean natural(BlockState st) {
-        return st.isAir() || st.canBeReplaced() || st.is(BlockTags.DIRT) || st.is(BlockTags.SAND) || st.is(BlockTags.LEAVES)
+        return st.isAir() || st.canBeReplaced() || Mc.soil(st) || st.is(BlockTags.SAND) || st.is(BlockTags.LEAVES)
                 || st.is(BlockTags.LOGS) || st.is(BlockTags.BASE_STONE_OVERWORLD) || st.is(BlockTags.FLOWERS)
                 || st.is(BlockTags.SAPLINGS) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK) || st.is(Blocks.CLAY)
                 || st.is(BlockTags.ICE) || st.is(Mc.blockTag("coal_ores"))
@@ -225,6 +228,7 @@ public final class BlueprintBuild {
     public static JsonObject stop() {
         if (queue.isEmpty()) return Actions.error("I'm not building anything.");
         int left = queue.size();
+        Outcome.ended("blueprint", name.replace('_', ' '), Math.min(placed, total), 0, total, "asked"); // (#139)
         queue.clear();
         JsonObject r = Actions.ok();
         r.addProperty("stopped", true);
@@ -274,6 +278,7 @@ public final class BlueprintBuild {
                 return;
             }
             CommandPlan.Command c = queue.poll();
+            for (Placement.Step st : c.steps()) Undo.recordOnly(level, new BlockPos(st.x(), st.y(), st.z())); // (#129)
             JsonObject r = Commands.run(server, sp, c.text(), power == null ? Abilities.Power.HELPER : power, false);
             if (!r.has("ok") || !r.get("ok").getAsBoolean()) LOG.info("blueprint command failed: {} -> {}", c.text(), r);
             commandsRun++;
@@ -284,8 +289,12 @@ public final class BlueprintBuild {
             // grounded: one block of the current command, from the pockets
             CommandPlan.Command c = queue.peek();
             Placement.Step s = c.steps().get(c.steps().size() - remaining(c));
+            Undo.record(level, new BlockPos(s.x(), s.y(), s.z())); // (#129)
             if (!placeGrounded(level, sp, s)) {
                 queue.clear();
+                Outcome.ended("blueprint", name.replace('_', ' '), Math.min(placed, total), 0, total, "ran out of "
+                        + Materials.of(s.state()).keySet().stream().findFirst().orElse("blocks").replace("minecraft:", "")
+                        .replace('_', ' ')); // (#139)
                 last = Actions.error("I ran out of " + Materials.of(s.state()).keySet().stream().findFirst().orElse("blocks")
                         .replace("minecraft:", "").replace('_', ' ') + " after " + placed + " blocks.");
                 return;
@@ -302,6 +311,7 @@ public final class BlueprintBuild {
         r.addProperty("built", name);
         r.addProperty("blocks", placed);
         last = r;
+        Outcome.ended("blueprint", name.replace('_', ' '), Math.min(placed, total), 0, total, null); // (#139)
         LOG.info("blueprint {} done: {} blocks", name, placed);
     }
 

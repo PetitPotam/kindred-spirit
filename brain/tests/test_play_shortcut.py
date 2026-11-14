@@ -34,7 +34,7 @@ def test_the_checkout_without_a_setup(tmp_path):
     assert "this checkout (no Setup installed)" in which(tmp_path, installed=False)
 
 
-def _menu(tmp_path, keys):
+def _menu(tmp_path, keys, then=None, script=SCRIPT):
     """Runs the shortcut in a pseudo-terminal (so it asks), types `keys`, never opens the launcher."""
     import pty
     import select
@@ -43,8 +43,8 @@ def _menu(tmp_path, keys):
                KINDRED_NO_LAUNCHER="1", KINDRED_MINECRAFT_DIR=str(tmp_path / "mc" / "minecraft"))
     pid, fd = pty.fork()
     if pid == 0:
-        os.execve("/bin/bash", ["bash", str(SCRIPT)], env)
-    out, sent = b"", False
+        os.execve("/bin/bash", ["bash", str(script)], env)
+    out, sent, sent2 = b"", False, False
     while True:
         r, _, _ = select.select([fd], [], [], 15)
         if not r:
@@ -59,6 +59,9 @@ def _menu(tmp_path, keys):
         if not sent and b"to keep" in out:
             os.write(fd, keys)
             sent = True
+        if then and not sent2 and then[0] in out:
+            os.write(fd, then[1])
+            sent2 = True
     os.waitpid(pid, 0)
     return out.decode(errors="replace")
 
@@ -72,3 +75,21 @@ def test_it_asks_and_enter_keeps_the_installed_release(tmp_path):
 def test_a_wrong_answer_keeps_what_you_are_on(tmp_path):
     out = _menu(tmp_path, b"x\n")
     assert "Keeping what you're on" in out and "Playing the version the Setup installed" in out
+
+
+def test_a_branch_can_be_picked(tmp_path):
+    # a checkout of its own with a branch besides main (CI's checkout has none; yours has yours)
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    for name in ("play-mac.command", "play-latest.sh"):
+        (repo / "scripts" / name).write_bytes((SCRIPT.parent / name).read_bytes())
+    git = ["git", "-C", str(repo), "-c", "user.name=riverrobin", "-c", "user.email=riverrobin@example.invalid"]
+    subprocess.run(git[:3] + ["init", "-q", "-b", "main"], check=True)
+    subprocess.run(git + ["add", "."], check=True)
+    subprocess.run(git + ["commit", "-q", "-m", "x"], check=True)
+    subprocess.run(git + ["branch", "batch/for-tests"], check=True)
+    # (a name that doesn't exist: it says so and plays what you're on, without building anything)
+    out = _menu(tmp_path, b"4\n", then=(b"Number or name", b"no-such-branch-for-tests\n"),
+                script=repo / "scripts" / "play-mac.command")
+    assert "4) A branch on this computer" in out and "Branches on this computer" in out and "batch/for-tests" in out
+    assert "no local branch named no-such-branch-for-tests" in out and "playing what you're on" in out

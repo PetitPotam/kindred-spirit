@@ -591,25 +591,27 @@ class KnowledgeStore:
 
     # ------------------------------------------------------------------ search
 
-    def search(self, query, k=5, sources=None, per_page=2, min_score=0.0):
+    def search(self, query, k=5, sources=None, per_page=2, min_score=0.0, game_version=None):
         """The chunks that best answer `query`, best first:
-        [{title, section, text, url, source, license, license_url, attribution, score, data, ...}]"""
+        [{title, section, text, url, source, license, license_url, attribution, score, data, ...}]
+        game_version: the player's Minecraft version ("26.3"): what was added later, or game data from another
+        version, is judged against it (#151); without it, against the version the page was fetched for."""
         query = (query or "").strip()
         if not query:
             return []
         with self.lock:
-            return self._search(query, k, sources, per_page, min_score)
+            return self._search(query, k, sources, per_page, min_score, game_version)
 
-    def ask(self, query, k=5, sources=None, per_page=2):
+    def ask(self, query, k=5, sources=None, per_page=2, game_version=None):
         """search() plus whether the knowledge base really covers the question:
         {"results": [...], "best": score, "covered": bool, "threshold": COVERED_SCORE}.
         Covered = the best chunk is about everything the question names (all its subject words,
         e.g. "iron" and "golem"), scores at least COVERED_SCORE, and, for a build/farm question,
         one of the top results is a guide (a wiki tutorial or a guide source)."""
-        res = self.search(query, k=k, sources=sources, per_page=per_page)
+        res = self.search(query, k=k, sources=sources, per_page=per_page, game_version=game_version)
         return dict(coverage(query, res), results=res)
 
-    def _search(self, query, k, sources, per_page, min_score):
+    def _search(self, query, k, sources, per_page, min_score, game_version=None):
         pq = parse_question(query)
         q_stems, q_words, q_terms = pq["stems"], pq["words"], pq["terms"]
         intents = [targets for trig, targets, _ in INTENTS if q_words & trig]
@@ -705,7 +707,7 @@ class KnowledgeStore:
             # or April Fools things: still searchable (she can say it isn't in her world), but current
             # pages come first, and only a current page counts as an answer (else learn the current one).
             # Asked about that very thing (the Happy Ghast), its page still comes first, marked.
-            status = page_status(meta, r["title"], r["text"])
+            status = page_status(meta, r["title"], r["text"], game_version)
             weight = STATUS_WEIGHT.get(status, 1.0)
             if title >= 1.0 and status in ("future", "removed", "other-edition"):
                 weight = max(weight, 0.85)
@@ -804,15 +806,30 @@ STRONG_SCORE = 0.72
 
 
 # how much a page that isn't about the player's game counts (textify.wiki_status says which)
-STATUS_WEIGHT = {"current": 1.0, "outdated": 0.55, "removed": 0.5, "future": 0.45, "other-edition": 0.45,
+STATUS_WEIGHT = {"current": 1.0, "other-version": 0.9, "outdated": 0.55, "removed": 0.5, "future": 0.45, "other-edition": 0.45,
                  "spin-off": 0.3, "joke": 0.3}
 
 
-def page_status(meta, title="", lead=""):
+DATA_TITLE = re.compile(r"\(Java ([\d.]+) data\)$")
+
+
+def page_status(meta, title="", lead="", game_version=None):
     """'current', or why the page isn't about the game as the player has it (see textify.wiki_status):
-    stored with the page when it was fetched; worked out from its categories for older pages."""
+    stored with the page when it was fetched; worked out from its categories for older pages. With the
+    player's version (#151), what depends on it is judged again: added after it ("future") or not, and game
+    data taken from another version ("other-version": the numbers may differ in the player's game)."""
     meta = meta or {}
-    return meta.get("status") or textify.wiki_status(meta, title or "", lead or "")
+    status = meta.get("status") or textify.wiki_status(meta, title or "", lead or "")
+    target = textify.version_tuple(game_version) if game_version else None
+    if not target:
+        return status
+    data = DATA_TITLE.search(title or "")
+    if data:
+        return status if textify.version_tuple(data.group(1)) == target else "other-version"
+    since = textify.version_tuple(meta.get("since_java") or "")
+    if status in ("current", "future") and since:
+        return "future" if since > target else "current"
+    return status
 
 
 def outdated(meta, text=""):

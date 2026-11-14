@@ -106,7 +106,9 @@ def profile(hw, choice=None):
     # Leave most cores to Minecraft: its render and server threads are what you feel as lag.
     return {
         "level": level,
-        "whisper_model": (choice is None and chosen_hearing()) or WHISPER_MODELS[level][1],
+        # (KINDRED_WHISPER_MODEL set by hand wins: her Docker image picks the small one for a CPU, #128)
+        "whisper_model": os.environ.get("KINDRED_WHISPER_MODEL") or (choice is None and chosen_hearing())
+        or WHISPER_MODELS[level][1],
         "whisper_threads": max(1, min(4, fast // 2 if hw["gpu"] == "cpu" else 2)),
         "tts_threads": {"high": 3, "medium": 2, "low": 2}[level] if fast >= 4 else max(1, fast // 2),
         "nice": 10,

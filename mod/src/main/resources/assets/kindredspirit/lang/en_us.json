@@ -1,6 +1,8 @@
 {
   "key.kindredspirit.talk": "Talk to your companion (hold)",
   "key.kindredspirit.dashboard": "Open her dashboard (in your browser)",
+  "key.kindredspirit.settings": "Her settings (in game)",
+  "key.kindredspirit.stop": "Stop her (everything she's doing)",
   "category.kindredspirit": "Kindred Spirit",
   "key.category.kindredspirit.main": "Kindred Spirit"
 }

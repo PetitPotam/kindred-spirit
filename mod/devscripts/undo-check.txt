@@ -1,0 +1,24 @@
+# #129: she builds a floor and a pillar, then "undo" puts the ground back as it was (twice).
+world kindred-undo
+wait 220
+cmd time set 1000
+cmd weather clear
+cmd gamerule doDaylightCycle false
+cmd gamemode creative
+look 0 50
+wait 40
+screenshot undo-00-before
+do build {"shape": "floor", "block": "gold_block", "width": 7, "length": 7}
+wait 60
+do build {"shape": "pillar", "block": "diamond_block", "height": 5}
+wait 60
+screenshot undo-01-built
+do build {"shape": "undo"}
+wait 40
+screenshot undo-02-pillar-undone
+do build {"shape": "undo"}
+wait 40
+screenshot undo-03-floor-undone
+do build {"shape": "undo"}
+wait 20
+quit

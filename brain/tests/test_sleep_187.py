@@ -1,0 +1,106 @@
+"""#187: putting her to sleep and waking her up from the dashboard (and from the game, which asks the dashboard)."""
+import os
+import subprocess
+import types
+
+import gateway_stub  # noqa: F401  (puts services/ on the path)
+import dashboard
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def fake_scripts(monkeypatch, tmp_path, brain_up):
+    ran = []
+    monkeypatch.setattr(dashboard, "ASLEEP", str(tmp_path / "asleep"))
+    monkeypatch.setattr(dashboard.setup_steps, "port_open", lambda port, timeout=1: brain_up[0])
+    monkeypatch.setattr(dashboard, "_script", lambda name, *a: ran.append((name,) + a) or types.SimpleNamespace(
+        returncode=0, stdout="", stderr=""))
+    return ran
+
+
+def test_asleep_awake_and_stopped(monkeypatch, tmp_path):
+    up = [True]
+    ran = fake_scripts(monkeypatch, tmp_path, up)
+    assert dashboard.her_state() == {"state": "awake"}
+    up[0] = False
+    assert dashboard.her_state() == {"state": "stopped"}, "not running, and nobody put her to sleep"
+    assert dashboard.sleep_her()["state"] == "asleep"
+    assert ran == [("stop.sh", "--keep", "dashboard")], "the dashboard stays, to wake her again"
+    assert dashboard.her_state() == {"state": "asleep"} and os.path.exists(dashboard.ASLEEP)
+    up[0] = True
+    assert dashboard.wake_her()["state"] == "awake"
+    assert ran[-1] == ("start.sh", "--background") and not os.path.exists(dashboard.ASLEEP)
+
+
+def test_stopping_everything_answers_first(monkeypatch, tmp_path):
+    ran = fake_scripts(monkeypatch, tmp_path, [True])
+    timers = []
+    monkeypatch.setattr(dashboard.threading, "Timer", lambda s, f: types.SimpleNamespace(start=lambda: timers.append(f)))
+    assert dashboard.stop_everything()["ok"] and ran == [], "nothing stops before the page has its answer"
+    timers[0]()
+    assert ran == [("stop.sh",)]
+    assert not os.path.exists(dashboard.ASLEEP), "with the dashboard gone the game can't wake her: not 'asleep'"
+
+
+def test_the_page_can_ask_for_it():
+    with open(os.path.join(ROOT, "services", "dashboard.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    for path in ("/api/her/sleep", "/api/her/wake", "/api/her/stop-all"):
+        assert src.count('"%s"' % path) >= 2, path + ": allowed, and answered"
+
+
+def run_stop(tmp_path, *args):
+    run = tmp_path / "run"
+    run.mkdir(exist_ok=True)
+    procs = {}
+    for name in ("brain", "gateway", "dashboard"):
+        p = subprocess.Popen(["sleep", "30"])
+        procs[name] = p
+        (run / (name + ".pid")).write_text(str(p.pid))
+    out = subprocess.run(["bash", os.path.join(ROOT, "scripts", "stop.sh"), *args], capture_output=True, text=True,
+                         env=dict(os.environ, KINDRED_HOME=str(tmp_path)), timeout=30).stdout
+    for p in procs.values():
+        p.poll()
+    return out, procs
+
+
+def test_stop_keeps_the_dashboard_when_asked(tmp_path):
+    out, procs = run_stop(tmp_path, "--keep", "dashboard")
+    try:
+        assert "stopped brain" in out and "stopped gateway" in out and "dashboard" not in out
+        assert procs["brain"].wait(5) is not None and procs["dashboard"].poll() is None
+        assert (tmp_path / "run" / "dashboard.pid").exists(), "still known, so a later stop.sh stops it"
+    finally:
+        procs["dashboard"].kill()
+
+
+def test_stop_stops_everything_by_default(tmp_path):
+    out, procs = run_stop(tmp_path)
+    assert all(p.wait(5) is not None for p in procs.values()) and "stopped dashboard" in out
+
+
+def test_starting_her_again_any_way_wakes_her():
+    with open(os.path.join(ROOT, "scripts", "start.sh"), encoding="utf-8") as fh:
+        assert 'rm -f "$KH/asleep"' in fh.read()
+
+
+def test_on_windows_the_buttons_use_the_powershell_scripts():  # #40
+    stop = dashboard.script_command("stop.sh", ("--keep", "dashboard"), windows=True)
+    assert stop[0] == "powershell" and stop[-3].endswith("stop-windows.ps1") and stop[-2:] == ["-Keep", "dashboard"]
+    assert dashboard.script_command("start.sh", ("--background",), windows=True)[-1] == "-Background"
+    assert dashboard.script_command("stop.sh", (), windows=False)[0] == "/bin/bash"
+    for name, (ps1, _) in dashboard.WINDOWS_SCRIPTS.items():
+        assert os.path.exists(os.path.join(ROOT, "scripts", ps1)), ps1
+
+
+def test_waking_her_doesnt_wait_for_the_helpers_it_started(monkeypatch):
+    # (start.sh and start-windows.ps1 leave helpers running that can inherit the script's output; on Windows they
+    # do, and reading that output from a pipe waited as long as they lived: the wake button and CI hung, #40)
+    monkeypatch.setattr(dashboard, "script_command", lambda name, args, windows=None: [
+        "/bin/bash", "-c", "sleep 20 & echo started; exit 3"])
+    import time
+    t = time.monotonic()
+    r = dashboard._script("start.sh", "--background")
+    assert time.monotonic() - t < 10
+    assert r.returncode == 3 and "started" in r.stdout
+    subprocess.run(["pkill", "-f", "^sleep 20$"], check=False)

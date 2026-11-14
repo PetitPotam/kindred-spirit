@@ -89,7 +89,7 @@ If you try it and like it, that makes me happy.
 | Her glow | in the dark (night, caves) her soft light lights the way around her, in singleplayer: an invisible light that moves with her and is never left behind (`glow` in the mod's settings) |
 | She has a heart | a whimsical character with a **bond meter**: kindness brings her closer and makes her open up, propose plans and play pranks; hitting her or being mean makes her keep her distance, sulk, or vanish for a while. She forgives quickly ([how](docs/HEART.md)) |
 | She discovers her powers | she doesn't know what she can do until you ask. She answers at once ("I'll try!"), then the power slowly wakes up in the background: she senses something strange, maybe asks you a small favour, and then "I can sense diamonds now!" She remembers it after that |
-| She helps | finds ores, animals ("where are the sheep?"), blocks, players and any structure or biome, and tells you which way; **leads the way** there, floating well ahead of you with an arrow and the distance at the top of the screen and a sparkle trail (she keeps ahead even when you sprint, follows a walking animal, and calls you back if you go the wrong way); pushes monsters away, places a torch, **chops a whole tree or mines a whole vein** you look at, with your own tool at its real speed, and **crafts** from your pockets (what drops goes in your inventory), **builds** with you: simple shapes (a pillar, corners, a wall, a floor, an outline), **any geometric shape at any size** (circles, stars, hearts, spirals, spheres, domes, round towers, cones, pyramids, a donut, an arch; hollow or solid, lying down or standing up), a crop farm, a nether or end portal, blueprints from a catalogue of 250, and **flattening land** around you with the ground that's there; magic style gives items and effects (haste, night vision, speed, healing, food...), all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
+| She helps | finds ores, animals ("where are the sheep?"), blocks, players and any structure or biome, and tells you which way; **leads the way** there, floating well ahead of you with an arrow and the distance at the top of the screen and a sparkle trail (she keeps ahead even when you sprint, follows a walking animal, and calls you back if you go the wrong way); pushes monsters away, places a torch, **chops a whole tree or mines a whole vein** you look at, with your own tool at its real speed, and **crafts** from your pockets (what drops goes in your inventory), **builds** with you: simple shapes (a pillar, corners, a wall, a floor, an outline), **any geometric shape at any size** (circles, stars, hearts, spirals, spheres, domes, round towers, cones, pyramids, a donut, an arch; hollow or solid, lying down or standing up), a crop farm, a nether or end portal, blueprints from a catalogue of 250, and **flattening land** around you with the ground that's there (**"undo that"** puts her newest build or flattening back exactly as it was, up to 16 back); magic style gives items and effects (haste, night vision, speed, healing, food...), all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
 | It remembers and learns | who you are, what you like, your habits, your places, its own little personality, a diary of your sessions; reminders ("in 10 minutes", "at night", "next time we play") ([how](docs/MEMORY.md)) |
 | It knows Minecraft | asked how something works, she answers from a local knowledge base of the Minecraft Wiki (current for your version) and learns pages she doesn't have yet in the background ([how](docs/KNOWLEDGE.md)) |
 | Friends on LAN | one Pip, on the computer that runs her: friends with the mod see her exactly as you do, friends without it see a stand-in; everyone talks to her in chat; she finds, helps and stays with whoever you choose, and comes along when a friend hosts the world ([below](#friends-on-your-lan-world)) |
@@ -100,11 +100,10 @@ If you try it and like it, that makes me happy.
 | Skins | a slime, a soft cube, a fairy and a pixie with fluttering wings, a glowing wisp, a strawberry, a starry orb, Sprout with its leaves, or your own PNG ([how](docs/SKINS.md)) |
 | Her dashboard | press **K** in the game: a page on your computer with her heart and mood, your conversations, what she remembers, the buildings she knows, every AI call, and all her settings, changed live ([below](#watching-her-think)) |
 | Session logs | every play session gets a timeline and a summary in `~/.kindred-spirit/logs/sessions/`, shown on the dashboard, to see what went wrong |
-| Blueprints | **builds whole buildings from files** where you look, its door toward you: "build us a cozy cottage for three" (one she makes up, a bed each), or any `.nbt`, `.schem` or `.litematic` in `config/kindredspirit/blueprints/` ("a small desert house", "the plains smithy", "a circle to build on"). The game describes every file (what it is, its category, size, materials, a top and a front picture); she finds the right one by what you ask, describes the two or three best and asks which when several fit, and checks before a big one. Magic builds it in seconds; grounded first tells you the materials. She never builds over what you built. Browse, add and remove them on the dashboard's **Blueprints** page |
+| Blueprints | **builds whole buildings from files** where you look, its door toward you: "build us a cozy cottage for three" (one she makes up, a bed each), or any `.nbt`, `.schem` or `.litematic` in `config/kindredspirit/blueprints/` ("a circle to build on"), and the game's own village houses, shipwrecks, pillager watchtower, igloo and ruined portals ("a small desert house", "the plains smithy", "a shipwreck"), which the game copies for her when it starts, on every Minecraft version. The game describes every file (what it is, its category, size, materials, a top and a front picture); she finds the right one by what you ask, describes the two or three best and asks which when several fit, and checks before a big one. Magic builds it in seconds; grounded first tells you the materials. She never builds over what you built. Browse, add and remove them on the dashboard's **Blueprints** page |
 
 Not yet: jobs on LAN ([#37](https://github.com/PetitPotam/kindred-spirit/issues/37)), repeating jobs
-([#13](https://github.com/PetitPotam/kindred-spirit/issues/13)), an in-game settings screen, undoing her builds
-([#129](https://github.com/PetitPotam/kindred-spirit/issues/129)). That's the [roadmap](docs/ROADMAP.md).
+([#13](https://github.com/PetitPotam/kindred-spirit/issues/13)), an in-game settings screen. That's the [roadmap](docs/ROADMAP.md).
 
 ### What it may do: power and style
 
@@ -327,8 +326,8 @@ Minecraft client there says hi and she answers; nobody has played with her on Li
 ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)). Hearing needs `whisper-server` from
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp).
 **Windows:** friends joining a host's world are covered ([PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md)); hosting
-her brain there isn't supported yet ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)): the Python
-parts are cross-platform, but the start scripts are bash.
+her brain there works with three PowerShell scripts ([docs/HOSTING-WINDOWS.md](docs/HOSTING-WINDOWS.md)) or with
+Docker ([docker/README.md](docker/README.md)), for technical players for now.
 
 ### Controls
 
@@ -336,9 +335,12 @@ parts are cross-platform, but the start scripts are bash.
 |---|---|
 | **V** (hold) | talk; release to send (change it in Controls → Kindred Spirit) |
 | **K** | open her dashboard in your browser (on the computer where her brain runs) |
+| **H** | stop her, everything at once: talking, leading, a build or blueprint halfway, a job ("undo that" then puts back what she changed) |
+| **J** · `/kindred settings` | her settings, in the game: the dashboard's settings and profiles, each with its explanation and default; also from Mod Menu |
 | just type in chat | talk to her (on a server, start with her name); or `/kindred <text>`, `/ks <text>` |
 | `/kindred status` | brain connection, skin, mode, quality level, mood |
 | `/kindred reconnect` | after restarting the brain |
+| `/kindred sleep` / `/kindred wake` | put her to sleep (her brain, voice and hearing stop, to save your computer's power) and wake her up; her dashboard has the same buttons, and "Stop everything" |
 | `/kindred hint off` / `on` | the "Pip needs her brain on this computer" message, shown once per game in your own world when her brain isn't set up here |
 | `/kindred skin <name>` · `/kindred skins` · `/kindred skins reload` | change its look, list skins, reload your skins folder |
 | `/kindred mode follow\|stay\|come` | follow you (default), wait here, come close for a moment |
