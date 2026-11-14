@@ -256,6 +256,22 @@ def find_blueprints(query, dirs=None, limit=6):
     return blueprints.search(query, dirs or BLUEPRINT_DIRS, limit)
 
 
+class QuietProbes(logging.Filter):
+    """A connection that closes before saying anything is someone checking she's up (the Setup's health check
+    opens her port and closes it, every few seconds): not a failed handshake worth an error and a traceback, which
+    the dashboard listed as a problem 27 times in one session (#180). Real handshake problems still show."""
+
+    def filter(self, record):
+        if record.getMessage().startswith("opening handshake failed") and record.exc_info:
+            err = record.exc_info[1]
+            while err is not None:
+                if isinstance(err, EOFError) or "connection closed while reading HTTP request line" in str(err):
+                    record.levelno, record.levelname, record.exc_info, record.exc_text = logging.DEBUG, "DEBUG", None, None
+                    return logging.getLogger(record.name).isEnabledFor(logging.DEBUG)
+                err = err.__cause__ or err.__context__
+        return True
+
+
 class Brain:
     def __init__(self, cfg, token, mind=None, alerts=None, clock=time.monotonic, memory=None):
         self.cfg = cfg

@@ -6,7 +6,7 @@ import logging.handlers
 import os
 import sys
 
-from . import config, hardware
+from . import config, hardware, server
 from .server import run
 
 
@@ -21,6 +21,8 @@ def main():
                         format="%(asctime)s %(levelname)s %(message)s",
                         handlers=[logging.handlers.RotatingFileHandler(os.path.join(log_dir, "brain.log"), maxBytes=5_000_000, backupCount=2), logging.StreamHandler(sys.stderr)])
     logging.getLogger("websockets").setLevel(logging.INFO)  # frame-level logs would include audio
+    for name in ("websockets.server", "websockets"):  # (health checks aren't failed handshakes, #180)
+        logging.getLogger(name).addFilter(server.QuietProbes())
     cfg = config.load(args.config)
     cfg["_live_settings"] = args.config == config.PATH  # (changes from the dashboard are picked up live)
     token = config.read_or_create_token()

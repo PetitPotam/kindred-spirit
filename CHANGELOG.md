@@ -10,6 +10,8 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Fixed
+- The dashboard no longer lists "opening handshake failed" over and over: that was the Setup checking her brain is
+  up; such a check is logged quietly now, and real handshake problems still show (#180).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).
