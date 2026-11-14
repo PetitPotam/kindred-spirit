@@ -69,6 +69,7 @@ public final class Builder {
             if (dev.kindredspirit.job.Jobs.busy()) dev.kindredspirit.job.Jobs.stop();
             if (BlueprintBuild.busy()) BlueprintBuild.stop();
             int left = queue.size();
+            if (left > 0) Outcome.ended("build", doing, placed + cleared, skipped, total, "asked"); // (#139)
             queue.clear();
             JsonObject r = Actions.ok();
             r.addProperty("stopped", true);
@@ -276,9 +277,15 @@ public final class Builder {
                 budget--;
                 last = at;
             } else if (!free && item != null && s.kind() != 'X' && count(sp, item) == 0) {
+                int before = queue.size();
                 queue.removeIf(x -> x.kind() == 'B' || x.kind() == 'F' || x.kind() == 'P'); // out of blocks
+                if (queue.isEmpty()) { // (#139: it ended here, short of blocks)
+                    Outcome.ended("build", doing, placed + cleared, skipped + before, total, "ran out of " + name(item));
+                    return;
+                }
             }
         }
+        if (queue.isEmpty()) Outcome.ended("build", doing, placed + cleared, skipped, total, null); // (#139)
         if (last != null && Minecraft.getInstance().player != null && owner.equals(Minecraft.getInstance().player.getUUID())) {
             double x = last.getX() + 0.5, y = last.getY() + 1.3, z = last.getZ() + 0.5;
             Minecraft.getInstance().execute(() -> KindredSpiritClient.get().companion().life.visit(x, y, z, 1.2,
@@ -444,6 +451,7 @@ public final class Builder {
 
     /** Stops a build in progress (what's built stays, and can be undone). */
     static void stop() {
+        if (!queue.isEmpty()) Outcome.ended("build", doing, placed + cleared, skipped, total, "asked"); // (#139)
         queue.clear();
     }
 

@@ -73,7 +73,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private final VoiceRecorder recorder = new VoiceRecorder();
     private final VoicePlayer voice = new VoicePlayer();
     private KeyMapping talkKey;
-    private KeyMapping dashboardKey, settingsKey;
+    private KeyMapping dashboardKey, settingsKey, stopKey;
     private boolean openSettings;
     private DevScript devScript;
 
@@ -182,6 +182,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
     public KeyMapping dashboardKey() { return dashboardKey; }
     public KeyMapping settingsKey() { return settingsKey; }
+    public KeyMapping stopKey() { return stopKey; }
 
     public Companion companion() {
         return companion;
@@ -209,6 +210,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         talkKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.talk", InputConstants.KEY_V, keys));
         dashboardKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.dashboard", InputConstants.KEY_K, keys));
         settingsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.settings", InputConstants.KEY_J, keys));
+        stopKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.stop", InputConstants.KEY_H, keys));
         //?} else {
         /*talkKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.kindredspirit.talk", InputConstants.Type.KEYSYM, InputConstants.KEY_V, "category.kindredspirit"));
@@ -216,6 +218,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 "key.kindredspirit.dashboard", InputConstants.Type.KEYSYM, InputConstants.KEY_K, "category.kindredspirit"));
         settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.kindredspirit.settings", InputConstants.Type.KEYSYM, InputConstants.KEY_J, "category.kindredspirit"));
+        stopKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                "key.kindredspirit.stop", InputConstants.Type.KEYSYM, InputConstants.KEY_H, "category.kindredspirit"));
         *///?}
 
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
@@ -279,7 +283,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 dev.kindredspirit.act.BlueprintBuild::tick);
         // "undo that": her newest build goes back, a few thousand blocks a tick; forgotten when the world closes (#129)
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(dev.kindredspirit.act.Undo::tick);
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(s -> dev.kindredspirit.act.Undo.clear());
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
+            dev.kindredspirit.act.Undo.clear();
+            dev.kindredspirit.act.Outcome.clear(); // (#139: the next world starts with nothing ended)
+        });
         // friends on your LAN world without the mod: they see a stand-in for her and can talk to her;
         // friends with the mod see her as you do (light mode: SharedPip), with no AI of their own
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(
@@ -764,6 +771,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
 
         while (dashboardKey.consumeClick()) openDashboard();
         while (settingsKey.consumeClick()) openSettings = true;
+        while (stopKey.consumeClick()) stopEverything(mc);
         if (openSettings && Mc.screen(mc) == null) {
             openSettings = false;
             Mc.setScreen(mc, settingsScreen(null));
@@ -1137,6 +1145,30 @@ public final class KindredSpiritClient implements ClientModInitializer {
         Minecraft.getInstance().execute(() -> {
             companion.mood = Mood.OFFLINE;
             if (companion.activity != Behavior.Activity.SPEAKING) companion.activity = Behavior.Activity.IDLE;
+        });
+    }
+
+    /**
+     * The stop key (#138): she stops everything at once, without waiting for her brain: talking, leading, coming
+     * over, and in the world a build, a blueprint or a job ({@link dev.kindredspirit.act.StopAll}). Her brain hears
+     * it too, so an answer being written isn't said and she doesn't carry on.
+     */
+    void stopEverything(Minecraft mc) {
+        double now = companion.now();
+        hush();
+        Behavior life = companion.life;
+        if (life.mode == Behavior.Mode.GUIDE || life.mode == Behavior.Mode.COME) life.setMode(Behavior.Mode.FOLLOW, now);
+        event("stop_all");
+        var server = mc.getSingleplayerServer();
+        if (server == null) {
+            notice(displayName + " stopped.", 3000);
+            return;
+        }
+        server.execute(() -> {
+            java.util.List<String> stopped = dev.kindredspirit.act.StopAll.run();
+            LOG.info("stop key: stopped {}", stopped.isEmpty() ? "nothing in the world" : stopped);
+            mc.execute(() -> notice(stopped.isEmpty() ? displayName + " stopped."
+                    : displayName + " stopped " + String.join(" and ", stopped) + ". \"Undo that\" puts back what she changed.", 5000));
         });
     }
 

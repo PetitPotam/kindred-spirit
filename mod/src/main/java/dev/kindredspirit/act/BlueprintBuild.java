@@ -228,6 +228,7 @@ public final class BlueprintBuild {
     public static JsonObject stop() {
         if (queue.isEmpty()) return Actions.error("I'm not building anything.");
         int left = queue.size();
+        Outcome.ended("blueprint", name.replace('_', ' '), Math.min(placed, total), 0, total, "asked"); // (#139)
         queue.clear();
         JsonObject r = Actions.ok();
         r.addProperty("stopped", true);
@@ -291,6 +292,9 @@ public final class BlueprintBuild {
             Undo.record(level, new BlockPos(s.x(), s.y(), s.z())); // (#129)
             if (!placeGrounded(level, sp, s)) {
                 queue.clear();
+                Outcome.ended("blueprint", name.replace('_', ' '), Math.min(placed, total), 0, total, "ran out of "
+                        + Materials.of(s.state()).keySet().stream().findFirst().orElse("blocks").replace("minecraft:", "")
+                        .replace('_', ' ')); // (#139)
                 last = Actions.error("I ran out of " + Materials.of(s.state()).keySet().stream().findFirst().orElse("blocks")
                         .replace("minecraft:", "").replace('_', ' ') + " after " + placed + " blocks.");
                 return;
@@ -307,6 +311,7 @@ public final class BlueprintBuild {
         r.addProperty("built", name);
         r.addProperty("blocks", placed);
         last = r;
+        Outcome.ended("blueprint", name.replace('_', ' '), Math.min(placed, total), 0, total, null); // (#139)
         LOG.info("blueprint {} done: {} blocks", name, placed);
     }
 

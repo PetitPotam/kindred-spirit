@@ -300,6 +300,7 @@ public final class Jobs {
     public static JsonObject stop() {
         if (job == null) return error("I'm not doing a job.");
         job.stoppedBecause = "asked";
+        ended(job);
         JsonObject r = status(job);
         last = r;
         job = null;
@@ -381,11 +382,17 @@ public final class Jobs {
         }
         if (j.work.isEmpty() || j.stoppedBecause != null) {
             last = status(j);
+            ended(j);
             job = null; // finished: the brain asks status() or hears it
         }
     }
 
     private static JsonObject last;
+
+    private static void ended(Job j) { // (#139: how it really went, for her to tell)
+        dev.kindredspirit.act.Outcome.ended("job", (j.kind.replace('_', ' ') + " " + (j.what == null ? "" : j.what)).trim(),
+                j.done, j.skipped, Math.max(j.total, j.done), j.stoppedBecause);
+    }
 
     /** How the last job ended (what it got, what stopped it), once it's over. */
     public static JsonObject lastResult() {

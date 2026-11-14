@@ -1,7 +1,7 @@
 """The brain's WebSocket server: the mod connects here, sends what it sees, and gets lines to say.
 
 Messages (JSON, one per WebSocket frame):
-  mod -> brain   hello {mod, minecraft, name, abilities, blueprints: [this game's blueprint folders]}, snapshot, event {join|leave|petted}, chat {text}, voice {wav: base64, peak}
+  mod -> brain   hello {mod, minecraft, name, abilities, blueprints: [this game's blueprint folders]}, snapshot, event {join|leave|petted|hush|stop_all|...}, chat {text}, voice {wav: base64, peak}
   brain -> mod   welcome {name, mood}, say {line, text, mood, audio: base64 WAV or "", more, emote},
                  audio {line, audio}, heard {text}, mood {mood}, state {thinking|idle}, notice {text},
                  act {move: stay|follow|come, side: left|right|above|auto,
@@ -32,7 +32,7 @@ import urllib.request
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
-from . import config, intents, tools, voice
+from . import config, intents, outcome, tools, voice
 from . import mind as mind_mod
 from . import memory as memory_mod
 from . import heart as intents_heart
@@ -313,6 +313,7 @@ class Brain:
         self.led_at = -1e9           # when a lead the player asked for started (corrections are fine)
         self.task_queue = []         # what they asked while her hands were busy: done next, in order (#72)
         self.task_prev = None        # the task in the last snapshot (finished when it's gone)
+        self.ended_seq = None        # the last build or job outcome seen (#139)
         self.hush_at = -1e9          # when the player last hushed her ("shh", a tap on the talk key)
         self.hushes = []             # when, lately: hushed often, she keeps it short for a while
         self.short_until = -1e9
@@ -390,6 +391,7 @@ class Brain:
             log.info("a new game connected; dropping the old connection")
             await self.ws.close()
         self.ws = ws
+        self.ended_seq = None  # (#139: what the game says ended before now is old news)
         log.info("game connected")
         try:
             async for raw in ws:
@@ -505,6 +507,10 @@ class Brain:
     async def _run_tool(self, name, args):
         """What happens when the AI uses a tool (_run_tool_inner), and where she built last, for "show me" (#179)."""
         result = await self._run_tool_inner(name, args)
+        if name in ("build", "blueprint", "job") and isinstance(result, dict) and result.get("ok") is not False \
+                and (result.get("building") or (name == "job" and str(args.get("kind")) != "stop" and not result.get("stopped"))):
+            # (#139: it's started, not done; the game tells her how it really ended, and she says so then)
+            result["note"] = "started, not finished: say you're on it, never that it's done; you'll hear how it ends"
         if name in ("build", "blueprint") and isinstance(result, dict) and result.get("ok") is not False:
             at = str(result.get("at") or result.get("startsAt") or "").split()
             if len(at) == 3 and all(re.fullmatch(r"-?\d+", v) for v in at):
@@ -1626,6 +1632,9 @@ class Brain:
             self.snapshot = {}
         elif name == "hush":  # a quick tap on the talk key while she spoke
             await self.hush()
+        elif name == "stop_all":  # the stop key (#138): the game already stopped her builds, jobs and leading
+            await self.hush("(the stop key)")
+            self.session.event("stopped_all")
         elif name == "listening":  # you started talking (push-to-talk): she stops and listens
             self.player_listening, self.listening_since = True, self.clock()
             self.cut_short(self.clock(), by_player=True)
@@ -1737,6 +1746,19 @@ class Brain:
         self.snapshot = s
         self.snapshot_at = self.clock()
         self.save_snapshot(s)
+        ended = s.get("ended") if isinstance(s.get("ended"), dict) else None
+        seq = ended.get("seq", 0) if ended else 0
+        if self.ended_seq is None:  # (the first snapshot since the game connected: what's there is old news)
+            self.ended_seq = seq
+        elif seq != self.ended_seq:  # a build or job really ended (#139)
+            self.ended_seq = seq
+            if ended:
+                self.session.event("task_ended", what=ended.get("what"), done=ended.get("done"),
+                                   skipped=ended.get("skipped"), total=ended.get("total"), stopped=ended.get("stopped"))
+                said = outcome.line(ended)
+                if said:
+                    asyncio.create_task(self.say(said[0], said[1], instant=True,
+                                                 why="how the %s really ended" % (ended.get("kind") or "task")))
         task = s.get("task")
         if self.task_prev and not task:  # her hands are free again: the next thing they asked for
             self.session.event("task_done", what=self.task_prev.get("what"))

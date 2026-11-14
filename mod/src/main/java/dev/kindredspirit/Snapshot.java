@@ -131,6 +131,8 @@ public final class Snapshot {
         if (p == null || mc.level == null) return o;
         JsonObject task = task(); // what her hands are busy with (a build, a job), so she can say so (#72)
         if (task != null) o.add("task", task);
+        JsonObject ended = dev.kindredspirit.act.Outcome.last(); // how the last build or job really ended (#139)
+        if (ended != null) o.add("ended", ended);
 
         o.addProperty("health", round1(p.getHealth()));
         o.addProperty("maxHealth", round1(p.getMaxHealth()));

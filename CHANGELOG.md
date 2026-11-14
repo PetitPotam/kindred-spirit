@@ -10,6 +10,12 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **She tells you how it really went**: when a build, blueprint or job ends, the game reports its real result and
+  she says it as it is: "All done!" only when it's finished, "most of it went in, 12 wouldn't fit" when it half-failed,
+  why she had to stop when something stopped her (no blocks left, pockets full). Starting one, she says she's on it,
+  never that it's done (#139).
+- **One key stops her** (H, changeable in Controls): talking, leading, a build or blueprint halfway and a job stop at
+  once, without waiting for her brain; "undo that" then puts back what she had changed (#138).
 - **Host her on Windows**: `scripts\setup-windows.ps1`, `start-windows.ps1` and `stop-windows.ps1` set up and run her
   brain, voice, memory and hearing (whisper.cpp's Windows build, checked by SHA-256) on a Windows PC, like the Mac's
   scripts; her dashboard's sleep and wake buttons use them there. Tested on GitHub's Windows machines on every

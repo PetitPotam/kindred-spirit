@@ -335,6 +335,7 @@ Docker ([docker/README.md](docker/README.md)), for technical players for now.
 |---|---|
 | **V** (hold) | talk; release to send (change it in Controls → Kindred Spirit) |
 | **K** | open her dashboard in your browser (on the computer where her brain runs) |
+| **H** | stop her, everything at once: talking, leading, a build or blueprint halfway, a job ("undo that" then puts back what she changed) |
 | **J** · `/kindred settings` | her settings, in the game: the dashboard's settings and profiles, each with its explanation and default; also from Mod Menu |
 | just type in chat | talk to her (on a server, start with her name); or `/kindred <text>`, `/ks <text>` |
 | `/kindred status` | brain connection, skin, mode, quality level, mood |

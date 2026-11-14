@@ -262,6 +262,10 @@ public final class DevScript {
                     net.minecraft.client.KeyMapping.click(KindredSpiritClient.get().dashboardKey().getDefaultKey());
                     break;
                 }
+                if (arg.trim().equals("stop")) { // the stop key (#138)
+                    net.minecraft.client.KeyMapping.click(KindredSpiritClient.get().stopKey().getDefaultKey());
+                    break;
+                }
                 if (arg.trim().equals("settings")) { // her settings screen (#5)
                     net.minecraft.client.KeyMapping.click(KindredSpiritClient.get().settingsKey().getDefaultKey());
                     break;
