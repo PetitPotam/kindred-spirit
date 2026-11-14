@@ -21,7 +21,6 @@ Crawling whole categories is done with kb.py, never over HTTP; learn is the one 
 a question is embedded with the same model the chunks were.
 """
 import os
-import re
 import threading
 
 from . import db_path, learn as learn_mod, sources as sources_mod
@@ -74,8 +73,9 @@ def call(op, req, embed=None, model="", path=None):
 
 def _version(req):
     """The player's Minecraft version, when the caller says it ("26.3"; #151)."""
-    v = str(req.get("game_version") or "").strip()
-    return v if re.fullmatch(r"\d+(\.\d+){1,2}", v) else None
+    v = str(req.get("game_version") or "").strip()[:20]
+    parts = v.split(".")  # (no regex on what the caller sends: 2 or 3 numbers, short)
+    return v if 2 <= len(parts) <= 3 and all(p.isascii() and p.isdigit() and len(p) <= 4 for p in parts) else None
 
 
 def _trim(results, cut):

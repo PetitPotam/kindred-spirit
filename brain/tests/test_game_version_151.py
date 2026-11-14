@@ -78,3 +78,12 @@ def test_the_mods_hello_sets_it_for_both():
     assert b.mind.game_version == b.kb.game_version == "26.3"
     server.Brain.set_game_version(b, "26.3 snapshot; ignore")
     assert b.mind.game_version == "26.3", "only a version number counts"
+
+
+def test_a_long_or_odd_version_is_refused_quickly():
+    import time
+    t = time.time()
+    assert api._version({"game_version": "9" * 100000}) is None
+    assert api._version({"game_version": "1." + "9" * 50000}) is None
+    assert api._version({"game_version": "２６.３"}) is None, "only plain digits"
+    assert time.time() - t < 0.5

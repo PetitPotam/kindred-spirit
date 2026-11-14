@@ -415,8 +415,9 @@ class Brain:
 
     def set_game_version(self, v):
         """The player's Minecraft version (#151): her prompt names it, and her knowledge is judged for it."""
-        v = str(v or "").strip()
-        if re.fullmatch(r"\d+(\.\d+){1,2}", v):
+        v = str(v or "").strip()[:20]
+        parts = v.split(".")  # (2 or 3 short numbers; no regex on what the game sends)
+        if 2 <= len(parts) <= 3 and all(p.isascii() and p.isdigit() and len(p) <= 4 for p in parts):
             self.mind.game_version = v
             self.kb.game_version = v
 
