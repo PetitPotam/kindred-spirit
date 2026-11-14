@@ -48,8 +48,14 @@ if ($LASTEXITCODE -eq 0 -and $ws) {
 $py = Join-Path $Root "brain\.venv\Scripts\python.exe"
 $fake = Start-Process -FilePath $py -ArgumentList @("-I", "`"$(Join-Path $Root 'brain\tools\fake_ai.py')`"", "--port", "$AI") -WindowStyle Hidden -PassThru `
   -RedirectStandardOutput (Join-Path $work "fake_ai.out") -RedirectStandardError (Join-Path $work "fake_ai.err")
-powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "scripts\start-windows.ps1") -Background *> (Join-Path $work "start.log")
-if ($LASTEXITCODE -eq 0) { Ok "scripts\start-windows.ps1 -Background" } else { Bad "start-windows.ps1 failed:"; Get-Content (Join-Path $work "start.log") }
+# (into files, not a pipe: the helpers it starts inherit its output, and a pipe would stay open as long as they run)
+$start = Start-Process -FilePath "powershell" -PassThru -WindowStyle Hidden -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass",
+  "-File", "`"$(Join-Path $Root 'scripts\start-windows.ps1')`"", "-Background") `
+  -RedirectStandardOutput (Join-Path $work "start.log") -RedirectStandardError (Join-Path $work "start.err")
+$null = $start.Handle # (so its exit code is kept)
+if (-not $start.WaitForExit(180000)) { Bad "start-windows.ps1 still running after 3 minutes"; Stop-Process -Id $start.Id -Force -ErrorAction SilentlyContinue }
+elseif ($start.ExitCode -eq 0) { Ok "scripts\start-windows.ps1 -Background" }
+else { Bad "start-windows.ps1 failed:"; Get-Content (Join-Path $work "start.log"), (Join-Path $work "start.err") -ErrorAction SilentlyContinue }
 for ($i = 0; $i -lt 120; $i++) {
   if ((Up "http://127.0.0.1:$GW/health") -and (Listening $BRAIN) -and (Up "http://127.0.0.1:$DASH/api/her")) { break }
   Start-Sleep -Milliseconds 500

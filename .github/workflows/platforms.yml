@@ -141,6 +141,7 @@ jobs:
           python-version: "3.12"
       - name: Hosting her on Windows (scripts\setup-windows.ps1, start, a pretend game, sleep and wake, stop; #40)
         shell: powershell # Windows PowerShell 5.1, as on a player's PC
+        timeout-minutes: 15 # (a hang fails here, not at the job's limit)
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-install-windows.ps1
 
   client:

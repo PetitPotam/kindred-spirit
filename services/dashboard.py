@@ -31,6 +31,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import tomllib
@@ -843,7 +844,13 @@ def script_command(name, args, windows=None):
 def _script(name, *args):
     """One of this copy's scripts (the checkout's, or the installed copy's), with this copy's Python."""
     env = dict(os.environ, KINDRED_PYTHON=sys.executable, KINDRED_HOME=DIR)
-    return subprocess.run(script_command(name, args), capture_output=True, text=True, timeout=120, env=env, cwd=ROOT)
+    # (its output goes to a file, not a pipe: the helpers start.sh and start-windows.ps1 leave running can inherit the
+    # pipe, and on Windows they do, so reading it to the end would wait as long as they live)
+    with tempfile.TemporaryFile() as out:
+        cmd = script_command(name, args)
+        r = subprocess.run(cmd, stdout=out, stderr=subprocess.STDOUT, timeout=120, env=env, cwd=ROOT)
+        out.seek(0)
+        return subprocess.CompletedProcess(cmd, r.returncode, out.read().decode("utf-8", "replace"), "")
 
 
 def sleep_her():

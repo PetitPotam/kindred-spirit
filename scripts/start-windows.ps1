@@ -40,9 +40,11 @@ function Alive($name) { # started by us and still alive (a helper loading its mo
   if (-not (Test-Path $f)) { return $false }
   return [bool](Get-Process -Id ([int](Get-Content $f)) -ErrorAction SilentlyContinue)
 }
+# (a helper inherits this window's open handles: whoever runs this script reads its output from a file or the
+# console, never a pipe, or they wait as long as she runs; the dashboard and the tests do)
 function Start-Helper($name, $exe, [string[]]$arguments, $dir = $Root) {
   $out = Join-Path $Logs "$name.out"
-  if ((Test-Path $out) -and (Get-Item $out).Length -gt 5MB) { Move-Item -Force $out "$out.1" } # (logs never fill the disk)
+  if ((Test-Path $out) -and (Get-Item $out).Length -gt 5MB) { try { Move-Item -Force $out "$out.1" } catch {} } # (logs never fill the disk; one still open stays)
   $quoted = ($arguments | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join " "  # (paths with spaces)
   $p = Start-Process -FilePath $exe -ArgumentList $quoted -WorkingDirectory $dir -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput $out -RedirectStandardError (Join-Path $Logs "$name.err")

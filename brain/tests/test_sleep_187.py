@@ -91,3 +91,16 @@ def test_on_windows_the_buttons_use_the_powershell_scripts():  # #40
     assert dashboard.script_command("stop.sh", (), windows=False)[0] == "/bin/bash"
     for name, (ps1, _) in dashboard.WINDOWS_SCRIPTS.items():
         assert os.path.exists(os.path.join(ROOT, "scripts", ps1)), ps1
+
+
+def test_waking_her_doesnt_wait_for_the_helpers_it_started(monkeypatch):
+    # (start.sh and start-windows.ps1 leave helpers running that can inherit the script's output; on Windows they
+    # do, and reading that output from a pipe waited as long as they lived: the wake button and CI hung, #40)
+    monkeypatch.setattr(dashboard, "script_command", lambda name, args, windows=None: [
+        "/bin/bash", "-c", "sleep 20 & echo started; exit 3"])
+    import time
+    t = time.monotonic()
+    r = dashboard._script("start.sh", "--background")
+    assert time.monotonic() - t < 10
+    assert r.returncode == 3 and "started" in r.stdout
+    subprocess.run(["pkill", "-f", "^sleep 20$"], check=False)
