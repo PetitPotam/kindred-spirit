@@ -14,6 +14,9 @@ Unreleased into the new version's section.
   go back to the installed version with `--back` (#185).
 
 ### Fixed
+- The Play shortcut (`scripts/play-mac.command`) starts the version in use: the installed one, or the checkout after
+  `scripts/play-latest.sh`; it no longer mixes the checkout's brain with the installed mod, and it lists your Kindred
+  profiles (#188).
 - On a new Minecraft profile (26.3 from the Setup), she offered blueprints the game couldn't find: the game now tells
   her which blueprint folders it reads, the dashboard's Blueprints page follows the game played last, and the Setup
   brings the blueprints you already have in another Kindred profile (#175).
