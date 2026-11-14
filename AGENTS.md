@@ -49,7 +49,11 @@ These are not optional. A pull request that breaks one of them is closed.
     of at most 72 characters that says what changes for the player (no `feat:` prefixes), `Fixes #<number>` in
     the description, a line under "Unreleased" in [CHANGELOG.md](CHANGELOG.md), and docs updated where players
     or contributors will notice. The conventions: [CONTRIBUTING.md](CONTRIBUTING.md#branches-pull-requests-and-commits);
-    the process: [docs/MAINTAINING.md](docs/MAINTAINING.md).
+    the process: [docs/MAINTAINING.md](docs/MAINTAINING.md). **Working for the maintainer, batch your changes:** each
+    change on its own branch (with its issue, tests and changelog line), merged locally into one
+    `batch/<date>-<short-name>` branch, then **one pull request** for the batch, listing a `Fixes #<number>` per change
+    ([the batch flow](docs/MAINTAINING.md#batching-changes)). Don't open a pull request per small fix: each one makes
+    the others fall behind `main` and re-run the long checks.
 11. **The pull request's description** explains *why*, not just what, and what was checked: squash merging makes
     its title and description the commit on `main`. Commits inside a branch can be short.
 12. **Work is tracked in issues** and on the project board "Kindred Spirit" (milestones: Singleplayer polish,

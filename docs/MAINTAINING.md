@@ -32,6 +32,26 @@ heavy on the game thread; no API keys, personal data or real player names; Pip s
 (cozy, cheeky, kind: see [HEART.md](HEART.md) and [TRADEMARKS.md](../TRADEMARKS.md)); tests for new
 behaviour; docs updated.
 
+## Batching changes
+
+For the maintainer's own work (and AI agents working for them), small changes go to `main` together, not one pull
+request each. Every pull request must be up to date with `main` before it merges, so separate pull requests keep
+pushing each other behind and re-running the long checks (the Platforms Macs take 30–40 minutes).
+
+1. **Each change on its own branch**, as usual: its issue, `fix/12-...` or `docs/14-...`, its tests and its
+   changelog line. Commit it there.
+2. **A batch branch** from an up-to-date `main`: `git switch -c batch/2026-11-14-scorecard`.
+3. **Merge each change into it** (`git merge --no-ff fix/12-...`), resolving conflicts once, there. Run
+   `scripts/test.sh` on the result.
+4. **One pull request** from the batch branch. Title: what the batch changes for players (at most 72 characters).
+   Description: one short section per change, each with its own `Fixes #<number>`, so every issue still closes.
+5. **Squash and merge** once CI passes and it's up to date with `main`, like any pull request. Main gets one commit for
+   the batch, whose description lists every change.
+
+Keep a batch to one theme or one sitting (a handful of changes), so it's still easy to review and, if needed, to
+revert. Big or risky changes (a new Minecraft version, a protocol change, a release) still get their own pull request.
+Website changes (`web/`) stay in their own pull request, because merging one deploys the site.
+
 ## Versions
 
 [Semantic Versioning](https://semver.org/), with the Minecraft version as build metadata in the jar's name: one jar
