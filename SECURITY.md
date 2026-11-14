@@ -10,8 +10,10 @@ shouldn't, please report it **privately**:
 - if that link doesn't work for you: open an issue titled **"Security: please contact me"**, with no
   details in it, and the maintainer will get in touch with you privately.
 
-Please don't describe it in a public issue. You'll get an answer within a week; once it's fixed, the
-release notes credit you if you'd like.
+Please don't describe it in a public issue. You'll get an answer within a week. **Disclosure:** we confirm the
+vulnerability, fix it in a new release (usually within 30 days of the report, sooner for anything serious), then
+publish a GitHub security advisory describing it, with a CVE when it qualifies; the release notes credit you if
+you'd like. Please keep it private until the advisory is out, or 90 days have passed, whichever comes first.
 
 **Supported versions:** only the latest release gets security fixes.
 

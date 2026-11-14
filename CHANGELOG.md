@@ -105,6 +105,9 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- The last code scanning findings: the website checker matches any `</script ...>` end tag, the Linux test image is
+  pinned by digest, `modrinth.sh` no longer pipes a download into Python, and SECURITY.md gives the disclosure
+  timeline (#163).
 - Linters: Ruff checks the Python on every pull request (and in `scripts/test.sh`), and the mod builds with every Java
   warning on, a warning failing the build; the few they found are fixed (#168).
 - The README shows the OpenSSF Best Practices badge; SECURITY.md's private reporting no longer waits for the repository

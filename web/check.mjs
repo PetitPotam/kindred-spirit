@@ -77,7 +77,7 @@ for (const [url, page] of pages) {
     if (!/\bwidth="\d+"/.test(tag) || !/\bheight="\d+"/.test(tag)) fail(`<img> without width and height: ${tag.slice(0, 80)}`);
   }
 
-  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)) {
     if (!/\bsrc="/.test(m[1])) fail("inline <script> (blocked by the Content-Security-Policy)");
     else if (/\bsrc="(https?:)?\/\//.test(m[1])) fail(`script from another site: ${m[1].trim()}`);
   }
