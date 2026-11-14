@@ -61,7 +61,7 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: brain/requirements*.txt
-      - run: pip install -r brain/requirements-dev.txt
+      - run: pip install --require-hashes -r brain/requirements-ci.txt # (locked, #199)
       - name: Lint (Ruff, ruff.toml)
         run: ruff check brain services scripts setup demo
       - run: python -m pytest -q brain/tests

@@ -17,6 +17,12 @@ updates:
       # numpy 2.5 needs Python 3.12, and her brain still supports 3.11 (#196): remove when 3.11 goes
       - dependency-name: numpy
         versions: [">= 2.5"]
+  - package-ecosystem: pip # her Docker image's packages, locked with hashes (docker/requirements.in, #199)
+    directory: /docker
+    schedule: {interval: monthly}
+    open-pull-requests-limit: 1
+    groups:
+      docker-python: {patterns: ["*"]}
   - package-ecosystem: gradle
     directory: /mod
     schedule: {interval: monthly}

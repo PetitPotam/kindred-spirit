@@ -1,0 +1,5 @@
+# What CI installs to test her brain, locked with hashes in requirements-ci.txt (#199). Change requirements.txt or
+# requirements-dev.txt, then: cd brain && pip-compile --generate-hashes --strip-extras requirements-ci.in
+# (Dependabot does it for its own updates; brain/tests/test_locks_199.py says when the lock is behind)
+-r requirements-dev.txt
+numpy<2.5  # (2.5 needs Python 3.12; CI tests her brain on 3.11 too)
