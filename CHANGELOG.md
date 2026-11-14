@@ -21,6 +21,8 @@ Unreleased into the new version's section.
   which shape (#178).
 - "Cut them off" (the trees) means chopping them, not pushing monsters away; and "show me what you built" leads you
   to her last build (#179).
+- The dashboard no longer lists "opening handshake failed" over and over: that was the Setup checking her brain is
+  up; such a check is logged quietly now, and real handshake problems still show (#180).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).
