@@ -10,6 +10,8 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- The Play shortcut asks which Pip to play: the installed release, the newest code (built and installed first) or a
+  pull request; Enter keeps the one in use (#190).
 - `scripts/play-latest.sh`: playtest `main` or a pull request straight from the checkout, without a release, and
   go back to the installed version with `--back` (#185).
 

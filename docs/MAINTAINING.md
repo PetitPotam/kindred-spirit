@@ -67,6 +67,9 @@ checkout (macOS, with the Setup installed and Minecraft closed):
 - `scripts/play-latest.sh here` plays this checkout as it is (your branch, uncommitted changes included);
 - `scripts/play-latest.sh --back` goes back to the version the Setup installed; `--status` says which is in use.
 
+The Desktop Play shortcut (`scripts/play-mac.command`) asks the same question each time: the installed release, the
+newest code, or a pull request, the one in use being the default.
+
 It builds the mod for every Minecraft version as `<version>-dev.<commit>` (so `/kindred status` and the logs show
 it isn't a release), puts the matching jar in each Kindred profile, and runs her brain and services from the
 checkout. Your settings and memories (`~/.kindred-spirit`) are the same for both.
