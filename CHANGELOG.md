@@ -17,6 +17,8 @@ Unreleased into the new version's section.
   her last try becomes an honest sentence (#176).
 - Her "I'm starting" lines never sound like no: "Leave it to me!" had been rewritten short as "Leave it!"; lines
   like that are dropped, including the one she had already learned (#177).
+- A build with no shape no longer becomes a pillar: a blueprint's name goes to her blueprints, otherwise she asks
+  which shape (#178).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).
