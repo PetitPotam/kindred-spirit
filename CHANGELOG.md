@@ -69,6 +69,8 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- Small changes go to `main` in batches: one pull request for several, each change still with its issue. The
+  maintainer always batches; contributors may batch closely related changes (docs/MAINTAINING.md, #166).
 - The workflows pin every action to an exact commit and give each job only the permissions it needs, and releases
   carry signed build provenance for every jar and Setup file (OpenSSF Scorecard, #152).
 - Safe minimum versions for the demo video tool (Pillow 13.0.0) and the tests (pytest 9.0.3), which clears the 56
