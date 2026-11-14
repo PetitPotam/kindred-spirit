@@ -9,6 +9,10 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+### Added
+- `scripts/play-latest.sh`: playtest `main` or a pull request straight from the checkout, without a release, and
+  go back to the installed version with `--back` (#185).
+
 ### Fixed
 - On a new Minecraft profile (26.3 from the Setup), she offered blueprints the game couldn't find: the game now tells
   her which blueprint folders it reads, the dashboard's Blueprints page follows the game played last, and the Setup

@@ -57,6 +57,20 @@ Keep a batch to one theme or one sitting (a handful of changes), so it's still e
 revert. Big or risky changes (a new Minecraft version, a protocol change, a release) still get their own pull request.
 Website changes (`web/`) stay in their own pull request, because merging one deploys the site.
 
+## Playtesting without a release
+
+Releases are made when they're worth it, not after every merge. To play the newest code in the meantime, from your
+checkout (macOS, with the Setup installed and Minecraft closed):
+
+- `scripts/play-latest.sh` plays `main`, updated from GitHub;
+- `scripts/play-latest.sh 184` plays pull request #184, to try it before merging;
+- `scripts/play-latest.sh here` plays this checkout as it is (your branch, uncommitted changes included);
+- `scripts/play-latest.sh --back` goes back to the version the Setup installed; `--status` says which is in use.
+
+It builds the mod for every Minecraft version as `<version>-dev.<commit>` (so `/kindred status` and the logs show
+it isn't a release), puts the matching jar in each Kindred profile, and runs her brain and services from the
+checkout. Your settings and memories (`~/.kindred-spirit`) are the same for both.
+
 ## Versions
 
 [Semantic Versioning](https://semver.org/), with the Minecraft version as build metadata in the jar's name: one jar
