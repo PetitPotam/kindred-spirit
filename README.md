@@ -67,9 +67,11 @@ process of it all, not the destination. I love building a repo that feels clean 
 living the open source experience.
 
 It's also how I learn. I'm exploring different AI models, including open ones, and how they work: memory, thinking,
-knowledge and the systems around them. I'm new to Java and Minecraft modding, and I'm learning as I go.
+knowledge and the systems around them. I chose Minecraft because it's a fun and easy way to start. It's simpler to
+learn, and I enjoy it more because I get to play with what I build, instead of building an AI system around a serious
+project that would be less rewarding.
 
-I built it with AI, openly.
+I'm new to Java and Minecraft modding, and I'm learning as I go. I built it with AI, openly.
 
 If you try it and like it, that makes me happy.
 
