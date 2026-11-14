@@ -29,10 +29,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=whisper /usr/local/bin/whisper-server /usr/local/bin/whisper-server
 # one Python for her brain, her voice and her memory's embeddings (the Mac install keeps three)
-COPY brain/requirements.txt /opt/kindred/brain/requirements.txt
+# (every package and version locked with its hash in docker/requirements.txt, #199)
+COPY docker/requirements.txt /opt/kindred/docker-requirements.txt
 RUN python3 -m venv /opt/kindred/venv \
- && /opt/kindred/venv/bin/pip install --no-cache-dir -q -r /opt/kindred/brain/requirements.txt \
-      kokoro-onnx==0.6.1 soundfile==0.14.0 fastembed==0.9.1
+ && /opt/kindred/venv/bin/pip install --no-cache-dir -q --require-hashes -r /opt/kindred/docker-requirements.txt
 COPY LICENSE /opt/kindred/LICENSE
 COPY brain /opt/kindred/brain
 COPY services /opt/kindred/services

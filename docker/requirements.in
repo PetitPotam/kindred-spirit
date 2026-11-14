@@ -1,0 +1,8 @@
+# Her Docker image's Python packages (docker/Dockerfile), locked with hashes in requirements.txt (#199): her brain's,
+# her voice's and her memory's embeddings'. The image's Python is Ubuntu 24.04's (3.12). Change this or
+# brain/requirements.txt, then run the command at the top of requirements.txt (uv: it reads PyPI's hashes and
+# resolves for the image's Linux and Python, from any computer)
+-r ../brain/requirements.txt
+kokoro-onnx==0.6.1
+soundfile==0.14.0
+fastembed==0.9.1
