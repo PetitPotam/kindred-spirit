@@ -1,0 +1,20 @@
+# #5: her settings in the game. J opens the screen; its sections are the dashboard's (screenshots of three).
+world kindred-settings
+wait 220
+cmd time set 1000
+cmd weather clear
+wait 60
+press settings
+wait 60
+screenshot settings-01-who
+settings voice
+wait 10
+screenshot settings-02-voice
+settings mod
+wait 10
+screenshot settings-03-in-game
+settings life
+wait 10
+screenshot settings-04-life
+wait 10
+quit

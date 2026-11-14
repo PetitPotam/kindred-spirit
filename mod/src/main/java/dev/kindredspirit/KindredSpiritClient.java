@@ -73,7 +73,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
     private final VoiceRecorder recorder = new VoiceRecorder();
     private final VoicePlayer voice = new VoicePlayer();
     private KeyMapping talkKey;
-    private KeyMapping dashboardKey;
+    private KeyMapping dashboardKey, settingsKey;
+    private boolean openSettings;
     private DevScript devScript;
 
     private String displayName;
@@ -180,6 +181,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
     }
 
     public KeyMapping dashboardKey() { return dashboardKey; }
+    public KeyMapping settingsKey() { return settingsKey; }
 
     public Companion companion() {
         return companion;
@@ -206,11 +208,14 @@ public final class KindredSpiritClient implements ClientModInitializer {
         KeyMapping.Category keys = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("kindredspirit", "main"));
         talkKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.talk", InputConstants.KEY_V, keys));
         dashboardKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.dashboard", InputConstants.KEY_K, keys));
+        settingsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.kindredspirit.settings", InputConstants.KEY_J, keys));
         //?} else {
         /*talkKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.kindredspirit.talk", InputConstants.Type.KEYSYM, InputConstants.KEY_V, "category.kindredspirit"));
         dashboardKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.kindredspirit.dashboard", InputConstants.Type.KEYSYM, InputConstants.KEY_K, "category.kindredspirit"));
+        settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                "key.kindredspirit.settings", InputConstants.Type.KEYSYM, InputConstants.KEY_J, "category.kindredspirit"));
         *///?}
 
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
@@ -397,6 +402,10 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                 c.getSource().sendFeedback(Component.literal("The \"Pip needs her brain\" message is back on."));
                                 return 1;
                             })))
+                    .then(ClientCommands.literal("settings").executes(c -> {
+                        openSettings = true; // (on the next tick: the chat screen closes after the command)
+                        return 1;
+                    }))
                     .then(ClientCommands.literal("sleep").executes(c -> herSleep("sleep")))
                     .then(ClientCommands.literal("wake").executes(c -> herSleep("wake")))
                     .then(ClientCommands.literal("reconnect").executes(c -> {
@@ -754,6 +763,11 @@ public final class KindredSpiritClient implements ClientModInitializer {
         }
 
         while (dashboardKey.consumeClick()) openDashboard();
+        while (settingsKey.consumeClick()) openSettings = true;
+        if (openSettings && Mc.screen(mc) == null) {
+            openSettings = false;
+            Mc.setScreen(mc, settingsScreen(null));
+        }
         if (!hintShown && inWorld && dev.kindredspirit.util.NoBrainHint.due(brainHere, cfg.noBrainHint,
                 mc.getSingleplayerServer() != null, hintShown, ++ticksInWorld)) {
             hintShown = true;
@@ -1596,6 +1610,15 @@ public final class KindredSpiritClient implements ClientModInitializer {
                 .append(Component.literal(" on a LAN world. ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal("[Don't show again]").withStyle(st -> st.withColor(ChatFormatting.DARK_GRAY)
                         .withClickEvent(Mc.runCommandClick("/kindred hint off"))));
+    }
+
+    /** Her settings in the game (#5): from her dashboard when her brain is on this computer, else the mod's own. */
+    public static net.minecraft.client.gui.screens.Screen settingsScreen(net.minecraft.client.gui.screens.Screen parent) {
+        KindredSpiritClient k = instance;
+        String url = dev.kindredspirit.util.Dashboard.url(k.cfg.brainHost, k.cfg.dashboardPort);
+        var store = k.brainHere && url != null ? new dev.kindredspirit.settings.SettingsStore.Dashboard(url)
+                : new dev.kindredspirit.settings.SettingsStore.Local(k.cfg);
+        return new dev.kindredspirit.settings.SettingsScreen(parent, store, k.displayName == null ? k.cfg.name : k.displayName);
     }
 
     // ---- putting her to sleep and waking her up (#187): her dashboard does it, the game asks it

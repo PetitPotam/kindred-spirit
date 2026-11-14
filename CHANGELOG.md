@@ -10,6 +10,9 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **Her settings in the game**: J (or `/kindred settings`, or Mod Menu's Configure button) opens a screen with the
+  same settings and profiles as her dashboard, section by section, each with its explanation and default; changes
+  apply at once. In a friend's game (her brain on another computer) it shows the game's own settings (#5).
 - **Put her to sleep and wake her up**: buttons on her dashboard (and `/kindred sleep`, `/kindred wake` in the game)
   stop her brain, voice and hearing and start them again; "Stop everything" stops the dashboard too. While she's
   asleep the game says so, instead of "her brain isn't running" (#187).

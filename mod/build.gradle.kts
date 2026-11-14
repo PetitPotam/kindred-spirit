@@ -14,6 +14,8 @@ base { archivesName = modId }
 
 repositories {
     mavenCentral()
+    // Mod Menu's API, to list her settings screen there (#5): only for compiling, never inside the jar
+    maven("https://maven.terraformersmc.com/releases/") { content { includeGroup("com.terraformersmc") } }
 }
 
 dependencies {
@@ -23,6 +25,7 @@ dependencies {
     loomx.applyMojangMappings()
     modImplementation("net.fabricmc:fabric-loader:${prop("loader_version")}")
     modImplementation("net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
+    modCompileOnly("com.terraformersmc:modmenu:${prop("modmenu_version")}") { isTransitive = false }
 
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
