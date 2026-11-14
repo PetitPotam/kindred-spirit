@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - "setup/**"
+      - "docker/**"
       - "scripts/**"
       - "services/**"
       - "brain/kindred/**"
@@ -94,6 +95,23 @@ jobs:
       - name: Kindred Spirit Setup
         if: success() || failure()
         run: scripts/test-install.sh setup-app # says plainly that it's macOS-only so far (#81)
+
+  docker:
+    # Her brain in Docker (#128): the image builds, and run as docker/README.md says, a pretend game talks to her
+    # through 127.0.0.1. Linux only: GitHub's Windows machines run Windows containers, not Linux ones (Docker
+    # Desktop on a Windows PC runs this same Linux image).
+    name: Docker image (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: The pretend game's Python
+        run: python -m pip install -q -r brain/requirements.txt
+      - name: Build the image, run it, talk to her
+        run: KINDRED_PYTHON="$(command -v python)" scripts/test-install.sh docker
 
   windows:
     name: Windows (a friend's PC)

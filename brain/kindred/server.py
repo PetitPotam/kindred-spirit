@@ -425,8 +425,11 @@ class Brain:
             self.set_game_version(msg.get("minecraft"))
             self.set_abilities(msg)
             dirs = msg.get("blueprints")
-            if isinstance(dirs, list) and dirs and all(isinstance(d, str) for d in dirs):
-                self.blueprint_dirs = dirs  # (#175: the game's own folders, so she offers only what it can build)
+            if isinstance(dirs, list) and all(isinstance(d, str) for d in dirs):
+                # (the game's folders when they're on this computer, made yet or not: inside her Docker image the
+                # game's paths mean nothing, and the image's own folders stay, #128)
+                if dirs and any(os.path.isdir(d) or os.path.isdir(os.path.dirname(d)) for d in dirs):
+                    self.blueprint_dirs = dirs  # (#175: the game's own folders, so she offers only what it can build)
             await self.send({"type": "welcome", "name": self.cfg["name"], "mood": self.mood})
         elif kind == "abilities":
             self.set_abilities(msg)
@@ -2855,7 +2858,9 @@ class Brain:
 
 async def run(cfg, token):
     brain = Brain(cfg, token)
-    host, port = cfg["server"].get("host", "127.0.0.1"), int(cfg["server"]["port"])
+    # (KINDRED_LISTEN: the Docker image listens on all of its own addresses; Docker publishes the port on the
+    # computer's 127.0.0.1 only, docker/README.md)
+    host, port = os.environ.get("KINDRED_LISTEN") or cfg["server"].get("host", "127.0.0.1"), int(cfg["server"]["port"])
     async with serve(brain.handler, host, port, process_request=brain.check_auth, max_size=MAX_MESSAGE,
                      ping_interval=20, ping_timeout=20):
         log.info("%s's brain is listening on ws://%s:%d (gateway: %s, model %s)", cfg["name"], host, port,

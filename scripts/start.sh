@@ -22,7 +22,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 KH="${KINDRED_HOME:-$HOME/.kindred-spirit}"
-LOGS="$KH/logs"; RUN="$KH/run"
+LOGS="$KH/logs"; RUN="${KINDRED_RUN_DIR:-$KH/run}"  # (the Docker image keeps its own: docker/)
 mkdir -p "$LOGS" "$RUN"
 rm -f "$KH/asleep"  # (started again, however: she's awake, #187)
 BPY="${KINDRED_PYTHON:-$ROOT/brain/.venv/bin/python}"
@@ -68,15 +68,15 @@ else echo "whisper: whisper-server not installed; voice input off (typing /kindr
 
 if [[ "$TTS_USE" != "local_kokoro" ]]; then echo "kokoro voice: not used (voice: $TTS_USE)"
 elif up http://127.0.0.1:8885/health || alive kokoro; then echo "kokoro voice: already running"
-elif [[ -x "$KH/kokoro/venv/bin/python" && -s "$KH/kokoro/voices-v1.0.bin" ]]; then
-  start kokoro "$KH/kokoro/venv/bin/python" -I "$ROOT/services/kokoro_server.py" --models "$KH/kokoro"
+elif KPY="${KINDRED_KOKORO_PYTHON:-$KH/kokoro/venv/bin/python}"; [[ -x "$KPY" && -s "$KH/kokoro/voices-v1.0.bin" ]]; then
+  start kokoro "$KPY" -I "$ROOT/services/kokoro_server.py" --models "$KH/kokoro"
   echo "kokoro voice: starting ($KINDRED_TTS_THREADS threads)"
 else echo "kokoro voice: not set up (scripts/setup.sh); subtitles only"; fi
 
 if [[ "$EMB_USE" != "local" ]]; then echo "embeddings: not local (embeddings: $EMB_USE)"
 elif up http://127.0.0.1:8891/ || alive embed; then echo "embeddings: already running"
-elif [[ -x "$KH/embed/venv/bin/python" ]]; then
-  KINDRED_EMBED_THREADS=1 start embed "$KH/embed/venv/bin/python" -I "$ROOT/services/embed_server.py" --cache "$KH/embed/models"
+elif EPY="${KINDRED_EMBED_PYTHON:-$KH/embed/venv/bin/python}"; [[ -x "$EPY" ]]; then
+  KINDRED_EMBED_THREADS=1 start embed "$EPY" -I "$ROOT/services/embed_server.py" --cache "$KH/embed/models"
   echo "embeddings: starting (local, for memory)"
 else echo "embeddings: not set up (scripts/setup.sh); memory uses keyword search"; fi
 

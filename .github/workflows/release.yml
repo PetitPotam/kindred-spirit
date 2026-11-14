@@ -206,6 +206,52 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" dist/*.dmg dist/*.dmg.sha256 --clobber
 
+  docker:
+    # Her brain as a Docker image for Windows and Linux hosts (#128, docker/README.md), on GitHub Packages:
+    # ghcr.io/petitpotam/kindred-spirit-brain:<version> and :latest. Tested first (scripts/test-install.sh docker).
+    name: Docker image
+    needs: release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io
+      id-token: write # sign the build provenance
+      attestations: write
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Build and test it
+        run: |
+          python -m pip install -q -r brain/requirements.txt
+          docker build -f docker/Dockerfile -t kindred-spirit-brain:release .
+          KINDRED_IMAGE=kindred-spirit-brain:release KINDRED_PYTHON="$(command -v python)" scripts/test-install.sh docker
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push it
+        id: push
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          repo="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/kindred-spirit-brain"
+          docker tag kindred-spirit-brain:release "$repo:$VERSION"
+          docker tag kindred-spirit-brain:release "$repo:latest"
+          docker push -q "$repo:$VERSION"
+          docker push -q "$repo:latest"
+          echo "name=$repo" >> "$GITHUB_OUTPUT"
+          echo "digest=$(docker inspect -f '{{index .RepoDigests 0}}' "$repo:$VERSION" | cut -d@ -f2)" >> "$GITHUB_OUTPUT"
+      - name: Sign where the image came from (build provenance)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.push.outputs.name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
   setup-notes:
     name: Setup notes on the release
     needs: setup

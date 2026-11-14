@@ -10,6 +10,10 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **Host her with Docker on Windows or Linux**: her brain, voice, hearing and dashboard in one image on GitHub
+  Packages (`ghcr.io/petitpotam/kindred-spirit-brain`), run on your own computer with `scripts/docker-run.sh` or
+  `scripts\docker-run.ps1`; your `~/.kindred-spirit` is mounted and the ports stay on 127.0.0.1. Published with every
+  release, built and tested on every pull request that touches it (docker/README.md, #128).
 - **Village houses and structures for everyone**: the game copies its own village buildings (every biome),
   shipwrecks, the pillager watchtower, the igloo and the ruined portals into a blueprint folder of their own when it
   starts, so every player can ask for "a taiga house" or "a shipwreck" on any supported Minecraft version (#181).

@@ -27,12 +27,20 @@ def test_she_searches_the_blueprints_of_the_game_she_is_in(stubs, tmp_path, monk
     seen = []
     monkeypatch.setattr(server, "find_blueprints", lambda query, dirs=None, limit=6: (seen.append(dirs), {"ok": True, "matches": []})[1])
     game = [str(tmp_path / "minecraft-kindred-26.3" / "config" / "kindredspirit" / "blueprints")]
+    (tmp_path / "minecraft-kindred-26.3" / "config" / "kindredspirit").mkdir(parents=True)  # (blueprints/ not made yet)
 
     async def run():
         await b.on_message({"type": "hello", "mod": "0.3.0", "minecraft": "26.3", "blueprints": game})
         await b._run_tool("find_blueprint", {"query": "a taiga house"})
     asyncio.run(run())
     assert b.blueprint_dirs == game and seen and seen[-1] == game
+
+
+def test_a_game_on_another_computer_keeps_the_usual_ones(stubs):  # #128: her brain in Docker, the game outside
+    b = _brain(stubs)
+    asyncio.run(b.on_message({"type": "hello", "blueprints": ["C:\\Users\\Robin\\AppData\\Roaming\\.minecraft\\config"
+                                                               "\\kindredspirit\\blueprints"]}))
+    assert b.blueprint_dirs is None
 
 
 def test_an_old_mod_without_folders_keeps_the_usual_ones(stubs):  # #175

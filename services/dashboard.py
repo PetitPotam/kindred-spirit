@@ -1087,7 +1087,7 @@ def main(argv=None):
     if "--setup" in argv:
         SETUP_MODE = True
         PORT = int(os.environ.get("KINDRED_SETUP_PORT", "11441"))
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    server = ThreadingHTTPServer((os.environ.get("KINDRED_LISTEN") or HOST, PORT), Handler)  # (Docker: docker/README.md)
     print("Kindred %s on http://%s:%d" % ("Setup" if SETUP_MODE else "dashboard", HOST, PORT), flush=True)
     if SETUP_MODE:
         threading.Thread(target=quit_when_idle, args=(server,), daemon=True).start()

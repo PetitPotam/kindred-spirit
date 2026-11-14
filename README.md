@@ -326,8 +326,8 @@ Minecraft client there says hi and she answers; nobody has played with her on Li
 ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)). Hearing needs `whisper-server` from
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp).
 **Windows:** friends joining a host's world are covered ([PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md)); hosting
-her brain there isn't supported yet ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)): the Python
-parts are cross-platform, but the start scripts are bash.
+her brain there works with Docker ([docker/README.md](docker/README.md), for technical players for now); a native
+install is [#40](https://github.com/PetitPotam/kindred-spirit/issues/40).
 
 ### Controls
 

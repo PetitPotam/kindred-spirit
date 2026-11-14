@@ -21,3 +21,7 @@ updates:
       - dependency-name: "com.mojang:*"
       - dependency-name: "net.fabricmc*"
       - dependency-name: "fabric-loom"
+  - package-ecosystem: docker # her Docker image's base (docker/Dockerfile, #128): pinned by digest, kept current here
+    directory: /docker
+    schedule: {interval: monthly}
+    open-pull-requests-limit: 1

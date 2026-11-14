@@ -6,7 +6,7 @@ KH="${KINDRED_HOME:-$HOME/.kindred-spirit}"
 keep=""
 [[ "${1:-}" == --keep ]] && keep="${2:-}"
 pids=""
-for f in "$KH"/run/*.pid; do
+for f in "${KINDRED_RUN_DIR:-$KH/run}"/*.pid; do
   [[ -f "$f" ]] || continue
   pid="$(cat "$f")"; name="$(basename "$f" .pid)"
   [[ -n "$keep" && "$name" == "$keep" ]] && continue
