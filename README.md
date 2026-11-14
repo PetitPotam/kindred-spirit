@@ -60,6 +60,19 @@ It isn't a fork: none of Verity's code or assets are used, and it's written from
 > computer yet ([what](#what-hasnt-been-tried-yet)). Contribute, playtest and send feedback, however you like:
 > see [helping](#helping) and the [design](docs/DESIGN.md).
 
+## A note from me
+
+Kindred Spirit is a hobby project. I make it because I enjoy it, and to share with my brothers. I'm enjoying the
+process of it all, not the destination. I love building a repo that feels clean and cared for, and this is my way of
+living the open source experience.
+
+It's also how I learn. I'm exploring different AI models, including open ones, and how they work: memory, thinking,
+knowledge and the systems around them. I'm new to Java and Minecraft modding, and I'm learning as I go.
+
+I built it with AI, openly.
+
+If you try it and like it, that makes me happy.
+
 ## What works today
 
 | | |
