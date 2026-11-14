@@ -50,7 +50,8 @@ _lock = threading.Lock()  # one synthesis at a time keeps CPU use predictable wh
 
 
 def clean_text(text):
-    text = re.sub(r"\[[^\]]*\]", " ", text or "")   # [mood] tags
+    text = (text or "")[:MAX_CHARS * 4]  # (cut first: whatever is sent, cleaning stays quick)
+    text = re.sub(r"\[[^\[\]]*\]", " ", text)   # [mood] tags (no "[" inside: linear, even on "[[[[...")
     text = re.sub(r"[*_`#~]+", "", text)
     return re.sub(r"\s+", " ", text).strip()[:MAX_CHARS]
 

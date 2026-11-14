@@ -565,6 +565,18 @@ def knowledge_call(state, op, req):
 
 # ---------------------------------------------------------------- HTTP
 
+def speech_text(text):
+    """What her voice says: mood and gesture tags and markdown removed, at most 800 characters. Cut first, and no
+    "[" inside a tag, so cleaning stays linear whatever is sent ("[[[[..." included)."""
+    text = re.sub(r"\[[^\[\]]*\]|\{[a-z_]+\}|[*_`#~]+", " ", (text or "")[:4000])
+    return re.sub(r"\s+", " ", text).strip()[:800]
+
+
+def safe_header(value):
+    """A header value from elsewhere (an upstream's Content-Type) without line breaks, so it can't add headers."""
+    return re.sub(r"[\r\n]+", " ", str(value or "")).strip() or "application/octet-stream"
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "kindred-gateway/2.0"
@@ -575,7 +587,7 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self, status, obj, ctype="application/json"):
         body = obj if isinstance(obj, bytes) else json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
-        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Type", safe_header(ctype))
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -859,8 +871,7 @@ class Handler(BaseHTTPRequestHandler):
         if name == "none" or not p.get("url"):
             self.err(503, "the voice is off (none): subtitles only")
             return
-        text = re.sub(r"\[[^\]]*\]|\{[a-z_]+\}|[*_`#~]+", " ", req.get("input") or "")  # mood/gesture tags
-        text = re.sub(r"\s+", " ", text).strip()[:800]
+        text = speech_text(req.get("input"))
         if not text:
             self.err(400, "nothing to say")
             return

@@ -69,6 +69,8 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- Code scanning fixes: cleaning the text for her voice stays quick whatever it's sent, the gateway never passes a
+  line break into a header, and the dashboard's "Try Pip" heart panel only shows numbers it computed (#163).
 - Small changes go to `main` in batches: one pull request for several, each change still with its issue. The
   maintainer always batches; contributors may batch closely related changes (docs/MAINTAINING.md, #166).
 - The workflows pin every action to an exact commit and give each job only the permissions it needs, and releases
