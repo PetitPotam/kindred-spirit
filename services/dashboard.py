@@ -526,7 +526,8 @@ def blueprint_dirs():
     if not path:
         return blueprints.DIRS
     config = os.path.dirname(path)
-    return [os.path.join(config, "kindredspirit", "blueprints"), os.path.join(os.path.dirname(config), "schematics")]
+    return [os.path.join(config, "kindredspirit", "blueprints"), os.path.join(os.path.dirname(config), "schematics"),
+            os.path.join(config, "kindredspirit", "blueprints-from-minecraft")]  # (the game's own structures, #181)
 # what one million tokens cost (USD), to estimate; change with KINDRED_PRICE_IN / KINDRED_PRICE_OUT
 PRICE_IN = float(os.environ.get("KINDRED_PRICE_IN", "0.25"))
 PRICE_OUT = float(os.environ.get("KINDRED_PRICE_OUT", "1.50"))

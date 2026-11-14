@@ -221,7 +221,8 @@ WORTH_WAITING = ("baby", "tamed", "first_meet", "killed_villager", "kill_spree",
 
 BLUEPRINT_DIRS = [os.path.expanduser(p) for p in os.environ.get("KINDRED_BLUEPRINTS", "").split(os.pathsep) if p] or [
     os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit/blueprints"),
-    os.path.expanduser("~/Library/Application Support/minecraft-kindred/schematics")]
+    os.path.expanduser("~/Library/Application Support/minecraft-kindred/schematics"),
+    os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit/blueprints-from-minecraft")]
 
 
 ENCH_OLD = re.compile(r"\{\s*id\s*:\s*\"?(?:minecraft:)?([a-z_]+)\"?\s*,\s*lvl\s*:\s*(\d+)\w?\s*\}")

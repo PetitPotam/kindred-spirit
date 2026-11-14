@@ -488,7 +488,7 @@ public final class Builder {
             for (int y = lvl + 6; y >= lvl - 6; y--) { // the surface near the level here
                 BlockState st = level.getBlockState(new BlockPos(x + dx, y, z + dz));
                 if (st.isAir() || st.canBeReplaced() || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS)) continue;
-                if (st.is(BlockTags.DIRT) || st.is(BlockTags.SAND) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK)
+                if (Mc.soil(st) || st.is(BlockTags.SAND) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK)
                         || st.is(BlockTags.BASE_STONE_OVERWORLD) || st.is(BlockTags.TERRACOTTA) || st.is(Blocks.CLAY)) {
                     seen.merge(st.getBlock(), 1, Integer::sum);
                 }
@@ -499,7 +499,7 @@ public final class Builder {
                 .map(java.util.Map.Entry::getKey).orElse(Blocks.GRASS_BLOCK);
         net.minecraft.world.level.block.Block under = top == Blocks.SAND ? Blocks.SANDSTONE
                 : top == Blocks.RED_SAND ? Blocks.RED_SANDSTONE
-                : top.defaultBlockState().is(BlockTags.DIRT) || top == Blocks.SNOW_BLOCK ? Blocks.DIRT : top;
+                : Mc.soil(top.defaultBlockState()) || top == Blocks.SNOW_BLOCK ? Blocks.DIRT : top;
         if (top == Blocks.SNOW_BLOCK) top = Blocks.GRASS_BLOCK; // (snowy plains: grass, the snow falls again by itself)
         return new String[]{BuiltInRegistries.BLOCK.getKey(top).toString(), BuiltInRegistries.BLOCK.getKey(under).toString()};
     }

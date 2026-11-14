@@ -3,6 +3,7 @@ package dev.kindredspirit.act;
 import dev.kindredspirit.util.Mc;
 import dev.kindredspirit.blueprint.BlockSpec;
 import dev.kindredspirit.blueprint.CatalogueIndex;
+import dev.kindredspirit.blueprint.GameStructures;
 import dev.kindredspirit.blueprint.Picture;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
@@ -13,6 +14,7 @@ import net.minecraft.world.level.material.MapColor;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,6 +35,7 @@ public final class BlueprintCatalogue {
         if (started) return;
         started = true;
         Thread t = new Thread(() -> {
+            copyGameStructures();
             while (true) {
                 for (Path dir : BlueprintBuild.folders()) refreshIfStale(dir);
                 try {
@@ -45,6 +48,23 @@ public final class BlueprintCatalogue {
         t.setDaemon(true);
         t.setPriority(Thread.MIN_PRIORITY);
         t.start();
+    }
+
+    /** #181: the game's own village houses, shipwrecks and ruins, copied into a blueprint folder (once per version). */
+    static void copyGameStructures() {
+        try {
+            var structures = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("minecraft")
+                    .flatMap(m -> m.findPath("data/minecraft/structure"));
+            if (structures.isEmpty()) {
+                LOG.warn("the game's structure templates weren't found: no village houses from the game");
+                return;
+            }
+            List<Path> folders = BlueprintBuild.folders();
+            int n = GameStructures.copy(structures.get(), folders.get(folders.size() - 1), Mc.gameVersion());
+            if (n > 0) LOG.info("blueprints: {} village houses, shipwrecks and ruins copied from Minecraft {}", n, Mc.gameVersion());
+        } catch (Exception e) {
+            LOG.warn("couldn't copy the game's structures: {}", e.toString());
+        }
     }
 
     /** Refreshes one folder now if it changed (also used right after a build from a new file). */

@@ -39,7 +39,7 @@ BIG_SIDE = 20
 
 def load(dirs):
     """Every blueprint in the folders: catalogue entries, plus bare ones for files not described yet."""
-    out = []
+    out, seen = [], set()
     for d in dirs:
         try:
             files = sorted(f for f in os.listdir(d) if f.lower().endswith((".nbt", ".schem", ".litematic"))
@@ -54,6 +54,9 @@ def load(dirs):
         except (OSError, ValueError):
             pass
         for f in files:
+            if f.lower() in seen:  # (the same file in two folders: the first folder's, yours before the game's)
+                continue
+            seen.add(f.lower())
             out.append(described.get(f) or {"file": f, "name": f.rsplit(".", 1)[0], "dir": d, "category": "",
                                              "what": f.rsplit(".", 1)[0].replace("_", " "), "new": True})
     return out
@@ -181,7 +184,8 @@ def search(query, dirs, limit=6):
 
 DIRS = [os.path.expanduser(p) for p in os.environ.get("KINDRED_BLUEPRINTS", "").split(os.pathsep) if p] or [
     os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit/blueprints"),
-    os.path.expanduser("~/Library/Application Support/minecraft-kindred/schematics")]
+    os.path.expanduser("~/Library/Application Support/minecraft-kindred/schematics"),
+    os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit/blueprints-from-minecraft")]
 EXTENSIONS = (".nbt", ".schem", ".litematic")
 MAX_BYTES = 16 * 1024 * 1024
 TRASH = ".trash"

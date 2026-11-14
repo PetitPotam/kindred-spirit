@@ -85,13 +85,16 @@ public final class StructureFormat {
         }
     }
 
-    /** {Name, Properties} as structure files, Litematica palettes and the game's NbtUtils write it. */
+    /**
+     * A palette entry, {Name, Properties} as structure files, Litematica palettes and the game's NbtUtils write it up
+     * to 1.21.x, or {id, properties} as Minecraft 26.x writes its structure templates (#181).
+     */
     static BlockSpec state(Object tag) {
-        if (!(tag instanceof Map<?, ?> m) || !(m.get("Name") instanceof String n)) {
-            throw new BlueprintException("palette entry without a block name");
-        }
+        if (!(tag instanceof Map<?, ?> m)) throw new BlueprintException("palette entry without a block name");
+        Object name = m.containsKey("Name") ? m.get("Name") : m.get("id");
+        if (!(name instanceof String n)) throw new BlueprintException("palette entry without a block name");
         Map<String, String> props = new LinkedHashMap<>();
-        if (m.get("Properties") instanceof Map<?, ?> p) {
+        if ((m.containsKey("Properties") ? m.get("Properties") : m.get("properties")) instanceof Map<?, ?> p) {
             p.forEach((k, v) -> props.put(String.valueOf(k), String.valueOf(v)));
         }
         return Renames.apply(new BlockSpec(n, props));

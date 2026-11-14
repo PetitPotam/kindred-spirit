@@ -197,12 +197,14 @@ public final class BlueprintBuild {
     public static List<Path> folders() {
         Path config = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir();
         Path game = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
-        return List.of(config.resolve("kindredspirit").resolve("blueprints"), game.resolve("schematics"));
+        // (yours first: a file of yours with the same name as one of the game's wins; #181: the game's own structures)
+        return List.of(config.resolve("kindredspirit").resolve("blueprints"), game.resolve("schematics"),
+                config.resolve("kindredspirit").resolve(dev.kindredspirit.blueprint.GameStructures.FOLDER));
     }
 
     /** Ground, stone, sand, plants, trees, snow, water: what she may build over (and clear). */
     static boolean natural(BlockState st) {
-        return st.isAir() || st.canBeReplaced() || st.is(BlockTags.DIRT) || st.is(BlockTags.SAND) || st.is(BlockTags.LEAVES)
+        return st.isAir() || st.canBeReplaced() || Mc.soil(st) || st.is(BlockTags.SAND) || st.is(BlockTags.LEAVES)
                 || st.is(BlockTags.LOGS) || st.is(BlockTags.BASE_STONE_OVERWORLD) || st.is(BlockTags.FLOWERS)
                 || st.is(BlockTags.SAPLINGS) || st.is(Blocks.GRAVEL) || st.is(Blocks.SNOW_BLOCK) || st.is(Blocks.CLAY)
                 || st.is(BlockTags.ICE) || st.is(Mc.blockTag("coal_ores"))

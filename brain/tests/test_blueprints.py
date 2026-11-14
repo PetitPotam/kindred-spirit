@@ -1,5 +1,6 @@
 """Finding the blueprint the player means in the catalogue the mod writes (catalogue.json)."""
 import json
+import os
 
 from kindred import blueprints
 
@@ -132,3 +133,18 @@ def test_the_dashboard_lists_the_catalogue(tmp_path):
     over = blueprints.overview(d)["dirs"][0]
     assert len(over["entries"]) == len(ENTRIES) and over["new"] == ["fresh.nbt"]
     assert "Minecraft's own" in over["sources"]
+
+
+def test_the_games_own_structures_come_after_yours(tmp_path):
+    """#181: the game's village houses are copied into a folder of their own; a file of yours with the same name
+    is the one she offers, once."""
+    mine, game = tmp_path / "blueprints", tmp_path / "blueprints-from-minecraft"
+    mine.mkdir()
+    game.mkdir()
+    (mine / "village_plains_small_house_1.nbt").write_bytes(b"x")
+    (game / "village_plains_small_house_1.nbt").write_bytes(b"x")
+    (game / "igloo.nbt").write_bytes(b"x")
+    found = blueprints.load([str(mine), str(game)])
+    assert [(os.path.basename(e["dir"]), e["file"]) for e in found] == [
+        ("blueprints", "village_plains_small_house_1.nbt"), ("blueprints-from-minecraft", "igloo.nbt")]
+    assert blueprints.DIRS[-1].endswith("blueprints-from-minecraft") or os.environ.get("KINDRED_BLUEPRINTS")

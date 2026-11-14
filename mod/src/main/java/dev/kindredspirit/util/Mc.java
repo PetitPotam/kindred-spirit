@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffects;
@@ -243,6 +244,18 @@ public final class Mc {
         //?} else {
         /*return reg.getHolder(key);
         *///?}
+    }
+
+    private static final TagKey<Block> SUBSTRATE = blockTag("substrate_overworld"); // (26.x; empty before)
+
+    /**
+     * Dirt-like ground: dirt, grass, podzol, mycelium, moss, mud. Up to 1.21.x the game's {@code dirt} tag held them all;
+     * from 26.1 it holds only dirt, coarse and rooted dirt, and {@code substrate_overworld} the rest (#181).
+     */
+    public static boolean soil(net.minecraft.world.level.block.state.BlockState st) {
+        return st.is(BlockTags.DIRT) || st.is(SUBSTRATE) || st.is(net.minecraft.world.level.block.Blocks.GRASS_BLOCK)
+                || st.is(net.minecraft.world.level.block.Blocks.PODZOL) || st.is(net.minecraft.world.level.block.Blocks.MYCELIUM)
+                || st.is(net.minecraft.world.level.block.Blocks.MOSS_BLOCK) || st.is(net.minecraft.world.level.block.Blocks.MUD);
     }
 
     public static TagKey<Block> blockTag(String vanillaName) {

@@ -10,6 +10,9 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **Village houses and structures for everyone**: the game copies its own village buildings (every biome),
+  shipwrecks, the pillager watchtower, the igloo and the ruined portals into a blueprint folder of their own when it
+  starts, so every player can ask for "a taiga house" or "a shipwreck" on any supported Minecraft version (#181).
 - **Her settings in the game**: J (or `/kindred settings`, or Mod Menu's Configure button) opens a screen with the
   same settings and profiles as her dashboard, section by section, each with its explanation and default; changes
   apply at once. In a friend's game (her brain on another computer) it shows the game's own settings (#5).
@@ -27,6 +30,10 @@ Unreleased into the new version's section.
   go back to the installed version with `--back` (#185).
 
 ### Fixed
+- On Minecraft 26.3 she builds blueprints on grass again (she took grass, podzol, moss and mud for something you
+  built: 26.x moved them out of the game's `dirt` tag), and flattening fills under grass with dirt (#181).
+- Structure files saved by Minecraft 26.x (a structure block, `/place template`) can be built: their palette is
+  written a new way (`id`, `properties`), which she couldn't read (#181).
 - On Minecraft 26.3 she knows she's in 26.3: her prompt names your version, and her knowledge judges what was added
   later (the Happy Ghast, the Copper Golem) against it when you ask, not against 1.21.1; 1.21.1 game data is
   marked as such for a 26.3 player (#151).
