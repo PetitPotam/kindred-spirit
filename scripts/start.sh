@@ -24,6 +24,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 KH="${KINDRED_HOME:-$HOME/.kindred-spirit}"
 LOGS="$KH/logs"; RUN="$KH/run"
 mkdir -p "$LOGS" "$RUN"
+rm -f "$KH/asleep"  # (started again, however: she's awake, #187)
 BPY="${KINDRED_PYTHON:-$ROOT/brain/.venv/bin/python}"
 [[ -x "$BPY" ]] || { echo "Run scripts/setup.sh first."; exit 1; }
 GW_PORT="${KINDRED_GATEWAY_PORT:-11437}"; DASH_PORT="${KINDRED_DASHBOARD_PORT:-11440}"

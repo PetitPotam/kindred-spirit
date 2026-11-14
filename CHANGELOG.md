@@ -10,6 +10,9 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **Put her to sleep and wake her up**: buttons on her dashboard (and `/kindred sleep`, `/kindred wake` in the game)
+  stop her brain, voice and hearing and start them again; "Stop everything" stops the dashboard too. While she's
+  asleep the game says so, instead of "her brain isn't running" (#187).
 - **"Undo that"**: her newest build or flattening goes back exactly as it was, up to 16 builds back, while the world
   is open; a chest she built that you filled drops its contents, and in grounded style her blocks come back to your
   pockets (#129).

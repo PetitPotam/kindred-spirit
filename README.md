@@ -338,6 +338,7 @@ parts are cross-platform, but the start scripts are bash.
 | just type in chat | talk to her (on a server, start with her name); or `/kindred <text>`, `/ks <text>` |
 | `/kindred status` | brain connection, skin, mode, quality level, mood |
 | `/kindred reconnect` | after restarting the brain |
+| `/kindred sleep` / `/kindred wake` | put her to sleep (her brain, voice and hearing stop, to save your computer's power) and wake her up; her dashboard has the same buttons, and "Stop everything" |
 | `/kindred hint off` / `on` | the "Pip needs her brain on this computer" message, shown once per game in your own world when her brain isn't set up here |
 | `/kindred skin <name>` · `/kindred skins` · `/kindred skins reload` | change its look, list skins, reload your skins folder |
 | `/kindred mode follow\|stay\|come` | follow you (default), wait here, come close for a moment |

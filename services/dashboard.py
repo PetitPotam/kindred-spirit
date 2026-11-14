@@ -29,6 +29,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -813,6 +814,48 @@ def health():
     return out
 
 
+# ---------------------------------------------------------------------- putting her to sleep (#187)
+
+ASLEEP = os.path.join(DIR, "asleep")  # (the game reads it: "Pip is asleep", not "the brain isn't running")
+
+
+def her_state():
+    """Awake (her brain answers), asleep (put to sleep on purpose), or stopped (not running, not on purpose)."""
+    if setup_steps.port_open(setup_steps.brain_port()):
+        return {"state": "awake"}
+    return {"state": "asleep" if os.path.exists(ASLEEP) else "stopped"}
+
+
+def _script(name, *args):
+    """One of this copy's scripts (the checkout's, or the installed copy's), with this copy's Python."""
+    env = dict(os.environ, KINDRED_PYTHON=sys.executable, KINDRED_HOME=DIR)
+    return subprocess.run(["/bin/bash", os.path.join(ROOT, "scripts", name), *args], capture_output=True, text=True,
+                          timeout=120, env=env, cwd=ROOT)
+
+
+def sleep_her():
+    """Her brain, voice, hearing and gateway stop; this dashboard stays, so it can wake her again."""
+    open(ASLEEP, "w").close()
+    r = _script("stop.sh", "--keep", "dashboard")
+    return {"ok": r.returncode == 0, "state": "asleep"}
+
+
+def wake_her():
+    try:
+        os.remove(ASLEEP)
+    except OSError:
+        pass
+    r = _script("start.sh", "--background")
+    return {"ok": r.returncode == 0, "state": her_state()["state"], "details": (r.stdout + r.stderr)[-600:]}
+
+
+def stop_everything():
+    """Everything, this dashboard too, a moment after answering (the page says how to start again). Not "asleep":
+    with the dashboard gone, the game can't wake her, so it says her brain isn't running, as before."""
+    threading.Timer(1.0, lambda: _script("stop.sh")).start()
+    return {"ok": True, "state": "stopping"}
+
+
 # ---------------------------------------------------------------------- the web server
 
 class Handler(BaseHTTPRequestHandler):
@@ -914,6 +957,8 @@ class Handler(BaseHTTPRequestHandler):
                 i = int(q.get("d", 0)) if str(q.get("d", "0")).isdigit() else -1
                 png = blueprints.picture(dirs[i], q.get("f", "")) if 0 <= i < len(dirs) else None
                 return self.send(200, png, "image/png") if png else self.send(404, {"error": "no such picture"})
+            if url.path == "/api/her":  # awake, asleep or stopped (#187)
+                return self.send(200, her_state())
             if url.path == "/api/knowledge":
                 return self.send(200, knowledge_overview())
             if url.path == "/api/knowledge/section":
@@ -935,6 +980,7 @@ def _post(handler):
     if url.path not in ("/api/knowledge/learn", "/api/settings", "/api/speak", "/api/profiles", "/api/places",
                         "/api/blueprints/add", "/api/blueprints/remove", "/api/blueprints/restore",
                         "/api/setup/run", "/api/setup/help", "/api/setup/quit", "/api/setup/preview",
+                        "/api/her/sleep", "/api/her/wake", "/api/her/stop-all",
                         "/api/setup/hear"):
         return handler.send(404, {"error": "not found"})
     if handler.headers.get("Origin") not in (None, "http://%s:%d" % (HOST, PORT), "http://localhost:%d" % PORT):
@@ -954,6 +1000,12 @@ def _post(handler):
             return handler.send(200, setup_models.speak(voice=str(body.get("voice") or "")), "audio/wav")
         except setup_steps.SetupError as e:
             return handler.send(400, {"error": str(e)})
+    if url.path == "/api/her/sleep":  # "Put her to sleep" (the page's button, or /kindred sleep in the game)
+        return handler.send(200, sleep_her())
+    if url.path == "/api/her/wake":
+        return handler.send(200, wake_her())
+    if url.path == "/api/her/stop-all":  # everything, this page too
+        return handler.send(200, stop_everything())
     if url.path == "/api/setup/run":  # a step's button: do it, or test it
         return handler.send(200, setup_steps.run(str(body.get("step", "")), str(body.get("action", "")), body))
     if url.path == "/api/setup/help":  # the "Copy a help prompt" button

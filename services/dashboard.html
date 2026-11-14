@@ -74,6 +74,7 @@ nav button.on { background: var(--accent-soft); color: var(--accent); font-weigh
 .status { margin-top: auto; display: grid; gap: 6px; padding: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; font-size: 12.5px; }
 .status .s { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .status .s span:last-child { margin-left: auto; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status .herctl { display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 7px; }
 .status .svc { color: var(--faint); font-size: 11.5px; line-height: 1.45; border-top: 1px solid var(--line); padding-top: 6px; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
 .dot.ok { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); } .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
@@ -331,6 +332,7 @@ svg text { fill: var(--muted); font-size: 10.5px; font-family: inherit; }
   .brand { padding: 0; } .mark { width: 30px; height: 30px; } .brand-sub { display: none; }
   .status { order: 2; margin: 0 0 0 auto; padding: 0; background: none; border: 0; display: flex; gap: 10px; }
   .status .s span:last-child, .status .svc { display: none; }
+  .status .herctl { border: 0; padding: 0; }
   .status .s .lbl { font-size: 11.5px; color: var(--muted); }
   .theme { order: 3; }
   nav { order: 4; flex-direction: row; width: calc(100% + 32px); margin: 0 -16px; padding: 0 12px 8px; overflow-x: auto; scrollbar-width: none; }
@@ -714,8 +716,29 @@ function heartsCard(list) {
   }).join("");
 }
 
+// Putting her to sleep and waking her up (#187): her brain, voice and hearing stop; this page stays to wake her.
+let herBusy = "";
+function herControls(awake) {
+  if (herBusy) return `<div class="herctl"><span class="small">${esc(herBusy)}</span></div>`;
+  return `<div class="herctl">${awake
+    ? `<button class="btn sm" onclick="herDo('sleep')" title="Her brain, voice and hearing stop (this page stays, to wake her)">Put her to sleep</button>`
+    : `<button class="btn sm primary" onclick="herDo('wake')" title="Starts her brain, voice and hearing again">Wake her up</button>`}
+    <button class="btn sm ghost danger" onclick="herDo('stop-all')" title="Everything stops, this page too">Stop everything</button></div>`;
+}
+async function herDo(what) {
+  if (what === "stop-all" && !confirm("Stop everything, this dashboard too? To start her again: the Setup app, or the Play shortcut.")) return;
+  herBusy = {sleep: "Putting her to sleep…", wake: "Waking her up (about 20 seconds)…", "stop-all": "Stopping everything…"}[what];
+  try {
+    const r = await post("/api/her/" + what, {});
+    if (what === "stop-all") { document.body.innerHTML = '<p style="padding:40px;font:15px system-ui">Everything has stopped. To start her again: the Setup app, or the Play shortcut.</p>'; return; }
+    if (r && r.ok === false) toast(what === "wake" ? "She didn't wake up: " + (r.details || "see scripts/start.sh") : "Something didn't stop");
+  } catch (e) { toast(String(e.message || e)); }
+  herBusy = "";
+  live().catch(() => {});
+}
+
 async function live() {
-  const d = await get("/api/live");
+  const [d, her] = await Promise.all([get("/api/live"), get("/api/her").catch(() => ({}))]);
   const b = d.brain, h = d.health, g = h.gateway || {};
   window._brain = b;
   const fresh = h.brain_age != null && h.brain_age < 10;
@@ -726,9 +749,10 @@ async function live() {
   $("mark").innerHTML = face(gameOn ? b.mood : fresh ? (b && b.mood) || "calm" : "offline", b ? b.heart.valence : 0, {still: true});
   const row = (cls, label, value) => `<div class="s"><span class="dot ${cls}"></span><span class="lbl">${label}</span><span>${value}</span></div>`;
   $("pills").innerHTML = row(gameOn ? "ok" : "bad", "Game", gameOn ? esc((b.world || "").replace(/^(sp|sim):/, "")) || "connected" : "not connected") +
-    row(fresh ? "ok" : "bad", "Brain", fresh ? "running" : h.brain_age == null ? "no data" : "stopped " + ago(h.brain_age) + " ago") +
+    row(fresh ? "ok" : her.state === "asleep" ? "warn" : "bad", "Brain", fresh ? "running" : her.state === "asleep" ? "asleep" : h.brain_age == null ? "no data" : "stopped " + ago(h.brain_age) + " ago") +
     row(g.status === "ok" ? (g.paused ? "warn" : "ok") : "bad", "Gateway", g.status === "ok" ? (g.paused ? "paused" : "ok") : "down") +
-    (g.status === "ok" ? `<div class="svc">AI ${esc(g.ai)} · hearing ${esc(g.stt)}<br>voice ${esc(g.tts)} · memory ${esc(g.memory)}</div>` : "");
+    (g.status === "ok" ? `<div class="svc">AI ${esc(g.ai)} · hearing ${esc(g.stt)}<br>voice ${esc(g.tts)} · memory ${esc(g.memory)}</div>` : "") +
+    herControls(her.state ? her.state === "awake" : fresh);
   if (tab !== "live") return;
   if (!b) { $("hero").innerHTML = emptyState("Her brain hasn't written its state yet", "Is it running? (scripts/start.sh)"); return; }
   const H = b.heart, R = H.relationship || {};

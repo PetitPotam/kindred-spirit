@@ -397,6 +397,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
                                 c.getSource().sendFeedback(Component.literal("The \"Pip needs her brain\" message is back on."));
                                 return 1;
                             })))
+                    .then(ClientCommands.literal("sleep").executes(c -> herSleep("sleep")))
+                    .then(ClientCommands.literal("wake").executes(c -> herSleep("wake")))
                     .then(ClientCommands.literal("reconnect").executes(c -> {
                         link.reconnectNow();
                         c.getSource().sendFeedback(Component.literal("Reconnecting to the Kindred brain..."));
@@ -768,7 +770,8 @@ public final class KindredSpiritClient implements ClientModInitializer {
             *///?}
         } else if (held && !recorder.isRecording() && companion.activity != Behavior.Activity.LISTENING) {
             if (!link.connected()) {
-                if (brainHere) notice("The Kindred brain is not running. Start it with scripts/start.sh", 5000);
+                if (brainHere) notice(asleep(now) ? dev.kindredspirit.util.Sleep.offline(displayName, true)
+                        : "The Kindred brain is not running. Start it with scripts/start.sh", 5000);
             } else {
                 talkPressedAt = now;
                 talkCutHer = companion.activity == Behavior.Activity.SPEAKING || voice.isPlaying();
@@ -1595,6 +1598,44 @@ public final class KindredSpiritClient implements ClientModInitializer {
                         .withClickEvent(Mc.runCommandClick("/kindred hint off"))));
     }
 
+    // ---- putting her to sleep and waking her up (#187): her dashboard does it, the game asks it
+    private static final java.net.http.HttpClient SLEEP_HTTP = java.net.http.HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(2)).build();
+    private volatile boolean asleep;
+    private long asleepCheckedAt;
+
+    private int herSleep(String what) {
+        String url = dev.kindredspirit.util.Sleep.endpoint(cfg.brainHost, cfg.dashboardPort, what);
+        if (url == null) {
+            notice("Her brain runs on another computer: put her to sleep or wake her from its dashboard.", 5000);
+            return 0;
+        }
+        notice(what.equals("sleep") ? displayName + " is going to sleep..." : "Waking " + displayName + " up (about 20 seconds)...", 4000);
+        var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(90))
+                .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{}")).build();
+        SLEEP_HTTP.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.ofString()).whenComplete((r, err) ->
+                Minecraft.getInstance().execute(() -> {
+                    asleepCheckedAt = 0;
+                    if (err != null || r.statusCode() != 200) {
+                        notice("Her dashboard didn't answer: is it running? (scripts/start.sh starts everything)", 6000);
+                    } else if (what.equals("sleep")) {
+                        notice(displayName + " is asleep. /kindred wake wakes her up.", 5000);
+                    } else {
+                        link.reconnectNow();
+                    }
+                }));
+        return 1;
+    }
+
+    /** Whether she was put to sleep on purpose (checked every 2 seconds at most, while her brain is away). */
+    private boolean asleep(long now) {
+        if (now - asleepCheckedAt > 2000) {
+            asleepCheckedAt = now;
+            asleep = java.nio.file.Files.exists(dev.kindredspirit.util.Sleep.marker());
+        }
+        return asleep;
+    }
+
     private void notice(String text, long ms) {
         notice = text;
         noticeUntil = System.currentTimeMillis() + ms;
@@ -1669,12 +1710,15 @@ public final class KindredSpiritClient implements ClientModInitializer {
         if (brainHere && !sharing && inWorld) { // her brain stopped while you play: say so, and when it's back
             if (wasLinked && !linked) {
                 offlineSince = offlineNoticed = now;
-                notice(displayName + "'s brain stopped. Start it again with scripts/start.sh: she'll come back by herself.", 9000);
-                companion.say("zzz... (" + displayName + "'s brain isn't running)", 0, now);
+                asleepCheckedAt = 0;
+                boolean zzz = asleep(now);
+                notice(zzz ? dev.kindredspirit.util.Sleep.offline(displayName, true)
+                        : displayName + "'s brain stopped. Start it again with scripts/start.sh: she'll come back by herself.", 9000);
+                companion.say(zzz ? "zzz... good night!" : "zzz... (" + displayName + "'s brain isn't running)", 0, now);
                 caption = companion.subtitle;
                 captionUntil = companion.subtitleUntil;
             } else if (!linked && offlineSince > 0) { // (kept on screen while she's without it)
-                notice = displayName + "'s brain isn't running: start it with scripts/start.sh (she'll come back by herself).";
+                notice = dev.kindredspirit.util.Sleep.offline(displayName, asleep(now));
                 noticeUntil = Math.max(noticeUntil, now + 1000);
             } else if (linked && offlineSince > 0) {
                 offlineSince = 0;
