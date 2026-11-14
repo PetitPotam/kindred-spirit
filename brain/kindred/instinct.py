@@ -69,8 +69,15 @@ def prompt(name, who_she_is, bond_level, player_name):
            PER_MOMENT, moments))
 
 
+# Saying yes to a request must never sound like no: "Leave it to me!" rewritten short became "Leave it!" (#177).
+YES_MOMENTS = ("on_it", "follow_ok", "stay_ok", "come_ok", "thanks_ok")
+SOUNDS_LIKE_NO = re.compile(r"^\W*(leave it\b(?! to)|no\b(?! problem| worries)|nope|nah|stop\b|don'?t\b|never\b|not (now|yet|again)\b|"
+                            r"go away|forget it|whatever|fine\.?\W*$|ugh|i can'?t|i won'?t|later\b)", re.I)
+
+
 def clean(raw):
-    """Keeps only usable lines: short, spoken, with the placeholder a moment needs and no other."""
+    """Keeps only usable lines: short, spoken, with the placeholder a moment needs and no other, and, where she's
+    saying yes to a request, nothing that sounds like no."""
     out = {}
     for k, lines in (raw or {}).items():
         if k not in MOMENTS or not isinstance(lines, list):
@@ -83,6 +90,8 @@ def clean(raw):
             braces = set(re.findall(r"\{\w+\}", line))
             need = NEEDS.get(k)
             if not 2 <= len(line) <= 90 or "[" in line or "*" in line:
+                continue
+            if k in YES_MOMENTS and SOUNDS_LIKE_NO.search(line):
                 continue
             if (need and need not in braces) or braces - ({need} if need else set()):
                 continue

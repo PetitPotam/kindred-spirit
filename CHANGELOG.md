@@ -15,6 +15,8 @@ Unreleased into the new version's section.
   brings the blueprints you already have in another Kindred profile (#175).
 - She never says a build is done when it failed: a lookup no longer counts as having done something, and a claim on
   her last try becomes an honest sentence (#176).
+- Her "I'm starting" lines never sound like no: "Leave it to me!" had been rewritten short as "Leave it!"; lines
+  like that are dropped, including the one she had already learned (#177).
 - The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
   work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
   dashboard is protected (#173).
