@@ -253,6 +253,6 @@ help (a villager's real offers against your pockets). Next: LAN, repeating jobs 
 - Port to the current Minecraft release: **done**, Minecraft 26.3 next to 1.21.1, one jar each from the same code
   (Stonecutter). Newer versions are added the same way ([CONTRIBUTING.md](../CONTRIBUTING.md#several-minecraft-versions)).
 - Servers (last, after singleplayer and LAN): allowlist, server-safe behaviour, seed finder (cubiomes).
-- Publish on GitHub (done: releases with the jars and the Setup), Modrinth and CurseForge as **Kindred Spirit**:
+- Publish on GitHub (done: releases with the jars; Kindred Spirit Setup attached from the beta on), Modrinth and CurseForge as **Kindred Spirit**:
   their pages are drafted in [modrinth.md](modrinth.md) and [curseforge.md](curseforge.md), and every release uploads
   there once the projects are live.

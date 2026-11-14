@@ -421,4 +421,20 @@ public final class Mc {
         /*mc.gui.getChat().addMessage(line);
         *///?}
     }
+
+    // ------------------------------------------------------------------ deprecated calls, kept in one place
+    // These still work on every Minecraft version Kindred supports, and their replacements differ between versions,
+    // so each one is wrapped here with its warning silenced only here (#169: moving off them).
+
+    /** A chunk is loaded at this spot (LevelReader.hasChunkAt is deprecated). */
+    @SuppressWarnings("deprecation")
+    public static boolean chunkLoaded(net.minecraft.world.level.LevelReader level, BlockPos pos) {
+        return level.hasChunkAt(pos);
+    }
+
+    /** Hurts a player on the server side (Entity.hurt is deprecated on newer versions). */
+    @SuppressWarnings("deprecation")
+    public static void hurt(ServerPlayer player, net.minecraft.world.damagesource.DamageSource source, float amount) {
+        player.hurt(source, amount);
+    }
 }

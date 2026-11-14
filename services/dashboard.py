@@ -25,6 +25,7 @@ disk or behind the gateway; nothing new is collected:
 
 Standard library only, like the gateway.
 """
+import glob
 import json
 import os
 import re
@@ -47,7 +48,7 @@ DIR = kindred_gateway.DIR
 LOGS = kindred_gateway.LOG_DIR
 GATEWAY = "http://127.0.0.1:%d/v1" % kindred_gateway.LISTEN_PORT
 PAGE = os.path.join(HERE, "dashboard.html")
-SESSIONS = os.path.join(LOGS, "sessions")
+SESSIONS = os.environ.get("KINDRED_SESSION_DIR") or os.path.join(LOGS, "sessions")  # where the brain writes them
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "brain"))
 from kindred import config as brain_config  # noqa: E402  (her settings, with their defaults)
 from kindred import blueprints  # noqa: E402  (her blueprint folders and their catalogue)
@@ -85,7 +86,8 @@ LABELS = {
     "allowMoodWeather": "Her moods may change the weather", "glow": "Her glow lights the dark", "guideArrow": "Arrow while she leads",
     "guideTrail": "Sparkle trail while she leads", "chatMode": "Which chat messages go to her", "showBond": "Heart meter on changes", "lanGuests": "Friends on your LAN world see her and talk to her", "lanGuestPowers": "Friends may ask for her powers", "follow": "Whom she stays with on LAN ('' = you)", "sharedPip": "In a friend's world: their Pip or your own", "lanVisitors": "A friend's Pip may use her powers in your world", "noBrainHint": "Say how to meet Pip when this computer has no brain",
     "quality": "Quality", "worldSubtitles": "Subtitles above her", "hudCaptions": "Captions on the screen",
-    "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
+    "subtitlesWithHiddenHud": "Subtitles even with the HUD hidden (F1)",
+    "hudWithHiddenGui": "Her HUD even with the HUD hidden (F1)", "chatLog": "Conversation in your chat",
     "voiceVolume": "Her voice volume", "offsetRight": "Floats to your right (blocks)", "offsetForward": "Floats ahead (blocks)",
     "offsetUp": "Floats up (blocks)", "size": "Size", "maxRecordSeconds": "Longest push-to-talk (seconds)",
     "life.wander": "Wanders when you stand still", "life.drift": "Drifts beside you", "life.switchSides": "Switches shoulders",
@@ -126,6 +128,7 @@ HELP = {
     "quality": "Auto lowers her detail if your frame rate drops.",
     "showBond": "A small heart meter appears for a moment when the bond changes.",
     "hudCaptions": "Her lines at the bottom of the screen too, like subtitles in a film.",
+    "hudWithHiddenGui": "Her heart meter, guide arrow, task line and notices stay when F1 hides the game's HUD (for filming).",
     "offsetRight": "Negative: your left.", "size": "1 is about a slime's head.",
     "life.wander": "Drifts around you when you stand still.", "life.drift": "0 still, 1 normal, 2 lively.",
     "life.switchSides": "Moves to your other shoulder now and then.", "life.glances": "Looks at animals, items and around.",
@@ -224,10 +227,6 @@ def _leaves(d, prefix=""):
 
 def _kind(v):
     return "bool" if isinstance(v, bool) else "int" if isinstance(v, int) else "float" if isinstance(v, float) else "text"
-
-
-def mod_path():
-    return next((p for p in MOD_CONFIGS if os.path.exists(p)), None)
 
 
 def editable():
@@ -486,9 +485,35 @@ def session_one(sid):
 # written them to its settings file
 MOD_NEW = {"lanGuests": True, "lanGuestPowers": True, "follow": "", "sharedPip": "host", "lanVisitors": True}
 
-MOD_CONFIGS = [os.path.expanduser("~/Library/Application Support/minecraft-kindred/config/kindredspirit.json"),
-               os.path.expanduser("~/.minecraft-kindred/config/kindredspirit.json"),
-               os.path.join(os.environ.get("APPDATA", ""), "minecraft-kindred", "config", "kindredspirit.json")]
+
+def mod_configs(env=None):
+    """Where the mod's settings file may be: KINDRED_MOD_CONFIG if set (e.g. the dev game's
+    mod/versions/1.21.1/run/config/kindredspirit.json while filming), else every Kindred profile's game folder (one per
+    Minecraft version: minecraft-kindred for 1.21.1, minecraft-kindred-26.3...), and the instance whose mods folder
+    the Setup put the mod in (another launcher's)."""
+    env = os.environ if env is None else env
+    if env.get("KINDRED_MOD_CONFIG"):
+        return [os.path.expanduser(env["KINDRED_MOD_CONFIG"])]
+    rel = os.path.join("config", "kindredspirit.json")
+    found = []
+    for base, name in ((os.path.expanduser("~/Library/Application Support"), "minecraft-kindred"),
+                       (os.path.expanduser("~"), ".minecraft-kindred"), (env.get("APPDATA", ""), "minecraft-kindred")):
+        if base:
+            found.append(os.path.join(base, name, rel))
+            found += sorted(glob.glob(os.path.join(glob.escape(base), name + "-*", rel)))
+    try:
+        folder = setup_steps.load_state().get("mods_folder")
+    except Exception:  # (no Setup state, or an unreadable one: only the profiles then)
+        folder = None
+    if folder:
+        found.append(os.path.join(os.path.dirname(os.path.expanduser(folder).rstrip("/")), rel))
+    return found
+
+
+def mod_path():
+    """The mod's settings file in use: of those that exist, the one changed last (the game played last)."""
+    there = [p for p in mod_configs() if os.path.exists(p)]
+    return max(there, key=os.path.getmtime) if there else None
 # what one million tokens cost (USD), to estimate; change with KINDRED_PRICE_IN / KINDRED_PRICE_OUT
 PRICE_IN = float(os.environ.get("KINDRED_PRICE_IN", "0.25"))
 PRICE_OUT = float(os.environ.get("KINDRED_PRICE_OUT", "1.50"))
@@ -747,7 +772,8 @@ def settings():
             brain = tomllib.load(fh)
     except (OSError, tomllib.TOMLDecodeError) as e:
         brain = {"error": str(e)}
-    mod = next((read_json(p) for p in MOD_CONFIGS if os.path.exists(p)), None)
+    mp = mod_path()
+    mod = read_json(mp) if mp else None
     secrets = []
     try:
         with open(kindred_gateway.SECRETS, encoding="utf-8") as fh:

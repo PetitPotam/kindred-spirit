@@ -101,7 +101,7 @@ def test_adding_removing_and_restoring(tmp_path):
     except ValueError as e:
         assert "already" in str(e)
     assert blueprints.add(d, "my castle.schem", NBT, replace=True)["added"]
-    r = blueprints.remove(d, "my castle.schem")
+    blueprints.remove(d, "my castle.schem")
     assert not (tmp_path / "blueprints" / "my castle.schem").exists()
     assert (tmp_path / "blueprints" / ".trash" / "my castle.schem").exists(), "never deleted: to the trash"
     over = blueprints.overview([d])["dirs"][0]

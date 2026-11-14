@@ -9,8 +9,11 @@ package dev.kindredspirit.util;
 public final class NoBrainHint {
     private NoBrainHint() {}
 
-    /** Kindred Spirit Setup, how to download and open it (until the website has its Download page). */
-    public static final String SETUP_GUIDE = "https://github.com/PetitPotam/kindred-spirit/blob/main/docs/SETUP.md";
+    /**
+     * Kindred Spirit Setup: the website's Download page, with the newest release's app for each Mac chip and how to
+     * open it the first time. fabric.mod.json's "homepage" (Mod Menu's link) is the same page.
+     */
+    public static final String SETUP_GUIDE = "https://kindred-spirit-pip.web.app/download";
     /** Playing with a friend who hosts her. */
     public static final String FRIENDS_GUIDE = "https://github.com/PetitPotam/kindred-spirit/blob/main/docs/PLAY-WITH-FRIENDS.md";
     /** Five seconds after the world opens, after the game's own messages. */
