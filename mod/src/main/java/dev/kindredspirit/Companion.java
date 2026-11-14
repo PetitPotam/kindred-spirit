@@ -76,7 +76,6 @@ public final class Companion {
         return (float) Math.max(0, Math.min(1, v));
     }
 
-    /** More voice arrived for the same line: keep the subtitle up while it plays. */
     /** The next sentence of the same line (her answer streams in): the subtitle grows. */
     public void sayMore(String text, long nowMs) {
         subtitle = subtitle.isEmpty() ? text : subtitle + " " + text;
@@ -84,6 +83,7 @@ public final class Companion {
         if (mouthUntil > 0) mouthUntil = Math.max(mouthUntil, nowMs) + 55L * text.length();
     }
 
+    /** More voice arrived for the same line: keep the subtitle up while it plays. */
     public void extend(double audioSeconds, long nowMs) {
         mouthUntil = 0; // (her voice came after all)
         subtitleUntil = Math.max(subtitleUntil, nowMs + (long) (audioSeconds * 1000) + 1500);
@@ -98,11 +98,6 @@ public final class Companion {
     private boolean attackWasDown, wasHidden, mySneakWas;
     private final Behavior.Senses mine = new Behavior.Senses();
 
-    /**
-     * 20 times a second: tell the companion what is going on. The world scan (mobs, animals, items)
-     * runs every 5th tick only and stays within a few blocks, so it costs next to nothing.
-     * @return whether the player just petted or hit her
-     */
     /** The player she floats beside: you, or the one she's following if they're here. */
     public Player anchor(Minecraft mc) {
         if (follow != null && mc.level != null) {
@@ -112,6 +107,11 @@ public final class Companion {
         return mc.player;
     }
 
+    /**
+     * 20 times a second: tell the companion what is going on. The world scan (mobs, animals, items)
+     * runs every 5th tick only and stays within a few blocks, so it costs next to nothing.
+     * @return whether the player just petted or hit her
+     */
     public Touch tick(Minecraft mc) {
         LocalPlayer p = mc.player;
         ClientLevel level = mc.level;

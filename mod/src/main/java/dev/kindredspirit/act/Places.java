@@ -53,6 +53,6 @@ public final class Places {
     public static String compass(double dx, double dz) {
         String[] n = {"south", "south-west", "west", "north-west", "north", "north-east", "east", "south-east"};
         double a = Math.toDegrees(Math.atan2(-dx, dz)); // 0 = south (+Z), 90 = west, like Minecraft yaw
-        return n[(int) Math.floorMod(Math.round(a / 45.0), 8)];
+        return n[Math.floorMod(Math.round(a / 45.0), 8)];
     }
 }

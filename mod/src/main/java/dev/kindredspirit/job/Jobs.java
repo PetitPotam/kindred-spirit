@@ -288,7 +288,7 @@ public final class Jobs {
                 dev.kindredspirit.trade.VillagerTrades.pockets(sp));
         for (int i = 0; i < Math.min(8, advice.size()); i++) lines.add(advice.get(i).line());
         r.add("offers", lines);
-        r.addProperty("distance", (int) Math.round(v.distanceTo(sp)));
+        r.addProperty("distance", Math.round(v.distanceTo(sp)));
         if (advice.isEmpty()) r.addProperty("note", "It has nothing to trade (no job yet, or a baby).");
         return r;
     }

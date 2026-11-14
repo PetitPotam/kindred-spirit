@@ -18,7 +18,7 @@ public final class Direction8 {
         double ahead = dx * fx + dz * fz, right = dx * rx + dz * rz;
         double angle = Math.toDegrees(Math.atan2(right, ahead)); // 0 ahead, +90 right, ±180 behind
         String[] names = {"ahead", "ahead-right", "right", "behind-right", "behind", "behind-left", "left", "ahead-left"};
-        int idx = (int) Math.floorMod(Math.round(angle / 45.0), 8);
+        int idx = Math.floorMod(Math.round(angle / 45.0), 8);
         return names[idx];
     }
 

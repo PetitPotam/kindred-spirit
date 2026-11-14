@@ -160,7 +160,6 @@ public final class Actions {
 
     // ------------------------------------------------------------------ reading the world (client)
 
-    /** Nearest ore of a kind within 24 blocks, among the blocks your game has loaded. */
     /** Ores and blocks behind walls, found by reading the world around you, would be like x-ray on a server you don't
      *  host: unfair to the other players (and Modrinth's rules call it a cheat). So only in your own worlds, a LAN
      *  world you host, or a friend's world that runs Kindred itself (a visit: the host's game does it). */
@@ -171,6 +170,7 @@ public final class Actions {
         return mc.getSingleplayerServer() == null && remote == null;
     }
 
+    /** Nearest ore of a kind within 24 blocks, among the blocks your game has loaded. */
     static JsonObject findOre(Minecraft mc, String ore) {
         String kind = Places.oreKind(ore);
         LocalPlayer p = mc.player;
@@ -577,7 +577,7 @@ public final class Actions {
                 boolean ok = true;
                 for (int x = cx - n / 2; x <= cx + n / 2 && ok; x += 2) {
                     for (int z = cz - n / 2; z <= cz + n / 2 && ok; z += 2) {
-                        if (!level.hasChunkAt(new BlockPos(x, 0, z))) { ok = false; break; }
+                        if (!dev.kindredspirit.util.Mc.chunkLoaded(level, new BlockPos(x, 0, z))) { ok = false; break; }
                         int h = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                         BlockPos top = new BlockPos(x, h - 1, z);
                         var st = level.getBlockState(top);
