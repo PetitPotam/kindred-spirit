@@ -17,7 +17,10 @@ def test_what_goes_in_is_pinned():
     froms = re.findall(r"^FROM (\S+)", df, re.M)
     assert froms and all("@sha256:" in f for f in froms), froms
     assert re.search(r"WHISPER_COMMIT=[0-9a-f]{40}\b", df)
-    assert re.search(r"kokoro-onnx==[\d.]+ soundfile==[\d.]+ fastembed==[\d.]+", df)
+    # (her voice's and memory's packages: pinned in docker/requirements.in, installed by hash from its lock, #199)
+    assert "--require-hashes -r /opt/kindred/docker-requirements.txt" in df
+    pins = read("docker", "requirements.in")
+    assert all(re.search(rf"^{name}==[\d.]+$", pins, re.M) for name in ("kokoro-onnx", "soundfile", "fastembed"))
     assert "USER pip" in df, "never root"
 
 
