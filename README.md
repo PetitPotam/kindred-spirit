@@ -3,7 +3,7 @@
 
 # Kindred Spirit
 
-**A cute AI companion for Minecraft Java that floats beside you, talks with you by voice, and never touches your world.**
+**A cute AI companion for Minecraft Java that floats beside you, talks with you by voice, and only changes your world when you ask.**
 
 Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · beta · her brain runs on macOS for now
 
@@ -74,7 +74,7 @@ It isn't a fork: none of Verity's code or assets are used, and it's written from
 | Her glow | in the dark (night, caves) her soft light lights the way around her, in singleplayer: an invisible light that moves with her and is never left behind (`glow` in the mod's settings) |
 | She has a heart | a whimsical character with a **bond meter**: kindness brings her closer and makes her open up, propose plans and play pranks; hitting her or being mean makes her keep her distance, sulk, or vanish for a while. She forgives quickly ([how](docs/HEART.md)) |
 | She discovers her powers | she doesn't know what she can do until you ask. She answers at once ("I'll try!"), then the power slowly wakes up in the background: she senses something strange, maybe asks you a small favour, and then "I can sense diamonds now!" She remembers it after that |
-| She helps | finds ores, animals ("where are the sheep?"), blocks, players and any structure or biome, and tells you which way; **leads the way** there, floating well ahead of you with an arrow and the distance at the top of the screen and a sparkle trail (she keeps ahead even when you sprint, follows a walking animal, and calls you back if you go the wrong way); pushes monsters away, places a torch, **chops a whole tree or mines a block** you look at (what drops goes in your inventory), **builds** with you: simple shapes (a pillar, corners, a wall, a floor, an outline), **any geometric shape at any size** (circles, stars, hearts, spirals, spheres, domes, round towers, cones, pyramids, a donut, an arch; hollow or solid, lying down or standing up), a crop farm, a nether or end portal, blueprints from a catalogue of 250, and **flattening land** around you with the ground that's there; magic style gives items and effects (haste, night vision, speed, healing, food...), all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
+| She helps | finds ores, animals ("where are the sheep?"), blocks, players and any structure or biome, and tells you which way; **leads the way** there, floating well ahead of you with an arrow and the distance at the top of the screen and a sparkle trail (she keeps ahead even when you sprint, follows a walking animal, and calls you back if you go the wrong way); pushes monsters away, places a torch, **chops a whole tree or mines a whole vein** you look at, with your own tool at its real speed, and **crafts** from your pockets (what drops goes in your inventory), **builds** with you: simple shapes (a pillar, corners, a wall, a floor, an outline), **any geometric shape at any size** (circles, stars, hearts, spirals, spheres, domes, round towers, cones, pyramids, a donut, an arch; hollow or solid, lying down or standing up), a crop farm, a nether or end portal, blueprints from a catalogue of 250, and **flattening land** around you with the ground that's there; magic style gives items and effects (haste, night vision, speed, healing, food...), all-powerful changes time and weather. When asked, as a standing request ("always protect me", "tell me when we're near diamonds"), or she offers if you asked before |
 | It remembers and learns | who you are, what you like, your habits, your places, its own little personality, a diary of your sessions; reminders ("in 10 minutes", "at night", "next time we play") ([how](docs/MEMORY.md)) |
 | It knows Minecraft | asked how something works, she answers from a local knowledge base of the Minecraft Wiki (current for your version) and learns pages she doesn't have yet in the background ([how](docs/KNOWLEDGE.md)) |
 | Friends on LAN | one Pip, on the computer that runs her: friends with the mod see her exactly as you do, friends without it see a stand-in; everyone talks to her in chat; she finds, helps and stays with whoever you choose, and comes along when a friend hosts the world ([below](#friends-on-your-lan-world)) |
@@ -87,7 +87,8 @@ It isn't a fork: none of Verity's code or assets are used, and it's written from
 | Session logs | every play session gets a timeline and a summary in `~/.kindred-spirit/logs/sessions/`, shown on the dashboard, to see what went wrong |
 | Blueprints | **builds whole buildings from files** where you look, its door toward you: "build us a cozy cottage for three" (one she makes up, a bed each), or any `.nbt`, `.schem` or `.litematic` in `config/kindredspirit/blueprints/` ("a small desert house", "the plains smithy", "a circle to build on"). The game describes every file (what it is, its category, size, materials, a top and a front picture); she finds the right one by what you ask, describes the two or three best and asks which when several fit, and checks before a big one. Magic builds it in seconds; grounded first tells you the materials. She never builds over what you built. Browse, add and remove them on the dashboard's **Blueprints** page |
 
-Not yet: longer mining and crafting jobs, an in-game settings screen, undoing her builds
+Not yet: jobs on LAN ([#37](https://github.com/PetitPotam/kindred-spirit/issues/37)), repeating jobs
+([#13](https://github.com/PetitPotam/kindred-spirit/issues/13)), an in-game settings screen, undoing her builds
 ([#129](https://github.com/PetitPotam/kindred-spirit/issues/129)). That's the [roadmap](docs/ROADMAP.md).
 
 ### What it may do: power and style
@@ -261,7 +262,9 @@ subtitles only.
 
 ### Manual setup (for contributors, or without the Setup)
 
-About 10 minutes. You need Minecraft Java Edition and [Homebrew](https://brew.sh). For the AI, use what you already
+The Setup app above is the easy way. This way takes a terminal and about 15–30 minutes, most of it downloads: you need
+Minecraft Java Edition and [Homebrew](https://brew.sh), and the commands below install a JDK 25, Python 3.12 and
+whisper.cpp, then build the mod with Gradle. For the AI, use what you already
 have: a free [Gemini key](https://aistudio.google.com/apikey), your Claude subscription (Claude
 Code), another AI's command-line tool you pay for (Codex, Gemini CLI, Cursor), an API key (OpenAI,
 Claude API, Groq, OpenRouter, Mistral), or nothing at all with [Ollama](https://ollama.com) on your
@@ -431,8 +434,9 @@ for that message to that provider. With Ollama nothing leaves your machine. Your
 your machine with local Whisper, and your memories in `~/.kindred-spirit/memory/` (or on a gateway
 you deploy yourself). On Gemini's free tier, Google may use what's sent to improve its products; a paid key, or
 Ollama on your own computer, avoids that. Her words come from that AI, and can be wrong.
-The bridge listens on 127.0.0.1 only and needs a token; her dashboard and the Setup's page only answer your own
-computer. The mod talks only to her brain on your computer (and, on LAN, to the host's game), and uses your microphone only while you hold the talk key.
+The bridge listens on 127.0.0.1 only and needs a token. Her dashboard and the Setup's page listen on 127.0.0.1 too,
+answer only when opened at your computer's own address (so a website can't reach them by pointing its name at your
+computer), and accept changes only from their own page (so another website can't change your settings). The mod talks only to her brain on your computer (and, on LAN, to the host's game), and uses your microphone only while you hold the talk key.
 
 ## Helping
 
@@ -462,8 +466,9 @@ from [Verity JE](https://www.curseforge.com/minecraft/mc-mods/verity-je). Every 
 and source, with its licence: **[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)**.
 
 **Made with AI, openly:** this project is written with [Claude Code](https://www.anthropic.com/claude-code)
-(Anthropic), mostly by Claude Opus 5.5, directed, playtested and reviewed by its author; Pip herself talks
-through Gemini and thinks through Claude while you play. Details: [how this project was made](THIRD_PARTY_NOTICES.md#how-this-project-was-made-with-ai-openly).
+(Anthropic), mostly by Claude Opus 5.5, directed, playtested and reviewed by its author; Pip's words come
+from the AI service you choose (Gemini by default, or another, or a local model), and her slower thinking after a session
+can use Claude if you set it up. Details: [how this project was made](THIRD_PARTY_NOTICES.md#how-this-project-was-made-with-ai-openly).
 
 ## Licence
 
