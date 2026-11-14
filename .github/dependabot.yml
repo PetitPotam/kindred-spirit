@@ -13,6 +13,10 @@ updates:
     open-pull-requests-limit: 3
     groups:
       python: {patterns: ["*"]}
+    ignore:
+      # numpy 2.5 needs Python 3.12, and her brain still supports 3.11 (#196): remove when 3.11 goes
+      - dependency-name: numpy
+        versions: [">= 2.5"]
   - package-ecosystem: gradle
     directory: /mod
     schedule: {interval: monthly}
@@ -25,3 +29,8 @@ updates:
     directory: /docker
     schedule: {interval: monthly}
     open-pull-requests-limit: 1
+    ignore:
+      # only Ubuntu's long-term releases (xx.04 in even years, five years of updates): an interim one has nine months
+      # (#196). Moving to the next long-term one is a deliberate change: Python and packages change with it.
+      - dependency-name: ubuntu
+        versions: ["24.10", "25.x", "26.10", "27.x", "28.10", "29.x"]
