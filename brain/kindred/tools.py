@@ -73,9 +73,10 @@ ABILITY_TOOLS = {
                  "earlier message. If what they want isn't one of these shapes, say you can't build that yet: never "
                  "build something else and call it done (a blueprint they chose is built with blueprint, never imitated "
                  "with build). If the size isn't clear, ask first. 'at': 'middle' puts it in the middle of what you "
-                 "just built ('the bell in the middle of the farm'), else it goes where they look.",
+                 "just built ('the bell in the middle of the farm'), else it goes where they look. 'undo' puts her "
+                 "newest build or flattening back exactly as it was ('undo that', 'take it down').",
                  {"shape": {"type": "string", "enum": ["place", "pillar", "corners", "wall", "floor", "outline", "house",
-                                                       "portal", "end_portal", "farm", "clear", "flatten", "stop",
+                                                       "portal", "end_portal", "farm", "clear", "flatten", "stop", "undo",
                                                        "circle", "ring", "oval", "triangle", "star", "heart", "cross", "spiral", "diamond", "pentagon", "hexagon", "octagon", "polygon", "sphere", "dome", "cylinder", "cone", "pyramid", "stepped_pyramid", "torus", "arch", "ramp", "cube"]},
                   "block": {"type": "string", "description": "the block or item, e.g. cobblestone, oak_planks, campfire, "
                             "red_bed; empty = the one in their hand (or the one they have most of)"},

@@ -10,6 +10,9 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **"Undo that"**: her newest build or flattening goes back exactly as it was, up to 16 builds back, while the world
+  is open; a chest she built that you filled drops its contents, and in grounded style her blocks come back to your
+  pockets (#129).
 - The Play shortcut can play any branch on this computer (a batch being worked on, for example); main and pull
   requests are built in a separate play copy, so playing never switches your checkout's branch.
 - The Play shortcut asks which Pip to play: the installed release, the newest code (built and installed first) or a

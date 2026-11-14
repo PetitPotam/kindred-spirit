@@ -63,6 +63,7 @@ public final class Builder {
         if (shapeName.isBlank()) { // (it was a pillar: asked for a shipwreck, she built 3 logs, #178)
             return Actions.error("Build which shape? I can do " + BuildPlan.KNOWN + ".");
         }
+        if (shapeName.equalsIgnoreCase("undo")) return Undo.undo(server, sp); // "undo that": her newest build goes back (#129)
         if (shapeName.equalsIgnoreCase("stop")) {
             // "stop" stops all her work: a job (mining, chopping...) and a blueprint build too
             if (dev.kindredspirit.job.Jobs.busy()) dev.kindredspirit.job.Jobs.stop();
@@ -200,6 +201,8 @@ public final class Builder {
         queue.clear();
         queue.addAll(steps);
         total = steps.size();
+        Undo.begin(form != null ? form.replace('_', ' ') : shape == BuildPlan.Shape.FLATTEN ? "flattened ground"
+                : shape.name().toLowerCase(Locale.ROOT).replace('_', ' '), Mc.level(sp), isFree);
         flattening = shape == BuildPlan.Shape.FLATTEN;
         doing = shape == BuildPlan.Shape.FLATTEN ? "flattening the ground" : shape.clears() ? "clearing"
                 : "building a " + (form != null ? form : shape.name().toLowerCase(Locale.ROOT)).replace('_', ' ');
@@ -257,6 +260,7 @@ public final class Builder {
                 skipped++;
                 continue;
             }
+            Undo.record(level, at); // (what was there, to put it back on "undo that")
             boolean did = switch (s.kind()) {
                 case 'X' -> clear(level, sp, at);
                 case 'D' -> door(level, sp, at);
@@ -436,6 +440,11 @@ public final class Builder {
         if (w.contains("beet")) return Items.BEETROOT_SEEDS;
         if (w.contains("wheat") || w.contains("seed") || w.contains("crop") || w.contains("farm") || w.contains("bread")) return Items.WHEAT_SEEDS;
         return null;
+    }
+
+    /** Stops a build in progress (what's built stays, and can be undone). */
+    static void stop() {
+        queue.clear();
     }
 
     public static boolean busy() {

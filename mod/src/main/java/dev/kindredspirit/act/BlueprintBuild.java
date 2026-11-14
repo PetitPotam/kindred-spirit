@@ -144,6 +144,7 @@ public final class BlueprintBuild {
         magic = free;
         power = pw;
         name = bp.name();
+        Undo.begin(name.replace('_', ' '), level, free); // (#129: "undo that" puts it all back)
         total = bp.solidBlocks();
         tick = placed = commandsRun = 0;
         last = null;
@@ -274,6 +275,7 @@ public final class BlueprintBuild {
                 return;
             }
             CommandPlan.Command c = queue.poll();
+            for (Placement.Step st : c.steps()) Undo.recordOnly(level, new BlockPos(st.x(), st.y(), st.z())); // (#129)
             JsonObject r = Commands.run(server, sp, c.text(), power == null ? Abilities.Power.HELPER : power, false);
             if (!r.has("ok") || !r.get("ok").getAsBoolean()) LOG.info("blueprint command failed: {} -> {}", c.text(), r);
             commandsRun++;
@@ -284,6 +286,7 @@ public final class BlueprintBuild {
             // grounded: one block of the current command, from the pockets
             CommandPlan.Command c = queue.peek();
             Placement.Step s = c.steps().get(c.steps().size() - remaining(c));
+            Undo.record(level, new BlockPos(s.x(), s.y(), s.z())); // (#129)
             if (!placeGrounded(level, sp, s)) {
                 queue.clear();
                 last = Actions.error("I ran out of " + Materials.of(s.state()).keySet().stream().findFirst().orElse("blocks")

@@ -272,6 +272,9 @@ public final class KindredSpiritClient implements ClientModInitializer {
         dev.kindredspirit.act.BlueprintCatalogue.start();
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
                 dev.kindredspirit.act.BlueprintBuild::tick);
+        // "undo that": her newest build goes back, a few thousand blocks a tick; forgotten when the world closes (#129)
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(dev.kindredspirit.act.Undo::tick);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(s -> dev.kindredspirit.act.Undo.clear());
         // friends on your LAN world without the mod: they see a stand-in for her and can talk to her;
         // friends with the mod see her as you do (light mode: SharedPip), with no AI of their own
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(

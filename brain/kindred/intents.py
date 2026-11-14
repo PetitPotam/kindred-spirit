@@ -142,6 +142,9 @@ ACTION_HINTS = [
     (r"(^|\b(can|could|would|will) you\b.{0,15}|\bplease\b.{0,10}|\bpip\b.{0,10})\b(stack|pile|place|put|build|make|"
      r"raise)\b.{0,40}\b(pillars?|columns?|towers?|corners?|walls?|floors?|platforms?|outlines?|borders?|pens?|"
      r"on top of each other|blocks? (high|tall|up)|\d+ blocks?)\b", "build"),
+    # "undo that": her newest build or flattening goes back as it was (#129)
+    (r"\bun-?do\b|\btake (it|that|this|the \w+) (back )?down\b|\bremove (it|that|what you (just )?(built|made))\b|"
+     r"\bput (it|the ground|everything) back (the way|like|as) it was\b", "build"),
     (r"\b(chop|cut|fell)\b.{0,8}\b(them|those|these)\b( (down|off|all))?\b", "job"),  # "too many trees" / "cut them off": chop them (#179)
     (r"\b(chop|cut|fell|harvest|break|mine|dig out|knock down)\b.{0,25}\b(tree|trees|log|logs|wood|this|that|block|it|"
      r"stone|ore|rock)\b|\bget (me )?(some )?wood\b", "harvest"),
