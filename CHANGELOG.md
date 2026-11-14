@@ -9,6 +9,8 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+## [0.3.0-beta.1] - 2026-11-14
+
 The beta: Pip on the newest Minecraft, and a Mac app that sets her up for you. Her brain runs on the host's Mac;
 friends on LAN need only the mod.
 
