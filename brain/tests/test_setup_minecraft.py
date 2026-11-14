@@ -152,7 +152,7 @@ def test_a_new_profile_brings_the_blueprints_you_already_have(home):
     """#175: the 26.3 profile started with no blueprints while the 1.21.1 one had 253; installing copies them over
     (same computer, nothing downloaded), and never over a profile that already has its own."""
     tmp_path, _ = home
-    mc = minecraft(tmp_path)
+    minecraft(tmp_path)  # (a launcher that has run once)
     old = Path(smc.profile_names("1.21.1")[1]) / "config" / "kindredspirit" / "blueprints"  # (".minecraft-kindred" on Linux)
     old.mkdir(parents=True)
     (old / "village_taiga_medium_house_1.nbt").write_bytes(b"nbt")
