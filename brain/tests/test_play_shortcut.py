@@ -32,3 +32,43 @@ def test_the_checkout_after_play_latest(tmp_path):
 
 def test_the_checkout_without_a_setup(tmp_path):
     assert "this checkout (no Setup installed)" in which(tmp_path, installed=False)
+
+
+def _menu(tmp_path, keys):
+    """Runs the shortcut in a pseudo-terminal (so it asks), types `keys`, never opens the launcher."""
+    import pty
+    import select
+    which(tmp_path)  # (an installed copy whose start.sh does nothing)
+    env = dict(os.environ, KINDRED_HOME=str(tmp_path / "home"), KINDRED_APP_DIR=str(tmp_path / "app"),
+               KINDRED_NO_LAUNCHER="1", KINDRED_MINECRAFT_DIR=str(tmp_path / "mc" / "minecraft"))
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execve("/bin/bash", ["bash", str(SCRIPT)], env)
+    out, sent = b"", False
+    while True:
+        r, _, _ = select.select([fd], [], [], 15)
+        if not r:
+            break
+        try:
+            chunk = os.read(fd, 4096)
+        except OSError:
+            break
+        if not chunk:
+            break
+        out += chunk
+        if not sent and b"to keep" in out:
+            os.write(fd, keys)
+            sent = True
+    os.waitpid(pid, 0)
+    return out.decode(errors="replace")
+
+
+def test_it_asks_and_enter_keeps_the_installed_release(tmp_path):
+    out = _menu(tmp_path, b"\n")
+    assert "Which Pip do you want to play?" in out and "The installed release (0.3.0-beta.1)" in out
+    assert "Playing the version the Setup installed" in out and "Building" not in out
+
+
+def test_a_wrong_answer_keeps_what_you_are_on(tmp_path):
+    out = _menu(tmp_path, b"x\n")
+    assert "Keeping what you're on" in out and "Playing the version the Setup installed" in out
