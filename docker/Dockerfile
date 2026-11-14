@@ -9,7 +9,7 @@
 # Base images and whisper.cpp are pinned exactly (digest, commit), so a changed tag can't change what's built.
 
 # ---- whisper-server, built from whisper.cpp's source (portable: no CPU-specific instructions)
-FROM ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5 AS whisper
+FROM ubuntu:25.10@sha256:7cc5e35f6567ee8c66d2abb4aab0fd866669e6207c237c3a8f0947a5c7f17092 AS whisper
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git cmake g++ make ca-certificates \
  && rm -rf /var/lib/apt/lists/*
@@ -23,7 +23,7 @@ RUN git init -q /src && cd /src \
  && install -m 755 build/bin/whisper-server /usr/local/bin/whisper-server
 
 # ---- her
-FROM ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5
+FROM ubuntu:25.10@sha256:7cc5e35f6567ee8c66d2abb4aab0fd866669e6207c237c3a8f0947a5c7f17092
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python3-venv curl ca-certificates tini libgomp1 \
  && rm -rf /var/lib/apt/lists/*
