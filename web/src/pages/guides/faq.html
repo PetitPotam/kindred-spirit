@@ -30,8 +30,10 @@ layout: guide
   game, her tools, her memory and the local knowledge base, and says so when she doesn't know.</p>
 
 <h3 id="versions">Which Minecraft versions?</h3>
-<p>Minecraft Java Edition <strong>1.21.1</strong> with the Fabric loader. Porting to the current release is on the
-  <a href="/roadmap">roadmap</a>. Bedrock Edition isn't supported.</p>
+<p>Minecraft Java Edition <strong>26.3</strong> (the newest) and <strong>1.21.1</strong>, with the Fabric loader:
+  one Kindred jar for each. Friends on LAN must use the host's version. Bedrock Edition isn't supported. On 26.3, her
+  Minecraft knowledge base still assumes 1.21.1 for things added since, unless you
+  <a href="{{blob}}/docs/KNOWLEDGE.md#one-edition-one-version">set its version</a>.</p>
 
 <h3 id="servers">Can I use her on a server?</h3>
 <p>On a LAN world with friends, yes: see <a href="/guides/friends">Friends on LAN</a>. On a public server she can talk,
@@ -39,8 +41,18 @@ layout: guide
   come later.</p>
 
 <h3 id="windows-host">Can I host Pip on Windows?</h3>
-<p>Not yet: her brain's scripts are written for macOS (Linux should work but is untested). Friends on Windows can join
-  a Mac host with just the mod. Windows and Linux hosts are on the <a href="/roadmap">roadmap</a>.</p>
+<p>Not yet: her brain and the Setup app are made for macOS. On Linux, the manual setup passes GitHub's install
+  checks, but nobody has played there yet. Friends on Windows can join a Mac host with just the mod. Windows and Linux
+  hosts are on the <a href="/roadmap">roadmap</a>.</p>
+
+<h3 id="mac-warning">macOS says it can't check the Setup app for malware</h3>
+<p>That's expected: the app isn't signed by Apple, because that needs a paid yearly membership. Its code is all on
+  GitHub. The <a href="/download#first-open">Download page</a> shows how to open it anyway, once.</p>
+
+<h3 id="only-the-mod">I installed only the mod, and she isn't there</h3>
+<p>The mod is her body; her brain runs on your computer (or on a friend's, if you join their LAN world). In your own
+  world, one chat message says so, with links. Set her up with <a href="/download">Kindred Spirit Setup</a>, or join a
+  friend who hosts her. <code>/kindred hint off</code> hides the message.</p>
 
 <h3 id="name">Can I rename her?</h3>
 <p>Yes: her name is a setting in <code>brain.toml</code>, and on the dashboard. Pip is ours; yours can be anyone.</p>
@@ -49,18 +61,20 @@ layout: guide
 <table>
   <thead><tr><th scope="col">Symptom</th><th scope="col">What to do</th></tr></thead>
   <tbody>
-    <tr><td>She doesn't answer at all</td><td><code>/kindred status</code> shows whether her brain is connected. Start it with <code>scripts/start.sh</code>, then <code>/kindred reconnect</code>.</td></tr>
-    <tr><td>She can't hear you (on a Mac)</td><td>Start the game with <code>scripts/play-mac.command</code>: the launcher opened from the Dock has no microphone permission and records silence.</td></tr>
+    <tr><td>She doesn't answer at all</td><td><code>/kindred status</code> shows whether her brain is connected. Open Kindred Spirit Setup (it wakes her), or run <code>scripts/start.sh</code>, then <code>/kindred reconnect</code>.</td></tr>
+    <tr><td>Something fails in the Setup</td><td>Press the step's <strong>Copy a help prompt</strong> and paste it into any AI assistant, or into an issue: it has the step, your Mac and the exact error, with keys and personal details taken out.</td></tr>
+    <tr><td>She can't hear you (on a Mac)</td><td>Start the game with the Setup's <strong>Open Minecraft</strong>, or <code>scripts/play-mac.command</code>: the launcher opened from the Dock has no microphone permission and records silence.</td></tr>
     <tr><td>The AI check fails with 401 or 403</td><td>The key is missing or wrong in <code>~/.kindred-spirit/secrets.env</code>. Run the gateway's <code>check</code> to test every part.</td></tr>
     <tr><td>No voice, or no speech-to-text</td><td>Is the local tool running? <code>scripts/start.sh</code> says; logs are in <code>~/.kindred-spirit/logs/</code>.</td></tr>
     <tr><td>She's slow to answer</td><td>The gateway's <code>log</code> shows how long each AI reply took. A faster model, or Gemini Flash-Lite, helps.</td></tr>
     <tr><td>The game feels slower</td><td>Leave <code>quality</code> on <code>auto</code>, or set <code>low</code>. Turn down her liveliness switches.</td></tr>
     <tr><td>A friend sees a blue Allay instead of her</td><td>Their game doesn't have the mod, or not the same version as yours: <a href="/guides/friends#update-pip">Update Pip</a>.</td></tr>
-    <tr><td>A friend gets "Incompatible" or crashes</td><td>They must start the fabric-loader-1.21.1 installation, with Fabric API for 1.21.1.</td></tr>
+    <tr><td>A friend gets "Incompatible" or crashes</td><td>They must start the fabric-loader installation for your Minecraft version (26.3 or 1.21.1), with Fabric API and the Kindred jar for that version.</td></tr>
   </tbody>
 </table>
 
 <h2 id="report">Still stuck?</h2>
 <p>Look through the <a href="{{issues}}">open issues</a>, or open a new one. Include your OS, Minecraft and Fabric
-  versions, and the logs (<code>minecraft-kindred/logs/latest.log</code> and
+  versions, the Setup's help prompt if you used it, and the logs (<code>logs/latest.log</code> in the profile's game
+  folder, such as <code>minecraft-kindred-26.3</code>, and
   <code>~/.kindred-spirit/logs/brain.log</code>). <strong>Remove any API keys before you paste.</strong></p>

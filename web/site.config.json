@@ -3,6 +3,7 @@
   "siteUrl": "https://kindred-spirit-pip.web.app",
   "repo": "https://github.com/PetitPotam/kindred-spirit",
   "owner": "https://github.com/PetitPotam",
+  "releasesApi": "https://api.github.com/repos/PetitPotam/kindred-spirit/releases?per_page=20",
   "measurementId": "G-B12DYE25BF",
   "video": {
     "provider": "file",
