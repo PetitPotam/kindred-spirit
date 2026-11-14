@@ -5,7 +5,8 @@
         -> {"results": [{title, section, text, url, source, license, license_url, attribution, edition,
                          score, data, status, since}], "count": n}
         status: "current", or why the page isn't about the player's game ("future" with since
-        "1.21.6", "outdated", "removed", "other-edition"); "outdated": true for anything not current
+        "1.21.6", "outdated", "removed", "other-edition", "other-version": game data from another version);
+        "outdated": true for anything not current. "game_version": "26.3" judges it for that version.
         and how well it is covered: "best" (the top score), "covered" (true when the best chunk is
         about everything the question names and scores >= "threshold"; see store.coverage)
     POST /v1/knowledge/learn    {"query": "how do I build an iron farm"}
@@ -20,6 +21,7 @@ Crawling whole categories is done with kb.py, never over HTTP; learn is the one 
 a question is embedded with the same model the chunks were.
 """
 import os
+import re
 import threading
 
 from . import db_path, learn as learn_mod, sources as sources_mod
@@ -64,9 +66,16 @@ def call(op, req, embed=None, model="", path=None):
     if not query:
         raise ValueError("query is empty")
     k = max(1, min(20, int(req.get("k", 5))))
-    ans = store.ask(query, k=k, sources=req.get("sources"), per_page=int(req.get("per_page", 2)))
+    ans = store.ask(query, k=k, sources=req.get("sources"), per_page=int(req.get("per_page", 2)),
+                    game_version=_version(req))
     _trim(ans["results"], int(req.get("max_chars") or 0))
     return dict(ans, count=len(ans["results"]))
+
+
+def _version(req):
+    """The player's Minecraft version, when the caller says it ("26.3"; #151)."""
+    v = str(req.get("game_version") or "").strip()
+    return v if re.fullmatch(r"\d+(\.\d+){1,2}", v) else None
 
 
 def _trim(results, cut):
@@ -96,6 +105,6 @@ def _learn(req, embed, model, path):
         out = learn_mod.learn(store, src, _fetchers[kdir], query, kdir, conf)
     finally:
         _learning.release()
-    ans = store.ask(query, k=int(req.get("k", 3)), sources=req.get("sources"))
+    ans = store.ask(query, k=int(req.get("k", 3)), sources=req.get("sources"), game_version=_version(req))
     _trim(ans["results"], int(req.get("max_chars") or 0))
     return dict(out, covered=ans["covered"], best=ans["best"], results=ans["results"])

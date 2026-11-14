@@ -27,6 +27,9 @@ Unreleased into the new version's section.
   go back to the installed version with `--back` (#185).
 
 ### Fixed
+- On Minecraft 26.3 she knows she's in 26.3: her prompt names your version, and her knowledge judges what was added
+  later (the Happy Ghast, the Copper Golem) against it when you ask, not against 1.21.1; 1.21.1 game data is
+  marked as such for a 26.3 player (#151).
 - The Play shortcut (`scripts/play-mac.command`) starts the version in use: the installed one, or the checkout after
   `scripts/play-latest.sh`; it no longer mixes the checkout's brain with the installed mod, and it lists your Kindred
   profiles (#188).

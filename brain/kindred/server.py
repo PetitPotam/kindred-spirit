@@ -410,10 +410,18 @@ class Brain:
 
     # ------------------------------------------------------------------ messages
 
+    def set_game_version(self, v):
+        """The player's Minecraft version (#151): her prompt names it, and her knowledge is judged for it."""
+        v = str(v or "").strip()
+        if re.fullmatch(r"\d+(\.\d+){1,2}", v):
+            self.mind.game_version = v
+            self.kb.game_version = v
+
     async def on_message(self, msg):
         kind = msg.get("type")
         if kind == "hello":
             log.info("mod %s on Minecraft %s", msg.get("mod"), msg.get("minecraft"))
+            self.set_game_version(msg.get("minecraft"))
             self.set_abilities(msg)
             dirs = msg.get("blueprints")
             if isinstance(dirs, list) and dirs and all(isinstance(d, str) for d in dirs):

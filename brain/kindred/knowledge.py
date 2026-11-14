@@ -58,6 +58,7 @@ class Knowledge:
     def __init__(self, cfg):
         self.base = cfg["gateway"]["url"].rstrip("/") + "/knowledge/"
         self.key = cfg["gateway"].get("key", "")
+        self.game_version = None  # the player's Minecraft version, from the mod's hello (#151)
 
     def _call(self, op, body, timeout):
         req = urllib.request.Request(self.base + op, data=json.dumps(body).encode(), method="POST",
@@ -72,7 +73,10 @@ class Knowledge:
 
     def search(self, query, k=3):
         """{"covered": bool, "results": [...]} (covered False and an "error" when it isn't there)."""
-        r = self._call("search", {"query": query, "k": k, "max_chars": 900}, timeout=5)
+        body = {"query": query, "k": k, "max_chars": 900}
+        if self.game_version:  # (what came later, or game data from another version, is judged for this one: #151)
+            body["game_version"] = self.game_version
+        r = self._call("search", body, timeout=5)
         r.setdefault("covered", False)
         r.setdefault("results", [])
         return r
@@ -84,7 +88,10 @@ class Knowledge:
 
     def learn(self, query):
         """Reads the few pages that answer one question (a few seconds). See docs/KNOWLEDGE.md."""
-        return self._call("learn", {"query": query}, timeout=45)
+        body = {"query": query}
+        if self.game_version:
+            body["game_version"] = self.game_version
+        return self._call("learn", body, timeout=45)
 
 
 HOWTO = re.compile(r"\b(how (do|can|to|should) (i|we|you)? ?(build|make|craft|farm|get|breed|set up|start|grow|"
@@ -118,6 +125,7 @@ def elsewhere(r):
             " (Java %s)" % r["since"] if r.get("since") else "")
     return {"outdated": "how it worked in an older version", "removed": "no longer in the world",
             "other-edition": "only in another edition, not in this world", "joke": "an April Fools joke, not real",
+            "other-version": "from another version's game data: it may be different in this world",
             "spin-off": "from another game, not this world"}.get(st, "")
 
 
