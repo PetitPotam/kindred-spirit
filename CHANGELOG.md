@@ -69,6 +69,10 @@ friends on LAN need only the mod.
 - Recording demo videos works on 1.21.1 only for now.
 
 ### For contributors
+- Linters: Ruff checks the Python on every pull request (and in `scripts/test.sh`), and the mod builds with every Java
+  warning on, a warning failing the build; the few they found are fixed (#168).
+- The README shows the OpenSSF Best Practices badge; SECURITY.md's private reporting no longer waits for the repository
+  to be public; the maintaining guide says when to wait for the Mac checks (#170).
 - Code scanning fixes: cleaning the text for her voice stays quick whatever it's sent, the gateway never passes a
   line break into a header, and the dashboard's "Try Pip" heart panel only shows numbers it computed (#163).
 - Small changes go to `main` in batches: one pull request for several, each change still with its issue. The

@@ -1,6 +1,5 @@
 """Updates in the Setup (#97): the newest release for this chip, an update that installs the new program, the
 matching mod jar and the new app together, and a way back. A fake GitHub, a fake disk image, a throwaway home."""
-import json
 import os
 
 import pytest

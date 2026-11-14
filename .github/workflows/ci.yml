@@ -62,6 +62,8 @@ jobs:
           cache: pip
           cache-dependency-path: brain/requirements*.txt
       - run: pip install -r brain/requirements-dev.txt
+      - name: Lint (Ruff, ruff.toml)
+        run: ruff check brain services scripts setup demo
       - run: python -m pytest -q brain/tests
 
   windows-script:

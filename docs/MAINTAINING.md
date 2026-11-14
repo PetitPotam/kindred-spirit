@@ -49,6 +49,10 @@ pushing each other behind and re-running the long checks (the Platforms Macs tak
 5. **Squash and merge** once CI passes and it's up to date with `main`, like any pull request. Main gets one commit for
    the batch, whose description lists every change.
 
+**When to wait for the Mac checks:** only "CI passed" (and the CLA) is required to merge. Wait for the Platforms
+checks (the Macs, 30–40 minutes) only when the batch changes the Setup itself (`setup/`, `services/setup*`,
+`platforms.yml`); otherwise merge as soon as "CI passed" is green.
+
 Keep a batch to one theme or one sitting (a handful of changes), so it's still easy to review and, if needed, to
 revert. Big or risky changes (a new Minecraft version, a protocol change, a release) still get their own pull request.
 Website changes (`web/`) stay in their own pull request, because merging one deploys the site.
@@ -195,6 +199,7 @@ This repository is also a way to learn GitHub and CI/CD: every check below is a 
 | What | When it runs | What it does | Where to look |
 |---|---|---|---|
 | **CI** (`.github/workflows/ci.yml`) | every pull request and push to `main` | builds the mod for every Minecraft version and runs the Java tests, runs the brain's tests on Python 3.11 and 3.12, parses the Windows script, checks the pull request's title, branch and `Fixes #` link; **CI passed** sums them up | the checks at the bottom of a pull request; Actions tab |
+| **Linters** (Ruff in `ci.yml` with `ruff.toml`; javac `-Xlint:all -Werror` in `mod/build.gradle.kts`) | every pull request, and `scripts/test.sh` | Ruff checks the Python (unused imports and variables, undefined names, syntax errors); the Java compiler reports every warning and a warning fails the build. Deprecated Minecraft calls that still work on every supported version are wrapped in `util/Mc.java` with the warning silenced only there | the CI job's log |
 | **Platforms** (`platforms.yml`) | pull requests that touch the Setup, scripts, services or the brain | installs and starts everything on clean macOS (Apple silicon and Intel), Windows and Linux machines, and starts a real Minecraft client on Linux to check she answers ([TESTING-PLATFORMS.md](TESTING-PLATFORMS.md)) | the pull request's checks |
 | **Release** (`release.yml`) | a version tag on `main` | builds the jars and the Setup, makes the GitHub release with signed build provenance for each file (check one with `gh attestation verify <file> -R PetitPotam/kindred-spirit`), uploads to Modrinth and CurseForge | Releases; Actions tab |
 | **Website** (`website.yml`) | changes under `web/` | builds and checks the site on pull requests; deploys it when merged to `main` | the pull request's checks |

@@ -192,18 +192,7 @@ public final class KindredSpiritClient implements ClientModInitializer {
         displayName = cfg.name;
         quality = new Quality(cfg.quality);
         companion = new Companion(cfg);
-        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
-            @Override
-            public Identifier getFabricId() {
-                return Identifier.fromNamespaceAndPath("kindredspirit", "skins");
-            }
-
-            @Override
-            public void onResourceManagerReload(ResourceManager manager) {
-                skins.reload(manager);
-                companion.skin = skins.get(cfg.skin);
-            }
-        });
+        reloadSkinsWithResources();
         String token;
         try {
             token = TokenFile.readOrCreate(cfg.tokenFile.isBlank() ? TokenFile.defaultPath() : Path.of(cfg.tokenFile));
@@ -1550,6 +1539,25 @@ public final class KindredSpiritClient implements ClientModInitializer {
         cfg.skin = id;
         cfg.save();
         companion.skin = skins.get(id);
+    }
+
+
+    /** Her skins reload with the game's resources (F3+T, a resource pack). Fabric's ResourceManagerHelper is
+     *  deprecated, but still works on every Minecraft version Kindred supports; its replacement differs between them. */
+    @SuppressWarnings("deprecation")
+    private void reloadSkinsWithResources() {
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+            @Override
+            public Identifier getFabricId() {
+                return Identifier.fromNamespaceAndPath("kindredspirit", "skins");
+            }
+
+            @Override
+            public void onResourceManagerReload(ResourceManager manager) {
+                skins.reload(manager);
+                companion.skin = skins.get(cfg.skin);
+            }
+        });
     }
 
     // ------------------------------------------------------------------ HUD
