@@ -82,3 +82,12 @@ def test_stop_stops_everything_by_default(tmp_path):
 def test_starting_her_again_any_way_wakes_her():
     with open(os.path.join(ROOT, "scripts", "start.sh"), encoding="utf-8") as fh:
         assert 'rm -f "$KH/asleep"' in fh.read()
+
+
+def test_on_windows_the_buttons_use_the_powershell_scripts():  # #40
+    stop = dashboard.script_command("stop.sh", ("--keep", "dashboard"), windows=True)
+    assert stop[0] == "powershell" and stop[-3].endswith("stop-windows.ps1") and stop[-2:] == ["-Keep", "dashboard"]
+    assert dashboard.script_command("start.sh", ("--background",), windows=True)[-1] == "-Background"
+    assert dashboard.script_command("stop.sh", (), windows=False)[0] == "/bin/bash"
+    for name, (ps1, _) in dashboard.WINDOWS_SCRIPTS.items():
+        assert os.path.exists(os.path.join(ROOT, "scripts", ps1)), ps1

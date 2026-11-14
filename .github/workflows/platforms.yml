@@ -114,7 +114,7 @@ jobs:
         run: KINDRED_PYTHON="$(command -v python)" scripts/test-install.sh docker
 
   windows:
-    name: Windows (a friend's PC)
+    name: Windows (a friend's PC, and hosting her)
     runs-on: windows-2025
     timeout-minutes: 30
     steps:
@@ -136,10 +136,12 @@ jobs:
           $mc = [regex]::Match($kindred.Name, '\+([0-9.]+)\.jar$').Groups[1].Value  # (a fresh install: the newest Minecraft)
           if (-not (Get-ChildItem $mods -Filter "fabric-api-*+$mc.jar")) { throw "no Fabric API for Minecraft $mc in $mods" }
           Write-Host "ok: the mod and Fabric API are in the mods folder"
-      - name: Hosting her on Windows
-        shell: pwsh
-        run: |
-          Write-Host "::notice title=Not yet supported::Hosting Pip on Windows (her brain, voice, hearing and the Setup app) isn't supported yet (#40). This job checks the friend's side: installing the mod to join a host's LAN world."
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Hosting her on Windows (scripts\setup-windows.ps1, start, a pretend game, sleep and wake, stop; #40)
+        shell: powershell # Windows PowerShell 5.1, as on a player's PC
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-install-windows.ps1
 
   client:
     # A real Minecraft client (the dev client: Fabric Loader, Fabric API and the mod) opens a world and says hi; her

@@ -827,11 +827,23 @@ def her_state():
     return {"state": "asleep" if os.path.exists(ASLEEP) else "stopped"}
 
 
+WINDOWS_SCRIPTS = {"stop.sh": ("stop-windows.ps1", {"--keep": "-Keep"}),
+                   "start.sh": ("start-windows.ps1", {"--background": "-Background"})}
+
+
+def script_command(name, args, windows=None):
+    """The command for one of this copy's scripts: bash on macOS and Linux, its PowerShell twin on Windows (#40)."""
+    if windows if windows is not None else os.name == "nt":
+        ps1, flags = WINDOWS_SCRIPTS[name]
+        return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join(ROOT, "scripts", ps1),
+                *[flags.get(a, a) for a in args]]
+    return ["/bin/bash", os.path.join(ROOT, "scripts", name), *args]
+
+
 def _script(name, *args):
     """One of this copy's scripts (the checkout's, or the installed copy's), with this copy's Python."""
     env = dict(os.environ, KINDRED_PYTHON=sys.executable, KINDRED_HOME=DIR)
-    return subprocess.run(["/bin/bash", os.path.join(ROOT, "scripts", name), *args], capture_output=True, text=True,
-                          timeout=120, env=env, cwd=ROOT)
+    return subprocess.run(script_command(name, args), capture_output=True, text=True, timeout=120, env=env, cwd=ROOT)
 
 
 def sleep_her():

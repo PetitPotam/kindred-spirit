@@ -10,6 +10,10 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- **Host her on Windows**: `scripts\setup-windows.ps1`, `start-windows.ps1` and `stop-windows.ps1` set up and run her
+  brain, voice, memory and hearing (whisper.cpp's Windows build, checked by SHA-256) on a Windows PC, like the Mac's
+  scripts; her dashboard's sleep and wake buttons use them there. Tested on GitHub's Windows machines on every
+  pull request that touches them (docs/HOSTING-WINDOWS.md, #40).
 - **Host her with Docker on Windows or Linux**: her brain, voice, hearing and dashboard in one image on GitHub
   Packages (`ghcr.io/petitpotam/kindred-spirit-brain`), run on your own computer with `scripts/docker-run.sh` or
   `scripts\docker-run.ps1`; your `~/.kindred-spirit` is mounted and the ports stay on 127.0.0.1. Published with every

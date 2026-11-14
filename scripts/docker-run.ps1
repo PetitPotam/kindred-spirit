@@ -11,7 +11,7 @@ if (-not $Image) { $Image = "ghcr.io/petitpotam/kindred-spirit-brain:$Version"; 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Write-Host "Docker Desktop isn't installed: https://docs.docker.com/desktop/setup/install/windows-install/"; exit 1
 }
-docker rm -f $name 2>$null | Out-Null
+try { docker rm -f $name 2>$null | Out-Null } catch {} # (none yet: fine)
 if ($Stop) { Write-Host "Stopped."; exit 0 }
 $kh = if ($env:KINDRED_HOME) { $env:KINDRED_HOME } else { Join-Path $env:USERPROFILE ".kindred-spirit" }
 New-Item -ItemType Directory -Force -Path $kh | Out-Null
