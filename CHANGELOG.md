@@ -9,6 +9,11 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+### Fixed
+- The README no longer contradicts itself: she only changes your world when you ask, mining and crafting jobs
+  work (jobs on LAN don't yet), the manual setup says what it installs, which AI speaks for her, and how the
+  dashboard is protected (#173).
+
 ## [0.3.0-beta.1] - 2026-11-14
 
 The beta: Pip on the newest Minecraft, and a Mac app that sets her up for you. Her brain runs on the host's Mac;
