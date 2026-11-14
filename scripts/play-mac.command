@@ -23,6 +23,21 @@ else
   start() { bash "$ROOT/scripts/start.sh" --background; }
 fi
 
+pick_branch() { # sets $picked: one of this computer's branches, newest first (a batch first), or a name typed in
+  local branches i=1 n
+  branches=()
+  while IFS= read -r n; do branches+=("$n"); done < <(
+    git -C "$ROOT" for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads | grep -v '^main$' | head -9)
+  [[ ${#branches[@]} -gt 0 ]] || { echo "No branch here besides main."; return 1; }
+  echo "Branches on this computer (newest first):"
+  for n in "${branches[@]}"; do echo "  $i) $n"; i=$((i + 1)); done
+  printf 'Number or name (Enter for 1): '
+  read -r n
+  n="${n:-1}"
+  if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#branches[@]} )); then picked="${branches[$((n - 1))]}"; else picked="$n"; fi
+  return 0
+}
+
 choose() { # asks which Pip to play; switches with play-latest.sh, then starts again without asking
   local now installed_v choice pr
   installed_v="$(cat "$INSTALLED/VERSION" 2>/dev/null || echo "?")"
@@ -31,6 +46,7 @@ choose() { # asks which Pip to play; switches with play-latest.sh, then starts a
   echo "  1) The installed release ($installed_v)$([[ $now == 1 ]] && echo "      <- you're on this")"
   echo "  2) The newest code from GitHub (builds the mod first, about 2 minutes)$([[ $now == 2 ]] && echo "  <- you're on this: $(cat "$KH/playing-from")")"
   echo "  3) A pull request, to try it before it's merged"
+  echo "  4) A branch on this computer (for example the batch being worked on)"
   printf 'Press Enter (or wait 10 seconds) to keep %s: ' "$now"
   read -r -t 10 choice || true
   echo
@@ -41,6 +57,8 @@ choose() { # asks which Pip to play; switches with play-latest.sh, then starts a
     3) printf 'Pull request number: '; read -r pr
        [[ "$pr" =~ ^[0-9]+$ ]] || { echo "Not a number: keeping what you're on."; return 0; }
        bash "$ROOT/scripts/play-latest.sh" "$pr" || return 1 ;;
+    4) pick_branch || return 0
+       bash "$ROOT/scripts/play-latest.sh" branch "$picked" || return 1 ;;
     *) echo "Keeping what you're on." ;;
   esac
   return 0

@@ -5,6 +5,7 @@
 #
 #   scripts/play-latest.sh            main, updated from GitHub
 #   scripts/play-latest.sh 184        pull request #184 (to try it before merging)
+#   scripts/play-latest.sh branch batch/2026-11-14-polish   a local branch (where it's open, as it is)
 #   scripts/play-latest.sh here       this checkout as it is (your branch, uncommitted changes included)
 #   scripts/play-latest.sh --back     back to the version the Setup installed (its jars, its brain)
 #   scripts/play-latest.sh --status   which one is in use
@@ -74,33 +75,62 @@ case "$what" in
     rm -f "$MARK"
     say "Done: play as usual. (Back to the checkout: scripts/play-latest.sh)"
     exit 0 ;;
-  -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+  -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
 esac
 
 game_running && die "close Minecraft first"
 cd "$ROOT"
-if [[ "$what" == main ]]; then
-  [[ -z "$(git status --porcelain --untracked-files=no)" ]] || die "this checkout has uncommitted changes: commit them, or use 'here'"
-  git switch -q main && git pull -q --ff-only || die "couldn't update main"
-elif [[ "$what" =~ ^[0-9]+$ ]]; then
-  [[ -z "$(git status --porcelain --untracked-files=no)" ]] || die "this checkout has uncommitted changes: commit them, or use 'here'"
-  gh pr checkout "$what" >/dev/null || die "couldn't check out pull request #$what"
-elif [[ "$what" != here ]]; then
-  die "unknown: $what (main, a pull request number, here, --back or --status)"
-fi
+# Where to build: never by switching this checkout's branch (someone may be working in it). main and pull requests are
+# built in a separate play copy (a git worktree in ~/.kindred-spirit/play-checkout); a branch that's open in a worktree
+# (this checkout included) is built right there, as it is; another branch goes to the play copy too.
+PLAY="$KH/play-checkout"
+play_copy() { # $1: what to check out there (a commit, detached)
+  if [[ ! -d "$PLAY/.git" && ! -f "$PLAY/.git" ]]; then
+    git worktree add -q --detach "$PLAY" "$1" || die "couldn't make the play copy in $PLAY"
+  else
+    (cd "$PLAY" && git checkout -q --detach "$1") || die "couldn't check out $1 in $PLAY"
+  fi
+  TARGET="$PLAY"
+}
+worktree_of() { # the worktree that has branch $1 checked out, if any
+  git worktree list --porcelain | awk -v b="refs/heads/$1" '/^worktree /{w=substr($0,10)} $0=="branch "b{print w; exit}'
+}
+label=""
+case "$what" in
+  main)
+    git fetch -q origin main || die "couldn't get main from GitHub"
+    play_copy origin/main; label="main" ;;
+  here)
+    TARGET="$ROOT"; label="$(git branch --show-current) (as it is)" ;;
+  branch)
+    name="${2:-}"; [[ -n "$name" ]] || die "which branch? scripts/play-latest.sh branch <name>"
+    git rev-parse -q --verify "refs/heads/$name" >/dev/null || die "no local branch named $name"
+    wt="$(worktree_of "$name")"
+    if [[ -n "$wt" ]]; then TARGET="$wt"; else play_copy "$name"; fi
+    label="$name" ;;
+  *)
+    if [[ "$what" =~ ^[0-9]+$ ]]; then
+      git fetch -q origin "pull/$what/head:refs/remotes/origin/pr/$what" --force || die "couldn't get pull request #$what"
+      play_copy "origin/pr/$what"; label="pull request #$what"
+    else
+      die "unknown: $what (main, a pull request number, branch <name>, here, --back or --status)"
+    fi ;;
+esac
+cd "$TARGET"
 sha="$(git rev-parse --short HEAD)"
 base="$(grep '^mod_version=' mod/gradle.properties | cut -d= -f2)"
 version="$base-dev.$sha"
-say "Building $(git branch --show-current) ($sha) as $version, for every Minecraft version..."
+say "Building $label ($sha) as $version, for every Minecraft version..."
 (cd mod && JAVA_HOME="$(java_home)" ./gradlew build -x test -q -Pmod_version="$version") || die "the mod didn't build"
-"$ROOT/brain/.venv/bin/python" -m pip install -q -r "$ROOT/brain/requirements.txt" 2>/dev/null || true
+PY="$ROOT/brain/.venv/bin/python"  # (one Python for every copy: this checkout's)
+"$PY" -m pip install -q -r "$TARGET/brain/requirements.txt" 2>/dev/null || true
 say "The mod in each Kindred profile:"
-put_jars "$ROOT/mod/build/libs" "$version"  # (exactly this build: the folder also keeps older versions' jars)
-ls "$ROOT"/mod/build/libs/kindred-spirit-*-dev.*.jar 2>/dev/null | grep -v "$sha" | xargs rm -f 2>/dev/null || true
-say "Her brain and services from this checkout:"
+put_jars "$TARGET/mod/build/libs" "$version"  # (exactly this build: the folder also keeps older versions' jars)
+ls "$TARGET"/mod/build/libs/kindred-spirit-*-dev.*.jar 2>/dev/null | grep -v "$sha" | xargs rm -f 2>/dev/null || true
+say "Her brain and services from $label:"
 bash "$ROOT/scripts/stop.sh" || true
-bash "$ROOT/scripts/start.sh" --background || die "her brain didn't start (scripts/start.sh says why)"
-printf '%s %s (%s), %s\n' "$(git branch --show-current)" "$sha" "$version" "$(date '+%Y-%m-%d %H:%M')" > "$MARK"
+KINDRED_PYTHON="$PY" bash "$TARGET/scripts/start.sh" --background || die "her brain didn't start (scripts/start.sh says why)"
+printf '%s %s (%s), %s\n' "$label" "$sha" "$version" "$(date '+%Y-%m-%d %H:%M')" > "$MARK"
 say ""
 say "Ready: open Minecraft and play the Kindred Spirit profile. In game, /kindred status shows mod $version."
 say "Back to the installed version: scripts/play-latest.sh --back"

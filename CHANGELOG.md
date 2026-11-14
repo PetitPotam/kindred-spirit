@@ -10,6 +10,8 @@ Unreleased into the new version's section.
 ## [Unreleased]
 
 ### Added
+- The Play shortcut can play any branch on this computer (a batch being worked on, for example); main and pull
+  requests are built in a separate play copy, so playing never switches your checkout's branch.
 - The Play shortcut asks which Pip to play: the installed release, the newest code (built and installed first) or a
   pull request; Enter keeps the one in use (#190).
 - `scripts/play-latest.sh`: playtest `main` or a pull request straight from the checkout, without a release, and
