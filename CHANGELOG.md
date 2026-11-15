@@ -9,6 +9,11 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+### Changed
+- The website, the README and the CurseForge and Modrinth pages say how to host her on Windows (PowerShell scripts) or
+  on Windows and Linux (Docker), and say plainly that only GitHub's automated checks have run those so far: nobody has
+  hosted her on a real Windows or Linux PC yet (#203).
+
 ## [0.4.0-beta.1] - 2026-11-15
 
 ### Added
