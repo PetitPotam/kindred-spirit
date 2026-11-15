@@ -9,6 +9,8 @@ Unreleased into the new version's section.
 
 ## [Unreleased]
 
+## [0.4.0-beta.1] - 2026-11-15
+
 ### Added
 - **She tells you how it really went**: when a build, blueprint or job ends, the game reports its real result and
   she says it as it is: "All done!" only when it's finished, "most of it went in, 12 wouldn't fit" when it half-failed,
