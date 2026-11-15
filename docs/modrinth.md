@@ -10,9 +10,11 @@ doing, warns you when a creeper sneaks up, and grows closer to you the more you 
 ## Before you download
 
 - **Pip needs her "brain", which runs on the host's computer.** This mod draws her and connects her to your game;
-  the brain gives her a voice, memory and thoughts. It runs on **macOS** for now (Windows and Linux hosts are
-  planned). **Kindred Spirit Setup**, a free Mac app for Apple silicon and Intel, installs it, her voice and hearing,
-  and this mod, step by step: [download it here](https://kindred-spirit-pip.web.app/download). Without her brain,
+  the brain gives her a voice, memory and thoughts. On a **Mac**, **Kindred Spirit Setup**, a free app for Apple
+  silicon and Intel, installs it, her voice and hearing, and this mod, step by step:
+  [download it here](https://kindred-spirit-pip.web.app/download). On **Windows**, PowerShell scripts set her up
+  ([the guide](https://github.com/PetitPotam/kindred-spirit/blob/main/docs/HOSTING-WINDOWS.md)), and on **Windows or Linux** her brain also comes as a Docker image
+  ([the guide](https://github.com/PetitPotam/kindred-spirit/blob/main/docker/README.md)): both are new, for players at ease with a terminal, and so far tested only by GitHub's automated checks. Without her brain,
   the mod shows one message in your world saying so.
 - **She uses an AI service for her words,** with your own key: Google's Gemini by default (its free tier is
   enough to play), or another provider, a local model with Ollama, or an AI subscription you already have (Claude
@@ -109,7 +111,8 @@ friends on LAN, to the host's game).
 - The Setup app isn't signed by Apple (that needs a paid membership), so the first time macOS warns you; the
   download page shows how to open it anyway. It's built and tested on Apple silicon and Intel Macs with every
   release, but nobody has yet tried it on a real Intel Mac, or updated from one release to the next: reports welcome.
-- On 26.3, her Minecraft knowledge still assumes 1.21.1 for things added since, unless you set its version.
+- Hosting her on Windows or with Docker is new and has only been run by GitHub's automated checks (on its Windows and
+  Linux machines, with every change): nobody has hosted her on a real Windows or Linux PC yet. Reports very welcome.
 - On multiplayer servers you don't host, she doesn't look through blocks for ores or anything else (that would be
   like x-ray). In your own worlds, a LAN world you host, or a friend's world that runs Kindred, she does.
 - Free software under the GNU AGPL-3.0. Pip's name, character and art have their own simple rules: anything kind

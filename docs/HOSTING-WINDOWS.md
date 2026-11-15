@@ -2,8 +2,8 @@
 
 Run her brain, the gateway, her dashboard, her voice (Kokoro) and her hearing (Whisper) on your Windows PC, so you
 can have your own Pip instead of joining a friend's (#40). It's a first version for technical players: three
-PowerShell scripts, tested on GitHub's Windows machines (`scripts\test-install-windows.ps1`) but not yet on many
-players' PCs. Tell us how it goes ([an issue](https://github.com/PetitPotam/kindred-spirit/issues/new/choose)).
+PowerShell scripts, run by GitHub's automated checks on its Windows machines (`scripts\test-install-windows.ps1`) with
+every change, but **nobody has hosted her on a real Windows PC yet**: expect rough edges. Tell us how it goes ([an issue](https://github.com/PetitPotam/kindred-spirit/issues/new/choose)).
 The other way is Docker: [docker/README.md](../docker/README.md).
 
 **What you need:** Windows 10 or 11 (x64), [Git](https://git-scm.com/download/win), Python 3.11 or newer

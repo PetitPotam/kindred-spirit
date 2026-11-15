@@ -1,19 +1,21 @@
 ---
 title: Install and set up
-description: Set up Kindred Spirit on your Mac with Kindred Spirit Setup, a guided app, or by hand from the source code: Pip's brain, an AI, a voice and hearing, and a Minecraft launcher profile.
+description: Set up Kindred Spirit on your Mac with Kindred Spirit Setup, a guided app, on Windows or Linux with scripts or Docker, or by hand from the source code: Pip's brain, an AI, a voice and hearing, and a Minecraft launcher profile.
 section: guides
 layout: guide
 ---
 <h1>Install and set up</h1>
-<p class="lede">Hosting Pip means running the mod in Minecraft and her "brain" on the same computer, a Mac for now.
+<p class="lede">Hosting Pip means running the mod in Minecraft and her "brain" on the same computer: a Mac is
+  easiest, Windows and Linux take a few commands.
   Joining a friend who already hosts her is much simpler: see <a href="/guides/friends">Friends on LAN</a>.</p>
 
 <h2 id="what-you-need">What you need</h2>
 <ul>
   <li><strong>Minecraft Java Edition</strong>, release <strong>26.3</strong> (the newest, recommended) or
     <strong>1.21.1</strong>, with the Fabric loader: the setup installs Fabric for you.</li>
-  <li><strong>A Mac</strong> with macOS 12 or newer, Apple silicon or Intel. Windows and Linux hosts aren't supported
-    yet (they're on the <a href="/roadmap">roadmap</a>).</li>
+  <li><strong>A Mac</strong> with macOS 12 or newer, Apple silicon or Intel, for the Setup app. Or a
+    <strong>Windows 10 or 11</strong> or <strong>Linux</strong> PC, if you're at ease with a terminal:
+    <a href="#windows-linux">On Windows or Linux</a>.</li>
   <li><strong>An AI for her to think with.</strong> Use what you already have: a free
     <a href="https://aistudio.google.com/apikey">Gemini key</a> (the default; the Setup shows how to get one in about two
     minutes), an API key (OpenAI, Claude API, Groq, OpenRouter, Mistral), an AI subscription you already have (Claude
@@ -53,6 +55,32 @@ layout: guide
     Nobody has yet tried it on a real Intel Mac, with real AI keys through the Setup, or updated it from one release to
     the next. If you do, <a href="{{issues}}">tell us how it went</a>.</p>
 </div>
+
+<h2 id="windows-linux">On Windows or Linux</h2>
+<p>New since 0.4.0, and for players at ease with a terminal: there's no Setup app here yet. To be clear: both ways
+  have only been run by GitHub's automated checks, on its Windows and Linux machines with every change. Nobody has
+  hosted her on a real Windows or Linux PC yet, so expect rough edges, and please
+  <a href="{{issues}}">tell us how it went</a>. Either way, Minecraft needs Fabric, Fabric API and the Kindred Spirit
+  mod for your Minecraft version in its <code>mods</code> folder, as on a
+  <a href="/guides/friends#windows-friend">friend's PC</a>, but with the mod from
+  <a href="{{repo}}/releases/latest">the latest release</a>.</p>
+<h3 id="windows-scripts">Windows: three PowerShell scripts</h3>
+<p>With <a href="https://git-scm.com/download/win">Git</a> and Python 3.11 or newer
+  (<code>winget install Python.Python.3.12</code>), in PowerShell:</p>
+<pre><code>git clone {{repo}}.git
+cd kindred-spirit
+powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1
+powershell -ExecutionPolicy Bypass -File scripts\start-windows.ps1 -Background</code></pre>
+<p>Put your Gemini key in <code>%USERPROFILE%\.kindred-spirit\secrets.env</code> (or choose another AI on her
+  dashboard), start Minecraft and play. <code>scripts\stop-windows.ps1</code> stops her. The whole guide, with her
+  voice, hearing and logs: <a href="{{blob}}/docs/HOSTING-WINDOWS.md">Host Pip on Windows</a>.</p>
+<h3 id="docker">Windows or Linux: Docker</h3>
+<p>Her brain, voice, hearing and dashboard in one image. With <a href="https://www.docker.com/products/docker-desktop/">Docker
+  Desktop</a> (Windows) or Docker (Linux), from a copy of the code:</p>
+<pre><code>scripts/docker-run.sh                                              # Linux
+powershell -ExecutionPolicy Bypass -File scripts\docker-run.ps1    # Windows</code></pre>
+<p>Her settings, memories and key stay in your own <code>.kindred-spirit</code> folder, and her ports only answer on
+  your computer. The whole guide: <a href="{{blob}}/docker/README.md">Host Pip with Docker</a>.</p>
 
 <h2 id="manual">By hand, from the source code</h2>
 <p>For contributors, or if you'd rather use a terminal. About ten minutes, with <a href="https://brew.sh">Homebrew</a>.</p>

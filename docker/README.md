@@ -2,7 +2,9 @@
 
 Her brain, the gateway, her dashboard, her voice (Kokoro) and her hearing (Whisper) in one Docker image that runs
 **on your own computer**. Nothing is hosted anywhere: Minecraft on the same computer talks to her at 127.0.0.1, the
-way it does on a Mac with the Setup. It's for technical players for now (#128); the native Windows install is
+way it does on a Mac with the Setup. It's for technical players for now (#128), and so far
+**only GitHub's automated checks have run it** (on Linux, with every change): nobody has played with it on a real
+Windows or Linux PC yet; the native Windows install is
 [docs/HOSTING-WINDOWS.md](../docs/HOSTING-WINDOWS.md), and on a Mac use Kindred Spirit Setup.
 
 **What you need:** Docker ([Docker Desktop](https://docs.docker.com/desktop/) on Windows: it needs WSL 2, sometimes a
