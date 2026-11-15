@@ -5,7 +5,7 @@
 
 **A cute AI companion for Minecraft Java that floats beside you, talks with you by voice, and only changes your world when you ask.**
 
-Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · beta · her brain runs on macOS for now
+Minecraft 26.3 and 1.21.1 · Fabric · AGPL-3.0 · beta · her brain runs on macOS (Windows and Linux: new, tested only by CI)
 
 [![CI](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/PetitPotam/kindred-spirit/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PetitPotam/kindred-spirit/badge)](https://scorecard.dev/viewer/?uri=github.com/PetitPotam/kindred-spirit)
@@ -269,9 +269,10 @@ reports are very welcome:
 - her AI services with real keys through the Setup (its checks use a stand-in AI);
 - updating from one real release to the next.
 
-Not supported yet: hosting her brain on Windows ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)) or
-Linux ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)) (friends on Windows can join a Mac host's
-world), a signed and notarised app (that needs a paid Apple membership), and voices other than Kokoro, OpenAI's or
+Hosting her brain on Windows ([#40](https://github.com/PetitPotam/kindred-spirit/issues/40)) or Linux
+([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)) is new: PowerShell scripts and a Docker image, run by
+GitHub's automated checks on its Windows and Linux machines with every change, but never yet by a player on a real
+PC, and without a Setup app (see **Windows** and **Linux** below). Not supported yet: a signed and notarised app (that needs a paid Apple membership), and voices other than Kokoro, OpenAI's or
 subtitles only.
 
 ### Manual setup (for contributors, or without the Setup)
@@ -322,12 +323,13 @@ Then play: double-click **`scripts/play-mac.command`**. It starts everything and
 so started from the Dock the game records silence. Pick the Kindred Spirit profile and press Play.
 
 **Linux:** `scripts/setup.sh` and her brain pass GitHub's install checks on Ubuntu (without her voice), and a real
-Minecraft client there says hi and she answers; nobody has played with her on Linux yet
-([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)). Hearing needs `whisper-server` from
+Minecraft client there says hi and she answers; nobody has played with her on Linux yet; the Docker image ([docker/README.md](docker/README.md)) is another way,
+equally untried outside CI ([#81](https://github.com/PetitPotam/kindred-spirit/issues/81)). Hearing needs `whisper-server` from
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp).
-**Windows:** friends joining a host's world are covered ([PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md)); hosting
-her brain there works with three PowerShell scripts ([docs/HOSTING-WINDOWS.md](docs/HOSTING-WINDOWS.md)) or with
-Docker ([docker/README.md](docker/README.md)), for technical players for now.
+**Windows:** friends joining a host's world are covered ([PLAY-WITH-FRIENDS.md](docs/PLAY-WITH-FRIENDS.md)). Hosting
+her brain there has three PowerShell scripts ([docs/HOSTING-WINDOWS.md](docs/HOSTING-WINDOWS.md)) or Docker
+([docker/README.md](docker/README.md)), for technical players. Be aware: they pass GitHub's automated checks on its
+Windows (and, for Docker, Linux) machines, but nobody has hosted her on a real Windows PC yet.
 
 ### Controls
 
